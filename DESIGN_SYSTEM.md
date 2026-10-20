@@ -150,9 +150,11 @@ enum ClockColor: String, Codable, CaseIterable, Identifiable {
 
 | Token | Font | Notes |
 |---|---|---|
-| `clock.time` | SF Pro, variable **weight** (Ultralight → Black) and **width** (Compressed → Expanded), drawn at 300 pt then scaled to fit | `monospacedDigit()` stops the digits jumping as the time changes |
-| `clock.date` | `.caption` / `.subheadline` / `.title3` / `.title2` semibold, depending on widget size | Never below 11 pt (HIG minimum for widgets) |
+| `clock.time` | SF Pro, SF Rounded, Roboto Flex or Google Sans Flex: variable **weight** and **width** (plus **roundness** for Google Sans Flex), all as 0–1 sliders where 0.5 is regular/normal. **Height** stretches vertically; **Spacing** tracks the digits | Drawn as outlines and fitted to the card (see §6.1). Sized from tabular zeros, so it doesn't grow and shrink as the minutes change |
+| `clock.detail` | Same font, lighter, normal width, capitals, letter-spaced 0.12 em; cap height 15% of the digits | AM/PM and the date. Beside: 24% of the digit height, top-aligned. Stacked: two capitals filling the digit height |
 | `ui.*` | System text styles (Form defaults) | Supports Dynamic Type automatically |
+
+**Bundled fonts.** Roboto Flex and Google Sans Flex come from Google Fonts under the SIL Open Font License 1.1 (free to use and ship; the licence files sit next to the fonts in `Shared/Fonts`). Roboto Flex also has a figure-height axis, but its range is small (738 → 788 units), so the Height slider stretches instead. Google Sans Flex's Roundness axis gets closest to the Lock Screen numerals.
 
 The HIG notes SF is a variable font that *"supports interpolation between styles to create intermediate ones."* That's what lets our sliders be continuous rather than stepped:
 
@@ -193,17 +195,14 @@ func font(size: CGFloat) -> Font {
 
 [ClockFace.swift](Shared/ClockFace.swift). One view draws the clock everywhere, so the preview and the widget can't drift apart.
 
-```swift
-HStack(alignment: .firstTextBaseline, spacing: 4) {
-    Text(style.timeText(date))
-        .font(style.font(size: 300))
-        .monospacedDigit()
-    // optional AM/PM
-}
-.lineLimit(1)
-.minimumScaleFactor(0.05)     // shrink to fit every widget size, never clip
-.widgetAccentable()           // the time is the accent group in Clear/Tinted mode
-```
+The time is **drawn as a shape, not `Text`**. `GlyphLine` turns the string into one vector outline with Core Text; `ClockArtwork` lays out the time and its detail line and fits them into the card together.
+
+- **Why:** SwiftUI draws large text in tiles and works out inner shadows tile by tile, which left straight seams across the glass digits. *Reproduced 2026-10-20; the same style on an outline has none.*
+- **Optical centring:** the group is centred on its visible ink, not the text's line box (which reserves room for descenders that digits don't have). Colons are moved to the vertical middle of the digits.
+- **Breathing room:** the group fills 92% of the space inside the 16 pt margin.
+- **Overlaps:** outlines are merged (`CGPath.normalized()`), so tight spacing never draws overlapping digits darker.
+- **Light effects** are their own layers: *Glow* (blurred copies in the text colour or a chosen colour) or *Shadow* (a blurred copy pushed down; black by default, white for a light shadow). *Inner colour* is separate again: a colour glowing inward from the edges, which used to happen only as a side effect of the glow showing through glass.
+- VoiceOver reads the time from `accessibilityLabel`, since the outline has no text.
 
 **Why `widgetAccentable()` on the time only:** in accented mode the system treats views like template images (it ignores their colour and uses only their alpha) and tints the accent and primary groups separately. Making the time the accent group and the date the primary group keeps a visual hierarchy, even when everything turns white.
 
@@ -251,7 +250,8 @@ extension ClockStyle {
 **Liquid Glass text** (`TextFill.glass`, shared by the app and widget): widgets can't put real glass on text, so it's imitated, modelled on the iPadOS 26 Lock Screen clock:
 - **Body:** a see-through gradient of the chosen colour (white for Automatic) at 18–50% opacity.
 - **Edges:** `ShapeStyle.shadow(.inner(...))` gives a crisp white rim on the upper-left edges, a darker edge on the lower right where glass bends light away, and a soft glow inside.
-- **Shadow:** a separate blurred black copy of the text behind it. A `.drop` shadow on the fill itself is drawn from the fill's own low opacity, so it was nearly invisible (*observed 2026-10-20*).
+- **Rim:** a stroke clipped to the inside of the outline, bright at the upper left and lower right.
+- **Shadow:** now the optional Shadow light effect rather than built in. A `.drop` shadow on the fill itself is drawn from the fill's own low opacity, so it was nearly invisible (*observed 2026-10-20*); the effect is a separate blurred copy instead.
 - **Light vs dark:** the dark edge and shadow are stronger on light glass, where a white rim alone disappears.
 - Looks best at heavier weights, like the Lock Screen numerals.
 

@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import CoreText
 
 extension ClockStyle {
     /// The preview card's Liquid Glass. Transparency moves from no card, through clear glass,
@@ -23,7 +24,10 @@ extension ClockStyle {
 
     /// The fill for the clock's text. Glass reads differently on light and dark glass behind it,
     /// and in Clear/Tinted (`accented`) mode, where the system keeps only transparency.
-    func textStyle(in colorScheme: ColorScheme, accented: Bool = false) -> AnyShapeStyle {
+    /// `unit` is the digits' on-screen height divided by 100, so the lit edges keep the same
+    /// proportions in every widget size.
+    func textStyle(in colorScheme: ColorScheme, accented: Bool = false, unit: CGFloat = 1) -> AnyShapeStyle {
+        let k = max(0.6, unit)
         switch textFill {
         case .solid:
             return AnyShapeStyle(color.color)
@@ -37,8 +41,8 @@ extension ClockStyle {
             // Widgets can't apply real Liquid Glass to text, so this imitates the Lock Screen
             // numerals: a see-through body with a trace of the chosen colour, a crisp rim of
             // light on the upper-left edges, a darker edge on the lower right where the glass
-            // bends light away, and a soft glow inside. The shadow underneath is its own layer
-            // (see `ClockFace`), because a shadow drawn from a see-through fill is too faint.
+            // bends light away, and a soft glow inside. A shadow underneath is the Shadow light
+            // effect (see `LightLayer`).
             if accented {
                 // Colour is replaced by the system's, so the glass is made of transparency
                 // alone: a frosted body, a solid rim and a soft inner glow. A dark edge would
@@ -49,8 +53,8 @@ extension ClockStyle {
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
-                    .shadow(.inner(color: .white, radius: 0.5, x: 1.5, y: 1.5))
-                    .shadow(.inner(color: .white.opacity(0.6), radius: 6, x: -3, y: -3))
+                    .shadow(.inner(color: .white, radius: 0.5 * k, x: 1.5 * k, y: 1.5 * k))
+                    .shadow(.inner(color: .white.opacity(0.6), radius: 6 * k, x: -3 * k, y: -3 * k))
                 )
             }
             let light = colorScheme == .light
@@ -61,46 +65,11 @@ extension ClockStyle {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .shadow(.inner(color: .white, radius: 0.5, x: 1.5, y: 1.5))
-                .shadow(.inner(color: .black.opacity(light ? 0.45 : 0.35), radius: 1, x: -1.5, y: -2))
-                .shadow(.inner(color: .white.opacity(0.6), radius: 6, x: -3, y: -3))
+                .shadow(.inner(color: .white, radius: 0.5 * k, x: 1.5 * k, y: 1.5 * k))
+                .shadow(.inner(color: .black.opacity(light ? 0.45 : 0.35), radius: 1 * k, x: -1.5 * k, y: -2 * k))
+                .shadow(.inner(color: .white.opacity(0.6), radius: 6 * k, x: -3 * k, y: -3 * k))
             )
         }
-    }
-}
-
-/// Adds the optional neon glow.
-private struct TextEffects: ViewModifier {
-    var style: ClockStyle
-
-    func body(content: Content) -> some View {
-        content
-            .shadow(color: style.color.color.opacity(style.glow ? 0.9 : 0), radius: 6)
-            .shadow(color: style.color.color.opacity(style.glow ? 0.6 : 0), radius: 18)
-    }
-}
-
-/// Stretches its content vertically by `factor` while still fitting the space it's given:
-/// the content is laid out at a fraction of the height, then scaled up to fill it.
-private struct VerticalStretch: Layout {
-    var factor: CGFloat
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        guard let child = subviews.first else { return .zero }
-        let size = child.sizeThatFits(squashed(proposal))
-        return CGSize(width: size.width, height: size.height * factor)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        subviews.first?.place(
-            at: CGPoint(x: bounds.midX, y: bounds.midY),
-            anchor: .center,
-            proposal: squashed(proposal)
-        )
-    }
-
-    private func squashed(_ proposal: ProposedViewSize) -> ProposedViewSize {
-        ProposedViewSize(width: proposal.width, height: proposal.height.map { $0 / factor })
     }
 }
 
@@ -127,66 +96,208 @@ struct ClockCard<S: Shape>: ViewModifier {
     }
 }
 
+/// The time and its detail line (AM/PM, date) as outlines, laid out and fitted together into
+/// the space available. The group is centred on its visible ink rather than on the text's line
+/// box, which has room for descenders the digits don't have, so the clock sits in the optical
+/// middle of the card.
+struct ClockArtwork {
+    var time = Path()
+    var detail = Path()
+    /// The digits' on-screen height divided by 100, for scaling lines, blurs and offsets.
+    var unit: CGFloat = 1
+
+    init(date: Date, style: ClockStyle, size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        let font = style.font.font(size: 100, weight: style.fontWeight, width: style.fontWidth, roundness: style.roundness)
+        let text = style.timeText(date)
+        let line = GlyphLine(text, font: font, tracking: style.spacing, centersColons: true)
+
+        // Sized from tabular zeros, the widest digits, so the clock keeps its size as the
+        // minutes change, and only the centring moves.
+        let template = GlyphLine(
+            String(text.map { $0.isNumber ? "0" : $0 }),
+            font: Self.tabular(font), tracking: style.spacing, centersColons: true
+        )
+        let digitHeight = template.bounds.height
+        guard digitHeight > 0 else { return }
+
+        // Stretch, then move the ink's top-left corner to 0,0.
+        let ink = line.bounds
+        var stretch = CGAffineTransform(translationX: -ink.minX, y: 0)
+            .scaledBy(x: 1, y: style.height)
+            .translatedBy(x: 0, y: -ink.minY)
+        var time = Path(line.path.copy(using: &stretch) ?? line.path)
+        let timeSize = CGSize(width: ink.width, height: ink.height * style.height)
+        let sizingWidth = max(timeSize.width, template.bounds.width)
+
+        var detail = Path()
+        let detailFont = style.font.font(
+            size: 100,
+            weight: 0.55 + (style.fontWeight - 0.5) * 0.4,
+            width: 0.5,
+            roundness: style.roundness
+        )
+        let capHeight = CTFontGetCapHeight(detailFont)
+        let ampm = style.ampmText(date)
+
+        /// Places `string` scaled to `cap` cap height with its baseline at `baseline`.
+        func place(_ string: String, cap: CGFloat, tracking: CGFloat = 0, x: (CGFloat) -> CGFloat, baseline: CGFloat) {
+            let glyphs = GlyphLine(string, font: detailFont, tracking: tracking)
+            let k = cap / capHeight
+            let width = glyphs.bounds.width * k
+            var t = CGAffineTransform(translationX: x(width) - glyphs.bounds.minX * k, y: baseline)
+                .scaledBy(x: k, y: k)
+            if let placed = glyphs.path.copy(using: &t) { detail.addPath(Path(placed)) }
+        }
+
+        // Beside the time: small and lined up with the top of the digits, or as two letters
+        // stacked to the full height of the digits.
+        let gap = 0.08 * digitHeight
+        let letters = ampm.map { Array($0.uppercased().filter(\.isLetter)) } ?? []
+        if style.ampm == .stacked, letters.count == 2 {
+            let cap = (timeSize.height - 0.12 * timeSize.height) / 2
+            for (i, letter) in letters.enumerated() {
+                place(String(letter), cap: cap,
+                      x: { timeSize.width + gap + (cap * 0.9 - $0) / 2 },
+                      baseline: i == 0 ? cap : timeSize.height)
+            }
+        } else if let ampm, style.ampm == .beside || style.ampm == .stacked {
+            let cap = 0.24 * digitHeight
+            place(ampm.uppercased(), cap: cap, tracking: 0.04, x: { _ in timeSize.width + gap }, baseline: cap)
+        }
+
+        // A line underneath, letter-spaced like the Lock Screen's date.
+        let below = [style.ampm == .below ? ampm : nil, style.showDate ? style.dateText(date) : nil]
+            .compactMap { $0 }
+            .joined(separator: "  ·  ")
+        if !below.isEmpty {
+            let cap = 0.15 * digitHeight
+            place(below.uppercased(), cap: cap, tracking: 0.12,
+                  x: { timeSize.width / 2 - $0 / 2 },
+                  baseline: timeSize.height + 0.16 * digitHeight + cap)
+        }
+
+        // Fit the sizing box with a little breathing room, centre the actual ink.
+        let timeBox = CGRect(origin: .zero, size: timeSize)
+        let actual = detail.isEmpty ? timeBox : timeBox.union(detail.boundingRect)
+        let sizing = actual.union(timeBox.insetBy(dx: (timeSize.width - sizingWidth) / 2, dy: 0))
+        let scale = 0.92 * min(size.width / sizing.width, size.height / sizing.height)
+        let fit = CGAffineTransform(
+            translationX: size.width / 2 - actual.midX * scale,
+            y: size.height / 2 - actual.midY * scale
+        ).scaledBy(x: scale, y: scale)
+        time = time.applying(fit)
+        self.time = time
+        self.detail = detail.applying(fit)
+        unit = digitHeight * scale / 100
+    }
+
+    var combined: Path {
+        var path = time
+        path.addPath(detail)
+        return path
+    }
+
+    private static func tabular(_ font: CTFont) -> CTFont {
+        let features: [[CFString: Any]] = [[kCTFontOpenTypeFeatureTag: "tnum", kCTFontOpenTypeFeatureValue: 1]]
+        let descriptor = CTFontDescriptorCreateWithAttributes([kCTFontFeatureSettingsAttribute: features] as CFDictionary)
+        return CTFontCreateCopyWithAttributes(font, 0, nil, descriptor)
+    }
+}
+
+/// A precomputed outline as a shape. `ClockArtwork` already fitted it to the view's size.
+private struct OutlineShape: Shape {
+    var path: Path
+    func path(in rect: CGRect) -> Path { path }
+}
+
+/// The glow or shadow behind the text, drawn from blurred copies of the outline so it stays
+/// strong even when the text itself is see-through.
+private struct LightLayer: View {
+    var artwork: ClockArtwork
+    var style: ClockStyle
+
+    var body: some View {
+        let shape = OutlineShape(path: artwork.combined)
+        let u = artwork.unit
+        let color = style.resolvedEffectColor
+        switch style.effect {
+        case .none:
+            EmptyView()
+        case .glow:
+            ZStack {
+                shape.fill(color).blur(radius: u * (2 + 10 * style.effectSize))
+                shape.fill(color).blur(radius: u * (8 + 40 * style.effectSize)).opacity(0.8)
+            }
+            .opacity(style.effectStrength)
+        case .shadow:
+            shape.fill(color)
+                .blur(radius: u * (1 + 14 * style.effectSize))
+                .offset(y: u * 24 * style.effectDistance)
+                .opacity(style.effectStrength)
+        }
+    }
+}
+
 /// The clock itself. Used by both the widget and the in-app preview, so they always match.
 struct ClockFace: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.widgetRenderingMode) private var renderingMode
     var date: Date
     var style: ClockStyle
-    var family: WidgetFamily?
-
-    private var dateFont: Font {
-        switch family {
-        case .systemSmall: .caption.weight(.semibold)
-        case .systemMedium: .subheadline.weight(.semibold)
-        case .systemLarge: .title3.weight(.semibold)
-        default: .title2.weight(.semibold)
-        }
-    }
 
     var body: some View {
-        face
-            .foregroundStyle(style.textStyle(in: colorScheme, accented: renderingMode == .accented))
-            .background {
-                // Glass digits cast a soft shadow onto the card, which is what lifts them off it.
-                // Left out in Clear/Tinted mode, where it would turn into a pale halo.
-                if style.textFill == .glass && renderingMode != .accented {
-                    face
-                        .foregroundStyle(.black.opacity(colorScheme == .light ? 0.22 : 0.35))
-                        .blur(radius: 4)
-                        .offset(y: 3)
+        GeometryReader { geometry in
+            let artwork = ClockArtwork(date: date, style: style, size: geometry.size)
+            // In Clear/Tinted mode the system keeps only transparency, so coloured light
+            // would turn into a pale halo there.
+            let accented = renderingMode == .accented
+            ZStack {
+                if !accented {
+                    LightLayer(artwork: artwork, style: style)
                 }
-            }
-            .modifier(TextEffects(style: style))
-            .opacity(style.textOpacity)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var face: some View {
-        VStack(spacing: 0) {
-            if style.showDate {
-                Text(style.dateText(date))
-                    .font(dateFont)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
+                lettering(artwork.time, unit: artwork.unit, accented: accented)
+                    .widgetAccentable()
+                lettering(artwork.detail, unit: artwork.unit, accented: accented)
                     .opacity(0.85)
             }
-
-            VerticalStretch(factor: style.height) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(style.timeText(date))
-                        .font(style.font(size: 300))
-                        .monospacedDigit()
-                    if let ampm = style.ampmText(date) {
-                        Text(ampm)
-                            .font(dateFont)
-                    }
-                }
-                .lineLimit(1)
-                .minimumScaleFactor(0.05)
-                .scaleEffect(x: 1, y: style.height)
-            }
-            .widgetAccentable()
+            .opacity(style.textOpacity)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(date, style: .time))
+    }
+
+    private func lettering(_ path: Path, unit: CGFloat, accented: Bool) -> some View {
+        let shape = OutlineShape(path: path)
+        return shape
+            .fill(style.textStyle(in: colorScheme, accented: accented, unit: unit))
+            .overlay {
+                // Colour glowing inward from the edges, on its own.
+                if let inner = style.innerColor, !accented {
+                    shape.stroke(inner.color, lineWidth: unit * 9)
+                        .blur(radius: unit * 4)
+                        .clipShape(shape)
+                        .opacity(style.innerStrength)
+                }
+            }
+            .overlay {
+                // Glass gets a crisp rim of light: bright on the upper left, fading, then
+                // catching again on the lower right. Only the inner half of the stroke shows.
+                if style.textFill == .glass {
+                    shape.stroke(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .white.opacity(0.9), location: 0),
+                                .init(color: .white.opacity(0.15), location: 0.45),
+                                .init(color: .white.opacity(0.55), location: 1),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: max(1, 1.6 * unit) * 2
+                    )
+                    .clipShape(shape)
+                }
+            }
     }
 }

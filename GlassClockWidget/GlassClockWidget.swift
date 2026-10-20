@@ -54,7 +54,7 @@ struct GlassClockWidgetView: View {
     /// the digits still read as glass. (Drawing the clock into a full-colour image to keep our
     /// colours left the widget blank on iPadOS 27, observed 2026-10-20.)
     private var clock: some View {
-        ClockFace(date: entry.date, style: entry.style, family: family)
+        ClockFace(date: entry.date, style: entry.style)
     }
 }
 
