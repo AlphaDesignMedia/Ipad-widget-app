@@ -1,25 +1,23 @@
 import SwiftUI
 import UIKit
 
-/// The clock drawn with Core Graphics into an image, for the Clear and Tinted Home Screens.
+/// Parts of the clock drawn with Core Graphics into images, for the Clear and Tinted Home Screens.
 ///
 /// In those styles iPadOS recolours everything in a widget except images marked
 /// `.widgetAccentedRenderingMode(.fullColor)`. So the parts someone chooses to keep in colour
-/// are drawn here, matching `ClockFace` as closely as Core Graphics allows. (SwiftUI's
-/// `ImageRenderer` was tried for this first and left the widget blank on iPadOS 27.)
+/// (the card and the AM/PM and date line) are drawn here, matching `ClockFace` as closely as
+/// Core Graphics allows. (SwiftUI's `ImageRenderer` was tried for this first and left the
+/// widget blank on iPadOS 27.)
 ///
-/// A widget's timeline holds an hour of entries, and iPadOS rejects the whole update if its
-/// archive gets too big ("failed with too large timeline archive", 22–120 MB with an image of
-/// the time per minute, observed 2026-10-20) or takes too long ("Watchdog provision violated").
-/// The archive stores an image used by many entries only once, so the time is drawn as one
-/// image per character, cached and reused every minute, and the other parts are cached too.
+/// A widget's timeline holds up to an hour of entries, and iPadOS rejects the whole update if
+/// its archive gets too big ("failed with too large timeline archive"; 18 MB was rejected) or
+/// takes too long ("Watchdog provision violated"), and the clock then stops changing (observed
+/// 2026-10-20). Keeping the time itself in colour, as an image per minute, couldn't be kept
+/// under the limit, so it was removed. These images are small, cropped and cached.
 enum ClockRaster {
-    enum Part { case time, detail }
-
     /// Finished images, shared by every entry the widget draws. A plain dictionary rather than
-    /// `NSCache`, which drops images under the widget's tight memory limit; a dropped image is
-    /// drawn again as a new copy, and the archive then stores both. Cleared when it gets big,
-    /// which only happens after the style changes many times.
+    /// `NSCache`, which drops images under the widget's tight memory limit. Cleared when it
+    /// gets big, which only happens after the style changes many times.
     nonisolated(unsafe) private static var cache: [String: UIImage] = [:]
     private static let lock = NSLock()
 
@@ -49,68 +47,31 @@ enum ClockRaster {
         }
     }
 
-    /// One character of the time: its glow or shadow (nil without one) and its body, each
-    /// with the area it covers. The light is a separate image so it can go behind every
-    /// character, and since it's soft it's drawn at quarter resolution; the body is cropped
-    /// tight and drawn sharp. Both keep the archive small.
-    static func glyph(_ path: Path, character: Character, unit: CGFloat, style: ClockStyle, scale: CGFloat,
-                      dark: Bool, withLight: Bool = true)
-        -> (light: (area: CGRect, image: UIImage)?, body: (area: CGRect, image: UIImage)) {
-        let ink = path.boundingRect
-        let shape = "\(character)|\(Int(ink.width * 4))x\(Int(ink.height * 4))|\(Int(unit * 100))"
-        let cgPath = path.cgPath
-        func draw(_ layer: String, margin: CGFloat, scale: CGFloat,
-                  _ paint: @escaping (Painter) -> Void) -> (area: CGRect, image: UIImage) {
-            let area = ink.insetBy(dx: -margin, dy: -margin)
-            let image = cached(key(style, scale: scale, dark: dark, "\(layer)|\(shape)")) {
-                render(size: area.size, scale: scale) { ctx in
-                    ctx.translateBy(x: -area.minX, y: -area.minY)
-                    ctx.setAlpha(style.textOpacity)
-                    // Gradients run across each character, so every copy of it looks the same.
-                    paint(Painter(ctx: ctx, scale: scale, dark: dark, bounds: ink, area: area))
-                }
-            }
-            return (area, image)
-        }
-        let light = style.effect == .none || !withLight ? nil
-            : draw("light", margin: reach(style, unit: unit) + 2, scale: min(scale, 0.25)) {
-                $0.light(cgPath, style: style, unit: unit)
-            }
-        // 1.5× rather than the iPad's 2×: the archive limit sits near 20 MB and sharp
-        // glass digits with a glow came to 21–28 MB (observed 2026-10-20).
-        let body = draw("body", margin: 3, scale: min(scale, 1.5)) {
-            $0.text(cgPath, style: style, unit: unit, withInnerColour: withLight)
-        }
-        return (light, body)
-    }
-
-    /// The area a part draws in, including its glow or shadow, in the clock's coordinates.
-    static func area(of part: Part, artwork: ClockArtwork, style: ClockStyle, in size: CGSize) -> CGRect {
-        let path = part == .time ? artwork.time : artwork.detail
-        guard !path.isEmpty else { return .zero }
+    /// The area the AM/PM and date line draws in, including its glow or shadow.
+    static func detailArea(artwork: ClockArtwork, style: ClockStyle, in size: CGSize) -> CGRect {
+        guard !artwork.detail.isEmpty else { return .zero }
         let margin = reach(style, unit: artwork.unit) + 2
         // The widget pads the clock by 16 pt, so light may spill that far.
         let limit = CGRect(origin: .zero, size: size).insetBy(dx: -16, dy: -16)
-        return path.boundingRect.insetBy(dx: -margin, dy: -margin).intersection(limit).integral
+        return artwork.detail.boundingRect.insetBy(dx: -margin, dy: -margin).intersection(limit).integral
     }
 
-    /// Draws `part` covering `area` (from `area(of:)`), within a clock of `size`.
-    static func image(_ part: Part, artwork: ClockArtwork, style: ClockStyle, area: CGRect, size: CGSize,
-                      scale: CGFloat, dark: Bool) -> UIImage {
-        let source = part == .time ? artwork.time : artwork.detail
-        let path = source.cgPath
-        let shape = "\(part)|\(source.description.hashValue)|\(Int(artwork.unit * 100))"
+    /// The AM/PM and date line covering `area` (from `detailArea`), within a clock of `size`.
+    static func detailImage(artwork: ClockArtwork, style: ClockStyle, area: CGRect, size: CGSize,
+                            scale: CGFloat, dark: Bool) -> UIImage {
+        let path = artwork.detail.cgPath
+        let shape = "detail|\(artwork.detail.description.hashValue)|\(Int(artwork.unit * 100))"
         return cached(key(style, scale: scale, dark: dark, shape)) { render(size: area.size, scale: scale) { ctx in
             ctx.translateBy(x: -area.minX, y: -area.minY)
             let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: CGRect(origin: .zero, size: size), area: area)
-            ctx.setAlpha(style.textOpacity * (part == .detail ? 0.85 : 1))
+            ctx.setAlpha(style.textOpacity * 0.85)
             ctx.beginTransparencyLayer(auxiliaryInfo: nil)
             painter.light(path, style: style, unit: artwork.unit)
-            if part == .detail && style.textFill == .glass {
+            if style.textFill == .glass {
                 let auto = dark ? Color.white : Color(white: 0.15)
                 painter.fill(path, (style.color == .auto ? auto : style.color.color).opacity(0.9))
             } else {
-                painter.text(path, style: style, unit: artwork.unit, withInnerColour: part == .time)
+                painter.text(path, style: style, unit: artwork.unit)
             }
             ctx.endTransparencyLayer()
         } }
@@ -272,7 +233,7 @@ struct Painter {
     }
 
     /// The text fill, as in `ClockStyle.textStyle` and `ClockFace.lettering`.
-    func text(_ path: CGPath, style: ClockStyle, unit: CGFloat, withInnerColour: Bool) {
+    func text(_ path: CGPath, style: ClockStyle, unit: CGFloat) {
         let k = max(0.6, unit)
         switch style.textFill {
         case .solid:
@@ -288,14 +249,6 @@ struct Painter {
             innerShadow(path, .white, blur: 0.5 * k, offset: CGSize(width: 1.5 * k, height: 1.5 * k))
             innerShadow(path, .black.opacity(dark ? 0.35 : 0.45), blur: k, offset: CGSize(width: -1.5 * k, height: -2 * k))
             innerShadow(path, .white.opacity(0.6), blur: 6 * k, offset: CGSize(width: -3 * k, height: -3 * k))
-        }
-        if withInnerColour, let inner = style.innerColor {
-            let outline = path.copy(strokingWithWidth: unit * 9, lineCap: .round, lineJoin: .round, miterLimit: 10)
-            ctx.saveGState()
-            ctx.addPath(path)
-            ctx.clip()
-            blurredCopy(outline, inner.color.opacity(style.innerStrength), blur: unit * 4, knockout: false)
-            ctx.restoreGState()
         }
         if style.textFill == .glass {
             gradientStroke(path, width: max(1, 1.6 * unit) * 2, stops: [

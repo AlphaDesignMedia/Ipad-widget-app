@@ -117,8 +117,6 @@ enum ClockFont: String, Codable, CaseIterable, Identifiable {
 /// can be centred on what you see rather than on the text's line box.
 struct GlyphLine {
     var path: CGPath
-    /// Each character's outline on its own, in place, for drawing digits separately.
-    var pieces: [(character: Character, path: CGPath)] = []
     /// The outline's bounds: the ink, not the line box.
     var bounds: CGRect { path.boundingBoxOfPath }
 
@@ -169,7 +167,6 @@ struct GlyphLine {
                 piece = glyph.path.copy(using: &shift) ?? glyph.path
             }
             combined.addPath(piece)
-            pieces.append((glyph.character, piece))
         }
         // Tight spacing makes neighbouring digits overlap. Merging the outlines stops the
         // overlap drawing twice (darker) in see-through styles.

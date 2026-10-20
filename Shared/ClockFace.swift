@@ -121,9 +121,6 @@ struct ClockCard<S: Shape>: ViewModifier {
 struct ClockArtwork {
     var time = Path()
     var detail = Path()
-    /// The time's characters separately, in place. Kept-colour images are drawn per
-    /// character so each digit's image can be reused every minute (see `ClockRaster`).
-    var timeGlyphs: [(character: Character, path: Path)] = []
     /// The digits' on-screen height divided by 100, for scaling lines, blurs and offsets.
     var unit: CGFloat = 1
 
@@ -260,10 +257,7 @@ struct ClockArtwork {
         time = result.time
         detail = result.detail
         unit = digitHeight * result.scale / 100
-        timeGlyphs = line.pieces.map { piece in
-            let outline = style.softness > 0 ? Self.soften(piece.path, by: 8 * style.softness) : piece.path
-            return (piece.character, Path(outline).applying(stretchTransform).applying(result.fit))
-        }
+
     }
 
     var combined: Path {
@@ -343,13 +337,14 @@ struct ClockFace: View {
                     lettering(artwork.detail, unit: artwork.unit, accented: false, plain: true)
                         .opacity(0.85)
                 } else {
-                    // Marking a kept part as the accent group would let the system tint it after all.
-                    accentedPart(.time, keep: style.keepsTimeColours, artwork: artwork, size: geometry.size) {
+                    // The time can't keep its colours here: as images, an hour of it went over
+                    // iPadOS's widget archive limit and froze the clock (2026-10-20).
+                    systemColoured {
                         lettering(artwork.time, unit: artwork.unit, accented: true)
                             .opacity(style.textOpacity)
                     }
-                    .widgetAccentable(!style.keepsTimeColours)
-                    accentedPart(.detail, keep: style.keepsDetailColours, artwork: artwork, size: geometry.size) {
+                    .widgetAccentable()
+                    detailPart(keep: style.keepsDetailColours, artwork: artwork, size: geometry.size) {
                         lettering(artwork.detail, unit: artwork.unit, accented: true, plain: true)
                             .opacity(0.85 * style.textOpacity)
                     }
@@ -361,47 +356,32 @@ struct ClockFace: View {
         .accessibilityLabel(Text(date, style: .time))
     }
 
-    /// A part of the clock on a Clear/Tinted Home Screen: drawn as a full-colour image if the
+    /// The AM/PM and date line on a Clear/Tinted Home Screen: drawn as a full-colour image if the
     /// person chose to keep its colours, otherwise left for the system to recolour.
     @ViewBuilder
-    private func accentedPart(_ part: ClockRaster.Part, keep: Bool, artwork: ClockArtwork, size: CGSize,
-                              @ViewBuilder content: () -> some View) -> some View {
-        if keep && !simulatesClear && part == .time {
-            // One image per character (see `ClockRaster`). The glow or shadow is left out:
-            // with it, an hour of these images went over iPadOS's widget size limit.
-            let dark = colorScheme == .dark
-            let glyphs = artwork.timeGlyphs.map {
-                ClockRaster.glyph($0.path, character: $0.character, unit: artwork.unit, style: style,
-                                  scale: displayScale, dark: dark, withLight: false)
-            }
-            ZStack {
-                ForEach(glyphs.indices, id: \.self) { i in
-                    placed(glyphs[i].body.image, in: glyphs[i].body.area)
-                }
-            }
-        } else if keep && !simulatesClear {
-            let area = ClockRaster.area(of: part, artwork: artwork, style: style, in: size)
-            if !area.isEmpty {
-                Image(uiImage: ClockRaster.image(part, artwork: artwork, style: style, area: area, size: size,
-                                                 scale: displayScale, dark: colorScheme == .dark))
-                    .resizable()
-                    .widgetAccentedRenderingMode(.fullColor)
-                    .frame(width: area.width, height: area.height)
-                    .position(x: area.midX, y: area.midY)
-            }
-        } else if let simulatedAccent {
+    private func detailPart(keep: Bool, artwork: ClockArtwork, size: CGSize,
+                            @ViewBuilder content: () -> some View) -> some View {
+        let area = ClockRaster.detailArea(artwork: artwork, style: style, in: size)
+        if keep && !simulatesClear && !area.isEmpty {
+            Image(uiImage: ClockRaster.detailImage(artwork: artwork, style: style, area: area, size: size,
+                                                   scale: displayScale, dark: colorScheme == .dark))
+                .resizable()
+                .widgetAccentedRenderingMode(.fullColor)
+                .frame(width: area.width, height: area.height)
+                .position(x: area.midX, y: area.midY)
+        } else {
+            systemColoured(content)
+        }
+    }
+
+    /// Content the system recolours, imitated in the app's preview.
+    @ViewBuilder
+    private func systemColoured(@ViewBuilder _ content: () -> some View) -> some View {
+        if let simulatedAccent {
             simulatedAccent.mask(content())
         } else {
             content()
         }
-    }
-
-    private func placed(_ image: UIImage, in area: CGRect) -> some View {
-        Image(uiImage: image)
-            .resizable()
-            .widgetAccentedRenderingMode(.fullColor)
-            .frame(width: area.width, height: area.height)
-            .position(x: area.midX, y: area.midY)
     }
 
     /// `plain` is for the small detail text: glass edges are too fine to read at that size,

@@ -321,7 +321,6 @@ struct ContentView: View {
             }
 
             Section {
-                Toggle("Keep time colours", isOn: $style.keepsTimeColours)
                 Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
                 Toggle("Keep card colours", isOn: $style.keepsCardColours)
             } header: {

@@ -206,7 +206,6 @@ struct ClockStyle: Codable, Equatable {
 
     /// On Clear and Tinted Home Screens, keep these parts in the person's own colours instead
     /// of letting iPadOS recolour them.
-    var keepsTimeColours = false
     var keepsDetailColours = false
     var keepsCardColours = false
 
@@ -246,7 +245,6 @@ struct ClockStyle: Codable, Equatable {
         effectDistance = try value(.effectDistance, d.effectDistance)
         innerColor = try c.decodeIfPresent(ClockColor.self, forKey: .innerColor)
         innerStrength = try value(.innerStrength, d.innerStrength)
-        keepsTimeColours = try value(.keepsTimeColours, d.keepsTimeColours)
         keepsDetailColours = try value(.keepsDetailColours, d.keepsDetailColours)
         keepsCardColours = try value(.keepsCardColours, d.keepsCardColours)
     }
@@ -299,7 +297,6 @@ struct ClockStyle: Codable, Equatable {
         let palette = palettes.randomElement()!
         var style = ClockStyle()
         style.timeFormat = base.timeFormat
-        style.keepsTimeColours = base.keepsTimeColours
         style.keepsDetailColours = base.keepsDetailColours
         style.keepsCardColours = base.keepsCardColours
 
