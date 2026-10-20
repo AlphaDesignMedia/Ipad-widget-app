@@ -77,7 +77,6 @@ extension ClockStyle {
 /// The card behind the clock in the in-app preview: Liquid Glass or a solid colour, or for a
 /// Clear/Tinted Home Screen, the system's glass (unless the card keeps its colours).
 struct ClockCard<S: Shape>: ViewModifier {
-    @Environment(\.displayScale) private var displayScale
     var style: ClockStyle
     var shape: S
     var homeScreen: HomeScreenStyle = .light
@@ -89,7 +88,8 @@ struct ClockCard<S: Shape>: ViewModifier {
                     Color.clear.glassEffect(homeScreen.cardTint.map { .regular.tint($0.opacity(0.7)) } ?? .clear, in: shape)
                     if style.keepsCardColours && homeScreen.showsKeptColours {
                         GeometryReader { geometry in
-                            Image(uiImage: ClockRaster.card(style: style, size: geometry.size, scale: displayScale, dark: false))
+                            Image(uiImage: ClockRaster.card(style: style, size: geometry.size, dark: false))
+                                .resizable()
                         }
                         .clipShape(shape)
                     }
@@ -121,6 +121,9 @@ struct ClockCard<S: Shape>: ViewModifier {
 struct ClockArtwork {
     var time = Path()
     var detail = Path()
+    /// The time's characters separately, in place. Kept-colour images are drawn per
+    /// character so each digit's image can be reused every minute (see `ClockRaster`).
+    var timeGlyphs: [(character: Character, path: Path)] = []
     /// The digits' on-screen height divided by 100, for scaling lines, blurs and offsets.
     var unit: CGFloat = 1
 
@@ -177,12 +180,14 @@ struct ClockArtwork {
 
         /// Lays out the time and its detail at the given detail sizes (fractions of the
         /// digit height) and fits the group to `size`.
-        func layout(belowCap: CGFloat, besideCap: CGFloat) -> (time: Path, detail: Path, scale: CGFloat) {
-            // Stretch, then move the ink's top-left corner to 0,0.
-            var transform = CGAffineTransform(translationX: -ink.minX, y: 0)
-                .scaledBy(x: 1, y: stretch)
-                .translatedBy(x: 0, y: -ink.minY)
-            let time = Path(line.path.copy(using: &transform) ?? line.path)
+        // Stretch, then move the ink's top-left corner to 0,0.
+        let stretchTransform = CGAffineTransform(translationX: -ink.minX, y: 0)
+            .scaledBy(x: 1, y: stretch)
+            .translatedBy(x: 0, y: -ink.minY)
+
+        func layout(belowCap: CGFloat, besideCap: CGFloat)
+            -> (time: Path, detail: Path, scale: CGFloat, fit: CGAffineTransform) {
+            let time = Path(line.path).applying(stretchTransform)
             var detail = Path()
 
             /// Places `string` scaled to `cap` cap height with its baseline at `baseline`.
@@ -234,7 +239,7 @@ struct ClockArtwork {
                 translationX: size.width / 2 - actual.midX * scale,
                 y: size.height / 2 - actual.midY * scale
             ).scaledBy(x: scale, y: scale)
-            return (time.applying(fit), detail.applying(fit), scale)
+            return (time.applying(fit), detail.applying(fit), scale, fit)
         }
 
         var result = layout(belowCap: belowRatio, besideCap: besideRatio)
@@ -249,6 +254,10 @@ struct ClockArtwork {
         time = result.time
         detail = result.detail
         unit = digitHeight * result.scale / 100
+        timeGlyphs = line.pieces.map { piece in
+            let outline = style.softness > 0 ? Self.soften(piece.path, by: 8 * style.softness) : piece.path
+            return (piece.character, Path(outline).applying(stretchTransform).applying(result.fit))
+        }
     }
 
     var combined: Path {
@@ -351,17 +360,42 @@ struct ClockFace: View {
     @ViewBuilder
     private func accentedPart(_ part: ClockRaster.Part, keep: Bool, artwork: ClockArtwork, size: CGSize,
                               @ViewBuilder content: () -> some View) -> some View {
-        if keep && !simulatesClear {
-            Image(uiImage: ClockRaster.image(part, artwork: artwork, style: style, size: size,
-                                             scale: displayScale, dark: colorScheme == .dark))
-                .resizable()
-                .widgetAccentedRenderingMode(.fullColor)
-                .frame(width: size.width, height: size.height)
+        if keep && !simulatesClear && part == .time {
+            // One image per character (see `ClockRaster`). The glow or shadow is left out:
+            // with it, an hour of these images went over iPadOS's widget size limit.
+            let dark = colorScheme == .dark
+            let glyphs = artwork.timeGlyphs.map {
+                ClockRaster.glyph($0.path, character: $0.character, unit: artwork.unit, style: style,
+                                  scale: displayScale, dark: dark, withLight: false)
+            }
+            ZStack {
+                ForEach(glyphs.indices, id: \.self) { i in
+                    placed(glyphs[i].body.image, in: glyphs[i].body.area)
+                }
+            }
+        } else if keep && !simulatesClear {
+            let area = ClockRaster.area(of: part, artwork: artwork, style: style, in: size)
+            if !area.isEmpty {
+                Image(uiImage: ClockRaster.image(part, artwork: artwork, style: style, area: area, size: size,
+                                                 scale: displayScale, dark: colorScheme == .dark))
+                    .resizable()
+                    .widgetAccentedRenderingMode(.fullColor)
+                    .frame(width: area.width, height: area.height)
+                    .position(x: area.midX, y: area.midY)
+            }
         } else if let simulatedAccent {
             simulatedAccent.mask(content())
         } else {
             content()
         }
+    }
+
+    private func placed(_ image: UIImage, in area: CGRect) -> some View {
+        Image(uiImage: image)
+            .resizable()
+            .widgetAccentedRenderingMode(.fullColor)
+            .frame(width: area.width, height: area.height)
+            .position(x: area.midX, y: area.midY)
     }
 
     /// `plain` is for the small detail text: glass edges are too fine to read at that size,

@@ -15,12 +15,16 @@ struct ClockProvider: TimelineProvider {
         completion(ClockEntry(date: .now, style: .load()))
     }
 
-    /// One entry per minute for the next hour, then WidgetKit asks for more.
+    /// One entry per minute, then WidgetKit asks for more. An hour at a time, or 40 minutes when
+    /// parts keep their colours: their images make each entry much bigger, and iPadOS rejects
+    /// a timeline archive over about 20 MB (an hour came to ~21 MB, observed 2026-10-20).
+    /// 40 minutes means 36 reloads a day, inside the usual daily budget.
     func getTimeline(in context: Context, completion: @escaping (Timeline<ClockEntry>) -> Void) {
         let style = ClockStyle.load()
         let calendar = Calendar.current
         let startOfMinute = calendar.dateInterval(of: .minute, for: .now)?.start ?? .now
-        let entries = (0..<60).compactMap { offset in
+        let keepsColours = style.keepsTimeColours || style.keepsDetailColours || style.keepsCardColours
+        let entries = (0..<(keepsColours ? 40 : 60)).compactMap { offset in
             calendar.date(byAdding: .minute, value: offset, to: startOfMinute)
                 .map { ClockEntry(date: $0, style: style) }
         }
@@ -31,7 +35,6 @@ struct ClockProvider: TimelineProvider {
 struct GlassClockWidgetView: View {
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.displayScale) private var displayScale
     var entry: ClockEntry
 
     var body: some View {
@@ -42,7 +45,7 @@ struct GlassClockWidgetView: View {
             if renderingMode == .accented && entry.style.keepsCardColours {
                 GeometryReader { geometry in
                     Image(uiImage: ClockRaster.card(style: entry.style, size: geometry.size,
-                                                    scale: displayScale, dark: colorScheme == .dark))
+                                                    dark: colorScheme == .dark))
                         .resizable()
                         .widgetAccentedRenderingMode(.fullColor)
                 }

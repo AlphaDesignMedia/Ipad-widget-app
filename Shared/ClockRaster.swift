@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import CoreImage
 
 /// The clock drawn with Core Graphics into an image, for the Clear and Tinted Home Screens.
 ///
@@ -8,14 +7,102 @@ import CoreImage
 /// `.widgetAccentedRenderingMode(.fullColor)`. So the parts someone chooses to keep in colour
 /// are drawn here, matching `ClockFace` as closely as Core Graphics allows. (SwiftUI's
 /// `ImageRenderer` was tried for this first and left the widget blank on iPadOS 27.)
+///
+/// A widget's timeline holds an hour of entries, and iPadOS rejects the whole update if its
+/// archive gets too big ("failed with too large timeline archive", 22–120 MB with an image of
+/// the time per minute, observed 2026-10-20) or takes too long ("Watchdog provision violated").
+/// The archive stores an image used by many entries only once, so the time is drawn as one
+/// image per character, cached and reused every minute, and the other parts are cached too.
 enum ClockRaster {
     enum Part { case time, detail }
 
-    static func image(_ part: Part, artwork: ClockArtwork, style: ClockStyle, size: CGSize,
+    /// Finished images, shared by every entry the widget draws. A plain dictionary rather than
+    /// `NSCache`, which drops images under the widget's tight memory limit; a dropped image is
+    /// drawn again as a new copy, and the archive then stores both. Cleared when it gets big,
+    /// which only happens after the style changes many times.
+    nonisolated(unsafe) private static var cache: [String: UIImage] = [:]
+    private static let lock = NSLock()
+
+    private static func cached(_ key: String, make: () -> UIImage) -> UIImage {
+        lock.lock()
+        if let image = cache[key] { lock.unlock(); return image }
+        lock.unlock()
+        let image = make()
+        lock.lock()
+        if cache.count > 80 { cache.removeAll() }
+        cache[key] = image
+        lock.unlock()
+        return image
+    }
+
+    private static func key(_ style: ClockStyle, scale: CGFloat, dark: Bool, _ rest: String) -> String {
+        let styleData = (try? JSONEncoder().encode(style)) ?? Data()
+        return "\(styleData.hashValue)|\(scale)|\(dark)|\(rest)"
+    }
+
+    /// How far a glow or shadow reaches beyond the outline.
+    private static func reach(_ style: ClockStyle, unit u: CGFloat) -> CGFloat {
+        switch style.effect {
+        case .none: 4 * u
+        case .glow: u * (8 + 40 * style.effectSize) * 2
+        case .shadow: u * (1 + 14 * style.effectSize) * 2 + u * 24 * style.effectDistance
+        }
+    }
+
+    /// One character of the time: its glow or shadow (nil without one) and its body, each
+    /// with the area it covers. The light is a separate image so it can go behind every
+    /// character, and since it's soft it's drawn at quarter resolution; the body is cropped
+    /// tight and drawn sharp. Both keep the archive small.
+    static func glyph(_ path: Path, character: Character, unit: CGFloat, style: ClockStyle, scale: CGFloat,
+                      dark: Bool, withLight: Bool = true)
+        -> (light: (area: CGRect, image: UIImage)?, body: (area: CGRect, image: UIImage)) {
+        let ink = path.boundingRect
+        let shape = "\(character)|\(Int(ink.width * 4))x\(Int(ink.height * 4))|\(Int(unit * 100))"
+        let cgPath = path.cgPath
+        func draw(_ layer: String, margin: CGFloat, scale: CGFloat,
+                  _ paint: @escaping (Painter) -> Void) -> (area: CGRect, image: UIImage) {
+            let area = ink.insetBy(dx: -margin, dy: -margin)
+            let image = cached(key(style, scale: scale, dark: dark, "\(layer)|\(shape)")) {
+                render(size: area.size, scale: scale) { ctx in
+                    ctx.translateBy(x: -area.minX, y: -area.minY)
+                    ctx.setAlpha(style.textOpacity)
+                    // Gradients run across each character, so every copy of it looks the same.
+                    paint(Painter(ctx: ctx, scale: scale, dark: dark, bounds: ink, area: area))
+                }
+            }
+            return (area, image)
+        }
+        let light = style.effect == .none || !withLight ? nil
+            : draw("light", margin: reach(style, unit: unit) + 2, scale: min(scale, 0.25)) {
+                $0.light(cgPath, style: style, unit: unit)
+            }
+        // 1.5× rather than the iPad's 2×: the archive limit sits near 20 MB and sharp
+        // glass digits with a glow came to 21–28 MB (observed 2026-10-20).
+        let body = draw("body", margin: 3, scale: min(scale, 1.5)) {
+            $0.text(cgPath, style: style, unit: unit, withInnerColour: withLight)
+        }
+        return (light, body)
+    }
+
+    /// The area a part draws in, including its glow or shadow, in the clock's coordinates.
+    static func area(of part: Part, artwork: ClockArtwork, style: ClockStyle, in size: CGSize) -> CGRect {
+        let path = part == .time ? artwork.time : artwork.detail
+        guard !path.isEmpty else { return .zero }
+        let margin = reach(style, unit: artwork.unit) + 2
+        // The widget pads the clock by 16 pt, so light may spill that far.
+        let limit = CGRect(origin: .zero, size: size).insetBy(dx: -16, dy: -16)
+        return path.boundingRect.insetBy(dx: -margin, dy: -margin).intersection(limit).integral
+    }
+
+    /// Draws `part` covering `area` (from `area(of:)`), within a clock of `size`.
+    static func image(_ part: Part, artwork: ClockArtwork, style: ClockStyle, area: CGRect, size: CGSize,
                       scale: CGFloat, dark: Bool) -> UIImage {
-        let path = (part == .time ? artwork.time : artwork.detail).cgPath
-        return render(size: size, scale: scale) { ctx in
-            let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: CGRect(origin: .zero, size: size))
+        let source = part == .time ? artwork.time : artwork.detail
+        let path = source.cgPath
+        let shape = "\(part)|\(source.description.hashValue)|\(Int(artwork.unit * 100))"
+        return cached(key(style, scale: scale, dark: dark, shape)) { render(size: area.size, scale: scale) { ctx in
+            ctx.translateBy(x: -area.minX, y: -area.minY)
+            let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: CGRect(origin: .zero, size: size), area: area)
             ctx.setAlpha(style.textOpacity * (part == .detail ? 0.85 : 1))
             ctx.beginTransparencyLayer(auxiliaryInfo: nil)
             painter.light(path, style: style, unit: artwork.unit)
@@ -26,14 +113,17 @@ enum ClockRaster {
                 painter.text(path, style: style, unit: artwork.unit, withInnerColour: part == .time)
             }
             ctx.endTransparencyLayer()
-        }
+        } }
     }
 
-    /// The card, filling the whole widget. The system rounds the corners.
-    static func card(style: ClockStyle, size: CGSize, scale: CGFloat, dark: Bool) -> UIImage {
-        render(size: size, scale: scale) { ctx in
+    /// The card, filling the whole widget. The system rounds the corners. A solid card is a
+    /// tiny image stretched to fit; a glass card is drawn at low resolution, since only its
+    /// thin rim has detail. Both keep the timeline archive small.
+    static func card(style: ClockStyle, size: CGSize, dark: Bool) -> UIImage {
+        let scale: CGFloat = style.background == .solid ? 8 / max(size.width, size.height) : 0.5
+        return cached(key(style, scale: scale, dark: dark, "card|\(size)")) { render(size: size, scale: scale) { ctx in
             let rect = CGRect(origin: .zero, size: size)
-            let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect)
+            let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect, area: rect)
             switch style.background {
             case .solid:
                 painter.fill(CGPath(rect: rect, transform: nil), style.solidFill.opacity(style.cardOpacity))
@@ -48,23 +138,28 @@ enum ClockRaster {
                     (.white.opacity(0.15), 0.65), (.white.opacity(0.8), 1),
                 ])
             }
-        }
+        } }
     }
 
     private static func render(size: CGSize, scale: CGFloat, draw: (CGContext) -> Void) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
+        // 8 bits per channel. On wide-colour screens the default is 16, which doubles every
+        // image in the timeline archive.
+        format.preferredRange = .standard
         return UIGraphicsImageRenderer(size: size, format: format).image { draw($0.cgContext) }
     }
 }
 
 /// Core Graphics versions of the SwiftUI effects `ClockFace` uses.
-private struct Painter {
+struct Painter {
     var ctx: CGContext
     /// Shadows are measured in pixels, not points, so blurs are multiplied by this.
     var scale: CGFloat
     var dark: Bool
     var bounds: CGRect
+    /// The part of `bounds` the image covers.
+    var area: CGRect
 
     func cg(_ color: Color) -> CGColor {
         UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: dark ? .dark : .light)).cgColor
@@ -92,32 +187,52 @@ private struct Painter {
     var topLeading: CGPoint { CGPoint(x: bounds.minX, y: bounds.minY) }
     var bottomTrailing: CGPoint { CGPoint(x: bounds.maxX, y: bounds.maxY) }
 
-    /// Draws a blurred copy of `path`. `blur` is a SwiftUI-style radius in points.
-    /// (Casting a shadow from a copy drawn off the image doesn't work: Core Graphics skips
-    /// drawing that lies entirely outside the image, shadow included.)
-    func blurredCopy(_ path: CGPath, _ color: Color, blur: CGFloat, offset: CGSize = .zero, evenOdd: Bool = false) {
-        // Soft blurs look the same at 1× and cost a quarter as much, which matters because the
-        // widget redraws every minute.
-        let pixels = blur >= 2 ? min(scale, 1) : scale
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = pixels
-        let sharp = UIGraphicsImageRenderer(size: bounds.size, format: format).image { context in
-            let c = context.cgContext
-            c.translateBy(x: offset.width, y: offset.height)
-            c.addPath(path)
-            c.setFillColor(cg(color))
-            c.fillPath(using: evenOdd ? .evenOdd : .winding)
+    /// Draws a blurred copy of `path`, as a Core Graphics shadow. `blur` is a SwiftUI-style
+    /// radius in points. With `knockout` the sharp copy that casts the shadow is erased again,
+    /// leaving only the soft part (for glows and shadows behind see-through text).
+    func blurredCopy(_ path: CGPath, _ color: Color, blur: CGFloat, offset: CGSize = .zero,
+                     evenOdd: Bool = false, knockout: Bool = true) {
+        var shift = CGAffineTransform(translationX: offset.width, y: offset.height)
+        guard let moved = path.copy(using: &shift) else { return }
+        let rule: CGPathFillRule = evenOdd ? .evenOdd : .winding
+        // Wide blurs are slow at full resolution, and the widget draws an hour of entries at
+        // once under a time limit ("Watchdog provision violated", observed 2026-10-20). They
+        // look the same drawn at low resolution and scaled up, so they are.
+        let pixelsPerPoint = min(scale, max(0.05, 6 / blur))
+        guard pixelsPerPoint < scale else {
+            castShadow(moved, rule: rule, color: color, blur: blur * 2 * scale, knockout: knockout)
+            return
         }
-        guard let input = sharp.cgImage.map(CIImage.init(cgImage:)),
-              let blurred = Self.ciContext.createCGImage(
-                input.applyingGaussianBlur(sigma: blur * pixels).cropped(to: input.extent),
-                from: input.extent
-              )
-        else { return }
-        UIImage(cgImage: blurred, scale: pixels, orientation: .up).draw(in: bounds)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = pixelsPerPoint
+        format.preferredRange = .standard
+        let soft = UIGraphicsImageRenderer(size: area.size, format: format).image { context in
+            context.cgContext.translateBy(x: -area.minX, y: -area.minY)
+            var low = self
+            low.ctx = context.cgContext
+            low.scale = pixelsPerPoint
+            low.castShadow(moved, rule: rule, color: color, blur: blur * 2 * pixelsPerPoint, knockout: knockout)
+        }
+        soft.draw(in: area)
     }
 
-    private static let ciContext = CIContext()
+    /// A Core Graphics shadow of `path` with `blur` in pixels, optionally without the path itself.
+    private func castShadow(_ path: CGPath, rule: CGPathFillRule, color: Color, blur: CGFloat, knockout: Bool) {
+        ctx.saveGState()
+        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+        ctx.setShadow(offset: .zero, blur: blur, color: cg(color))
+        ctx.addPath(path)
+        ctx.setFillColor(cg(knockout ? .black : color))
+        ctx.fillPath(using: rule)
+        if knockout {
+            ctx.setShadow(offset: .zero, blur: 0, color: nil)
+            ctx.setBlendMode(.clear)
+            ctx.addPath(path)
+            ctx.fillPath(using: rule)
+        }
+        ctx.endTransparencyLayer()
+        ctx.restoreGState()
+    }
 
     /// Like SwiftUI's `.shadow(.inner(...))`: a shadow cast inside the shape by its edges.
     func innerShadow(_ path: CGPath, _ color: Color, blur: CGFloat, offset: CGSize) {
@@ -179,7 +294,7 @@ private struct Painter {
             ctx.saveGState()
             ctx.addPath(path)
             ctx.clip()
-            blurredCopy(outline, inner.color.opacity(style.innerStrength), blur: unit * 4)
+            blurredCopy(outline, inner.color.opacity(style.innerStrength), blur: unit * 4, knockout: false)
             ctx.restoreGState()
         }
         if style.textFill == .glass {

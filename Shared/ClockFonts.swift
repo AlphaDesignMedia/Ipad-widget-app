@@ -117,6 +117,8 @@ enum ClockFont: String, Codable, CaseIterable, Identifiable {
 /// can be centred on what you see rather than on the text's line box.
 struct GlyphLine {
     var path: CGPath
+    /// Each character's outline on its own, in place, for drawing digits separately.
+    var pieces: [(character: Character, path: CGPath)] = []
     /// The outline's bounds: the ink, not the line box.
     var bounds: CGRect { path.boundingBoxOfPath }
 
@@ -129,7 +131,7 @@ struct GlyphLine {
             attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font]
         ))
         let space = tracking * CTFontGetSize(font)
-        var glyphs: [(path: CGPath, isColon: Bool)] = []
+        var glyphs: [(path: CGPath, character: Character)] = []
         let characters = Array(string.utf16)
         var index = 0
 
@@ -152,21 +154,22 @@ struct GlyphLine {
                 )
                 index += 1
                 guard let glyph = CTFontCreatePathForGlyph(runFont, ids[i], &transform) else { continue }
-                let character = stringIndices[i] < characters.count ? characters[stringIndices[i]] : 0
-                glyphs.append((glyph, character == UInt16(UInt8(ascii: ":"))))
+                let unit = stringIndices[i] < characters.count ? characters[stringIndices[i]] : 0
+                glyphs.append((glyph, Character(UnicodeScalar(unit) ?? " ")))
             }
         }
 
-        let digits = glyphs.filter { !$0.isColon }
+        let digits = glyphs.filter { $0.character != ":" }
             .reduce(CGRect.null) { $0.union($1.path.boundingBoxOfPath) }
         let combined = CGMutablePath()
         for glyph in glyphs {
-            if centersColons && glyph.isColon && !digits.isNull {
-                let shift = digits.midY - glyph.path.boundingBoxOfPath.midY
-                combined.addPath(glyph.path, transform: CGAffineTransform(translationX: 0, y: shift))
-            } else {
-                combined.addPath(glyph.path)
+            var piece = glyph.path
+            if centersColons && glyph.character == ":" && !digits.isNull {
+                var shift = CGAffineTransform(translationX: 0, y: digits.midY - glyph.path.boundingBoxOfPath.midY)
+                piece = glyph.path.copy(using: &shift) ?? glyph.path
             }
+            combined.addPath(piece)
+            pieces.append((glyph.character, piece))
         }
         // Tight spacing makes neighbouring digits overlap. Merging the outlines stops the
         // overlap drawing twice (darker) in see-through styles.
