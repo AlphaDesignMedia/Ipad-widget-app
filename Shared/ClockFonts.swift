@@ -2,32 +2,35 @@ import SwiftUI
 import UIKit
 import CoreText
 
-/// Typefaces for the time. SF ships with iPadOS; Roboto Flex and Google Sans Flex are bundled
+/// Typefaces for the time. SF, New York and SF Mono ship with iPadOS (New York is also one of
+/// the Lock Screen's clock fonts); Roboto Flex and Google Sans Flex are bundled
 /// from Google Fonts (Shared/Fonts) under the SIL Open Font License, which allows using and
 /// shipping them in an app for free. All four are variable fonts, so every slider position
 /// between thin and heavy, or narrow and wide, is a real design rather than a stretched one.
 enum ClockFont: String, Codable, CaseIterable, Identifiable {
-    case sf, sfRounded, robotoFlex, googleSansFlex
+    case sf, sfRounded, newYork, sfMono, robotoFlex, googleSansFlex
     var id: Self { self }
 
     var label: String {
         switch self {
         case .sf: "SF Pro"
         case .sfRounded: "SF Rounded"
+        case .newYork: "New York"
+        case .sfMono: "SF Mono"
         case .robotoFlex: "Roboto Flex"
         case .googleSansFlex: "Google Sans Flex"
         }
     }
 
-    /// SF Rounded comes in one width only.
-    var hasWidth: Bool { self != .sfRounded }
+    /// SF Rounded, New York and SF Mono come in one width only.
+    var hasWidth: Bool { self == .sf || self == .robotoFlex || self == .googleSansFlex }
     var hasRoundness: Bool { self == .googleSansFlex }
 
     /// Weight, width and roundness are positions from 0 to 1 along each font's own range.
     /// 0.5 is always the font's regular weight and normal width.
     func font(size: CGFloat, weight: Double, width: Double, roundness: Double = 0) -> CTFont {
         switch self {
-        case .sf, .sfRounded:
+        case .sf, .sfRounded, .newYork, .sfMono:
             let font = UIFont.systemFont(
                 ofSize: size,
                 weight: UIFont.Weight(Self.blend(weight, -0.8, 0, 0.62)),
@@ -38,10 +41,27 @@ enum ClockFont: String, Codable, CaseIterable, Identifiable {
                     Double(UIFont.Width.expanded.rawValue)
                 ))
             )
-            if self == .sfRounded, let rounded = font.fontDescriptor.withDesign(.rounded) {
-                return UIFont(descriptor: rounded, size: size) as CTFont
+            let design: UIFontDescriptor.SystemDesign? = switch self {
+            case .sfRounded: .rounded
+            case .newYork: .serif
+            case .sfMono: .monospaced
+            default: nil
             }
-            return font as CTFont
+            // On iPadOS, asking for these designs at an in-between weight fails and quietly
+            // returns plain SF (observed 2026-10-20). So fetch the design at regular weight, then
+            // set its weight axis to the value SF itself uses for this weight.
+            guard let design,
+                  let regular = UIFont.systemFont(ofSize: size).fontDescriptor.withDesign(design)
+            else { return font as CTFont }
+            let designed = UIFont(descriptor: regular, size: size) as CTFont
+            let wght = NSNumber(value: Self.tag("wght"))
+            guard let weightAxis = (CTFontCopyVariation(font as CTFont) as? [NSNumber: NSNumber])?[wght]
+            else { return designed }
+            let varied = CTFontDescriptorCreateCopyWithAttributes(
+                CTFontCopyFontDescriptor(designed),
+                [kCTFontVariationAttribute: [wght: weightAxis]] as CFDictionary
+            )
+            return CTFontCreateWithFontDescriptor(varied, size, nil)
         case .robotoFlex:
             return Self.variable(Self.robotoFlexFile, size: size, axes: [
                 "wght": Self.blend(weight, 100, 400, 1000),

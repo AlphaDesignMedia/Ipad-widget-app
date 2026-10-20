@@ -29,11 +29,27 @@ struct ClockProvider: TimelineProvider {
 }
 
 struct GlassClockWidgetView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
     var entry: ClockEntry
 
     var body: some View {
-        clock
+        ZStack {
+            // In Clear and Tinted mode the system replaces the container background below
+            // with its own glass. To keep the card's colours there, it's drawn again as a
+            // full-colour image filling the widget (content margins are off for this).
+            if renderingMode == .accented && entry.style.keepsCardColours {
+                GeometryReader { geometry in
+                    Image(uiImage: ClockRaster.card(style: entry.style, size: geometry.size,
+                                                    scale: displayScale, dark: colorScheme == .dark))
+                        .resizable()
+                        .widgetAccentedRenderingMode(.fullColor)
+                }
+            }
+            clock
+                .padding(16)   // the system's standard margin, since content margins are off
+        }
             .containerBackground(for: .widget) {
                 // Only used in full-colour mode. In the Clear and Tinted Home Screen
                 // appearances the system removes this and draws real Liquid Glass itself.
@@ -102,6 +118,7 @@ struct GlassClockWidget: Widget {
         .configurationDisplayName("Glass Clock")
         .description("See the time in the style you design in the Glass Clock app.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
+        .contentMarginsDisabled()
     }
 }
 

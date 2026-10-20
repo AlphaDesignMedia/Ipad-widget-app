@@ -32,6 +32,20 @@ struct StyleGallery: View {
         }
     }
 
+    private var accentVariants: [(String, ClockStyle, HomeScreenStyle)] {
+        let colourful = ClockStyle().with { $0.color = .yellow; $0.effect = .glow; $0.textFill = .solid }
+        let keepText = colourful.with { $0.keepsTimeColours = true; $0.keepsDetailColours = true }
+        let keepAll = keepText.with { $0.keepsCardColours = true; $0.background = .solid; $0.backgroundColor = .purple }
+        return [
+            ("Clear, system colours", colourful, .clear),
+            ("Clear, keep text colours", keepText, .clear),
+            ("Tinted, system colours", colourful, .tinted),
+            ("Tinted, keep text + card", keepAll, .tinted),
+            ("Glass default, Clear", ClockStyle(), .clear),
+            ("Glass default, keep time", ClockStyle().with { $0.keepsTimeColours = true }, .clear),
+        ]
+    }
+
     private var variants: [(String, ClockStyle)] {
         switch page {
         case "ampm":
@@ -57,6 +71,17 @@ struct StyleGallery: View {
                 ("Inner colour only", base.with { $0.innerColor = .red; $0.innerStrength = 0.8 }),
                 ("Inner colour + glow", base.with { $0.innerColor = .mint; $0.effect = .glow; $0.effectColor = .mint }),
             ]
+        case "lock":
+            // Settings that get close to the iPadOS Lock Screen clock.
+            let lock = base.with { $0.textFill = .glass; $0.fontWeight = 0.95; $0.height = 1.3; $0.effect = .shadow; $0.effectStrength = 0.35; $0.ampm = .hidden }
+            return [
+                ("SF Pro, heavy, taller", lock.with { $0.font = .sf; $0.fontWidth = 0.4 }),
+                ("SF Rounded, heavy, taller", lock.with { $0.font = .sfRounded }),
+                ("Google Sans Flex, round", lock.with { $0.font = .googleSansFlex; $0.fontWidth = 0.4 }),
+                ("New York", lock.with { $0.font = .newYork; $0.height = 1.1 }),
+                ("SF Mono", lock.with { $0.font = .sfMono; $0.height = 1.1 }),
+                ("Roboto Flex (your default)", ClockStyle()),
+            ]
         default:
             return [
                 ("SF Pro", base),
@@ -70,7 +95,7 @@ struct StyleGallery: View {
     }
 
     var body: some View {
-        if page == "default" { sizes } else { grid }
+        if page == "default" { sizes } else if page == "accent" { accentGrid } else { grid }
     }
 
     /// The default style at every widget size.
@@ -94,6 +119,24 @@ struct StyleGallery: View {
             .padding(16)
             .frame(width: preview.size.width, height: preview.size.height)
             .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28)))
+    }
+
+    private var accentGrid: some View {
+        ZStack {
+            LinearGradient(colors: [.indigo, .teal, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .ignoresSafeArea()
+            LazyVGrid(columns: [GridItem(.fixed(378.5), spacing: 40), GridItem(.fixed(378.5))], spacing: 36) {
+                ForEach(accentVariants, id: \.0) { name, style, home in
+                    VStack(spacing: 10) {
+                        ClockFace(date: date, style: style, simulatedAccent: home.accent)
+                            .padding(16)
+                            .frame(width: 378.5, height: 170)
+                            .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28), homeScreen: home))
+                        Text(name).font(.headline).foregroundStyle(.white)
+                    }
+                }
+            }
+        }
     }
 
     private var grid: some View {

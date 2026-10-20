@@ -150,11 +150,15 @@ enum ClockColor: String, Codable, CaseIterable, Identifiable {
 
 | Token | Font | Notes |
 |---|---|---|
-| `clock.time` | SF Pro, SF Rounded, Roboto Flex or Google Sans Flex: variable **weight** and **width** (plus **roundness** for Google Sans Flex), all as 0–1 sliders where 0.5 is regular/normal. **Height** stretches vertically; **Spacing** tracks the digits | Drawn as outlines and fitted to the card (see §6.1). Sized from tabular zeros, so it doesn't grow and shrink as the minutes change |
+| `clock.time` | SF Pro, SF Rounded, New York, SF Mono, Roboto Flex or Google Sans Flex (default: Roboto Flex, heavy, narrow, glass with a soft shadow, AM/PM below): variable **weight** and **width** (plus **roundness** for Google Sans Flex), all as 0–1 sliders where 0.5 is regular/normal. **Height** stretches vertically; **Spacing** tracks the digits | Drawn as outlines and fitted to the card (see §6.1). Sized from tabular zeros, so it doesn't grow and shrink as the minutes change |
 | `clock.detail` | Same font, lighter, normal width, capitals, letter-spaced 0.12 em; cap height 15% of the digits | AM/PM and the date. Beside: 24% of the digit height, top-aligned. Stacked: two capitals filling the digit height |
 | `ui.*` | System text styles (Form defaults) | Supports Dynamic Type automatically |
 
 **Bundled fonts.** Roboto Flex and Google Sans Flex come from Google Fonts under the SIL Open Font License 1.1 (free to use and ship; the licence files sit next to the fonts in `Shared/Fonts`). Roboto Flex also has a figure-height axis, but its range is small (738 → 788 units), so the Height slider stretches instead. Google Sans Flex's Roundness axis gets closest to the Lock Screen numerals.
+
+**Matching the Lock Screen.** The Lock Screen clock uses a private cut of SF that apps can't load. The closest options are SF Pro or SF Rounded at a heavy weight with Height raised, or New York (one of the Lock Screen's own font choices). *Observed 2026-10-20:* on iPadOS, asking for Rounded, New York or Mono at an in-between weight silently returns plain SF, so `ClockFont` fetches the design at regular weight and sets its `wght` axis to the value SF uses for that weight.
+
+**Square cards** stretch the digits up to 1.6× taller to fill the space ("Stretch to fill square widgets"). The small text never drops below 8 pt capitals (about 11 pt type, the HIG minimum).
 
 The HIG notes SF is a variable font that *"supports interpolation between styles to create intermediate ones."* That's what lets our sliders be continuous rather than stepped:
 
@@ -276,6 +280,8 @@ clock   // ClockFace, or an image of it in Clear/Tinted mode (below)
 **Glass text in Clear and Tinted mode.** In `accented` mode the system replaces every colour with its own and keeps only how see-through each part is. So `ClockFace` switches the glass text to a version built from transparency alone: a frosted body (22–50%), a solid rim and a soft inner glow. It leaves out the dark edge and the shadow layer, which would turn into extra pale edges and a halo. The digits still read as glass; the user's text colour doesn't carry over.
 
 > **Observed 2026-10-20 on an iPad running iPadOS 27.0.1:** an earlier version drew the clock into a full-colour image (`ImageRenderer` + `.widgetAccentedRenderingMode(.fullColor)`) to keep our colours in these modes. It worked in the iPadOS 26.5 simulator, but left the widget completely blank on the real iPad. Don't reintroduce it without testing on a device.
+
+**Keeping colours in Clear and Tinted mode** (opt-in, per part: time, AM/PM and date, card). The system recolours everything except images marked `.widgetAccentedRenderingMode(.fullColor)`, so kept parts are drawn by `ClockRaster` with Core Graphics into an image (blurs via Core Image; Core Graphics skips shadows cast from drawing outside the image). The card is drawn full-bleed, so the widget turns content margins off and pads the clock 16 pt itself. The app's preview has a Light / Dark / Clear / Tinted switcher that imitates each style. ⚠️ Not yet checked on the real iPad (iPadOS 27).
 
 **Rendering-mode behaviour:**
 

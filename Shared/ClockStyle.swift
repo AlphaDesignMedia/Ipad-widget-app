@@ -103,6 +103,23 @@ enum ClockColor: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// The Home Screen styles iPadOS offers, for previewing the widget in each.
+enum HomeScreenStyle: String, CaseIterable, Identifiable {
+    case light = "Light", dark = "Dark", clear = "Clear", tinted = "Tinted"
+    var id: Self { self }
+
+    /// The colour the system draws content in: white in both Clear and Tinted
+    /// (observed in the iPadOS 26.5 simulator, References/simulator/08 and 09).
+    var accent: Color? {
+        self == .clear || self == .tinted ? .white : nil
+    }
+
+    /// The colour of the system's glass card in Tinted mode (an example tint).
+    var cardTint: Color? {
+        self == .tinted ? Color(red: 0.2, green: 0.35, blue: 0.85) : nil
+    }
+}
+
 /// Where AM/PM goes, in 12-hour time.
 enum AMPMPlacement: String, Codable, CaseIterable, Identifiable {
     case hidden, below, beside, stacked
@@ -171,6 +188,12 @@ struct ClockStyle: Codable, Equatable {
     var innerColor: ClockColor?
     var innerStrength: Double = 0.6
 
+    /// On Clear and Tinted Home Screens, keep these parts in the person's own colours instead
+    /// of letting iPadOS recolour them.
+    var keepsTimeColours = false
+    var keepsDetailColours = false
+    var keepsCardColours = false
+
     init() {}
 
     /// Missing keys fall back to defaults, so adding a setting never wipes saved styles.
@@ -204,6 +227,9 @@ struct ClockStyle: Codable, Equatable {
         effectDistance = try value(.effectDistance, d.effectDistance)
         innerColor = try c.decodeIfPresent(ClockColor.self, forKey: .innerColor)
         innerStrength = try value(.innerStrength, d.innerStrength)
+        keepsTimeColours = try value(.keepsTimeColours, d.keepsTimeColours)
+        keepsDetailColours = try value(.keepsDetailColours, d.keepsDetailColours)
+        keepsCardColours = try value(.keepsCardColours, d.keepsCardColours)
     }
 
     /// The colour of the glow or shadow.

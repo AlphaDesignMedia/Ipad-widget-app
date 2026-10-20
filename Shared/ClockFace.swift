@@ -73,25 +73,42 @@ extension ClockStyle {
     }
 }
 
-/// The card behind the clock in the in-app preview: Liquid Glass or a solid colour.
+/// The card behind the clock in the in-app preview: Liquid Glass or a solid colour, or for a
+/// Clear/Tinted Home Screen, the system's glass (unless the card keeps its colours).
 struct ClockCard<S: Shape>: ViewModifier {
+    @Environment(\.displayScale) private var displayScale
     var style: ClockStyle
     var shape: S
+    var homeScreen: HomeScreenStyle = .light
 
     func body(content: Content) -> some View {
-        switch style.background {
-        case .glass:
-            // Glass sits behind the text so the text keeps its exact colour.
+        if homeScreen.accent != nil {
             content.background {
                 ZStack {
-                    if style.usesClearGlass {
-                        shape.fill(.black.opacity(0.2))
+                    Color.clear.glassEffect(homeScreen.cardTint.map { .regular.tint($0.opacity(0.7)) } ?? .clear, in: shape)
+                    if style.keepsCardColours {
+                        GeometryReader { geometry in
+                            Image(uiImage: ClockRaster.card(style: style, size: geometry.size, scale: displayScale, dark: false))
+                        }
+                        .clipShape(shape)
                     }
-                    Color.clear.glassEffect(style.glass, in: shape)
                 }
             }
-        case .solid:
-            content.background(style.solidFill.opacity(style.cardOpacity), in: shape)
+        } else {
+            switch style.background {
+            case .glass:
+                // Glass sits behind the text so the text keeps its exact colour.
+                content.background {
+                    ZStack {
+                        if style.usesClearGlass {
+                            shape.fill(.black.opacity(0.2))
+                        }
+                        Color.clear.glassEffect(style.glass, in: shape)
+                    }
+                }
+            case .solid:
+                content.background(style.solidFill.opacity(style.cardOpacity), in: shape)
+            }
         }
     }
 }
@@ -266,28 +283,59 @@ private struct LightLayer: View {
 struct ClockFace: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.displayScale) private var displayScale
     var date: Date
     var style: ClockStyle
+    /// Set by the app's preview to imitate a Clear (white) or Tinted Home Screen, where the
+    /// system draws every part that isn't a full-colour image in this one colour.
+    var simulatedAccent: Color?
 
     var body: some View {
         GeometryReader { geometry in
             let artwork = ClockArtwork(date: date, style: style, size: geometry.size)
             // In Clear/Tinted mode the system keeps only transparency, so coloured light
             // would turn into a pale halo there.
-            let accented = renderingMode == .accented
+            let accented = renderingMode == .accented || simulatedAccent != nil
             ZStack {
                 if !accented {
                     LightLayer(artwork: artwork, style: style)
-                }
-                lettering(artwork.time, unit: artwork.unit, accented: accented)
+                    lettering(artwork.time, unit: artwork.unit, accented: false)
+                    lettering(artwork.detail, unit: artwork.unit, accented: false, plain: true)
+                        .opacity(0.85)
+                } else {
+                    accentedPart(.time, keep: style.keepsTimeColours, artwork: artwork, size: geometry.size) {
+                        lettering(artwork.time, unit: artwork.unit, accented: true)
+                            .opacity(style.textOpacity)
+                    }
                     .widgetAccentable()
-                lettering(artwork.detail, unit: artwork.unit, accented: accented, plain: true)
-                    .opacity(0.85)
+                    accentedPart(.detail, keep: style.keepsDetailColours, artwork: artwork, size: geometry.size) {
+                        lettering(artwork.detail, unit: artwork.unit, accented: true, plain: true)
+                            .opacity(0.85 * style.textOpacity)
+                    }
+                }
             }
-            .opacity(style.textOpacity)
+            .opacity(accented ? 1 : style.textOpacity)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(date, style: .time))
+    }
+
+    /// A part of the clock on a Clear/Tinted Home Screen: drawn as a full-colour image if the
+    /// person chose to keep its colours, otherwise left for the system to recolour.
+    @ViewBuilder
+    private func accentedPart(_ part: ClockRaster.Part, keep: Bool, artwork: ClockArtwork, size: CGSize,
+                              @ViewBuilder content: () -> some View) -> some View {
+        if keep {
+            Image(uiImage: ClockRaster.image(part, artwork: artwork, style: style, size: size,
+                                             scale: displayScale, dark: colorScheme == .dark))
+                .resizable()
+                .widgetAccentedRenderingMode(.fullColor)
+                .frame(width: size.width, height: size.height)
+        } else if let simulatedAccent {
+            simulatedAccent.mask(content())
+        } else {
+            content()
+        }
     }
 
     /// `plain` is for the small detail text: glass edges are too fine to read at that size,

@@ -29,6 +29,7 @@ enum PreviewSize: String, CaseIterable, Identifiable {
 struct ContentView: View {
     @State private var style = ClockStyle.launchOverride ?? ClockStyle.load()
     @State private var previewSize = PreviewSize.medium
+    @State private var homeScreen = HomeScreenStyle.light
     @State private var reloadTask: Task<Void, Never>?
 
     var body: some View {
@@ -50,9 +51,15 @@ struct ContentView: View {
 
     private var preview: some View {
         ZStack {
-            // Plain white, so the card looks the same as it will on the Home Screen.
-            Color.white
-                .ignoresSafeArea()
+            // Plain white, so the card looks the same as it will on the Home Screen. Clear
+            // and Tinted get a wallpaper, since their white or tinted content needs one to show up.
+            if homeScreen.accent == nil {
+                (homeScreen == .dark ? Color.black : Color.white)
+                    .ignoresSafeArea()
+            } else {
+                LinearGradient(colors: [.indigo, .teal, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .ignoresSafeArea()
+            }
 
             VStack(spacing: 20) {
                 // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets).
@@ -61,12 +68,19 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
 
                 TimelineView(.everyMinute) { context in
-                    ClockFace(date: context.date, style: style)
+                    ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent)
                         .padding(16)
                         .frame(width: previewSize.size.width, height: previewSize.size.height)
-                        .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28)))
+                        .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28), homeScreen: homeScreen))
+                        .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
                 }
                 .animation(.smooth, value: previewSize)
+
+                Picker("Home Screen style", selection: $homeScreen) {
+                    ForEach(HomeScreenStyle.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 420)
 
                 Picker("Preview size", selection: $previewSize) {
                     ForEach(PreviewSize.allCases) { Text($0.rawValue).tag($0) }
@@ -85,7 +99,6 @@ struct ContentView: View {
                 Picker("Font", selection: $style.font) {
                     ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
                 }
-                .pickerStyle(.segmented)
                 slider("Weight", value: $style.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
                 if style.font.hasWidth {
                     slider("Width", value: $style.fontWidth, in: 0...1, low: "Narrow", high: "Wide")
@@ -179,6 +192,16 @@ struct ContentView: View {
                 }
                 .disabled(!style.uses12Hour)
                 Toggle("Show date", isOn: $style.showDate)
+            }
+
+            Section {
+                Toggle("Keep time colours", isOn: $style.keepsTimeColours)
+                Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
+                Toggle("Keep card colours", isOn: $style.keepsCardColours)
+            } header: {
+                Text("Clear and Tinted Home Screens")
+            } footer: {
+                Text("iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Use the Clear and Tinted previews above to compare.")
             }
 
             Section {
