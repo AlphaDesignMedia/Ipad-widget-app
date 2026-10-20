@@ -15,6 +15,9 @@ xcodebuild -project GlassClock.xcodeproj -scheme GlassClock -configuration Debug
   -destination "generic/platform=iOS" -derivedDataPath "$BUILD_DIR" \
   DEVELOPMENT_TEAM=$TEAM CODE_SIGN_ENTITLEMENTS=Config/FreeTeam.entitlements -allowProvisioningUpdates -quiet build
 
+# "Could not allocate a resource" here, with the iPad unlocked and plugged in, meant the Mac's
+# CoreDeviceService was stuck after a dropped Wi-Fi connection; `pkill -x CoreDeviceService`
+# (it relaunches itself) fixed it (2026-10-20).
 xcrun devicectl device install app --device "$DEVICE" \
   "$BUILD_DIR/Build/Products/Debug-iphoneos/GlassClock.app" >/dev/null
 xcrun devicectl device process launch --device "$DEVICE" --terminate-existing \
