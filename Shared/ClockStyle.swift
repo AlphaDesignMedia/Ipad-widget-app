@@ -165,6 +165,8 @@ struct ClockStyle: Codable, Equatable {
     var fontWeight: Double = 0.85
     var fontWidth: Double = 0.3
     var roundness: Double = 1
+    /// The font for the AM/PM and date line.
+    var detailFont: DetailFont = .paired
     /// Extra space between digits, as a fraction of the font size. Negative tightens.
     var spacing: Double = 0
     /// Vertical stretch of the time: 1 is normal, 2 is twice as tall.
@@ -206,6 +208,7 @@ struct ClockStyle: Codable, Equatable {
 
     /// On Clear and Tinted Home Screens, keep these parts in the person's own colours instead
     /// of letting iPadOS recolour them.
+    var keepsTimeColours = false
     var keepsDetailColours = false
     var keepsCardColours = false
 
@@ -222,6 +225,7 @@ struct ClockStyle: Codable, Equatable {
         fontWeight = try value(.fontWeight, d.fontWeight)
         fontWidth = try value(.fontWidth, d.fontWidth)
         roundness = try value(.roundness, d.roundness)
+        detailFont = try value(.detailFont, d.detailFont)
         spacing = try value(.spacing, d.spacing)
         height = try value(.height, d.height)
         fillsCard = try value(.fillsCard, d.fillsCard)
@@ -245,6 +249,7 @@ struct ClockStyle: Codable, Equatable {
         effectDistance = try value(.effectDistance, d.effectDistance)
         innerColor = try c.decodeIfPresent(ClockColor.self, forKey: .innerColor)
         innerStrength = try value(.innerStrength, d.innerStrength)
+        keepsTimeColours = try value(.keepsTimeColours, d.keepsTimeColours)
         keepsDetailColours = try value(.keepsDetailColours, d.keepsDetailColours)
         keepsCardColours = try value(.keepsCardColours, d.keepsCardColours)
     }
@@ -297,6 +302,7 @@ struct ClockStyle: Codable, Equatable {
         let palette = palettes.randomElement()!
         var style = ClockStyle()
         style.timeFormat = base.timeFormat
+        style.keepsTimeColours = base.keepsTimeColours
         style.keepsDetailColours = base.keepsDetailColours
         style.keepsCardColours = base.keepsCardColours
 
@@ -339,6 +345,15 @@ struct ClockStyle: Codable, Equatable {
         var copy = self
         change(&copy)
         return copy
+    }
+
+    /// The actual font for the AM/PM and date line: nil means the time's own font.
+    var resolvedDetailFont: DetailFont? {
+        switch detailFont {
+        case .paired: font.pairing
+        case .sameAsTime: nil
+        default: detailFont
+        }
     }
 
     /// The colour of the glow or shadow.

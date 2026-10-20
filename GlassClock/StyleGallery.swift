@@ -66,6 +66,11 @@ struct StyleGallery: View {
                 ("Inner colour only", base.with { $0.innerColor = .red; $0.innerStrength = 0.8 }),
                 ("Inner colour + glow", base.with { $0.innerColor = .mint; $0.effect = .glow; $0.effectColor = .mint }),
             ]
+        case "pairs":
+            return ClockFont.allCases.map { font in
+                ("\(font.label) + \(font.pairing.label)",
+                 base.with { $0.font = font; $0.ampm = .below; $0.showDate = true; $0.textFill = .solid; $0.fontWeight = 0.75 })
+            }
         case "presets":
             return ClockStyle.presets.map { ($0.name, $0.style.with { $0.timeFormat = .twelve }) }
         case "lock":

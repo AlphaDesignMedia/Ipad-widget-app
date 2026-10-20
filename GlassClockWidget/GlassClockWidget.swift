@@ -23,7 +23,7 @@ struct ClockProvider: TimelineProvider {
         let style = ClockStyle.load()
         let calendar = Calendar.current
         let startOfMinute = calendar.dateInterval(of: .minute, for: .now)?.start ?? .now
-        let keepsColours = style.keepsDetailColours || style.keepsCardColours
+        let keepsColours = style.keepsTimeColours || style.keepsDetailColours || style.keepsCardColours
         let entries = (0..<(keepsColours ? 40 : 60)).compactMap { offset in
             calendar.date(byAdding: .minute, value: offset, to: startOfMinute)
                 .map { ClockEntry(date: $0, style: style) }

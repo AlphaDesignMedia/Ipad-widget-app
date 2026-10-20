@@ -154,12 +154,18 @@ struct ClockArtwork {
         guard digitHeight > 0, !ink.isEmpty else { return }
         let sizingWidth = max(ink.width, template.bounds.width)
 
-        let detailFont = style.font.font(
+        let detailWeight = 0.55 + (weight - 0.5) * 0.4
+        let pairing = style.resolvedDetailFont
+        let detailFont = pairing?.font(size: 100, weight: detailWeight) ?? style.font.font(
             size: 100,
-            weight: 0.55 + (weight - 0.5) * 0.4,
+            weight: detailWeight,
             width: 0.5,
             roundness: style.roundness
         )
+        // Italic pairings are written normally and a little larger, since their lowercase is
+        // smaller than capitals; sans pairings are letter-spaced capitals.
+        let capitals = pairing?.usesCapitals ?? true
+        func lineText(_ string: String) -> String { capitals ? string.uppercased() : string }
         let capHeight = CTFontGetCapHeight(detailFont)
         let ampm = style.ampmText(date)
         let letters = ampm.map { Array($0.uppercased().filter(\.isLetter)) } ?? []
@@ -218,10 +224,11 @@ struct ClockArtwork {
                 place(ampm.uppercased(), cap: cap, tracking: 0.04, x: { _ in timeSize.width + gap }, baseline: cap)
             }
 
-            // A line underneath, letter-spaced like the Lock Screen's date.
+            // A line underneath: letter-spaced capitals like the Lock Screen's date, or an italic
+            // written normally.
             if !below.isEmpty {
-                let cap = belowCap * digitHeight
-                place(below.uppercased(), cap: cap, tracking: 0.12,
+                let cap = belowCap * digitHeight * (capitals ? 1 : 1.25)
+                place(lineText(below), cap: cap, tracking: capitals ? 0.12 : 0.02,
                       x: { timeSize.width / 2 - $0 / 2 },
                       baseline: timeSize.height + belowGap * digitHeight + cap)
             }
@@ -337,13 +344,15 @@ struct ClockFace: View {
                     lettering(artwork.detail, unit: artwork.unit, accented: false, plain: true)
                         .opacity(0.85)
                 } else {
-                    // The time can't keep its colours here: as images, an hour of it went over
-                    // iPadOS's widget archive limit and froze the clock (2026-10-20).
-                    systemColoured {
-                        lettering(artwork.time, unit: artwork.unit, accented: true)
-                            .opacity(style.textOpacity)
+                    if style.keepsTimeColours && !simulatesClear {
+                        keptTime(artwork)
+                    } else {
+                        systemColoured {
+                            lettering(artwork.time, unit: artwork.unit, accented: true)
+                                .opacity(style.textOpacity)
+                        }
+                        .widgetAccentable()
                     }
-                    .widgetAccentable()
                     detailPart(keep: style.keepsDetailColours, artwork: artwork, size: geometry.size) {
                         lettering(artwork.detail, unit: artwork.unit, accented: true, plain: true)
                             .opacity(0.85 * style.textOpacity)
@@ -372,6 +381,58 @@ struct ClockFace: View {
         } else {
             systemColoured(content)
         }
+    }
+
+    /// The time in the person's own colours on a Clear/Tinted Home Screen. A picture of the time
+    /// per minute was too big for the widget's archive and froze the clock (2026-10-20), so each
+    /// layer is instead a tiny full-colour swatch (`ClockRaster.swatch`) masked by the digits'
+    /// outline, which stays a cheap vector shape. Inner shadows can't be built this way, so glass
+    /// is its tinted body plus a lit rim.
+    private func keptTime(_ artwork: ClockArtwork) -> some View {
+        let shape = OutlineShape(path: artwork.time)
+        let u = artwork.unit
+        let dark = colorScheme == .dark
+        func swatch(_ colors: [Color], _ start: UnitPoint = .top, _ end: UnitPoint = .bottom) -> some View {
+            Image(uiImage: ClockRaster.swatch(colors, start: start, end: end, dark: dark))
+                .resizable()
+                .widgetAccentedRenderingMode(.fullColor)
+        }
+        let effect = style.resolvedEffectColor
+        let body = style.color == .auto ? (dark ? Color.white : Color(white: 0.15)) : style.color.color
+        return ZStack {
+            switch style.effect {
+            case .none:
+                EmptyView()
+            case .glow:
+                swatch([effect])
+                    .mask(shape.blur(radius: u * (2 + 10 * style.effectSize)))
+                    .opacity(style.effectStrength)
+                swatch([effect])
+                    .mask(shape.blur(radius: u * (8 + 40 * style.effectSize)))
+                    .opacity(0.8 * style.effectStrength)
+            case .shadow:
+                swatch([effect])
+                    .mask(shape.blur(radius: u * (1 + 14 * style.effectSize)).offset(y: u * 24 * style.effectDistance))
+                    .opacity(style.effectStrength)
+            }
+            switch style.textFill {
+            case .solid:
+                swatch([style.color.color]).mask(shape)
+            case .gradient:
+                swatch([style.color.color, style.gradientColor.color]).mask(shape)
+            case .glass:
+                swatch([body.opacity(0.75), body.opacity(0.45), body.opacity(0.65)], .topLeading, .bottomTrailing)
+                    .mask(shape)
+                swatch([.white.opacity(0.9), .white.opacity(0.15), .white.opacity(0.55)], .topLeading, .bottomTrailing)
+                    .mask(shape.stroke(lineWidth: max(1, 1.6 * u) * 2).clipShape(shape))
+            }
+            if let inner = style.innerColor {
+                swatch([inner.color])
+                    .mask(shape.stroke(lineWidth: u * 9).blur(radius: u * 4).clipShape(shape))
+                    .opacity(style.innerStrength)
+            }
+        }
+        .opacity(style.textOpacity)
     }
 
     /// Content the system recolours, imitated in the app's preview.

@@ -318,6 +318,15 @@ If we ever need a different layout per mode:
 - **I'm Feeling Lucky** (`ClockStyle.lucky(from:)`): random font, weight, width and effects within ranges that read well, colours from ten hand-picked combinations, carrying over time format and kept-colour settings.
 - **Bolder in small widgets** (`adaptsToSize`, on by default): up to +0.12 weight, +0.08 width and +0.015 spacing in small and medium widgets, fading out by the large sizes, like optical sizes in type design.
 
+### 6.3c Workspace, presets and pairings (2026-10-20)
+
+- **Layout menu** (top left): Automatic, Side by Side, Stacked, Preview Only. A **drag handle** on the divider resizes the panes (settings keep ≥ 380 pt); sizes are remembered.
+- **Backdrop** behind the preview: Plain, four gradients, or the person's own photo (`PhotosPicker`, stored in Application Support). Apps can't read the Home Screen wallpaper, so a screenshot of the Home Screen is the way to preview against it. Preview controls sit on a `.regular` glass panel that fills the available width, so they stay readable over any backdrop.
+- **Applying:** edits are a draft kept in the app (`StyleLibrary`). The widget's style changes only on **Apply to Widget**, or on leaving the app when **Apply when leaving the app** is on (default). The Apply button shows "Applied" when nothing is waiting.
+- **Custom presets:** up to two, saved with a name; long-press to update, rename or delete.
+- **Font pairings** for the AM/PM and date line (`DetailFont`): SF Pro → New York Italic, SF Rounded → Nunito, New York → SF Pro, SF Mono → Space Grotesk, Roboto Flex → Playfair Display Italic, Google Sans Flex → Instrument Serif Italic. Sans pairings are letter-spaced capitals; italics are written normally at 1.25× the size. Bundled fonts are SIL OFL (licences in Shared/Fonts).
+- **Keep time colours (again):** each layer of the time is a tiny full-colour swatch (`ClockRaster.swatch`, 16×16 px) masked by the digits' vector outline, so the widget archive stays small. Heavy style with everything kept: "Reload success" in the simulator. Glass loses its inner shadows in this form (tinted body + lit rim). ⚠️ Whether iPadOS 27 keeps a masked full-colour image in colour needs checking on the iPad.
+
 ### 6.4 Settings controls
 
 Use **standard** SwiftUI controls inside a `Form`: `Slider`, `Toggle`, `Picker(.segmented)` and plain `Button`s for the swatches. They get Liquid Glass when someone touches them, plus full accessibility behaviour, for free. **Don't** add `glassEffect` to them.

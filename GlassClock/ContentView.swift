@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import PhotosUI
 
 /// iPad widget sizes, used only to shape the in-app preview.
 /// Canvas sizes for the 13-inch iPad (1024×1366 pt) from Apple's HIG widget specifications.
@@ -27,11 +28,28 @@ enum PreviewSize: String, CaseIterable, Identifiable {
 }
 
 struct ContentView: View {
-    @State private var style = ClockStyle.launchOverride ?? ClockStyle.load()
+    /// The style being edited. It's saved in the app as it changes, but only reaches the widget
+    /// when applied, so half-finished changes never show on the Home Screen.
+    @State private var style = ClockStyle.launchOverride ?? StyleLibrary.loadDraft() ?? ClockStyle.load()
+    /// The style the widget shows.
+    @State private var appliedStyle = ClockStyle.load()
+    @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var customPresets = StyleLibrary.loadPresets()
+    /// The saved preset being named: nil for a new one. Shown when `namingPreset` is true.
+    @State private var presetIndex: Int?
+    @State private var presetName = ""
+    @State private var namingPreset = false
     @State private var previewSize = PreviewSize.medium
     @State private var homeScreen = HomeScreenStyle.light
-    @State private var reloadTask: Task<Void, Never>?
-    @State private var justApplied = false
+    @AppStorage("workspaceLayout") private var layout = WorkspaceLayout.automatic
+    /// The preview's share of the width (side by side) or height (stacked), set by dragging.
+    @AppStorage("previewWidthShare") private var previewWidthShare = 0.42
+    @AppStorage("previewHeightShare") private var previewHeightShare = 0.45
+    @AppStorage("previewBackdrop") private var backdrop = PreviewBackdrop.plain
+    @State private var backdropPhoto = BackdropPhoto.load()
+    @State private var photoItem: PhotosPickerItem?
+    @State private var choosingPhoto = false
 
     /// Spacing on an 8-point grid (HIG: Layout).
     private enum Space {
@@ -44,80 +62,112 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                // Side by side when there's room (a full-screen iPad in landscape); stacked in
-                // portrait and in narrower Split View or Stage Manager windows.
-                if geometry.size.width >= 1000 {
+                let size = geometry.size
+                switch layout.resolved(width: size.width) {
+                case .sideBySide:
+                    // Settings keep at least 380 pt, so their controls never get cramped.
+                    let widest = max(0.3, 1 - 380 / size.width)
                     HStack(spacing: 0) {
-                        // Settings get at least 600 pt, so a row of colour swatches fits on one line.
                         preview
-                            .frame(width: min(geometry.size.width * 0.5, geometry.size.width - 600))
-                        Divider()
-                            .ignoresSafeArea()
+                            .frame(width: size.width * min(previewWidthShare, widest))
+                        SplitHandle(axis: .horizontal, fraction: $previewWidthShare,
+                                    total: size.width, range: 0.25...widest)
                         settings
                     }
-                } else {
+                case .previewOnly:
+                    preview
+                default:
                     VStack(spacing: 0) {
                         preview
-                            .frame(height: min(500, max(340, geometry.size.height * 0.45)))
+                            .frame(height: size.height * previewHeightShare)
+                        SplitHandle(axis: .vertical, fraction: $previewHeightShare,
+                                    total: size.height, range: 0.25...0.8)
                         settings
                     }
                 }
             }
+            .animation(.smooth, value: layout)
             .navigationTitle("Glass Clock")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Picker("Layout", selection: $layout) {
+                            ForEach(WorkspaceLayout.allCases) { option in
+                                Label(option.label, systemImage: option.symbol).tag(option)
+                            }
+                        }
+                    } label: {
+                        Label("Layout", systemImage: layout.symbol)
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
+                    let applied = style == appliedStyle
                     Button(action: apply) {
                         HStack(spacing: 6) {
-                            Image(systemName: justApplied ? "checkmark.circle.fill" : "arrow.down.circle")
-                            Text(justApplied ? "Applied" : "Apply to Widget")
+                            Image(systemName: applied ? "checkmark.circle.fill" : "arrow.down.circle")
+                            Text(applied ? "Applied" : "Apply to Widget")
                         }
                         .padding(.horizontal, 4)
                     }
                     .buttonStyle(.borderedProminent)
-                    .sensoryFeedback(.success, trigger: justApplied) { _, applied in applied }
+                    .disabled(applied)
+                    .sensoryFeedback(.success, trigger: appliedStyle)
                 }
             }
         }
-        .onAppear {
-            // A style passed in for testing (debug builds only) is saved, so the widget shows it too.
-            if ClockStyle.launchOverride != nil {
-                style.save()
-                WidgetCenter.shared.reloadAllTimelines()
+        .photosPicker(isPresented: $choosingPhoto, selection: $photoItem, matching: .images)
+        .onChange(of: photoItem) {
+            Task {
+                guard let data = try? await photoItem?.loadTransferable(type: Data.self),
+                      let image = BackdropPhoto.save(data) else { return }
+                backdropPhoto = image
+                backdrop = .photo
             }
         }
+        .onChange(of: backdrop) {
+            if backdrop == .photo && backdropPhoto == nil { choosingPhoto = true }
+        }
+        .alert(presetIndex == nil ? "Save Preset" : "Rename Preset", isPresented: $namingPreset) {
+            TextField("Name", text: $presetName)
+            Button("Save", action: savePreset)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(presetIndex == nil ? "Saves the current style so you can come back to it." : "")
+        }
+        .onAppear {
+            // A style passed in for testing (debug builds only) is applied, so the widget shows it too.
+            if ClockStyle.launchOverride != nil { apply() }
+        }
         .onChange(of: style) {
-            style.save()
-            justApplied = false
-            // Wait for the slider to settle before asking widgets to redraw.
-            reloadTask?.cancel()
-            reloadTask = Task {
-                try? await Task.sleep(for: .milliseconds(400))
-                guard !Task.isCancelled else { return }
-                WidgetCenter.shared.reloadAllTimelines()
-            }
+            StyleLibrary.saveDraft(style)
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .background && applyWhenLeaving && style != appliedStyle { apply() }
         }
     }
 
-    /// Changes already reach the widget on their own; this sends them straight away and says so.
+    /// Sends the edited style to the widget.
     private func apply() {
-        reloadTask?.cancel()
         style.save()
         WidgetCenter.shared.reloadAllTimelines()
-        withAnimation(.snappy) { justApplied = true }
+        withAnimation(.snappy) { appliedStyle = style }
+    }
+
+    private func savePreset() {
+        let name = presetName.trimmingCharacters(in: .whitespaces)
+        if let presetIndex {
+            customPresets[presetIndex].name = name.isEmpty ? customPresets[presetIndex].name : name
+        } else {
+            customPresets.append(CustomPreset(name: name.isEmpty ? "My Style" : name, style: style))
+        }
+        StyleLibrary.savePresets(customPresets)
     }
 
     private var preview: some View {
         ZStack {
-            // Plain white, so the card looks the same as it will on the Home Screen. Clear
-            // and Tinted get a wallpaper, since their white or tinted content needs one to show up.
-            if homeScreen.accent == nil {
-                (homeScreen == .dark ? Color.black : Color.white)
-                    .ignoresSafeArea(edges: [.bottom, .horizontal])
-            } else {
-                LinearGradient(colors: [.indigo, .teal, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .ignoresSafeArea(edges: [.bottom, .horizontal])
-            }
+            backdropView
+                .ignoresSafeArea(edges: [.bottom, .horizontal])
 
             VStack(spacing: Space.large) {
                 Spacer(minLength: 0)
@@ -159,7 +209,27 @@ struct ContentView: View {
         .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
     }
 
-    /// Side by side when they fit, otherwise stacked.
+    /// What's behind the card. Plain is white or black, so the card looks as it will on a
+    /// plain Home Screen; Clear and Tinted need a wallpaper for their white content to show up.
+    @ViewBuilder
+    private var backdropView: some View {
+        switch backdrop {
+        case .plain where homeScreen.accent == nil:
+            homeScreen == .dark ? Color.black : Color.white
+        case .photo where backdropPhoto != nil:
+            Color.clear.overlay {
+                Image(uiImage: backdropPhoto!)
+                    .resizable()
+                    .scaledToFill()
+            }
+            .clipped()
+        default:
+            LinearGradient(colors: backdrop.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+
+    /// Side by side when they fit, otherwise stacked, on a glass panel so they stay readable
+    /// over any backdrop (glass for the controls layer, HIG: Materials).
     private var previewControls: some View {
         let homePicker = labelled("Home Screen") {
             Picker("Home Screen style", selection: $homeScreen) {
@@ -173,17 +243,41 @@ struct ContentView: View {
             }
             .pickerStyle(.segmented)
         }
+        let backdropMenu = labelled("Backdrop") {
+            HStack(spacing: Space.small) {
+                Picker("Backdrop", selection: $backdrop) {
+                    ForEach(PreviewBackdrop.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.menu)
+                if backdrop == .photo {
+                    Button("Change…") { choosingPhoto = true }
+                }
+            }
+        }
+        // Fills the width it's given: one row when everything fits, otherwise the two pickers
+        // share a row and the backdrop sits below, otherwise one per row.
         return ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: Space.large) {
-                homePicker.frame(minWidth: 300)
-                sizePicker.frame(minWidth: 340)
+                homePicker.frame(minWidth: 300, maxWidth: .infinity)
+                sizePicker.frame(minWidth: 340, maxWidth: .infinity)
+                backdropMenu.fixedSize()
             }
-            VStack(spacing: Space.medium) {
-                homePicker
-                sizePicker
+            VStack(alignment: .leading, spacing: Space.medium) {
+                HStack(alignment: .top, spacing: Space.large) {
+                    homePicker.frame(minWidth: 300, maxWidth: .infinity)
+                    sizePicker.frame(minWidth: 340, maxWidth: .infinity)
+                }
+                backdropMenu
             }
-            .frame(maxWidth: 440)
+            VStack(alignment: .leading, spacing: Space.medium) {
+                homePicker.frame(maxWidth: .infinity)
+                sizePicker.frame(maxWidth: .infinity)
+                backdropMenu
+            }
         }
+        .padding(Space.large)
+        .frame(maxWidth: .infinity)
+        .glassEffect(.regular, in: .rect(cornerRadius: 28))
     }
 
     private func labelled(_ title: String, @ViewBuilder content: () -> some View) -> some View {
@@ -197,7 +291,7 @@ struct ContentView: View {
 
     private var settings: some View {
         Form {
-            Section("Presets") {
+            Section {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         Button {
@@ -206,17 +300,39 @@ struct ContentView: View {
                             Label("I'm Feeling Lucky", systemImage: "dice")
                         }
                         .buttonStyle(.borderedProminent)
+                        ForEach(customPresets.indices, id: \.self) { index in
+                            customPresetButton(index)
+                        }
+                        if customPresets.count < StyleLibrary.maxCustomPresets {
+                            Button {
+                                presetIndex = nil
+                                presetName = "My Style \(customPresets.count + 1)"
+                                namingPreset = true
+                            } label: {
+                                Label("Save Current", systemImage: "plus")
+                            }
+                            .buttonStyle(.bordered)
+                        }
                         ForEach(ClockStyle.presets, id: \.name) { preset in
                             Button(preset.name) { style = preset.style }
                                 .buttonStyle(.bordered)
                         }
                     }
                 }
+            } header: {
+                Text("Presets")
+            } footer: {
+                Text("Save up to \(StyleLibrary.maxCustomPresets) of your own. Long-press one to update, rename or delete it.")
             }
 
             Section("Font") {
                 Picker("Font", selection: $style.font) {
                     ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
+                }
+                Picker("AM/PM and date font", selection: $style.detailFont) {
+                    ForEach(DetailFont.allCases) { option in
+                        Text(option == .paired ? "Matched: \(style.font.pairing.label)" : option.label).tag(option)
+                    }
                 }
                 slider("Weight", value: $style.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
                 if style.font.hasWidth {
@@ -321,6 +437,7 @@ struct ContentView: View {
             }
 
             Section {
+                Toggle("Keep time colours", isOn: $style.keepsTimeColours)
                 Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
                 Toggle("Keep card colours", isOn: $style.keepsCardColours)
             } header: {
@@ -330,11 +447,44 @@ struct ContentView: View {
             }
 
             Section {
+                Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
+            } header: {
+                Text("Applying changes")
+            } footer: {
+                Text("Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if this is on.")
+            }
+
+            Section {
                 Button("Reset to defaults", role: .destructive) {
                     style = ClockStyle()
                 }
             } footer: {
                 Text("To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock.")
+            }
+        }
+    }
+
+    private func customPresetButton(_ index: Int) -> some View {
+        Button {
+            style = customPresets[index].style
+        } label: {
+            Label(customPresets[index].name, systemImage: "star.fill")
+        }
+        .buttonStyle(.bordered)
+        .tint(.orange)
+        .contextMenu {
+            Button("Update to Current Style", systemImage: "arrow.triangle.2.circlepath") {
+                customPresets[index].style = style
+                StyleLibrary.savePresets(customPresets)
+            }
+            Button("Rename…", systemImage: "pencil") {
+                presetIndex = index
+                presetName = customPresets[index].name
+                namingPreset = true
+            }
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                customPresets.remove(at: index)
+                StyleLibrary.savePresets(customPresets)
             }
         }
     }

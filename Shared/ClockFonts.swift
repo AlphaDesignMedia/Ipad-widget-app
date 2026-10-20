@@ -78,22 +78,34 @@ enum ClockFont: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// The second font that complements this one, for the AM/PM and date line.
+    var pairing: DetailFont {
+        switch self {
+        case .sf: .newYorkItalic
+        case .sfRounded: .nunito
+        case .newYork: .sfPro
+        case .sfMono: .spaceGrotesk
+        case .robotoFlex: .playfairItalic
+        case .googleSansFlex: .instrumentSerifItalic
+        }
+    }
+
     /// 0 → low, 0.5 → middle, 1 → high, in a straight line either side of the middle.
-    private static func blend(_ t: Double, _ low: Double, _ middle: Double, _ high: Double) -> Double {
+    static func blend(_ t: Double, _ low: Double, _ middle: Double, _ high: Double) -> Double {
         t < 0.5 ? low + (middle - low) * t * 2 : middle + (high - middle) * (t - 0.5) * 2
     }
 
     private static let robotoFlexFile = descriptor(named: "RobotoFlex")
     private static let googleSansFlexFile = descriptor(named: "GoogleSansFlex")
 
-    private static func descriptor(named name: String) -> CTFontDescriptor? {
+    static func descriptor(named name: String) -> CTFontDescriptor? {
         let url = Bundle.main.url(forResource: name, withExtension: "ttf")
             ?? Bundle.main.url(forResource: name, withExtension: "ttf", subdirectory: "Fonts")
         guard let url else { return nil }
         return (CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor])?.first
     }
 
-    private static func variable(_ descriptor: CTFontDescriptor?, size: CGFloat, axes: [String: Double]) -> CTFont {
+    static func variable(_ descriptor: CTFontDescriptor?, size: CGFloat, axes: [String: Double]) -> CTFont {
         guard let descriptor else { return UIFont.systemFont(ofSize: size) as CTFont }
         let variation = Dictionary(uniqueKeysWithValues: axes.map { (NSNumber(value: tag($0.key)), NSNumber(value: $0.value)) })
         let varied = CTFontDescriptorCreateCopyWithAttributes(
@@ -104,9 +116,71 @@ enum ClockFont: String, Codable, CaseIterable, Identifiable {
     }
 
     /// An OpenType axis tag such as "wght" as the number Core Text expects.
-    private static func tag(_ string: String) -> UInt32 {
+    static func tag(_ string: String) -> UInt32 {
         string.utf8.reduce(0) { $0 << 8 | UInt32($1) }
     }
+}
+
+/// The font for the AM/PM and date line. It doesn't need to be variable, so it can be chosen
+/// purely to complement the time's font. The bundled ones are from Google Fonts under the SIL
+/// Open Font License (Shared/Fonts).
+enum DetailFont: String, Codable, CaseIterable, Identifiable {
+    /// The pairing chosen for the time's font (`ClockFont.pairing`).
+    case paired
+    case sameAsTime
+    case sfPro, newYorkItalic, nunito, spaceGrotesk, playfairItalic, instrumentSerifItalic
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .paired: "Matched"
+        case .sameAsTime: "Same as time"
+        case .sfPro: "SF Pro"
+        case .newYorkItalic: "New York Italic"
+        case .nunito: "Nunito"
+        case .spaceGrotesk: "Space Grotesk"
+        case .playfairItalic: "Playfair Display Italic"
+        case .instrumentSerifItalic: "Instrument Serif Italic"
+        }
+    }
+
+    /// Sans fonts read best as letter-spaced capitals; italics are written normally.
+    var usesCapitals: Bool {
+        switch self {
+        case .newYorkItalic, .playfairItalic, .instrumentSerifItalic: false
+        default: true
+        }
+    }
+
+    /// The font at a 0–1 weight. Nil for `.paired` and `.sameAsTime`, which are resolved first.
+    func font(size: CGFloat, weight: Double) -> CTFont? {
+        let systemWeight = UIFont.Weight(ClockFont.blend(weight, -0.8, 0, 0.62))
+        switch self {
+        case .paired, .sameAsTime:
+            return nil
+        case .sfPro:
+            return UIFont.systemFont(ofSize: size, weight: systemWeight) as CTFont
+        case .newYorkItalic:
+            let base = UIFont.systemFont(ofSize: size, weight: systemWeight).fontDescriptor
+            let serif = base.withDesign(.serif) ?? base
+            let italic = serif.withSymbolicTraits(.traitItalic) ?? serif
+            return UIFont(descriptor: italic, size: size) as CTFont
+        case .nunito:
+            return ClockFont.variable(Self.nunitoFile, size: size, axes: ["wght": ClockFont.blend(weight, 200, 400, 1000)])
+        case .spaceGrotesk:
+            return ClockFont.variable(Self.spaceGroteskFile, size: size, axes: ["wght": ClockFont.blend(weight, 300, 400, 700)])
+        case .playfairItalic:
+            return ClockFont.variable(Self.playfairFile, size: size, axes: ["wght": ClockFont.blend(weight, 400, 400, 900)])
+        case .instrumentSerifItalic:
+            // One weight only.
+            return Self.instrumentSerifFile.map { CTFontCreateWithFontDescriptor($0, size, nil) }
+        }
+    }
+
+    private static let nunitoFile = ClockFont.descriptor(named: "Nunito")
+    private static let spaceGroteskFile = ClockFont.descriptor(named: "SpaceGrotesk")
+    private static let playfairFile = ClockFont.descriptor(named: "PlayfairDisplay-Italic")
+    private static let instrumentSerifFile = ClockFont.descriptor(named: "InstrumentSerif-Italic")
 }
 
 /// A line of text as one vector outline, y pointing down, with the left of the baseline at 0.

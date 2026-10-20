@@ -47,6 +47,25 @@ enum ClockRaster {
         }
     }
 
+    /// A tiny full-colour image of `colors` running from `start` to `end`, for filling shapes
+    /// on a Clear/Tinted Home Screen. Stretched to the clock's size and masked by the digits'
+    /// outline, it colours the time while the archive only holds a few pixels, unlike an image
+    /// of the time itself (see the note above).
+    static func swatch(_ colors: [Color], start: UnitPoint = .top, end: UnitPoint = .bottom, dark: Bool) -> UIImage {
+        let size = CGSize(width: 16, height: 16)
+        let key = "swatch|\(colors.map { "\($0)" })|\(start)|\(end)|\(dark)"
+        return cached(key) {
+            render(size: size, scale: 1) { ctx in
+                let painter = Painter(ctx: ctx, scale: 1, dark: dark, bounds: CGRect(origin: .zero, size: size),
+                                      area: CGRect(origin: .zero, size: size))
+                let stops = colors.enumerated().map { ($1, CGFloat($0) / CGFloat(max(1, colors.count - 1))) }
+                painter.linearGradient(CGPath(rect: CGRect(origin: .zero, size: size), transform: nil), stops: stops,
+                                       from: CGPoint(x: start.x * 16, y: start.y * 16),
+                                       to: CGPoint(x: end.x * 16, y: end.y * 16))
+            }
+        }
+    }
+
     /// The area the AM/PM and date line draws in, including its glow or shadow.
     static func detailArea(artwork: ClockArtwork, style: ClockStyle, in size: CGSize) -> CGRect {
         guard !artwork.detail.isEmpty else { return .zero }
