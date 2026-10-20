@@ -109,10 +109,11 @@ enum ClockRaster {
             case .solid:
                 painter.fill(CGPath(rect: rect, transform: nil), style.solidFill.opacity(style.cardOpacity))
             case .glass:
-                // The same wash as `GlassCardBackground`.
+                // Stronger than `GlassCardBackground`'s 5–25% wash: here it sits on top of the
+                // system's own glass, where that wash was too faint to see (user test, 2026-10-20).
                 guard style.cardOpacity > 0 else { return }
                 painter.fill(CGPath(rect: rect, transform: nil),
-                             (style.cardTint ?? .white).opacity(0.05 + 0.2 * style.cardOpacity))
+                             (style.cardTint ?? .white).opacity(style.cardTint == nil ? 0.15 : 0.3 + 0.45 * style.cardOpacity))
             }
         } }
     }

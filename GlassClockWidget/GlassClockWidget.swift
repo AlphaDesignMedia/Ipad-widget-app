@@ -51,6 +51,9 @@ struct GlassClockWidgetView: View {
                                                     dark: colorScheme == .dark))
                         .resizable()
                         .widgetAccentedRenderingMode(.fullColor)
+                        // Cropped to the widget's shape, the same way the kept time is, which
+                        // is what kept its colour on iPadOS 27 (2026-10-20).
+                        .clipShape(ContainerRelativeShape())
                 }
             }
             clock
