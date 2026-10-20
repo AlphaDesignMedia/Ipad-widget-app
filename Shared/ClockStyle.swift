@@ -114,6 +114,11 @@ enum HomeScreenStyle: String, CaseIterable, Identifiable {
         self == .clear || self == .tinted ? .white : nil
     }
 
+    /// Whether parts drawn as full-colour images keep their colours here. On a Clear Home
+    /// Screen iPadOS puts its glass over them anyway (observed in the iPadOS 26.5 simulator,
+    /// 2026-10-20), so only Tinted can show kept colours.
+    var showsKeptColours: Bool { self != .clear }
+
     /// The colour of the system's glass card in Tinted mode (an example tint).
     var cardTint: Color? {
         self == .tinted ? Color(red: 0.2, green: 0.35, blue: 0.85) : nil
@@ -162,9 +167,13 @@ struct ClockStyle: Codable, Equatable {
     var height: Double = 1
     /// Stretches the digits taller in square cards so they fill the space.
     var fillsCard = true
+    /// Rounds the digits' outer corners, 0–1.
+    var softness: Double = 0
     var color: ClockColor = .auto
     var timeFormat: TimeFormat = .system
     var showDate = false
+    /// The date above the time, as on the Lock Screen, instead of in the line below.
+    var dateAbove = false
     var ampm: AMPMPlacement = .below
     var background: CardBackground = .glass
     var backgroundColor: ClockColor = .auto
@@ -210,6 +219,8 @@ struct ClockStyle: Codable, Equatable {
         spacing = try value(.spacing, d.spacing)
         height = try value(.height, d.height)
         fillsCard = try value(.fillsCard, d.fillsCard)
+        softness = try value(.softness, d.softness)
+        dateAbove = try value(.dateAbove, d.dateAbove)
         color = try value(.color, d.color)
         timeFormat = try value(.timeFormat, d.timeFormat)
         showDate = try value(.showDate, d.showDate)
@@ -230,6 +241,41 @@ struct ClockStyle: Codable, Equatable {
         keepsTimeColours = try value(.keepsTimeColours, d.keepsTimeColours)
         keepsDetailColours = try value(.keepsDetailColours, d.keepsDetailColours)
         keepsCardColours = try value(.keepsCardColours, d.keepsCardColours)
+    }
+
+    /// Starting points people can pick and then adjust.
+    static let presets: [(name: String, style: ClockStyle)] = [
+        ("Bold glass", ClockStyle()),
+        // Matched to the iPadOS 26 Lock Screen clock (References/simulator/11).
+        ("Lock Screen", ClockStyle().with {
+            $0.font = .sf; $0.fontWeight = 0.8; $0.fontWidth = 0.5; $0.spacing = -0.015
+            $0.softness = 0.5; $0.fillsCard = false
+            $0.textFill = .glass; $0.effect = .none
+            $0.ampm = .hidden; $0.showDate = true; $0.dateAbove = true
+        }),
+        ("Neon", ClockStyle().with {
+            $0.font = .googleSansFlex; $0.fontWeight = 0.6; $0.fontWidth = 0.45; $0.roundness = 1
+            $0.textFill = .solid; $0.color = .white; $0.innerColor = .purple; $0.innerStrength = 0.7
+            $0.effect = .glow; $0.effectColor = .purple; $0.effectSize = 0.6; $0.effectStrength = 0.9
+            $0.ampm = .beside
+        }),
+        ("Minimal", ClockStyle().with {
+            $0.font = .robotoFlex; $0.fontWeight = 0.25; $0.fontWidth = 0.5; $0.spacing = 0.04
+            $0.textFill = .solid; $0.effect = .none; $0.fillsCard = false
+            $0.ampm = .below; $0.showDate = true
+        }),
+        ("Stacked serif", ClockStyle().with {
+            $0.font = .newYork; $0.fontWeight = 0.7; $0.textFill = .gradient; $0.color = .white
+            $0.gradientColor = .orange; $0.effect = .shadow; $0.effectStrength = 0.4
+            $0.ampm = .stacked; $0.fillsCard = false
+        }),
+    ]
+
+    /// A copy with some settings changed.
+    func with(_ change: (inout ClockStyle) -> Void) -> ClockStyle {
+        var copy = self
+        change(&copy)
+        return copy
     }
 
     /// The colour of the glow or shadow.

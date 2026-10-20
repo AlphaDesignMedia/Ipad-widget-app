@@ -20,7 +20,8 @@ enum ClockRaster {
             ctx.beginTransparencyLayer(auxiliaryInfo: nil)
             painter.light(path, style: style, unit: artwork.unit)
             if part == .detail && style.textFill == .glass {
-                painter.fill(path, (style.color == .auto ? Color.white : style.color.color).opacity(0.9))
+                let auto = dark ? Color.white : Color(white: 0.15)
+                painter.fill(path, (style.color == .auto ? auto : style.color.color).opacity(0.9))
             } else {
                 painter.text(path, style: style, unit: artwork.unit, withInnerColour: part == .time)
             }
@@ -166,7 +167,7 @@ private struct Painter {
             linearGradient(path, stops: [(style.color.color, 0), (style.gradientColor.color, 1)],
                            from: CGPoint(x: box.midX, y: bounds.minY), to: CGPoint(x: box.midX, y: bounds.maxY))
         case .glass:
-            let body = style.color == .auto ? Color.white : style.color.color
+            let body = style.color == .auto ? (dark ? Color.white : Color(white: 0.15)) : style.color.color
             linearGradient(path, stops: [(body.opacity(0.5), 0), (body.opacity(0.18), 0.5), (body.opacity(0.38), 1)],
                            from: topLeading, to: bottomTrailing)
             innerShadow(path, .white, blur: 0.5 * k, offset: CGSize(width: 1.5 * k, height: 1.5 * k))

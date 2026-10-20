@@ -37,6 +37,13 @@ struct ContentView: View {
             preview
             settings
         }
+        .onAppear {
+            // A style passed in for testing (debug builds only) is saved, so the widget shows it too.
+            if ClockStyle.launchOverride != nil {
+                style.save()
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+        }
         .onChange(of: style) {
             style.save()
             // Wait for the slider to settle before asking widgets to redraw.
@@ -68,7 +75,8 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
 
                 TimelineView(.everyMinute) { context in
-                    ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent)
+                    ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
+                              simulatesClear: !homeScreen.showsKeptColours)
                         .padding(16)
                         .frame(width: previewSize.size.width, height: previewSize.size.height)
                         .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28), homeScreen: homeScreen))
@@ -91,10 +99,24 @@ struct ContentView: View {
             .padding()
         }
         .frame(height: 520)
+        // The labels and pickers follow the backdrop, so they stay readable when the iPad is
+        // in dark mode but the Light preview is on.
+        .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
     }
 
     private var settings: some View {
         Form {
+            Section("Presets") {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(ClockStyle.presets, id: \.name) { preset in
+                            Button(preset.name) { style = preset.style }
+                                .buttonStyle(.bordered)
+                        }
+                    }
+                }
+            }
+
             Section("Font") {
                 Picker("Font", selection: $style.font) {
                     ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
@@ -109,6 +131,7 @@ struct ContentView: View {
                 slider("Height", value: $style.height, in: ClockStyle.heightRange, low: "Normal", high: "Tall")
                 Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
                 slider("Spacing", value: $style.spacing, in: ClockStyle.spacingRange, low: "Tight", high: "Loose")
+                slider("Corners", value: $style.softness, in: 0...1, low: "Sharp", high: "Soft")
             }
 
             Section("Text") {
@@ -192,6 +215,9 @@ struct ContentView: View {
                 }
                 .disabled(!style.uses12Hour)
                 Toggle("Show date", isOn: $style.showDate)
+                if style.showDate {
+                    Toggle("Date above the time", isOn: $style.dateAbove)
+                }
             }
 
             Section {
@@ -199,9 +225,9 @@ struct ContentView: View {
                 Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
                 Toggle("Keep card colours", isOn: $style.keepsCardColours)
             } header: {
-                Text("Clear and Tinted Home Screens")
+                Text("Tinted Home Screens")
             } footer: {
-                Text("iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Use the Clear and Tinted previews above to compare.")
+                Text("iPadOS normally redraws widgets in its own glass and colour on these Home Screens. On a Tinted Home Screen, these bring your colours forward instead. On a Clear Home Screen iPadOS always applies its own glass, so they have no effect there.")
             }
 
             Section {

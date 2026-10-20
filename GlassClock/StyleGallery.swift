@@ -2,19 +2,14 @@ import SwiftUI
 
 // Debug-only tools for comparing clock styles side by side in the simulator:
 //   -gallery fonts|ampm|glass|light   shows a page of labelled variations
-//   -style '<ClockStyle JSON>'        opens the app with that style
+//   GLASSCLOCK_STYLE='<ClockStyle JSON>' (environment; SIMCTL_CHILD_ prefix with simctl)
+//                                    opens the app with that style and saves it for the widget
 
 #if DEBUG
 extension ClockStyle {
     static var launchOverride: ClockStyle? {
-        guard let json = UserDefaults.standard.string(forKey: "style") else { return nil }
+        guard let json = ProcessInfo.processInfo.environment["GLASSCLOCK_STYLE"] else { return nil }
         return try? JSONDecoder().decode(ClockStyle.self, from: Data(json.utf8))
-    }
-
-    fileprivate func with(_ change: (inout ClockStyle) -> Void) -> ClockStyle {
-        var copy = self
-        change(&copy)
-        return copy
     }
 }
 
@@ -71,6 +66,8 @@ struct StyleGallery: View {
                 ("Inner colour only", base.with { $0.innerColor = .red; $0.innerStrength = 0.8 }),
                 ("Inner colour + glow", base.with { $0.innerColor = .mint; $0.effect = .glow; $0.effectColor = .mint }),
             ]
+        case "presets":
+            return ClockStyle.presets.map { ($0.name, $0.style.with { $0.timeFormat = .twelve }) }
         case "lock":
             // Settings that get close to the iPadOS Lock Screen clock.
             let lock = base.with { $0.textFill = .glass; $0.fontWeight = 0.95; $0.height = 1.3; $0.effect = .shadow; $0.effectStrength = 0.35; $0.ampm = .hidden }
@@ -95,7 +92,7 @@ struct StyleGallery: View {
     }
 
     var body: some View {
-        if page == "default" { sizes } else if page == "accent" { accentGrid } else { grid }
+        if page == "default" { sizes } else if page == "accent" { accentGrid } else if page == "match" { match } else { grid }
     }
 
     /// The default style at every widget size.
@@ -121,6 +118,20 @@ struct StyleGallery: View {
             .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28)))
     }
 
+    /// The Lock Screen preset, card off, at the Lock Screen screenshot's time and size,
+    /// over a similar blue, to compare against References/simulator/11.
+    private var match: some View {
+        let time = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 20, hour: 15, minute: 41))!
+        let style = ClockStyle.presets.first { $0.name == "Lock Screen" }!.style.with { $0.cardOpacity = 0 }
+        return ZStack {
+            LinearGradient(colors: [Color(red: 0.2, green: 0.35, blue: 0.85), Color(red: 0.45, green: 0.75, blue: 0.85)],
+                           startPoint: .leading, endPoint: .trailing)
+                .ignoresSafeArea()
+            ClockFace(date: time, style: style)
+                .frame(width: 560, height: 300)
+        }
+    }
+
     private var accentGrid: some View {
         ZStack {
             LinearGradient(colors: [.indigo, .teal, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -128,7 +139,8 @@ struct StyleGallery: View {
             LazyVGrid(columns: [GridItem(.fixed(378.5), spacing: 40), GridItem(.fixed(378.5))], spacing: 36) {
                 ForEach(accentVariants, id: \.0) { name, style, home in
                     VStack(spacing: 10) {
-                        ClockFace(date: date, style: style, simulatedAccent: home.accent)
+                        ClockFace(date: date, style: style, simulatedAccent: home.accent,
+                                  simulatesClear: !home.showsKeptColours)
                             .padding(16)
                             .frame(width: 378.5, height: 170)
                             .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28), homeScreen: home))

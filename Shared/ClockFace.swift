@@ -58,7 +58,8 @@ extension ClockStyle {
                 )
             }
             let light = colorScheme == .light
-            let body = color == .auto ? Color.white : color.color
+            // Automatic glass is dark on light backgrounds and white on dark ones, like text.
+            let body = color == .auto ? (light ? Color(white: 0.15) : .white) : color.color
             return AnyShapeStyle(
                 LinearGradient(
                     colors: [body.opacity(0.5), body.opacity(0.18), body.opacity(0.38)],
@@ -86,7 +87,7 @@ struct ClockCard<S: Shape>: ViewModifier {
             content.background {
                 ZStack {
                     Color.clear.glassEffect(homeScreen.cardTint.map { .regular.tint($0.opacity(0.7)) } ?? .clear, in: shape)
-                    if style.keepsCardColours {
+                    if style.keepsCardColours && homeScreen.showsKeptColours {
                         GeometryReader { geometry in
                             Image(uiImage: ClockRaster.card(style: style, size: geometry.size, scale: displayScale, dark: false))
                         }
@@ -127,14 +128,21 @@ struct ClockArtwork {
         guard size.width > 0, size.height > 0 else { return }
         let font = style.font.font(size: 100, weight: style.fontWeight, width: style.fontWidth, roundness: style.roundness)
         let text = style.timeText(date)
-        let line = GlyphLine(text, font: font, tracking: style.spacing, centersColons: true)
+        var line = GlyphLine(text, font: font, tracking: style.spacing, centersColons: true)
 
         // Sized from tabular zeros, the widest digits, so the clock keeps its size as the
         // minutes change, and only the centring moves.
-        let template = GlyphLine(
+        var template = GlyphLine(
             String(text.map { $0.isNumber ? "0" : $0 }),
             font: Self.tabular(font), tracking: style.spacing, centersColons: true
         )
+        // Softened corners, like the Lock Screen's glass digits: the outline is grown by a
+        // round-cornered stroke, which rounds every outer corner.
+        if style.softness > 0 {
+            let width = 8 * style.softness   // in font units, at size 100
+            line.path = Self.soften(line.path, by: width)
+            template.path = Self.soften(template.path, by: width)
+        }
         let digitHeight = template.bounds.height
         let ink = line.bounds
         guard digitHeight > 0, !ink.isEmpty else { return }
@@ -151,15 +159,19 @@ struct ClockArtwork {
         let letters = ampm.map { Array($0.uppercased().filter(\.isLetter)) } ?? []
         let stacked = style.ampm == .stacked && letters.count == 2
         let beside = ampm != nil && !stacked && (style.ampm == .beside || style.ampm == .stacked)
-        let below = [style.ampm == .below ? ampm : nil, style.showDate ? style.dateText(date) : nil]
+        let below = [style.ampm == .below ? ampm : nil, style.showDate && !style.dateAbove ? style.dateText(date) : nil]
             .compactMap { $0 }
             .joined(separator: "  ·  ")
+        // Above the time, the date is written normally, as on the Lock Screen.
+        let above = style.showDate && style.dateAbove ? style.dateText(date) : ""
 
         // In a squarer card than the clock, stretch the digits taller to fill it, up to 1.6×.
         // The Height slider sets the minimum.
         let belowRatio: CGFloat = 0.15, besideRatio: CGFloat = 0.24, belowGap: CGFloat = 0.16
-        let belowHeight = below.isEmpty ? 0 : (belowGap + belowRatio) * digitHeight
-        let filling = (size.height / size.width * sizingWidth - belowHeight) / ink.height
+        let aboveScale: CGFloat = 0.7, aboveGap: CGFloat = 0.1
+        let detailHeight = (below.isEmpty ? 0 : (belowGap + belowRatio) * digitHeight)
+            + (above.isEmpty ? 0 : (aboveGap + belowRatio * aboveScale * 1.3) * digitHeight)
+        let filling = (size.height / size.width * sizingWidth - detailHeight) / ink.height
         let stretch = max(style.height, style.fillsCard ? min(filling, 1.6) : 0)
         let timeSize = CGSize(width: ink.width, height: ink.height * stretch)
 
@@ -206,6 +218,13 @@ struct ClockArtwork {
                       baseline: timeSize.height + belowGap * digitHeight + cap)
             }
 
+            if !above.isEmpty {
+                let cap = belowCap * aboveScale * digitHeight
+                place(above, cap: cap, tracking: 0.01,
+                      x: { timeSize.width / 2 - $0 / 2 },
+                      baseline: -aboveGap * digitHeight)
+            }
+
             // Fit the sizing box with a little breathing room, centre the actual ink.
             let timeBox = CGRect(origin: .zero, size: timeSize)
             let actual = detail.isEmpty ? timeBox : timeBox.union(detail.boundingRect)
@@ -224,7 +243,7 @@ struct ClockArtwork {
         let minimumCap: CGFloat = 8
         let belowBoost = minimumCap / (belowRatio * digitHeight * result.scale)
         let besideBoost = minimumCap / (besideRatio * digitHeight * result.scale)
-        if (!below.isEmpty && belowBoost > 1) || (beside && besideBoost > 1) {
+        if (!(below.isEmpty && above.isEmpty) && belowBoost > 1) || (beside && besideBoost > 1) {
             result = layout(belowCap: belowRatio * max(1, belowBoost), besideCap: besideRatio * max(1, besideBoost))
         }
         time = result.time
@@ -236,6 +255,10 @@ struct ClockArtwork {
         var path = time
         path.addPath(detail)
         return path
+    }
+
+    private static func soften(_ path: CGPath, by width: CGFloat) -> CGPath {
+        path.copy(strokingWithWidth: width, lineCap: .round, lineJoin: .round, miterLimit: 1).union(path)
     }
 
     private static func tabular(_ font: CTFont) -> CTFont {
@@ -289,6 +312,8 @@ struct ClockFace: View {
     /// Set by the app's preview to imitate a Clear (white) or Tinted Home Screen, where the
     /// system draws every part that isn't a full-colour image in this one colour.
     var simulatedAccent: Color?
+    /// Set with `simulatedAccent` for a Clear Home Screen, which ignores kept colours.
+    var simulatesClear = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -303,11 +328,12 @@ struct ClockFace: View {
                     lettering(artwork.detail, unit: artwork.unit, accented: false, plain: true)
                         .opacity(0.85)
                 } else {
+                    // Marking a kept part as the accent group would let the system tint it after all.
                     accentedPart(.time, keep: style.keepsTimeColours, artwork: artwork, size: geometry.size) {
                         lettering(artwork.time, unit: artwork.unit, accented: true)
                             .opacity(style.textOpacity)
                     }
-                    .widgetAccentable()
+                    .widgetAccentable(!style.keepsTimeColours)
                     accentedPart(.detail, keep: style.keepsDetailColours, artwork: artwork, size: geometry.size) {
                         lettering(artwork.detail, unit: artwork.unit, accented: true, plain: true)
                             .opacity(0.85 * style.textOpacity)
@@ -325,7 +351,7 @@ struct ClockFace: View {
     @ViewBuilder
     private func accentedPart(_ part: ClockRaster.Part, keep: Bool, artwork: ClockArtwork, size: CGSize,
                               @ViewBuilder content: () -> some View) -> some View {
-        if keep {
+        if keep && !simulatesClear {
             Image(uiImage: ClockRaster.image(part, artwork: artwork, style: style, size: size,
                                              scale: displayScale, dark: colorScheme == .dark))
                 .resizable()
@@ -344,7 +370,9 @@ struct ClockFace: View {
         let shape = OutlineShape(path: path)
         let glassDetail = plain && style.textFill == .glass
         let fill = glassDetail
-            ? AnyShapeStyle((accented || style.color == .auto ? Color.white : style.color.color).opacity(0.9))
+            ? AnyShapeStyle((accented ? Color.white
+                : style.color == .auto ? (colorScheme == .light ? Color(white: 0.15) : .white)
+                : style.color.color).opacity(0.9))
             : style.textStyle(in: colorScheme, accented: accented, unit: unit)
         return shape
             .fill(fill)

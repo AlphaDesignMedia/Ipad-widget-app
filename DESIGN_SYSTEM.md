@@ -156,6 +156,10 @@ enum ClockColor: String, Codable, CaseIterable, Identifiable {
 
 **Bundled fonts.** Roboto Flex and Google Sans Flex come from Google Fonts under the SIL Open Font License 1.1 (free to use and ship; the licence files sit next to the fonts in `Shared/Fonts`). Roboto Flex also has a figure-height axis, but its range is small (738 → 788 units), so the Height slider stretches instead. Google Sans Flex's Roundness axis gets closest to the Lock Screen numerals.
 
+**Presets** (Settings → Presets): Bold glass (the default), Lock Screen, Neon, Minimal, Stacked serif. *Lock Screen* was matched against References/simulator/11: SF Pro at weight 0.8, normal width, spacing −0.015, corners softened 0.5 (`Corners` slider: the outline is grown by a round-joined stroke), date above the time in normal case at about 10% of the digit height, plain glass, no shadow.
+
+**Automatic colour on glass** is dark (15% white) on light backgrounds and white on dark ones. White glass on the light card was nearly invisible (*observed 2026-10-20*).
+
 **Matching the Lock Screen.** The Lock Screen clock uses a private cut of SF that apps can't load. The closest options are SF Pro or SF Rounded at a heavy weight with Height raised, or New York (one of the Lock Screen's own font choices). *Observed 2026-10-20:* on iPadOS, asking for Rounded, New York or Mono at an in-between weight silently returns plain SF, so `ClockFont` fetches the design at regular weight and sets its `wght` axis to the value SF uses for that weight.
 
 **Square cards** stretch the digits up to 1.6× taller to fill the space ("Stretch to fill square widgets"). The small text never drops below 8 pt capitals (about 11 pt type, the HIG minimum).
@@ -281,7 +285,9 @@ clock   // ClockFace, or an image of it in Clear/Tinted mode (below)
 
 > **Observed 2026-10-20 on an iPad running iPadOS 27.0.1:** an earlier version drew the clock into a full-colour image (`ImageRenderer` + `.widgetAccentedRenderingMode(.fullColor)`) to keep our colours in these modes. It worked in the iPadOS 26.5 simulator, but left the widget completely blank on the real iPad. Don't reintroduce it without testing on a device.
 
-**Keeping colours in Clear and Tinted mode** (opt-in, per part: time, AM/PM and date, card). The system recolours everything except images marked `.widgetAccentedRenderingMode(.fullColor)`, so kept parts are drawn by `ClockRaster` with Core Graphics into an image (blurs via Core Image; Core Graphics skips shadows cast from drawing outside the image). The card is drawn full-bleed, so the widget turns content margins off and pads the clock 16 pt itself. The app's preview has a Light / Dark / Clear / Tinted switcher that imitates each style. ⚠️ Not yet checked on the real iPad (iPadOS 27).
+**Keeping colours in Clear and Tinted mode** (opt-in, per part: time, AM/PM and date, card). The system recolours everything except images marked `.widgetAccentedRenderingMode(.fullColor)`, so kept parts are drawn by `ClockRaster` with Core Graphics into an image (blurs via Core Image; Core Graphics skips shadows cast from drawing outside the image). The card is drawn full-bleed, so the widget turns content margins off and pads the clock 16 pt itself. The app's preview has a Light / Dark / Clear / Tinted switcher that imitates each style.
+
+> **Observed 2026-10-20 (iPadOS 26.5 simulator, Clear Home Screen):** the widget *was* in accented mode and *did* draw the full-colour image (confirmed by logging), but iPadOS still put its own glass over it, so kept colours don't show on **Clear**. The settings and the Clear preview say so. Kept parts must also not be `widgetAccentable()`. ⚠️ **Tinted** is unverified (couldn't switch the simulator's Home Screen style by automation); developers report `.fullColor` working there. Check on the iPad (iPadOS 27).
 
 **Rendering-mode behaviour:**
 
