@@ -129,15 +129,21 @@ struct ClockArtwork {
 
     init(date: Date, style: ClockStyle, size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
-        let font = style.font.font(size: 100, weight: style.fontWeight, width: style.fontWidth, roundness: style.roundness)
+        // Small widgets get slightly heavier, wider, looser digits (see `adaptsToSize`): fully in
+        // the small and medium sizes, fading out by the large ones.
+        let compact = style.adaptsToSize ? 1 - min(1, max(0, (min(size.width, size.height) - 140) / 200)) : 0
+        let weight = min(1, style.fontWeight + 0.12 * compact)
+        let fontWidth = min(1, style.fontWidth + 0.08 * compact)
+        let spacing = style.spacing + 0.015 * compact
+        let font = style.font.font(size: 100, weight: weight, width: fontWidth, roundness: style.roundness)
         let text = style.timeText(date)
-        var line = GlyphLine(text, font: font, tracking: style.spacing, centersColons: true)
+        var line = GlyphLine(text, font: font, tracking: spacing, centersColons: true)
 
         // Sized from tabular zeros, the widest digits, so the clock keeps its size as the
         // minutes change, and only the centring moves.
         var template = GlyphLine(
             String(text.map { $0.isNumber ? "0" : $0 }),
-            font: Self.tabular(font), tracking: style.spacing, centersColons: true
+            font: Self.tabular(font), tracking: spacing, centersColons: true
         )
         // Softened corners, like the Lock Screen's glass digits: the outline is grown by a
         // round-cornered stroke, which rounds every outer corner.
@@ -153,7 +159,7 @@ struct ClockArtwork {
 
         let detailFont = style.font.font(
             size: 100,
-            weight: 0.55 + (style.fontWeight - 0.5) * 0.4,
+            weight: 0.55 + (weight - 0.5) * 0.4,
             width: 0.5,
             roundness: style.roundness
         )

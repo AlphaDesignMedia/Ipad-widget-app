@@ -308,6 +308,16 @@ If we ever need a different layout per mode:
 // switch renderingMode { case .fullColor: … case .accented: … default: … }
 ```
 
+### 6.3b App layout (2026-10-20)
+
+- **Responsive:** preview and settings side by side when the window is at least 1000 pt wide (settings always get ≥ 600 pt so a swatch row fits on one line); stacked below that, which covers portrait on smaller iPads and narrower Split View / Stage Manager windows.
+- **Preview** is drawn at the real widget size and scaled down to fit, so it's always exactly what the widget draws. "Home Screen" and "Widget size" pickers have headings and sit side by side when they fit (`ViewThatFits`), otherwise stack.
+- **Spacing** on an 8-point grid: 8 / 16 / 24 / 32 pt (HIG: Layout). Section labels use `.footnote` semibold, secondary.
+- **Swatches** wrap in an adaptive grid of 44 pt cells instead of running off the edge.
+- **Apply to Widget** (toolbar, prominent) saves and reloads the widget immediately with a success haptic; changes still apply on their own after 400 ms.
+- **I'm Feeling Lucky** (`ClockStyle.lucky(from:)`): random font, weight, width and effects within ranges that read well, colours from ten hand-picked combinations, carrying over time format and kept-colour settings.
+- **Bolder in small widgets** (`adaptsToSize`, on by default): up to +0.12 weight, +0.08 width and +0.015 spacing in small and medium widgets, fading out by the large sizes, like optical sizes in type design.
+
 ### 6.4 Settings controls
 
 Use **standard** SwiftUI controls inside a `Form`: `Slider`, `Toggle`, `Picker(.segmented)` and plain `Button`s for the swatches. They get Liquid Glass when someone touches them, plus full accessibility behaviour, for free. **Don't** add `glassEffect` to them.

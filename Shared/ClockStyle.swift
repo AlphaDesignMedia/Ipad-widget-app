@@ -171,6 +171,9 @@ struct ClockStyle: Codable, Equatable {
     var height: Double = 1
     /// Stretches the digits taller in square cards so they fill the space.
     var fillsCard = true
+    /// Makes the digits a little heavier and wider in small widgets, where thin strokes get
+    /// hard to read, the way optical sizes do in type design.
+    var adaptsToSize = true
     /// Rounds the digits' outer corners, 0–1.
     var softness: Double = 0
     var color: ClockColor = .auto
@@ -223,6 +226,7 @@ struct ClockStyle: Codable, Equatable {
         spacing = try value(.spacing, d.spacing)
         height = try value(.height, d.height)
         fillsCard = try value(.fillsCard, d.fillsCard)
+        adaptsToSize = try value(.adaptsToSize, d.adaptsToSize)
         softness = try value(.softness, d.softness)
         dateAbove = try value(.dateAbove, d.dateAbove)
         color = try value(.color, d.color)
@@ -274,6 +278,64 @@ struct ClockStyle: Codable, Equatable {
             $0.ampm = .stacked; $0.fillsCard = false
         }),
     ]
+
+    /// A random style that still looks deliberate: colours come from combinations chosen to
+    /// work together, and every setting stays in a range that reads well. Settings that aren't
+    /// about looks (time format, kept colours) are carried over from `base`.
+    static func lucky(from base: ClockStyle) -> ClockStyle {
+        // Text, its glow or accent, a card tint (nil: plain glass), a colour to fade to.
+        let palettes: [(text: ClockColor, accent: ClockColor, card: ClockColor?, fade: ClockColor)] = [
+            (.white, .purple, .purple, .blue),
+            (.white, .blue, nil, .mint),
+            (.yellow, .orange, nil, .orange),
+            (.mint, .blue, .blue, .white),
+            (.orange, .red, nil, .yellow),
+            (.white, .mint, .green, .mint),
+            (.auto, .purple, nil, .purple),
+            (.white, .red, .red, .orange),
+            (.yellow, .purple, .purple, .orange),
+            (.auto, .blue, nil, .blue),
+        ]
+        let palette = palettes.randomElement()!
+        var style = ClockStyle()
+        style.timeFormat = base.timeFormat
+        style.keepsTimeColours = base.keepsTimeColours
+        style.keepsDetailColours = base.keepsDetailColours
+        style.keepsCardColours = base.keepsCardColours
+
+        style.font = ClockFont.allCases.randomElement()!
+        // Mostly bold, now and then a deliberate thin, minimal look.
+        let minimal = Double.random(in: 0...1) < 0.15
+        style.fontWeight = minimal ? .random(in: 0.2...0.35) : .random(in: 0.6...0.95)
+        style.fontWidth = .random(in: 0.3...0.6)
+        style.roundness = .random(in: 0.4...1)
+        style.spacing = minimal ? .random(in: 0.02...0.06) : .random(in: -0.03...0.02)
+        style.height = Bool.random() ? 1 : .random(in: 1...1.3)
+        style.softness = Double.random(in: 0...1) < 0.3 ? .random(in: 0.3...0.6) : 0
+
+        style.color = palette.text
+        style.gradientColor = palette.fade
+        style.textFill = minimal ? .solid : [.glass, .glass, .solid, .solid, .gradient].randomElement()!
+        if let card = palette.card, Bool.random() { style.backgroundColor = card }
+
+        // Glass reads best with a shadow; solid text suits a glow.
+        style.effect = minimal ? .none
+            : style.textFill == .glass ? [.shadow, .shadow, .none].randomElement()!
+            : [.glow, .glow, .shadow, .none].randomElement()!
+        style.effectColor = style.effect == .glow ? palette.accent : .auto
+        style.effectSize = .random(in: 0.3...0.7)
+        style.effectStrength = .random(in: 0.4...0.8)
+        style.effectDistance = .random(in: 0.2...0.6)
+        if !minimal && Double.random(in: 0...1) < 0.25 {
+            style.innerColor = palette.accent
+            style.innerStrength = .random(in: 0.4...0.8)
+        }
+
+        style.ampm = AMPMPlacement.allCases.randomElement()!
+        style.showDate = Double.random(in: 0...1) < 0.4
+        style.dateAbove = Bool.random()
+        return style
+    }
 
     /// A copy with some settings changed.
     func with(_ change: (inout ClockStyle) -> Void) -> ClockStyle {

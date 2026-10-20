@@ -31,11 +31,53 @@ struct ContentView: View {
     @State private var previewSize = PreviewSize.medium
     @State private var homeScreen = HomeScreenStyle.light
     @State private var reloadTask: Task<Void, Never>?
+    @State private var justApplied = false
+
+    /// Spacing on an 8-point grid (HIG: Layout).
+    private enum Space {
+        static let small: CGFloat = 8
+        static let medium: CGFloat = 16
+        static let large: CGFloat = 24
+        static let extraLarge: CGFloat = 32
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            preview
-            settings
+        NavigationStack {
+            GeometryReader { geometry in
+                // Side by side when there's room (a full-screen iPad in landscape); stacked in
+                // portrait and in narrower Split View or Stage Manager windows.
+                if geometry.size.width >= 1000 {
+                    HStack(spacing: 0) {
+                        // Settings get at least 600 pt, so a row of colour swatches fits on one line.
+                        preview
+                            .frame(width: min(geometry.size.width * 0.5, geometry.size.width - 600))
+                        Divider()
+                            .ignoresSafeArea()
+                        settings
+                    }
+                } else {
+                    VStack(spacing: 0) {
+                        preview
+                            .frame(height: min(500, max(340, geometry.size.height * 0.45)))
+                        settings
+                    }
+                }
+            }
+            .navigationTitle("Glass Clock")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: apply) {
+                        HStack(spacing: 6) {
+                            Image(systemName: justApplied ? "checkmark.circle.fill" : "arrow.down.circle")
+                            Text(justApplied ? "Applied" : "Apply to Widget")
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .sensoryFeedback(.success, trigger: justApplied) { _, applied in applied }
+                }
+            }
         }
         .onAppear {
             // A style passed in for testing (debug builds only) is saved, so the widget shows it too.
@@ -46,6 +88,7 @@ struct ContentView: View {
         }
         .onChange(of: style) {
             style.save()
+            justApplied = false
             // Wait for the slider to settle before asking widgets to redraw.
             reloadTask?.cancel()
             reloadTask = Task {
@@ -56,52 +99,100 @@ struct ContentView: View {
         }
     }
 
+    /// Changes already reach the widget on their own; this sends them straight away and says so.
+    private func apply() {
+        reloadTask?.cancel()
+        style.save()
+        WidgetCenter.shared.reloadAllTimelines()
+        withAnimation(.snappy) { justApplied = true }
+    }
+
     private var preview: some View {
         ZStack {
             // Plain white, so the card looks the same as it will on the Home Screen. Clear
             // and Tinted get a wallpaper, since their white or tinted content needs one to show up.
             if homeScreen.accent == nil {
                 (homeScreen == .dark ? Color.black : Color.white)
-                    .ignoresSafeArea()
+                    .ignoresSafeArea(edges: [.bottom, .horizontal])
             } else {
                 LinearGradient(colors: [.indigo, .teal, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .ignoresSafeArea()
+                    .ignoresSafeArea(edges: [.bottom, .horizontal])
             }
 
-            VStack(spacing: 20) {
+            VStack(spacing: Space.large) {
+                Spacer(minLength: 0)
                 // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets).
                 Text("Preview")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.footnote.weight(.semibold))
+                    .textCase(.uppercase)
                     .foregroundStyle(.secondary)
 
-                TimelineView(.everyMinute) { context in
-                    ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
-                              simulatesClear: !homeScreen.showsKeptColours)
-                        .padding(16)
-                        .frame(width: previewSize.size.width, height: previewSize.size.height)
-                        .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28), homeScreen: homeScreen))
-                        .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
+                // The card is drawn at the real widget size and scaled down to fit narrow windows,
+                // so what you see is exactly what the widget draws.
+                GeometryReader { space in
+                    let card = previewSize.size
+                    let scale = min(1, space.size.width / card.width, space.size.height / card.height)
+                    TimelineView(.everyMinute) { context in
+                        ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
+                                  simulatesClear: !homeScreen.showsKeptColours)
+                            .padding(16)
+                            .frame(width: card.width, height: card.height)
+                            .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28), homeScreen: homeScreen))
+                            .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
+                    }
+                    .scaleEffect(scale)
+                    .frame(width: space.size.width, height: space.size.height)
                 }
+                // No taller than the card itself, so the controls stay close to it.
+                .frame(maxHeight: previewSize.size.height)
                 .animation(.smooth, value: previewSize)
 
-                Picker("Home Screen style", selection: $homeScreen) {
-                    ForEach(HomeScreenStyle.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 420)
-
-                Picker("Preview size", selection: $previewSize) {
-                    ForEach(PreviewSize.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 420)
+                previewControls
+                Spacer(minLength: 0)
             }
-            .padding()
+            .padding(.horizontal, Space.large)
+            .padding(.top, Space.medium)
+            .padding(.bottom, Space.large)
         }
-        .frame(height: 520)
         // The labels and pickers follow the backdrop, so they stay readable when the iPad is
         // in dark mode but the Light preview is on.
         .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
+    }
+
+    /// Side by side when they fit, otherwise stacked.
+    private var previewControls: some View {
+        let homePicker = labelled("Home Screen") {
+            Picker("Home Screen style", selection: $homeScreen) {
+                ForEach(HomeScreenStyle.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        }
+        let sizePicker = labelled("Widget size") {
+            Picker("Widget size", selection: $previewSize) {
+                ForEach(PreviewSize.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        }
+        return ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: Space.large) {
+                homePicker.frame(minWidth: 300)
+                sizePicker.frame(minWidth: 340)
+            }
+            VStack(spacing: Space.medium) {
+                homePicker
+                sizePicker
+            }
+            .frame(maxWidth: 440)
+        }
+    }
+
+    private func labelled(_ title: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: Space.small) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            content()
+        }
     }
 
     private var settings: some View {
@@ -109,6 +200,12 @@ struct ContentView: View {
             Section("Presets") {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
+                        Button {
+                            withAnimation(.smooth) { style = .lucky(from: style) }
+                        } label: {
+                            Label("I'm Feeling Lucky", systemImage: "dice")
+                        }
+                        .buttonStyle(.borderedProminent)
                         ForEach(ClockStyle.presets, id: \.name) { preset in
                             Button(preset.name) { style = preset.style }
                                 .buttonStyle(.bordered)
@@ -130,6 +227,7 @@ struct ContentView: View {
                 }
                 slider("Height", value: $style.height, in: ClockStyle.heightRange, low: "Normal", high: "Tall")
                 Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
+                Toggle("Bolder in small widgets", isOn: $style.adaptsToSize)
                 slider("Spacing", value: $style.spacing, in: ClockStyle.spacingRange, low: "Tight", high: "Loose")
                 slider("Corners", value: $style.softness, in: 0...1, low: "Sharp", high: "Soft")
             }
@@ -141,7 +239,8 @@ struct ContentView: View {
                 .pickerStyle(.segmented)
                 swatchRow(selection: $style.color)
                 if style.textFill == .gradient {
-                    LabeledContent("Fades to") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Fades to")
                         swatchRow(selection: $style.gradientColor)
                     }
                 }
@@ -154,8 +253,9 @@ struct ContentView: View {
                         Text("Solid").font(.caption)
                     }
                 }
-                LabeledContent("Inner colour") {
-                    HStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Inner colour")
+                    swatchGrid {
                         noneSwatch(isSelected: style.innerColor == nil) { style.innerColor = nil }
                         ForEach(ClockColor.allCases.filter { $0 != .auto }) { option in
                             colorSwatch(option, selection: Binding(
@@ -267,11 +367,18 @@ struct ContentView: View {
         .accessibilityLabel("No inner colour")
     }
 
+    /// Swatches wrap onto more rows when the window is narrow.
     private func swatchRow(selection: Binding<ClockColor>) -> some View {
-        HStack(spacing: 4) {
+        swatchGrid {
             ForEach(ClockColor.allCases) { option in
                 colorSwatch(option, selection: selection)
             }
+        }
+    }
+
+    private func swatchGrid(@ViewBuilder content: () -> some View) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 4)], alignment: .leading, spacing: 4) {
+            content()
         }
         .padding(.vertical, 4)
     }
