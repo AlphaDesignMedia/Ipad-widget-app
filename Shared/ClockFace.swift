@@ -383,53 +383,38 @@ struct ClockFace: View {
         }
     }
 
-    /// The time in the person's own colours on a Clear/Tinted Home Screen. A picture of the time
-    /// per minute was too big for the widget's archive and froze the clock (2026-10-20), so each
-    /// layer is instead a tiny full-colour swatch (`ClockRaster.swatch`) masked by the digits'
-    /// outline, which stays a cheap vector shape. Inner shadows can't be built this way, so glass
-    /// is its tinted body plus a lit rim.
+    /// The time in the person's own colours on a Clear/Tinted Home Screen.
+    ///
+    /// Only images marked `.fullColor` keep their colours there. A picture of the time per minute
+    /// was too big for the widget's archive and froze the clock, and a colour image *masked* by
+    /// the digits was recoloured by iPadOS 27 like ordinary content (both 2026-10-20). So each
+    /// layer is a tiny full-colour swatch (`ClockRaster.swatch`) *clipped* to a vector outline.
     private func keptTime(_ artwork: ClockArtwork) -> some View {
-        let shape = OutlineShape(path: artwork.time)
+        let time = artwork.time.cgPath
         let u = artwork.unit
         let dark = colorScheme == .dark
-        func swatch(_ colors: [Color], _ start: UnitPoint = .top, _ end: UnitPoint = .bottom) -> some View {
+        func clipped(_ colors: [Color], to path: CGPath, _ start: UnitPoint = .top,
+                     _ end: UnitPoint = .bottom) -> some View {
             Image(uiImage: ClockRaster.swatch(colors, start: start, end: end, dark: dark))
                 .resizable()
                 .widgetAccentedRenderingMode(.fullColor)
+                .clipShape(OutlineShape(path: Path(path)))
         }
-        let effect = style.resolvedEffectColor
         let body = style.color == .auto ? (dark ? Color.white : Color(white: 0.15)) : style.color.color
+        // Glow, shadow and inner colour are left out: built from rings of the outline, an hour
+        // of them came to 14 MB and was rejected (2026-10-20).
         return ZStack {
-            switch style.effect {
-            case .none:
-                EmptyView()
-            case .glow:
-                swatch([effect])
-                    .mask(shape.blur(radius: u * (2 + 10 * style.effectSize)))
-                    .opacity(style.effectStrength)
-                swatch([effect])
-                    .mask(shape.blur(radius: u * (8 + 40 * style.effectSize)))
-                    .opacity(0.8 * style.effectStrength)
-            case .shadow:
-                swatch([effect])
-                    .mask(shape.blur(radius: u * (1 + 14 * style.effectSize)).offset(y: u * 24 * style.effectDistance))
-                    .opacity(style.effectStrength)
-            }
             switch style.textFill {
             case .solid:
-                swatch([style.color.color]).mask(shape)
+                clipped([style.color.color], to: time)
             case .gradient:
-                swatch([style.color.color, style.gradientColor.color]).mask(shape)
+                clipped([style.color.color, style.gradientColor.color], to: time)
             case .glass:
-                swatch([body.opacity(0.75), body.opacity(0.45), body.opacity(0.65)], .topLeading, .bottomTrailing)
-                    .mask(shape)
-                swatch([.white.opacity(0.9), .white.opacity(0.15), .white.opacity(0.55)], .topLeading, .bottomTrailing)
-                    .mask(shape.stroke(lineWidth: max(1, 1.6 * u) * 2).clipShape(shape))
-            }
-            if let inner = style.innerColor {
-                swatch([inner.color])
-                    .mask(shape.stroke(lineWidth: u * 9).blur(radius: u * 4).clipShape(shape))
-                    .opacity(style.innerStrength)
+                clipped([body.opacity(0.75), body.opacity(0.45), body.opacity(0.65)], to: time, .topLeading, .bottomTrailing)
+                clipped([.white.opacity(0.9), .white.opacity(0.15), .white.opacity(0.55)],
+                        to: time.copy(strokingWithWidth: max(1, 1.6 * u) * 2, lineCap: .round,
+                                      lineJoin: .round, miterLimit: 1).intersection(time),
+                        .topLeading, .bottomTrailing)
             }
         }
         .opacity(style.textOpacity)

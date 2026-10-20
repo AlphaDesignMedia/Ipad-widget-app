@@ -15,16 +15,19 @@ struct ClockProvider: TimelineProvider {
         completion(ClockEntry(date: .now, style: .load()))
     }
 
-    /// One entry per minute, then WidgetKit asks for more. An hour at a time, or 40 minutes when
-    /// parts keep their colours: their images make each entry much bigger, and iPadOS rejects
-    /// a timeline archive over about 20 MB (an hour came to ~21 MB, observed 2026-10-20).
-    /// 40 minutes means 36 reloads a day, inside the usual daily budget.
+    /// One entry per minute, then WidgetKit asks for more. An hour at a time, or less when parts
+    /// keep their colours: their images make each entry much bigger, and iPadOS rejects a
+    /// timeline archive over roughly 10 MB, which stops the clock (observed 2026-10-20).
+    /// 40 minutes is 36 reloads a day and 30 is 48, inside the usual daily budget of 40–70.
     func getTimeline(in context: Context, completion: @escaping (Timeline<ClockEntry>) -> Void) {
         let style = ClockStyle.load()
         let calendar = Calendar.current
         let startOfMinute = calendar.dateInterval(of: .minute, for: .now)?.start ?? .now
-        let keepsColours = style.keepsTimeColours || style.keepsDetailColours || style.keepsCardColours
-        let entries = (0..<(keepsColours ? 40 : 60)).compactMap { offset in
+        // A kept-colour time is stored as a picture per minute, the biggest cost of all
+        // (11 MB an hour with a glass style, rejected; observed 2026-10-20).
+        let minutes = style.keepsTimeColours ? 30
+            : style.keepsDetailColours || style.keepsCardColours ? 40 : 60
+        let entries = (0..<minutes).compactMap { offset in
             calendar.date(byAdding: .minute, value: offset, to: startOfMinute)
                 .map { ClockEntry(date: $0, style: style) }
         }

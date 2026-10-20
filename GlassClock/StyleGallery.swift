@@ -29,7 +29,7 @@ struct StyleGallery: View {
 
     private var accentVariants: [(String, ClockStyle, HomeScreenStyle)] {
         let colourful = ClockStyle().with { $0.color = .yellow; $0.effect = .glow; $0.textFill = .solid }
-        let keepText = colourful.with { $0.keepsDetailColours = true }
+        let keepText = colourful.with { $0.keepsTimeColours = true; $0.keepsDetailColours = true }
         let keepAll = keepText.with { $0.keepsCardColours = true; $0.background = .solid; $0.backgroundColor = .purple }
         return [
             ("Clear, system colours", colourful, .clear),
@@ -37,7 +37,7 @@ struct StyleGallery: View {
             ("Tinted, system colours", colourful, .tinted),
             ("Tinted, keep text + card", keepAll, .tinted),
             ("Glass default, Clear", ClockStyle(), .clear),
-            ("Glass default, keep text", ClockStyle().with { $0.keepsDetailColours = true; $0.showDate = true }, .tinted),
+            ("Yellow glass + inner, keep all", ClockStyle().with { $0.color = .yellow; $0.innerColor = .orange; $0.keepsTimeColours = true; $0.keepsDetailColours = true }, .tinted),
         ]
     }
 

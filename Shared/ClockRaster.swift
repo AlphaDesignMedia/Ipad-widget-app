@@ -96,11 +96,12 @@ enum ClockRaster {
         } }
     }
 
-    /// The card, filling the whole widget. The system rounds the corners. A solid card is a
-    /// tiny image stretched to fit; a glass card is drawn at low resolution, since only its
-    /// thin rim has detail. Both keep the timeline archive small.
+    /// The card, filling the whole widget. The system rounds the corners.
     static func card(style: ClockStyle, size: CGSize, dark: Bool) -> UIImage {
-        let scale: CGFloat = style.background == .solid ? 8 / max(size.width, size.height) : 0.5
+        // Tiny, stretched to fit: it's stored with every minute of the timeline, and a 0.5×
+        // glass card was the biggest part of a rejected archive (observed 2026-10-20). So a kept
+        // glass card is its colour wash only, without the thin rim.
+        let scale: CGFloat = 8 / max(size.width, size.height)
         return cached(key(style, scale: scale, dark: dark, "card|\(size)")) { render(size: size, scale: scale) { ctx in
             let rect = CGRect(origin: .zero, size: size)
             let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect, area: rect)
@@ -108,15 +109,10 @@ enum ClockRaster {
             case .solid:
                 painter.fill(CGPath(rect: rect, transform: nil), style.solidFill.opacity(style.cardOpacity))
             case .glass:
-                // The same wash, inner glow and rim as `GlassCardBackground`.
+                // The same wash as `GlassCardBackground`.
                 guard style.cardOpacity > 0 else { return }
-                let shape = CGPath(roundedRect: rect, cornerWidth: 24, cornerHeight: 24, transform: nil)
-                painter.fill(shape, (style.cardTint ?? .white).opacity(0.05 + 0.2 * style.cardOpacity))
-                painter.innerShadow(shape, .white.opacity(0.2), blur: 8, offset: .zero)
-                painter.gradientStroke(shape, width: 3, stops: [
-                    (.white.opacity(0.95), 0), (.white.opacity(0.2), 0.35),
-                    (.white.opacity(0.15), 0.65), (.white.opacity(0.8), 1),
-                ])
+                painter.fill(CGPath(rect: rect, transform: nil),
+                             (style.cardTint ?? .white).opacity(0.05 + 0.2 * style.cardOpacity))
             }
         } }
     }
