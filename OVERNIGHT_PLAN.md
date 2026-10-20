@@ -6,6 +6,16 @@ Done before bed (21 Oct, ~12:30 a.m.):
 - A four-card, skippable first-launch tour ("Show the tour" in Widget settings brings it back).
 - First swipe gestures in Panels: swipe right across the preview for the groups list, swipe left for settings.
 
+Also done before bed (~12:45 a.m.), owner's direction:
+- Panels' right panel is now ONE scrolling list of every setting (like Classic, all open). The left
+  sidebar is just quick navigation: tapping a group glides the list to it and lights it up
+  (`focus(_:)`, `settingsList`, `focusRequest`, `highlighted` in ContentView.swift). When the
+  sidebar is tucked away, glass jump chips sit at the top of the list. Keep this model.
+- Swipe: the preview leans with your finger (rubber band, springs back) and glass edge tabs
+  show where a hidden panel lives; light haptics on open/close.
+- Tour rebuilt as animated, annotated mini-scenes of the app (Onboarding.swift), with an
+  "I don't want a fancy layout" button that switches to Classic. Finishing the tour lands in Panels.
+
 ## Tonight's work (in order)
 
 1. **Panels as the fun, interactive mode** (the big one — "really cook on this").
@@ -15,10 +25,10 @@ Done before bed (21 Oct, ~12:30 a.m.):
    - Grab handles: small glass pills on each edge showing where a panel lives.
    - Tapping a part of the clock opens the matching settings (tap the time → Fonts,
      the AM/PM or date → Fonts' detail group, the card → Card, the glow → Effects).
-   - Settings open scrolled to and briefly highlighting the exact group you asked for.
+   - (Done: scroll-to-and-highlight. Tap-a-part-of-the-clock should call `focus(section)`.)
+   - Polish the tour scenes if anything looks off; keep it skippable.
    - Pinch the preview to switch widget size; swipe up/down on it to cycle backdrops.
    - Haptics on open/close; respects Reduce Motion (fades instead of slides).
-   - Tour card for Panels explaining the gestures (only shown in Panels).
 2. **Apple-style backdrops**: original mesh-gradient wallpapers in the spirit of iPadOS
    (not Apple's own images), and default the preview to one.
 3. **Two more fonts with pairings** (open-licence, e.g. Fraunces and Bricolage Grotesque).

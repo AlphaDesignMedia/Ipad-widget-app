@@ -55,6 +55,12 @@ struct ContentView: View {
     @State private var showsInspector = true
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
     @State private var isWide = true
+    /// Counts jumps to a settings group, so jumping to the same group twice still scrolls.
+    @State private var focusRequest = 0
+    /// The group that's briefly lit up after a jump.
+    @State private var highlighted: SettingsSection?
+    @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var panelDrag: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("hasSeenTour") private var hasSeenTour = false
     @State private var showsTour = false
     @State private var backdropPhoto = BackdropPhoto.load()
@@ -159,24 +165,35 @@ struct ContentView: View {
             .glassEffect(.regular, in: .rect(cornerRadius: 28))
     }
 
-    /// A glass sidebar of settings groups, the preview filling the window behind it, and the
-    /// chosen group's controls in an inspector on the right. In narrow windows the system turns
-    /// the inspector into a sheet.
+    /// A glass sidebar for jumping between settings groups, the preview filling the window behind
+    /// it, and every setting in one scrolling list on the right. Picking a group in the sidebar
+    /// scrolls the list to it and lights it up. In narrow windows the system turns the list into
+    /// a sheet.
     private var panelsInterface: some View {
         NavigationSplitView(columnVisibility: $sidebarVisibility) {
             List(SettingsSection.allCases, selection: $selectedSection) { section in
                 Label(section.title, systemImage: section.icon)
                     .tag(section)
-                    // Every tap brings the settings panel up, including on the group that's
-                    // already selected.
-                    .simultaneousGesture(TapGesture().onEnded {
-                        withAnimation(.snappy) { showsInspector = true }
-                    })
+                    // Every tap jumps, including on the group that's already selected.
+                    .simultaneousGesture(TapGesture().onEnded { focus(section) })
             }
             .navigationTitle("Glass Clock")
         } detail: {
             preview
+                .offset(x: rubberBand(panelDrag))
                 .simultaneousGesture(panelSwipe)
+                .overlay(alignment: .leading) {
+                    if sidebarVisibility == .detailOnly {
+                        edgeHandle("Show groups") { withAnimation(.snappy) { sidebarVisibility = .all } }
+                    }
+                }
+                .overlay(alignment: .trailing) {
+                    if !showsInspector {
+                        edgeHandle("Show settings") { withAnimation(.snappy) { showsInspector = true } }
+                    }
+                }
+                .sensoryFeedback(.impact(weight: .light), trigger: showsInspector)
+                .sensoryFeedback(.impact(weight: .light), trigger: sidebarVisibility)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { layoutMenu }
                     ToolbarItem(placement: .primaryAction) { applyButton }
@@ -190,36 +207,9 @@ struct ContentView: View {
                     }
                 }
                 .inspector(isPresented: $showsInspector) {
-                    let section = selectedSection ?? .presets
-                    Form {
-                        Section {
-                            sectionContent(section)
-                        } header: {
-                            // Doubles as a way to switch groups when the sidebar is tucked away.
-                            Menu {
-                                Picker("Settings group", selection: $selectedSection) {
-                                    ForEach(SettingsSection.allCases) { option in
-                                        Label(option.title, systemImage: option.icon).tag(Optional(option))
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Label(section.title, systemImage: section.icon)
-                                    Image(systemName: "chevron.up.chevron.down")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                }
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            }
-                            .textCase(nil)
-                        } footer: {
-                            if let footer = section.footer { Text(footer) }
-                        }
-                    }
-                    .scrollContentBackground(.hidden)
-                    .inspectorColumnWidth(min: 340, ideal: 400, max: 520)
-                    .presentationDetents([.medium, .large])
+                    settingsList
+                        .inspectorColumnWidth(min: 340, ideal: 400, max: 520)
+                        .presentationDetents([.medium, .large])
                 }
         }
         // The sidebar shows alongside on wide screens and tucks away on narrower ones, so the
@@ -233,9 +223,108 @@ struct ContentView: View {
             try? await Task.sleep(for: .milliseconds(250))
             sidebarVisibility = isWide ? .all : .detailOnly
         }
-        .onChange(of: selectedSection) {
-            if selectedSection != nil { showsInspector = true }
+    }
+
+    /// Every settings group, open, in one scrolling list. A jump from the sidebar (or the chips
+    /// along the top when the sidebar is tucked away) glides to the group and lights it up.
+    private var settingsList: some View {
+        ScrollViewReader { proxy in
+            Form {
+                if !isWide {
+                    Section { jumpChips(proxy) }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                }
+                ForEach(SettingsSection.allCases) { section in
+                    Section {
+                        sectionContent(section)
+                            .listRowBackground(highlighted == section
+                                               ? AnyView(Color.accentColor.opacity(0.14))
+                                               : AnyView(Rectangle().fill(.background.secondary)))
+                    } header: {
+                        Label(section.title, systemImage: section.icon)
+                            .font(.headline)
+                            .foregroundStyle(highlighted == section ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, highlighted == section ? 10 : 0)
+                            .background(highlighted == section ? Color.accentColor.opacity(0.14) : .clear, in: .capsule)
+                            .textCase(nil)
+                            .accessibilityAddTraits(.isHeader)
+                            .id(section)
+                    } footer: {
+                        if let footer = section.footer { Text(footer) }
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .task(id: focusRequest) {
+                guard focusRequest > 0, let target = selectedSection else { return }
+                // Lets a panel that's just opening settle before gliding.
+                try? await Task.sleep(for: .milliseconds(180))
+                withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
+                    proxy.scrollTo(target, anchor: .top)
+                }
+                withAnimation(.easeOut(duration: 0.25)) { highlighted = target }
+                try? await Task.sleep(for: .seconds(1.4))
+                withAnimation(.easeInOut(duration: 0.6)) { highlighted = nil }
+            }
         }
+    }
+
+    /// Small group buttons along the top of the settings, for when the sidebar is tucked away.
+    private func jumpChips(_ proxy: ScrollViewProxy) -> some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: Space.small) {
+                ForEach(SettingsSection.allCases) { section in
+                    Button {
+                        focus(section)
+                    } label: {
+                        Label(section == .homeScreens ? "Home Screens" : section.title, systemImage: section.icon)
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, Space.small)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(selectedSection == section ? .regular.tint(.accentColor.opacity(0.35)).interactive() : .regular.interactive(),
+                                 in: .capsule)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    /// Opens the settings and glides them to a group.
+    private func focus(_ section: SettingsSection) {
+        selectedSection = section
+        withAnimation(.snappy) { showsInspector = true }
+        focusRequest += 1
+    }
+
+    /// A little glass tab on the edge of the preview, where a tucked-away panel lives. Tap it,
+    /// or swipe in from that side.
+    private func edgeHandle(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Capsule()
+                .fill(.clear)
+                .frame(width: 6, height: 64)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .padding(.horizontal, 6)
+        .transition(.opacity.combined(with: .scale(scale: 0.6)))
+        .accessibilityLabel(label)
+    }
+
+    /// How far the preview leans while a swipe is under way: it follows the finger at first,
+    /// then stiffens, so a swipe feels like pulling on something.
+    private func rubberBand(_ x: CGFloat) -> CGFloat {
+        guard !reduceMotion else { return 0 }
+        let limit: CGFloat = 36
+        return limit * (1 - exp(-abs(x) / 120)) * (x < 0 ? -1 : 1)
     }
 
     /// Switches between the interfaces, and between the Classic interface's arrangements.
@@ -294,10 +383,14 @@ struct ContentView: View {
     /// Horizontal swipes across the preview bring the panels in and out: a swipe right shows
     /// the groups list (or hides the settings), a swipe left shows the settings (or hides the list).
     private var panelSwipe: some Gesture {
-        DragGesture(minimumDistance: 40)
+        DragGesture(minimumDistance: 24)
+            .updating($panelDrag) { drag, state, _ in
+                // Leans only for sideways drags, so scrolling up and down doesn't wobble.
+                if abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
+            }
             .onEnded { drag in
                 let dx = drag.translation.width
-                guard abs(dx) > 80, abs(dx) > abs(drag.translation.height) * 2 else { return }
+                guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
                 withAnimation(.snappy) {
                     if dx > 0 {
                         if showsInspector && !isWide { showsInspector = false } else { sidebarVisibility = .all }
