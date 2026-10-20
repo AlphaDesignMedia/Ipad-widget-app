@@ -49,17 +49,14 @@ struct ContentView: View {
     @State private var previewSize = PreviewSize.medium
     @State private var homeScreen = HomeScreenStyle.light
     @AppStorage("workspaceLayout") private var layout = WorkspaceLayout.automatic
-    /// The preview's share of the width (side by side) or height (stacked), set by dragging.
-    @AppStorage("previewWidthShare") private var previewWidthShare = 0.42
-    @AppStorage("previewHeightShare") private var previewHeightShare = 0.45
     @AppStorage("previewBackdrop") private var backdrop = PreviewBackdrop.plain
-    /// Live positions while the divider is dragged; saved to the two values above when it's let go.
-    @State private var draggingWidthShare: Double?
-    @State private var draggingHeightShare: Double?
     @AppStorage("interfaceStyle") private var interface = InterfaceStyle.classic
     @State private var selectedSection: SettingsSection? = .presets
     @State private var showsInspector = true
     @State private var sidebarVisibility = NavigationSplitViewVisibility.all
+    @State private var isWide = true
+    @AppStorage("hasSeenTour") private var hasSeenTour = false
+    @State private var showsTour = false
     @State private var backdropPhoto = BackdropPhoto.load()
     @State private var photoItem: PhotosPickerItem?
     @State private var choosingPhoto = false
@@ -98,9 +95,13 @@ struct ContentView: View {
         } message: {
             Text(presetIndex == nil ? "Saves the current style so you can come back to it." : "")
         }
+        .sheet(isPresented: $showsTour, onDismiss: { hasSeenTour = true }) {
+            OnboardingView()
+        }
         .onAppear {
             // A style passed in for testing (debug builds only) is applied, so the widget shows it too.
             if ClockStyle.launchOverride != nil { apply() }
+            if !hasSeenTour && ClockStyle.launchOverride == nil { showsTour = true }
         }
         .onChange(of: style) {
             StyleLibrary.saveDraft(style)
@@ -110,41 +111,33 @@ struct ContentView: View {
         }
     }
 
-    /// The preview and one list of settings, side by side or stacked, with a divider to drag.
+    /// The backdrop fills the window, with the preview on it and the settings in a fixed glass
+    /// panel floating over it: on the right when there's room, along the bottom when it's narrow.
+    /// (A draggable divider was here before; dragging it felt jittery, owner feedback 2026-10-21.)
     private var classicInterface: some View {
         NavigationStack {
             GeometryReader { geometry in
                 let size = geometry.size
-                switch layout.resolved(width: size.width) {
-                case .sideBySide:
-                    // Settings keep at least 380 pt, so their controls never get cramped.
-                    let widest = max(0.3, 1 - 380 / size.width)
-                    let share = draggingWidthShare ?? previewWidthShare
-                    HStack(spacing: 0) {
-                        preview
-                            .frame(width: size.width * min(share, widest))
-                        SplitHandle(axis: .horizontal,
-                                    fraction: Binding(get: { share }, set: { draggingWidthShare = $0 }),
-                                    total: size.width, range: 0.25...widest) {
-                            if let draggingWidthShare { previewWidthShare = draggingWidthShare }
-                            draggingWidthShare = nil
+                ZStack {
+                    backdropView
+                        .ignoresSafeArea()
+                    switch layout.resolved(width: size.width) {
+                    case .sideBySide:
+                        HStack(spacing: Space.medium) {
+                            previewStage
+                            settingsPanel
+                                .frame(width: min(480, max(380, size.width * 0.38)))
                         }
-                        settings
-                    }
-                case .previewOnly:
-                    preview
-                default:
-                    let share = draggingHeightShare ?? previewHeightShare
-                    VStack(spacing: 0) {
-                        preview
-                            .frame(height: size.height * share)
-                        SplitHandle(axis: .vertical,
-                                    fraction: Binding(get: { share }, set: { draggingHeightShare = $0 }),
-                                    total: size.height, range: 0.25...0.8) {
-                            if let draggingHeightShare { previewHeightShare = draggingHeightShare }
-                            draggingHeightShare = nil
+                        .padding([.horizontal, .bottom], Space.medium)
+                    case .previewOnly:
+                        previewStage
+                    default:
+                        VStack(spacing: Space.medium) {
+                            previewStage
+                                .frame(height: max(300, size.height * 0.4))
+                            settingsPanel
                         }
-                        settings
+                        .padding([.horizontal, .bottom], Space.medium)
                     }
                 }
             }
@@ -158,6 +151,14 @@ struct ContentView: View {
         }
     }
 
+    /// The settings on a glass panel, so the backdrop shows through around the rows.
+    private var settingsPanel: some View {
+        settings
+            .scrollContentBackground(.hidden)
+            .clipShape(.rect(cornerRadius: 28))
+            .glassEffect(.regular, in: .rect(cornerRadius: 28))
+    }
+
     /// A glass sidebar of settings groups, the preview filling the window behind it, and the
     /// chosen group's controls in an inspector on the right. In narrow windows the system turns
     /// the inspector into a sheet.
@@ -166,10 +167,16 @@ struct ContentView: View {
             List(SettingsSection.allCases, selection: $selectedSection) { section in
                 Label(section.title, systemImage: section.icon)
                     .tag(section)
+                    // Every tap brings the settings panel up, including on the group that's
+                    // already selected.
+                    .simultaneousGesture(TapGesture().onEnded {
+                        withAnimation(.snappy) { showsInspector = true }
+                    })
             }
             .navigationTitle("Glass Clock")
         } detail: {
             preview
+                .simultaneousGesture(panelSwipe)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { layoutMenu }
                     ToolbarItem(placement: .primaryAction) { applyButton }
@@ -188,17 +195,43 @@ struct ContentView: View {
                         Section {
                             sectionContent(section)
                         } header: {
-                            Label(section.title, systemImage: section.icon)
+                            // Doubles as a way to switch groups when the sidebar is tucked away.
+                            Menu {
+                                Picker("Settings group", selection: $selectedSection) {
+                                    ForEach(SettingsSection.allCases) { option in
+                                        Label(option.title, systemImage: option.icon).tag(Optional(option))
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Label(section.title, systemImage: section.icon)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
                                 .font(.headline)
                                 .foregroundStyle(.primary)
-                                .textCase(nil)
+                            }
+                            .textCase(nil)
                         } footer: {
                             if let footer = section.footer { Text(footer) }
                         }
                     }
+                    .scrollContentBackground(.hidden)
                     .inspectorColumnWidth(min: 340, ideal: 400, max: 520)
                     .presentationDetents([.medium, .large])
                 }
+        }
+        // The sidebar shows alongside on wide screens and tucks away on narrower ones, so the
+        // preview isn't squeezed between it and the inspector. (Letting it slide over the
+        // preview dimmed the clock.) The inspector's title switches groups without it.
+        .onGeometryChange(for: Bool.self) { $0.size.width >= 1200 } action: { wide in
+            isWide = wide
+        }
+        .task(id: isWide) {
+            // The split view ignores a visibility change while it's first appearing.
+            try? await Task.sleep(for: .milliseconds(250))
+            sidebarVisibility = isWide ? .all : .detailOnly
         }
         .onChange(of: selectedSection) {
             if selectedSection != nil { showsInspector = true }
@@ -258,14 +291,36 @@ struct ContentView: View {
         StyleLibrary.savePresets(customPresets)
     }
 
+    /// Horizontal swipes across the preview bring the panels in and out: a swipe right shows
+    /// the groups list (or hides the settings), a swipe left shows the settings (or hides the list).
+    private var panelSwipe: some Gesture {
+        DragGesture(minimumDistance: 40)
+            .onEnded { drag in
+                let dx = drag.translation.width
+                guard abs(dx) > 80, abs(dx) > abs(drag.translation.height) * 2 else { return }
+                withAnimation(.snappy) {
+                    if dx > 0 {
+                        if showsInspector && !isWide { showsInspector = false } else { sidebarVisibility = .all }
+                    } else {
+                        if sidebarVisibility != .detailOnly && !isWide { sidebarVisibility = .detailOnly } else { showsInspector = true }
+                    }
+                }
+            }
+    }
+
+    /// The preview with its backdrop, which carries on under the glass sidebar and inspector.
     private var preview: some View {
         ZStack {
             backdropView
                 .backgroundExtensionEffect()
                 .ignoresSafeArea(edges: [.bottom, .horizontal])
+            previewStage
+        }
+    }
 
-            // Separate glass bubbles float around the card: the Home Screen style above it,
-            // widget size and backdrop below.
+    /// The card with glass bubbles floating around it: the Home Screen style above, widget
+    /// size and backdrop below.
+    private var previewStage: some View {
             VStack(spacing: Space.large) {
                 Spacer(minLength: 0)
                 homeScreenBubble
@@ -311,10 +366,9 @@ struct ContentView: View {
             .padding(.horizontal, Space.large)
             .padding(.top, Space.medium)
             .padding(.bottom, Space.large)
-        }
-        // The labels and pickers follow the backdrop, so they stay readable when the iPad is
-        // in dark mode but the Light preview is on.
-        .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
+            // The labels and pickers follow the backdrop, so they stay readable when the iPad
+            // is in dark mode but the Light preview is on.
+            .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
     }
 
     /// What's behind the card. Plain is white or black, so the card looks as it will on a
@@ -559,6 +613,7 @@ struct ContentView: View {
 
         case .widget:
             Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
+            Button("Show the tour") { showsTour = true }
             Button("Reset to defaults", role: .destructive) {
                 style = ClockStyle()
             }

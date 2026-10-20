@@ -87,56 +87,6 @@ enum BackdropPhoto {
     }
 }
 
-/// A divider with a grab handle. Dragging it moves `fraction`, the share of `total` the first
-/// pane takes, within `range`.
-struct SplitHandle: View {
-    /// `.horizontal`: panes side by side, the handle drags left and right.
-    var axis: Axis
-    @Binding var fraction: Double
-    var total: CGFloat
-    var range: ClosedRange<Double>
-    /// Called when the drag ends, to save the final position.
-    var onEnd: () -> Void = {}
-    @State private var dragStart: Double?
-
-    var body: some View {
-        let sideBySide = axis == .horizontal
-        ZStack {
-            Rectangle()
-                .fill(.separator)
-                .frame(width: sideBySide ? 1 : nil, height: sideBySide ? nil : 1)
-            Capsule()
-                .fill(dragStart == nil ? Color.secondary.opacity(0.6) : Color.accentColor)
-                .frame(width: sideBySide ? 6 : 48, height: sideBySide ? 48 : 6)
-        }
-        // A 24 pt strip, so the handle is easy to catch with a finger or the pointer.
-        .frame(width: sideBySide ? 24 : nil, height: sideBySide ? nil : 24)
-        .contentShape(Rectangle())
-        .hoverEffect(.highlight)
-        .gesture(
-            DragGesture(minimumDistance: 1)
-                .onChanged { value in
-                    let start = dragStart ?? fraction
-                    dragStart = start
-                    let moved = Double((sideBySide ? value.translation.width : value.translation.height) / total)
-                    fraction = min(range.upperBound, max(range.lowerBound, start + moved))
-                }
-                .onEnded { _ in
-                    dragStart = nil
-                    onEnd()
-                }
-        )
-        .animation(.snappy, value: dragStart == nil)
-        .accessibilityElement()
-        .accessibilityLabel("Resize preview")
-        .accessibilityValue("\(Int(fraction * 100)) percent")
-        .accessibilityAdjustableAction { direction in
-            let step = direction == .increment ? 0.05 : -0.05
-            fraction = min(range.upperBound, max(range.lowerBound, fraction + step))
-        }
-    }
-}
-
 /// The overall arrangement of the app.
 enum InterfaceStyle: String, CaseIterable, Identifiable {
     /// The preview and one scrolling list of settings, side by side or stacked.
