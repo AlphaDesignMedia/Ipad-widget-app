@@ -33,3 +33,6 @@ fastlane/test_output
 # Editors
 .vscode/
 .idea/
+
+# Claude personal settings
+.claude/settings.local.json
