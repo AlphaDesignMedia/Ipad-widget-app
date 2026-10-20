@@ -9,11 +9,10 @@ TEAM=2UUL2QMJGB
 BUILD_DIR="${TMPDIR:-/tmp}/glassclock-build"
 DEVICE=$(xcrun devicectl list devices 2>/dev/null | awk '/iPad/ && /connected/ {print $3; exit}')
 [[ -n "$DEVICE" ]] || { echo "No connected iPad found."; exit 1; }
-UDID=$(xcodebuild -project GlassClock.xcodeproj -scheme GlassClock -showdestinations 2>/dev/null \
-  | sed -n 's/.*platform:iOS, arch:arm64, id:\([^,]*\), name:.*/\1/p' | head -1)
-
+# Built for any iPad rather than this one: Xcode's own connection to the iPad drops when it
+# locks or sleeps, even while devicectl (which does the install) can still reach it.
 xcodebuild -project GlassClock.xcodeproj -scheme GlassClock -configuration Debug \
-  -destination "id=$UDID" -derivedDataPath "$BUILD_DIR" \
+  -destination "generic/platform=iOS" -derivedDataPath "$BUILD_DIR" \
   DEVELOPMENT_TEAM=$TEAM CODE_SIGN_ENTITLEMENTS=Config/FreeTeam.entitlements -allowProvisioningUpdates -quiet build
 
 xcrun devicectl device install app --device "$DEVICE" \
