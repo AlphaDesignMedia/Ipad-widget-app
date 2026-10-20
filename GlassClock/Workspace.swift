@@ -1,35 +1,57 @@
 import SwiftUI
 import UIKit
 
-/// How the preview and the settings share the window.
-enum WorkspaceLayout: String, CaseIterable, Identifiable {
-    case automatic, sideBySide, stacked, previewOnly
+/// The groups of settings listed in the sidebar. The selected one opens in the inspector.
+enum SettingsCategory: String, CaseIterable, Identifiable {
+    case presets, font, text, details, glow, shadow, card, clearAndTinted, applying
     var id: Self { self }
 
-    var label: String {
+    var title: String {
         switch self {
-        case .automatic: "Automatic"
-        case .sideBySide: "Side by Side"
-        case .stacked: "Stacked"
-        case .previewOnly: "Preview Only"
+        case .presets: "Presets"
+        case .font: "Font"
+        case .text: "Text"
+        case .details: "AM/PM and Date"
+        case .glow: "Glow"
+        case .shadow: "Shadow"
+        case .card: "Card"
+        case .clearAndTinted: "Clear and Tinted"
+        case .applying: "Applying Changes"
         }
     }
 
     var symbol: String {
         switch self {
-        case .automatic: "rectangle.3.group"
-        case .sideBySide: "rectangle.split.2x1"
-        case .stacked: "rectangle.split.1x2"
-        case .previewOnly: "rectangle"
+        case .presets: "sparkles"
+        case .font: "textformat"
+        case .text: "paintbrush"
+        case .details: "calendar"
+        case .glow: "sun.max"
+        case .shadow: "shadow"
+        case .card: "rectangle.on.rectangle"
+        case .clearAndTinted: "circle.lefthalf.filled"
+        case .applying: "arrow.down.circle"
         }
     }
 
-    /// Automatic picks side by side when there's room (a full-screen iPad in landscape) and
-    /// stacked in portrait and narrower Split View or Stage Manager windows.
-    func resolved(width: CGFloat) -> WorkspaceLayout {
-        guard self == .automatic else { return self }
-        return width >= 1000 ? .sideBySide : .stacked
+    var footer: String? {
+        switch self {
+        case .presets: "Save up to \(StyleLibrary.maxCustomPresets) of your own. Long-press one to update, rename or delete it."
+        case .details: "Size, gap and letter spacing shape the line under (or beside) the time."
+        case .shadow: "Automatic is black. Pick white for a light shadow."
+        case .card: "When your Home Screen uses the Clear or Tinted style, iPadOS supplies the card and colour. Liquid Glass text keeps its glass look."
+        case .clearAndTinted: "iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless."
+        case .applying: "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if this is on."
+        default: nil
+        }
     }
+
+    /// Sidebar groups, two levels at most (HIG: Sidebars).
+    static let groups: [(title: String, items: [SettingsCategory])] = [
+        ("Clock", [.presets, .font, .text, .details]),
+        ("Effects", [.glow, .shadow, .card]),
+        ("Widget", [.clearAndTinted, .applying]),
+    ]
 }
 
 /// What's behind the preview card. Apps can't see the Home Screen wallpaper, so the closest
@@ -84,50 +106,5 @@ enum BackdropPhoto {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? resized.jpegData(compressionQuality: 0.85)?.write(to: url)
         return resized
-    }
-}
-
-/// A divider with a grab handle. Dragging it moves `fraction`, the share of `total` the first
-/// pane takes, within `range`.
-struct SplitHandle: View {
-    /// `.horizontal`: panes side by side, the handle drags left and right.
-    var axis: Axis
-    @Binding var fraction: Double
-    var total: CGFloat
-    var range: ClosedRange<Double>
-    @State private var dragStart: Double?
-
-    var body: some View {
-        let sideBySide = axis == .horizontal
-        ZStack {
-            Rectangle()
-                .fill(.separator)
-                .frame(width: sideBySide ? 1 : nil, height: sideBySide ? nil : 1)
-            Capsule()
-                .fill(dragStart == nil ? Color.secondary.opacity(0.6) : Color.accentColor)
-                .frame(width: sideBySide ? 6 : 48, height: sideBySide ? 48 : 6)
-        }
-        // A 24 pt strip, so the handle is easy to catch with a finger or the pointer.
-        .frame(width: sideBySide ? 24 : nil, height: sideBySide ? nil : 24)
-        .contentShape(Rectangle())
-        .hoverEffect(.highlight)
-        .gesture(
-            DragGesture(minimumDistance: 1)
-                .onChanged { value in
-                    let start = dragStart ?? fraction
-                    dragStart = start
-                    let moved = Double((sideBySide ? value.translation.width : value.translation.height) / total)
-                    fraction = min(range.upperBound, max(range.lowerBound, start + moved))
-                }
-                .onEnded { _ in dragStart = nil }
-        )
-        .animation(.snappy, value: dragStart == nil)
-        .accessibilityElement()
-        .accessibilityLabel("Resize preview")
-        .accessibilityValue("\(Int(fraction * 100)) percent")
-        .accessibilityAdjustableAction { direction in
-            let step = direction == .increment ? 0.05 : -0.05
-            fraction = min(range.upperBound, max(range.lowerBound, fraction + step))
-        }
     }
 }

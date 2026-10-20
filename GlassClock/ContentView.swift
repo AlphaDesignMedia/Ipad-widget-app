@@ -34,12 +34,16 @@ struct ContentView: View {
     /// The style the widget shows.
     @State private var appliedStyle = ClockStyle.load()
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
-    @AppStorage("openPanels") private var openPanelList = "Presets,Font,Text"
-    private var openPanels: Set<String> {
-        get { Set(openPanelList.split(separator: ",").map(String.init)) }
-        nonmutating set { openPanelList = newValue.sorted().joined(separator: ",") }
-    }
+    /// The settings group picked in the sidebar and shown in the inspector.
+    @AppStorage("settingsCategory") private var category = SettingsCategory.font
+    @AppStorage("showsInspector") private var showsInspector = true
+    @State private var columns = NavigationSplitViewVisibility.all
+    @State private var fitsThreeColumns = true
+    /// Below this the sidebar, preview and inspector don't all fit, so the sidebar tucks away
+    /// while the inspector is open (it slides back over the preview from its toolbar button).
+    private let threeColumnWidth: CGFloat = 1000
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var customPresets = StyleLibrary.loadPresets()
     /// The saved preset being named: nil for a new one. Shown when `namingPreset` is true.
     @State private var presetIndex: Int?
@@ -47,10 +51,6 @@ struct ContentView: View {
     @State private var namingPreset = false
     @State private var previewSize = PreviewSize.medium
     @State private var homeScreen = HomeScreenStyle.light
-    @AppStorage("workspaceLayout") private var layout = WorkspaceLayout.automatic
-    /// The preview's share of the width (side by side) or height (stacked), set by dragging.
-    @AppStorage("previewWidthShare") private var previewWidthShare = 0.42
-    @AppStorage("previewHeightShare") private var previewHeightShare = 0.45
     @AppStorage("previewBackdrop") private var backdrop = PreviewBackdrop.plain
     @State private var backdropPhoto = BackdropPhoto.load()
     @State private var photoItem: PhotosPickerItem?
@@ -65,62 +65,56 @@ struct ContentView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            GeometryReader { geometry in
-                let size = geometry.size
-                switch layout.resolved(width: size.width) {
-                case .sideBySide:
-                    // Settings keep at least 380 pt, so their controls never get cramped.
-                    let widest = max(0.3, 1 - 380 / size.width)
-                    HStack(spacing: 0) {
-                        preview
-                            .frame(width: size.width * min(previewWidthShare, widest))
-                        SplitHandle(axis: .horizontal, fraction: $previewWidthShare,
-                                    total: size.width, range: 0.25...widest)
-                        settings
-                    }
-                case .previewOnly:
-                    preview
-                default:
-                    VStack(spacing: 0) {
-                        preview
-                            .frame(height: size.height * previewHeightShare)
-                        SplitHandle(axis: .vertical, fraction: $previewHeightShare,
-                                    total: size.height, range: 0.25...0.8)
-                        settings
-                    }
-                }
-            }
-            .animation(.smooth, value: layout)
-            .navigationTitle("Glass Clock")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Picker("Layout", selection: $layout) {
-                            ForEach(WorkspaceLayout.allCases) { option in
-                                Label(option.label, systemImage: option.symbol).tag(option)
+        // A floating glass sidebar of setting groups, the preview as the main content, and the
+        // chosen group's controls in an inspector on the trailing side (HIG: Sidebars, Split views,
+        // Layout). In narrow windows the sidebar becomes a list and the inspector a sheet.
+        NavigationSplitView(columnVisibility: $columns) {
+            sidebar
+        } detail: {
+            preview
+                .toolbar {
+                    // iPadOS 26 hides the system sidebar button when an inspector is attached
+                    // (FB20061260), so this brings the sidebar back. In medium windows it takes
+                    // the inspector's place.
+                    if columns == .detailOnly && sizeClass == .regular {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                withAnimation(.smooth) {
+                                    if !fitsThreeColumns { showsInspector = false }
+                                    columns = .all
+                                }
+                            } label: {
+                                Label("Show Sidebar", systemImage: "sidebar.leading")
                             }
                         }
-                    } label: {
-                        Label("Layout", systemImage: layout.symbol)
                     }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    let applied = style == appliedStyle
-                    Button(action: apply) {
-                        HStack(spacing: 6) {
-                            Image(systemName: applied ? "checkmark.circle.fill" : "arrow.down.circle")
-                            Text(applied ? "Applied" : "Apply to Widget")
+                    ToolbarItem(placement: .primaryAction) {
+                        applyButton
+                    }
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            withAnimation(.smooth) { showsInspector.toggle() }
+                        } label: {
+                            Label(showsInspector ? "Hide Settings" : "Show Settings", systemImage: "sidebar.trailing")
                         }
-                        .padding(.horizontal, 4)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(applied)
-                    .sensoryFeedback(.success, trigger: appliedStyle)
                 }
-            }
+                .inspector(isPresented: $showsInspector) {
+                    inspector
+                        .inspectorColumnWidth(min: 340, ideal: 400, max: 520)
+                        // In narrow windows the inspector is a sheet: half height keeps the
+                        // preview in view above it while you adjust.
+                        .presentationDetents([.medium, .large])
+                        .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                }
         }
+        .onGeometryChange(for: Bool.self) { $0.size.width >= threeColumnWidth } action: { fits in
+            fitsThreeColumns = fits
+            // On the next pass, since the split view ignores changes made while it first appears.
+            Task { fitColumns() }
+        }
+        .onChange(of: showsInspector) { fitColumns() }
         .photosPicker(isPresented: $choosingPhoto, selection: $photoItem, matching: .images)
         .onChange(of: photoItem) {
             Task {
@@ -152,6 +146,78 @@ struct ContentView: View {
         }
     }
 
+    /// Glass is drawn by the system: the sidebar floats over the preview's backdrop.
+    private var sidebar: some View {
+        List(selection: Binding<SettingsCategory?>(
+            get: { category },
+            set: { picked in
+                guard let picked else { return }
+                category = picked
+                withAnimation(.smooth) {
+                    showsInspector = true
+                    fitColumns()
+                }
+            }
+        )) {
+            ForEach(SettingsCategory.groups, id: \.title) { group in
+                Section(group.title) {
+                    ForEach(group.items) { item in
+                        Label(item.title, systemImage: item.symbol).tag(item)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Glass Clock")
+        .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
+    }
+
+    /// The selected group's controls. Picking another group in the sidebar swaps them in place.
+    private var inspector: some View {
+        Form {
+            Section {
+                controls(for: category)
+            } header: {
+                Label(category.title, systemImage: category.symbol)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .textCase(nil)
+                    .padding(.bottom, Space.small)
+                    .accessibilityAddTraits(.isHeader)
+            } footer: {
+                if let footer = category.footer { Text(footer) }
+            }
+
+            if category == .applying {
+                Section {
+                    Button("Reset to defaults", role: .destructive) {
+                        style = ClockStyle()
+                    }
+                } footer: {
+                    Text("To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock.")
+                }
+            }
+        }
+        .animation(.snappy, value: category)
+    }
+
+    private func fitColumns() {
+        columns = showsInspector && !fitsThreeColumns ? .detailOnly : .all
+    }
+
+    private var applyButton: some View {
+        let applied = style == appliedStyle
+        return Button(action: apply) {
+            HStack(spacing: 6) {
+                Image(systemName: applied ? "checkmark.circle.fill" : "arrow.down.circle")
+                Text(applied ? "Applied" : "Apply to Widget")
+            }
+            .padding(.horizontal, 4)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(applied)
+        .sensoryFeedback(.success, trigger: appliedStyle)
+    }
+
     /// Sends the edited style to the widget.
     private func apply() {
         style.save()
@@ -171,8 +237,10 @@ struct ContentView: View {
 
     private var preview: some View {
         ZStack {
+            // Mirrored and blurred under the floating sidebar and toolbar, so the whole window
+            // shows the backdrop without hiding any of it (HIG: Layout).
             backdropView
-                .ignoresSafeArea(edges: [.bottom, .horizontal])
+                .backgroundExtensionEffect()
 
             VStack(spacing: Space.large) {
                 Spacer(minLength: 0)
@@ -294,198 +362,135 @@ struct ContentView: View {
         }
     }
 
-    private var settings: some View {
-        Form {
-            panel("Presets", icon: "sparkles",
-                  footer: "Save up to \(StyleLibrary.maxCustomPresets) of your own. Long-press one to update, rename or delete it.") {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
+    /// The controls for one settings group, shown in the inspector.
+    @ViewBuilder
+    private func controls(for category: SettingsCategory) -> some View {
+        switch category {
+        case .presets:
+            // Wraps onto more rows, since the inspector is narrow.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10, alignment: .leading)],
+                      alignment: .leading, spacing: 10) {
+                Group {
+                    Button {
+                        withAnimation(.smooth) { style = .lucky(from: style) }
+                    } label: {
+                        Label("I'm Feeling Lucky", systemImage: "dice")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    ForEach(customPresets.indices, id: \.self) { index in
+                        customPresetButton(index)
+                    }
+                    if customPresets.count < StyleLibrary.maxCustomPresets {
                         Button {
-                            withAnimation(.smooth) { style = .lucky(from: style) }
+                            presetIndex = nil
+                            presetName = "My Style \(customPresets.count + 1)"
+                            namingPreset = true
                         } label: {
-                            Label("I'm Feeling Lucky", systemImage: "dice")
+                            Label("Save Current", systemImage: "plus")
                         }
-                        .buttonStyle(.borderedProminent)
-                        ForEach(customPresets.indices, id: \.self) { index in
-                            customPresetButton(index)
-                        }
-                        if customPresets.count < StyleLibrary.maxCustomPresets {
-                            Button {
-                                presetIndex = nil
-                                presetName = "My Style \(customPresets.count + 1)"
-                                namingPreset = true
-                            } label: {
-                                Label("Save Current", systemImage: "plus")
-                            }
+                        .buttonStyle(.bordered)
+                    }
+                    ForEach(ClockStyle.presets, id: \.name) { preset in
+                        Button(preset.name) { style = preset.style }
                             .buttonStyle(.bordered)
-                        }
-                        ForEach(ClockStyle.presets, id: \.name) { preset in
-                            Button(preset.name) { style = preset.style }
-                                .buttonStyle(.bordered)
-                        }
                     }
                 }
+                .lineLimit(1)
             }
-
-            panel("Font", icon: "textformat") {
-                Picker("Font", selection: $style.font) {
-                    ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
-                }
-                slider("Weight", value: $style.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
-                if style.font.hasWidth {
-                    slider("Width", value: $style.fontWidth, in: 0...1, low: "Narrow", high: "Wide")
-                }
-                if style.font.hasRoundness {
-                    slider("Roundness", value: $style.roundness, in: 0...1, low: "Sharp", high: "Round")
-                }
-                slider("Height", value: $style.height, in: ClockStyle.heightRange, low: "Normal", high: "Tall")
-                Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
-                Toggle("Bolder in small widgets", isOn: $style.adaptsToSize)
-                slider("Spacing", value: $style.spacing, in: ClockStyle.spacingRange, low: "Tight", high: "Loose")
-                slider("Corners", value: $style.softness, in: 0...1, low: "Sharp", high: "Soft")
+            .padding(.vertical, 4)
+        case .font:
+            Picker("Font", selection: $style.font) {
+                ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
             }
-
-            panel("Text", icon: "paintbrush") {
-                Picker("Style", selection: $style.textFill) {
-                    ForEach(TextFill.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                swatchRow(selection: $style.color)
-                if style.textFill == .gradient {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Fades to")
-                        swatchRow(selection: $style.gradientColor)
-                    }
-                }
-                slider("Transparency", value: $style.textOpacity, in: ClockStyle.textOpacityRange, low: "Faint", high: "Solid")
+            slider("Weight", value: $style.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
+            if style.font.hasWidth {
+                slider("Width", value: $style.fontWidth, in: 0...1, low: "Narrow", high: "Wide")
+            }
+            if style.font.hasRoundness {
+                slider("Roundness", value: $style.roundness, in: 0...1, low: "Sharp", high: "Round")
+            }
+            slider("Height", value: $style.height, in: ClockStyle.heightRange, low: "Normal", high: "Tall")
+            Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
+            Toggle("Bolder in small widgets", isOn: $style.adaptsToSize)
+            slider("Spacing", value: $style.spacing, in: ClockStyle.spacingRange, low: "Tight", high: "Loose")
+            slider("Corners", value: $style.softness, in: 0...1, low: "Sharp", high: "Soft")
+        case .text:
+            Picker("Style", selection: $style.textFill) {
+                ForEach(TextFill.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            swatchRow(selection: $style.color)
+            if style.textFill == .gradient {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Inner colour")
-                    swatchGrid {
-                        noneSwatch(isSelected: style.innerColor == nil) { style.innerColor = nil }
-                        ForEach(ClockColor.allCases.filter { $0 != .auto }) { option in
-                            colorSwatch(option, selection: Binding(
-                                get: { style.innerColor ?? .auto },
-                                set: { style.innerColor = $0 }
-                            ))
-                        }
+                    Text("Fades to")
+                    swatchRow(selection: $style.gradientColor)
+                }
+            }
+            slider("Transparency", value: $style.textOpacity, in: ClockStyle.textOpacityRange, low: "Faint", high: "Solid")
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Inner colour")
+                swatchGrid {
+                    noneSwatch(isSelected: style.innerColor == nil) { style.innerColor = nil }
+                    ForEach(ClockColor.allCases.filter { $0 != .auto }) { option in
+                        colorSwatch(option, selection: Binding(
+                            get: { style.innerColor ?? .auto },
+                            set: { style.innerColor = $0 }
+                        ))
                     }
                 }
-                if style.innerColor != nil {
-                    slider("Inner strength", value: $style.innerStrength, in: 0.1...1, low: "Subtle", high: "Strong")
+            }
+            if style.innerColor != nil {
+                slider("Inner strength", value: $style.innerStrength, in: 0.1...1, low: "Subtle", high: "Strong")
+            }
+        case .details:
+            Picker("Time format", selection: $style.timeFormat) {
+                ForEach(TimeFormat.allCases) { Text($0.label).tag($0) }
+            }
+            Picker("AM/PM", selection: $style.ampm) {
+                ForEach(AMPMPlacement.allCases) { Text($0.label).tag($0) }
+            }
+            .disabled(!style.uses12Hour)
+            Toggle("Show date", isOn: $style.showDate)
+            if style.showDate {
+                Toggle("Date above the time", isOn: $style.dateAbove)
+            }
+            Picker("Font", selection: $style.detailFont) {
+                ForEach(DetailFont.allCases) { option in
+                    Text(option == .paired ? "Matched: \(style.font.pairing.label)" : option.label).tag(option)
                 }
             }
-
-            panel("AM/PM and Date", icon: "calendar",
-                  footer: "Size, gap and letter spacing shape the line under (or beside) the time.") {
-                Picker("Time format", selection: $style.timeFormat) {
-                    ForEach(TimeFormat.allCases) { Text($0.label).tag($0) }
-                }
-                Picker("AM/PM", selection: $style.ampm) {
-                    ForEach(AMPMPlacement.allCases) { Text($0.label).tag($0) }
-                }
-                .disabled(!style.uses12Hour)
-                Toggle("Show date", isOn: $style.showDate)
-                if style.showDate {
-                    Toggle("Date above the time", isOn: $style.dateAbove)
-                }
-                Picker("Font", selection: $style.detailFont) {
-                    ForEach(DetailFont.allCases) { option in
-                        Text(option == .paired ? "Matched: \(style.font.pairing.label)" : option.label).tag(option)
-                    }
-                }
-                slider("Size", value: $style.detailSize, in: 0.7...1.6, low: "Small", high: "Large")
-                slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
-                slider("Letter spacing", value: $style.detailTracking, in: -0.06...0.25, low: "Tight", high: "Wide")
+            slider("Size", value: $style.detailSize, in: 0.7...1.6, low: "Small", high: "Large")
+            slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
+            slider("Letter spacing", value: $style.detailTracking, in: -0.06...0.25, low: "Tight", high: "Wide")
+        case .glow:
+            Toggle("Glow", isOn: $style.glow)
+            if style.glow {
+                swatchRow(selection: $style.glowColor)
+                slider("Size", value: $style.glowSize, in: 0...1, low: "Tight", high: "Wide")
+                slider("Strength", value: $style.glowStrength, in: 0.1...1, low: "Soft", high: "Strong")
             }
-
-            panel("Glow", icon: "sun.max") {
-                Toggle("Glow", isOn: $style.glow)
-                if style.glow {
-                    swatchRow(selection: $style.glowColor)
-                    slider("Size", value: $style.glowSize, in: 0...1, low: "Tight", high: "Wide")
-                    slider("Strength", value: $style.glowStrength, in: 0.1...1, low: "Soft", high: "Strong")
-                }
+        case .shadow:
+            Toggle("Shadow", isOn: $style.shadow)
+            if style.shadow {
+                swatchRow(selection: $style.shadowColor)
+                slider("Direction", value: $style.shadowAngle, in: 0...180, low: "Right", high: "Left")
+                slider("Distance", value: $style.shadowDistance, in: 0...1, low: "Close", high: "Far")
+                slider("Softness", value: $style.shadowSize, in: 0...1, low: "Sharp", high: "Soft")
+                slider("Strength", value: $style.shadowStrength, in: 0.1...1, low: "Light", high: "Dark")
             }
-
-            panel("Shadow", icon: "shadow", footer: "Automatic is black. Pick white for a light shadow.") {
-                Toggle("Shadow", isOn: $style.shadow)
-                if style.shadow {
-                    swatchRow(selection: $style.shadowColor)
-                    slider("Direction", value: $style.shadowAngle, in: 0...180, low: "Right", high: "Left")
-                    slider("Distance", value: $style.shadowDistance, in: 0...1, low: "Close", high: "Far")
-                    slider("Softness", value: $style.shadowSize, in: 0...1, low: "Sharp", high: "Soft")
-                    slider("Strength", value: $style.shadowStrength, in: 0.1...1, low: "Light", high: "Dark")
-                }
+        case .card:
+            Picker("Style", selection: $style.background) {
+                ForEach(CardBackground.allCases) { Text($0.label).tag($0) }
             }
-
-            panel("Card", icon: "rectangle.on.rectangle",
-                  footer: "When your Home Screen uses the Clear or Tinted style, iPadOS supplies the card and colour. Liquid Glass text keeps its glass look.") {
-                Picker("Style", selection: $style.background) {
-                    ForEach(CardBackground.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                swatchRow(selection: $style.backgroundColor)
-                slider("Transparency", value: $style.cardOpacity, in: ClockStyle.cardOpacityRange, low: "Clear", high: "Solid")
-            }
-
-            panel("Clear and Tinted Home Screens", icon: "circle.lefthalf.filled",
-                  footer: "iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless.") {
-                Toggle("Keep time colours", isOn: $style.keepsTimeColours)
-                Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
-                Toggle("Keep card colours", isOn: $style.keepsCardColours)
-            }
-
-            panel("Applying Changes", icon: "arrow.down.circle",
-                  footer: "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if this is on.") {
-                Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
-            }
-
-            Section {
-                Button("Reset to defaults", role: .destructive) {
-                    style = ClockStyle()
-                }
-            } footer: {
-                Text("To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock.")
-            }
-        }
-    }
-
-    /// A settings section that opens and closes from its header. Which ones are open is
-    /// remembered, so people can keep the parts they use most at hand.
-    private func panel<Content: View>(_ title: String, icon: String, footer: String? = nil,
-                                      @ViewBuilder content: () -> Content) -> some View {
-        let open = openPanels.contains(title)
-        return Section {
-            if open { content() }
-        } header: {
-            Button {
-                withAnimation(.snappy) {
-                    if open { openPanels.remove(title) } else { openPanels.insert(title) }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: icon)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.tint)
-                        .frame(width: 24)
-                    Text(title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(open ? 90 : 0))
-                }
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .textCase(nil)
-            .accessibilityAddTraits(.isHeader)
-            .accessibilityHint(open ? "Closes this section" : "Opens this section")
-        } footer: {
-            if open, let footer { Text(footer) }
+            .pickerStyle(.segmented)
+            swatchRow(selection: $style.backgroundColor)
+            slider("Transparency", value: $style.cardOpacity, in: ClockStyle.cardOpacityRange, low: "Clear", high: "Solid")
+        case .clearAndTinted:
+            Toggle("Keep time colours", isOn: $style.keepsTimeColours)
+            Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
+            Toggle("Keep card colours", isOn: $style.keepsCardColours)
+        case .applying:
+            Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
         }
     }
 
