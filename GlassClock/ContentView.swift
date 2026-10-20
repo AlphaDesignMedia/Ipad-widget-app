@@ -59,6 +59,11 @@ struct ContentView: View {
     @State private var focusRequest = 0
     /// The group that's briefly lit up after a jump.
     @State private var highlighted: SettingsSection?
+    @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var clockPinch: CGFloat = 1
+    /// How big the settings' text and rows are, as a step through `textSizes`. Pinch the
+    /// settings to change it.
+    @AppStorage("settingsTextSize") private var textSizeStep = 1
+    @State private var pinchingTextStep: Int?
     @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var panelDrag: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("hasSeenTour") private var hasSeenTour = false
@@ -161,6 +166,9 @@ struct ContentView: View {
     /// The settings on a glass panel, so the backdrop shows through around the rows.
     private var settingsPanel: some View {
         settings
+            .dynamicTypeSize(settingsTextSize)
+            .simultaneousGesture(settingsPinchGesture)
+            .sensoryFeedback(.selection, trigger: settingsTextSize)
             .scrollContentBackground(.hidden)
             .clipShape(.rect(cornerRadius: 28))
             .glassEffect(.regular, in: .rect(cornerRadius: 28))
@@ -191,12 +199,16 @@ struct ContentView: View {
                     HStack(alignment: .top, spacing: Space.medium) {
                         if showsSidebar {
                             groupsPanel
+                                .dynamicTypeSize(settingsTextSize)
                                 .frame(width: groupsWidth)
                                 .transition(panelTransition(.leading))
                         }
                         Spacer(minLength: 0)
                         if showsInspector {
                             settingsList
+                                .dynamicTypeSize(settingsTextSize)
+                                .simultaneousGesture(settingsPinchGesture)
+                                .sensoryFeedback(.selection, trigger: settingsTextSize)
                                 .clipShape(.rect(cornerRadius: 28))
                                 .glassEffect(.regular, in: .rect(cornerRadius: 28))
                                 .frame(width: settingsWidth)
@@ -403,6 +415,42 @@ struct ContentView: View {
         }
     }
 
+    /// Pinching the clock out steps up through the widget sizes, pinching in steps down.
+    private var clockPinchGesture: some Gesture {
+        MagnifyGesture()
+            .updating($clockPinch) { value, state, _ in state = value.magnification }
+            .onEnded { value in
+                let sizes = PreviewSize.allCases
+                guard let index = sizes.firstIndex(of: previewSize) else { return }
+                let m = value.magnification
+                let step = m > 1.15 ? (m > 1.9 ? 2 : 1) : m < 0.87 ? (m < 0.55 ? -2 : -1) : 0
+                let next = min(sizes.count - 1, max(0, index + step))
+                withAnimation(.bouncy) { previewSize = sizes[next] }
+            }
+    }
+
+    private let textSizes: [DynamicTypeSize] = [.medium, .large, .xLarge, .xxLarge, .xxxLarge]
+
+    /// The settings' text size, following the fingers while a pinch is under way.
+    private var settingsTextSize: DynamicTypeSize {
+        textSizes[min(textSizes.count - 1, max(0, pinchingTextStep ?? textSizeStep))]
+    }
+
+    /// Pinching the settings makes their text and rows bigger or smaller, a step at a time.
+    /// (An experiment, owner feedback 2026-10-21.)
+    private var settingsPinchGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                let steps = Int((log(value.magnification) / log(1.3)).rounded())
+                let next = min(textSizes.count - 1, max(0, textSizeStep + steps))
+                if next != pinchingTextStep { withAnimation(.snappy) { pinchingTextStep = next } }
+            }
+            .onEnded { _ in
+                if let pinchingTextStep { textSizeStep = pinchingTextStep }
+                pinchingTextStep = nil
+            }
+    }
+
     /// Brings the tour back, for a refresher or to show someone.
     private var tourButton: some View {
         Button {
@@ -452,7 +500,16 @@ struct ContentView: View {
                 if abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
             }
             .onEnded { drag in
-                let dx = drag.translation.width
+                let dx = drag.translation.width, dy = drag.translation.height
+                // Up and down flick through the backdrops (not Your Photo, which opens a picker).
+                if abs(dy) > 60, abs(dy) > abs(dx) * 1.5 {
+                    let options = PreviewBackdrop.allCases.filter { $0 != .photo || backdropPhoto != nil }
+                    let index = options.firstIndex(of: backdrop) ?? 0
+                    withAnimation(.smooth) {
+                        backdrop = options[(index + (dy < 0 ? 1 : options.count - 1)) % options.count]
+                    }
+                    return
+                }
                 guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
                 withAnimation(.snappy) {
                     // A swipe right pulls the groups in from the left, or pushes the settings away;
@@ -464,16 +521,6 @@ struct ContentView: View {
                     }
                 }
             }
-    }
-
-    /// The preview with its backdrop, which carries on under the glass sidebar and inspector.
-    private var preview: some View {
-        ZStack {
-            backdropView
-                .backgroundExtensionEffect()
-                .ignoresSafeArea(edges: [.bottom, .horizontal])
-            previewStage
-        }
     }
 
     /// The card with glass bubbles floating around it: the Home Screen style above, widget
@@ -501,12 +548,24 @@ struct ContentView: View {
                             .frame(width: card.width * scale, height: card.height * scale)
                             .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28 * scale), homeScreen: homeScreen))
                             .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
+                            // Grows and shrinks with the fingers while pinching, then settles on
+                            // the nearest widget size.
+                            .scaleEffect(reduceMotion ? 1 : min(1.6, max(0.6, clockPinch)))
+                            .contentShape(.rect)
+                            .onTapGesture {
+                                // In Panels, tapping the clock goes straight to its fonts.
+                                if interface == .panels { focus(.fonts) }
+                            }
+                            .gesture(clockPinchGesture)
+                            .accessibilityHint("Pinch to change the widget size")
                     }
                     .frame(width: space.size.width, height: space.size.height)
                 }
                 // No taller than the card itself, so the controls stay close to it.
                 .frame(maxHeight: previewSize.size.height)
                 .animation(.smooth, value: previewSize)
+                .sensoryFeedback(.selection, trigger: previewSize)
+                .zIndex(1)
 
                 // Side by side when they fit, otherwise one above the other.
                 ViewThatFits(in: .horizontal) {

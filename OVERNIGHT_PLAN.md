@@ -16,6 +16,15 @@ Also done before bed (~12:45 a.m.), owner's direction:
 - Tour rebuilt as animated, annotated mini-scenes of the app (Onboarding.swift), with an
   "I don't want a fancy layout" button that switches to Classic. Finishing the tour lands in Panels.
 
+Also done (~1 a.m.), owner loved the focus/jump and gestures — "lean further into the gestures":
+- Panels are now custom floating glass panels (no system sidebar/inspector, no sidebar toggle
+  buttons). Question-mark button in the top bar reopens the tour.
+- Pinch the clock card: it follows the fingers, then settles on the next widget size up/down.
+- Pinch the settings panel: text and rows get bigger/smaller in steps (experiment; owner may not
+  keep it). Stored as "settingsTextSize".
+- Tap the clock (Panels) jumps to Fonts. Swipe up/down on the preview flicks through backdrops.
+- Owner: hold off on the photo backdrop work for now.
+
 ## Tonight's work (in order)
 
 1. **Panels as the fun, interactive mode** (the big one — "really cook on this").
