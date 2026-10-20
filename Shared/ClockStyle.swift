@@ -114,10 +114,14 @@ enum HomeScreenStyle: String, CaseIterable, Identifiable {
         self == .clear || self == .tinted ? .white : nil
     }
 
-    /// Whether parts drawn as full-colour images keep their colours here. On a Clear Home
-    /// Screen iPadOS puts its glass over them anyway (observed in the iPadOS 26.5 simulator,
-    /// 2026-10-20), so only Tinted can show kept colours.
-    var showsKeptColours: Bool { self != .clear }
+    /// Whether parts drawn as full-colour images keep their colours here. iPadOS 26 puts its
+    /// glass over every image on a Clear Home Screen anyway (observed in the 26.5 simulator,
+    /// 2026-10-20, even with a plain bundled red image); iPadOS 27 shows them in colour
+    /// (red test images confirmed on the iPad, 2026-10-20).
+    var showsKeptColours: Bool {
+        self != .clear || ProcessInfo.processInfo.isOperatingSystemAtLeast(
+            OperatingSystemVersion(majorVersion: 27, minorVersion: 0, patchVersion: 0))
+    }
 
     /// The colour of the system's glass card in Tinted mode (an example tint).
     var cardTint: Color? {

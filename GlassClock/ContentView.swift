@@ -225,9 +225,9 @@ struct ContentView: View {
                 Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
                 Toggle("Keep card colours", isOn: $style.keepsCardColours)
             } header: {
-                Text("Tinted Home Screens")
+                Text("Clear and Tinted Home Screens")
             } footer: {
-                Text("iPadOS normally redraws widgets in its own glass and colour on these Home Screens. On a Tinted Home Screen, these bring your colours forward instead. On a Clear Home Screen iPadOS always applies its own glass, so they have no effect there.")
+                Text("iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless.")
             }
 
             Section {
