@@ -78,6 +78,7 @@ enum ClockRaster {
                             scale: CGFloat, dark: Bool) -> UIImage {
         let path = artwork.detail.cgPath
         let shape = "detail|\(artwork.detail.description.hashValue)|\(Int(artwork.unit * 100))"
+        let scale = min(scale, 1.5)   // smaller archive; the line is small and soft-edged anyway
         return cached(key(style, scale: scale, dark: dark, shape)) { render(size: area.size, scale: scale) { ctx in
             ctx.translateBy(x: -area.minX, y: -area.minY)
             let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: CGRect(origin: .zero, size: size), area: area)

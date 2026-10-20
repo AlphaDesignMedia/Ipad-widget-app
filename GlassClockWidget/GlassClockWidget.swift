@@ -25,8 +25,8 @@ struct ClockProvider: TimelineProvider {
         let startOfMinute = calendar.dateInterval(of: .minute, for: .now)?.start ?? .now
         // A kept-colour time is stored as a picture per minute, the biggest cost of all
         // (11 MB an hour with a glass style, rejected; observed 2026-10-20).
-        let minutes = style.keepsTimeColours ? 30
-            : style.keepsDetailColours || style.keepsCardColours ? 40 : 60
+        // 30 minutes whenever anything keeps its colours, leaving headroom on the device.
+        let minutes = style.keepsTimeColours || style.keepsDetailColours || style.keepsCardColours ? 30 : 60
         let entries = (0..<minutes).compactMap { offset in
             calendar.date(byAdding: .minute, value: offset, to: startOfMinute)
                 .map { ClockEntry(date: $0, style: style) }
