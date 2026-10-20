@@ -152,6 +152,7 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { layoutMenu }
+                ToolbarItem(placement: .topBarLeading) { tourButton }
                 ToolbarItem(placement: .primaryAction) { applyButton }
             }
         }
@@ -221,6 +222,7 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { layoutMenu }
+                ToolbarItem(placement: .topBarLeading) { tourButton }
                 ToolbarItem(placement: .primaryAction) { applyButton }
             }
         }
@@ -398,6 +400,15 @@ struct ContentView: View {
             }
         } label: {
             Label("Layout", systemImage: interface == .panels ? interface.symbol : layout.symbol)
+        }
+    }
+
+    /// Brings the tour back, for a refresher or to show someone.
+    private var tourButton: some View {
+        Button {
+            showsTour = true
+        } label: {
+            Label("Show the Tour", systemImage: "questionmark.circle")
         }
     }
 
