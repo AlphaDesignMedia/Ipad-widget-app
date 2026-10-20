@@ -94,6 +94,7 @@ struct ContentView: View {
                     slider("Roundness", value: $style.roundness, in: 0...1, low: "Sharp", high: "Round")
                 }
                 slider("Height", value: $style.height, in: ClockStyle.heightRange, low: "Normal", high: "Tall")
+                Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
                 slider("Spacing", value: $style.spacing, in: ClockStyle.spacingRange, low: "Tight", high: "Loose")
             }
 

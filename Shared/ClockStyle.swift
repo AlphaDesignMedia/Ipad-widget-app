@@ -135,32 +135,34 @@ enum LightEffect: String, Codable, CaseIterable, Identifiable {
 /// Everything the user can customise. Font weight, width and roundness are 0–1 positions
 /// along the chosen font's own variable axes (0.5 is regular weight and normal width).
 struct ClockStyle: Codable, Equatable {
-    var font: ClockFont = .sf
-    var fontWeight: Double = 0.75
-    var fontWidth: Double = 0.5
+    var font: ClockFont = .robotoFlex
+    var fontWeight: Double = 0.85
+    var fontWidth: Double = 0.3
     var roundness: Double = 1
     /// Extra space between digits, as a fraction of the font size. Negative tightens.
     var spacing: Double = 0
     /// Vertical stretch of the time: 1 is normal, 2 is twice as tall.
     var height: Double = 1
+    /// Stretches the digits taller in square cards so they fill the space.
+    var fillsCard = true
     var color: ClockColor = .auto
     var timeFormat: TimeFormat = .system
     var showDate = false
-    var ampm: AMPMPlacement = .hidden
+    var ampm: AMPMPlacement = .below
     var background: CardBackground = .glass
     var backgroundColor: ClockColor = .auto
-    var textFill: TextFill = .solid
+    var textFill: TextFill = .glass
     var gradientColor: ClockColor = .purple
     /// 1 is fully opaque.
     var textOpacity: Double = 1
     var cardOpacity: Double = 1
 
-    var effect: LightEffect = .none
+    var effect: LightEffect = .shadow
     /// Automatic: the text colour for a glow, black for a shadow.
     var effectColor: ClockColor = .auto
     /// How far the light spreads, 0–1.
     var effectSize: Double = 0.4
-    var effectStrength: Double = 0.7
+    var effectStrength: Double = 0.5
     /// How far a shadow falls below the text, 0–1.
     var effectDistance: Double = 0.4
 
@@ -184,6 +186,7 @@ struct ClockStyle: Codable, Equatable {
         roundness = try value(.roundness, d.roundness)
         spacing = try value(.spacing, d.spacing)
         height = try value(.height, d.height)
+        fillsCard = try value(.fillsCard, d.fillsCard)
         color = try value(.color, d.color)
         timeFormat = try value(.timeFormat, d.timeFormat)
         showDate = try value(.showDate, d.showDate)

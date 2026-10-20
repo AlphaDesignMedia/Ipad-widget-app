@@ -119,18 +119,10 @@ struct ClockArtwork {
             font: Self.tabular(font), tracking: style.spacing, centersColons: true
         )
         let digitHeight = template.bounds.height
-        guard digitHeight > 0 else { return }
-
-        // Stretch, then move the ink's top-left corner to 0,0.
         let ink = line.bounds
-        var stretch = CGAffineTransform(translationX: -ink.minX, y: 0)
-            .scaledBy(x: 1, y: style.height)
-            .translatedBy(x: 0, y: -ink.minY)
-        var time = Path(line.path.copy(using: &stretch) ?? line.path)
-        let timeSize = CGSize(width: ink.width, height: ink.height * style.height)
-        let sizingWidth = max(timeSize.width, template.bounds.width)
+        guard digitHeight > 0, !ink.isEmpty else { return }
+        let sizingWidth = max(ink.width, template.bounds.width)
 
-        var detail = Path()
         let detailFont = style.font.font(
             size: 100,
             weight: 0.55 + (style.fontWeight - 0.5) * 0.4,
@@ -139,57 +131,88 @@ struct ClockArtwork {
         )
         let capHeight = CTFontGetCapHeight(detailFont)
         let ampm = style.ampmText(date)
-
-        /// Places `string` scaled to `cap` cap height with its baseline at `baseline`.
-        func place(_ string: String, cap: CGFloat, tracking: CGFloat = 0, x: (CGFloat) -> CGFloat, baseline: CGFloat) {
-            let glyphs = GlyphLine(string, font: detailFont, tracking: tracking)
-            let k = cap / capHeight
-            let width = glyphs.bounds.width * k
-            var t = CGAffineTransform(translationX: x(width) - glyphs.bounds.minX * k, y: baseline)
-                .scaledBy(x: k, y: k)
-            if let placed = glyphs.path.copy(using: &t) { detail.addPath(Path(placed)) }
-        }
-
-        // Beside the time: small and lined up with the top of the digits, or as two letters
-        // stacked to the full height of the digits.
-        let gap = 0.08 * digitHeight
         let letters = ampm.map { Array($0.uppercased().filter(\.isLetter)) } ?? []
-        if style.ampm == .stacked, letters.count == 2 {
-            let cap = (timeSize.height - 0.12 * timeSize.height) / 2
-            for (i, letter) in letters.enumerated() {
-                place(String(letter), cap: cap,
-                      x: { timeSize.width + gap + (cap * 0.9 - $0) / 2 },
-                      baseline: i == 0 ? cap : timeSize.height)
-            }
-        } else if let ampm, style.ampm == .beside || style.ampm == .stacked {
-            let cap = 0.24 * digitHeight
-            place(ampm.uppercased(), cap: cap, tracking: 0.04, x: { _ in timeSize.width + gap }, baseline: cap)
-        }
-
-        // A line underneath, letter-spaced like the Lock Screen's date.
+        let stacked = style.ampm == .stacked && letters.count == 2
+        let beside = ampm != nil && !stacked && (style.ampm == .beside || style.ampm == .stacked)
         let below = [style.ampm == .below ? ampm : nil, style.showDate ? style.dateText(date) : nil]
             .compactMap { $0 }
             .joined(separator: "  ·  ")
-        if !below.isEmpty {
-            let cap = 0.15 * digitHeight
-            place(below.uppercased(), cap: cap, tracking: 0.12,
-                  x: { timeSize.width / 2 - $0 / 2 },
-                  baseline: timeSize.height + 0.16 * digitHeight + cap)
+
+        // In a squarer card than the clock, stretch the digits taller to fill it, up to 1.6×.
+        // The Height slider sets the minimum.
+        let belowRatio: CGFloat = 0.15, besideRatio: CGFloat = 0.24, belowGap: CGFloat = 0.16
+        let belowHeight = below.isEmpty ? 0 : (belowGap + belowRatio) * digitHeight
+        let filling = (size.height / size.width * sizingWidth - belowHeight) / ink.height
+        let stretch = max(style.height, style.fillsCard ? min(filling, 1.6) : 0)
+        let timeSize = CGSize(width: ink.width, height: ink.height * stretch)
+
+        /// Lays out the time and its detail at the given detail sizes (fractions of the
+        /// digit height) and fits the group to `size`.
+        func layout(belowCap: CGFloat, besideCap: CGFloat) -> (time: Path, detail: Path, scale: CGFloat) {
+            // Stretch, then move the ink's top-left corner to 0,0.
+            var transform = CGAffineTransform(translationX: -ink.minX, y: 0)
+                .scaledBy(x: 1, y: stretch)
+                .translatedBy(x: 0, y: -ink.minY)
+            let time = Path(line.path.copy(using: &transform) ?? line.path)
+            var detail = Path()
+
+            /// Places `string` scaled to `cap` cap height with its baseline at `baseline`.
+            func place(_ string: String, cap: CGFloat, tracking: CGFloat = 0, x: (CGFloat) -> CGFloat, baseline: CGFloat) {
+                let glyphs = GlyphLine(string, font: detailFont, tracking: tracking)
+                let k = cap / capHeight
+                let width = glyphs.bounds.width * k
+                var t = CGAffineTransform(translationX: x(width) - glyphs.bounds.minX * k, y: baseline)
+                    .scaledBy(x: k, y: k)
+                if let placed = glyphs.path.copy(using: &t) { detail.addPath(Path(placed)) }
+            }
+
+            // Beside the time: two letters stacked to the full height of the digits, or
+            // small and lined up with the top of the digits.
+            let gap = 0.08 * digitHeight
+            if stacked {
+                let cap = (timeSize.height - 0.12 * timeSize.height) / 2
+                for (i, letter) in letters.enumerated() {
+                    place(String(letter), cap: cap,
+                          x: { timeSize.width + gap + (cap * 0.9 - $0) / 2 },
+                          baseline: i == 0 ? cap : timeSize.height)
+                }
+            } else if let ampm, beside {
+                let cap = besideCap * digitHeight
+                place(ampm.uppercased(), cap: cap, tracking: 0.04, x: { _ in timeSize.width + gap }, baseline: cap)
+            }
+
+            // A line underneath, letter-spaced like the Lock Screen's date.
+            if !below.isEmpty {
+                let cap = belowCap * digitHeight
+                place(below.uppercased(), cap: cap, tracking: 0.12,
+                      x: { timeSize.width / 2 - $0 / 2 },
+                      baseline: timeSize.height + belowGap * digitHeight + cap)
+            }
+
+            // Fit the sizing box with a little breathing room, centre the actual ink.
+            let timeBox = CGRect(origin: .zero, size: timeSize)
+            let actual = detail.isEmpty ? timeBox : timeBox.union(detail.boundingRect)
+            let sizing = actual.union(timeBox.insetBy(dx: (timeSize.width - sizingWidth) / 2, dy: 0))
+            let scale = 0.92 * min(size.width / sizing.width, size.height / sizing.height)
+            let fit = CGAffineTransform(
+                translationX: size.width / 2 - actual.midX * scale,
+                y: size.height / 2 - actual.midY * scale
+            ).scaledBy(x: scale, y: scale)
+            return (time.applying(fit), detail.applying(fit), scale)
         }
 
-        // Fit the sizing box with a little breathing room, centre the actual ink.
-        let timeBox = CGRect(origin: .zero, size: timeSize)
-        let actual = detail.isEmpty ? timeBox : timeBox.union(detail.boundingRect)
-        let sizing = actual.union(timeBox.insetBy(dx: (timeSize.width - sizingWidth) / 2, dy: 0))
-        let scale = 0.92 * min(size.width / sizing.width, size.height / sizing.height)
-        let fit = CGAffineTransform(
-            translationX: size.width / 2 - actual.midX * scale,
-            y: size.height / 2 - actual.midY * scale
-        ).scaledBy(x: scale, y: scale)
-        time = time.applying(fit)
-        self.time = time
-        self.detail = detail.applying(fit)
-        unit = digitHeight * scale / 100
+        var result = layout(belowCap: belowRatio, besideCap: besideRatio)
+        // Keep the small text readable: capitals at least 8 pt tall, which is about 11 pt
+        // type, the HIG minimum for widgets. Relaid out once at the larger size.
+        let minimumCap: CGFloat = 8
+        let belowBoost = minimumCap / (belowRatio * digitHeight * result.scale)
+        let besideBoost = minimumCap / (besideRatio * digitHeight * result.scale)
+        if (!below.isEmpty && belowBoost > 1) || (beside && besideBoost > 1) {
+            result = layout(belowCap: belowRatio * max(1, belowBoost), besideCap: besideRatio * max(1, besideBoost))
+        }
+        time = result.time
+        detail = result.detail
+        unit = digitHeight * result.scale / 100
     }
 
     var combined: Path {
@@ -258,7 +281,7 @@ struct ClockFace: View {
                 }
                 lettering(artwork.time, unit: artwork.unit, accented: accented)
                     .widgetAccentable()
-                lettering(artwork.detail, unit: artwork.unit, accented: accented)
+                lettering(artwork.detail, unit: artwork.unit, accented: accented, plain: true)
                     .opacity(0.85)
             }
             .opacity(style.textOpacity)
@@ -267,13 +290,19 @@ struct ClockFace: View {
         .accessibilityLabel(Text(date, style: .time))
     }
 
-    private func lettering(_ path: Path, unit: CGFloat, accented: Bool) -> some View {
+    /// `plain` is for the small detail text: glass edges are too fine to read at that size,
+    /// so glass text gets a clean light fill there instead.
+    private func lettering(_ path: Path, unit: CGFloat, accented: Bool, plain: Bool = false) -> some View {
         let shape = OutlineShape(path: path)
+        let glassDetail = plain && style.textFill == .glass
+        let fill = glassDetail
+            ? AnyShapeStyle((accented || style.color == .auto ? Color.white : style.color.color).opacity(0.9))
+            : style.textStyle(in: colorScheme, accented: accented, unit: unit)
         return shape
-            .fill(style.textStyle(in: colorScheme, accented: accented, unit: unit))
+            .fill(fill)
             .overlay {
                 // Colour glowing inward from the edges, on its own.
-                if let inner = style.innerColor, !accented {
+                if let inner = style.innerColor, !accented, !plain {
                     shape.stroke(inner.color, lineWidth: unit * 9)
                         .blur(radius: unit * 4)
                         .clipShape(shape)
@@ -283,7 +312,7 @@ struct ClockFace: View {
             .overlay {
                 // Glass gets a crisp rim of light: bright on the upper left, fading, then
                 // catching again on the lower right. Only the inner half of the stroke shows.
-                if style.textFill == .glass {
+                if style.textFill == .glass && !plain {
                     shape.stroke(
                         LinearGradient(
                             stops: [

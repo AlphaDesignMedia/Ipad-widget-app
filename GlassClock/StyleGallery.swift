@@ -70,6 +70,33 @@ struct StyleGallery: View {
     }
 
     var body: some View {
+        if page == "default" { sizes } else { grid }
+    }
+
+    /// The default style at every widget size.
+    private var sizes: some View {
+        ZStack {
+            LinearGradient(colors: [.indigo, .teal, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .ignoresSafeArea()
+            VStack(spacing: 30) {
+                HStack(spacing: 30) {
+                    card(ClockStyle(), PreviewSize.small)
+                    card(ClockStyle(), PreviewSize.medium)
+                }
+                card(ClockStyle(), PreviewSize.large)
+                card(ClockStyle(), PreviewSize.extraLarge)
+            }
+        }
+    }
+
+    private func card(_ style: ClockStyle, _ preview: PreviewSize) -> some View {
+        ClockFace(date: date, style: style)
+            .padding(16)
+            .frame(width: preview.size.width, height: preview.size.height)
+            .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28)))
+    }
+
+    private var grid: some View {
         ZStack {
             // A wallpaper-like backdrop, so glass and light effects read as they would on the Home Screen.
             LinearGradient(colors: [.indigo, .teal, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
