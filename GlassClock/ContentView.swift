@@ -53,7 +53,7 @@ struct ContentView: View {
     @AppStorage("interfaceStyle") private var interface = InterfaceStyle.classic
     @State private var selectedSection: SettingsSection? = .presets
     @State private var showsInspector = true
-    @State private var sidebarVisibility = NavigationSplitViewVisibility.all
+    @State private var showsSidebar = true
     @State private var isWide = true
     /// Counts jumps to a settings group, so jumping to the same group twice still scrolls.
     @State private var focusRequest = 0
@@ -165,26 +165,48 @@ struct ContentView: View {
             .glassEffect(.regular, in: .rect(cornerRadius: 28))
     }
 
-    /// A glass sidebar for jumping between settings groups, the preview filling the window behind
-    /// it, and every setting in one scrolling list on the right. Picking a group in the sidebar
-    /// scrolls the list to it and lights it up. In narrow windows the system turns the list into
-    /// a sheet.
+    /// Two floating glass panels over the full-window backdrop, like Classic's: a short list of
+    /// groups on the left for jumping around, and every setting in one scrolling list on the
+    /// right. Picking a group glides the list to it and lights it up. The panels slide in and out
+    /// with a swipe across the preview or a tap on the glass tab at the edge; there are no
+    /// sidebar buttons (owner feedback 2026-10-21: the system's edge-to-edge columns and toggle
+    /// buttons on iPadOS 27 didn't look right).
     private var panelsInterface: some View {
-        NavigationSplitView(columnVisibility: $sidebarVisibility) {
-            List(SettingsSection.allCases, selection: $selectedSection) { section in
-                Label(section.title, systemImage: section.icon)
-                    .tag(section)
-                    // Every tap jumps, including on the group that's already selected.
-                    .simultaneousGesture(TapGesture().onEnded { focus(section) })
-            }
-            .navigationTitle("Glass Clock")
-        } detail: {
-            preview
-                .offset(x: rubberBand(panelDrag))
-                .simultaneousGesture(panelSwipe)
+        NavigationStack {
+            GeometryReader { geometry in
+                let settingsWidth = min(440, max(360, geometry.size.width * 0.36))
+                ZStack {
+                    ZStack {
+                        backdropView
+                            .ignoresSafeArea()
+                        previewStage
+                            .padding(.leading, isWide && showsSidebar ? groupsWidth + Space.medium : 0)
+                            .padding(.trailing, showsInspector ? settingsWidth + Space.medium : 0)
+                            .offset(x: rubberBand(panelDrag))
+                    }
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(panelSwipe)
+
+                    HStack(alignment: .top, spacing: Space.medium) {
+                        if showsSidebar {
+                            groupsPanel
+                                .frame(width: groupsWidth)
+                                .transition(panelTransition(.leading))
+                        }
+                        Spacer(minLength: 0)
+                        if showsInspector {
+                            settingsList
+                                .clipShape(.rect(cornerRadius: 28))
+                                .glassEffect(.regular, in: .rect(cornerRadius: 28))
+                                .frame(width: settingsWidth)
+                                .transition(panelTransition(.trailing))
+                        }
+                    }
+                    .padding([.horizontal, .bottom], Space.medium)
+                }
                 .overlay(alignment: .leading) {
-                    if sidebarVisibility == .detailOnly {
-                        edgeHandle("Show groups") { withAnimation(.snappy) { sidebarVisibility = .all } }
+                    if !showsSidebar {
+                        edgeHandle("Show groups") { withAnimation(.snappy) { showsSidebar = true } }
                     }
                 }
                 .overlay(alignment: .trailing) {
@@ -192,37 +214,67 @@ struct ContentView: View {
                         edgeHandle("Show settings") { withAnimation(.snappy) { showsInspector = true } }
                     }
                 }
-                .sensoryFeedback(.impact(weight: .light), trigger: showsInspector)
-                .sensoryFeedback(.impact(weight: .light), trigger: sidebarVisibility)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { layoutMenu }
-                    ToolbarItem(placement: .primaryAction) { applyButton }
-                    ToolbarSpacer(.fixed, placement: .primaryAction)
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            withAnimation(.snappy) { showsInspector.toggle() }
-                        } label: {
-                            Label(showsInspector ? "Hide Settings" : "Show Settings", systemImage: "sidebar.trailing")
-                        }
-                    }
-                }
-                .inspector(isPresented: $showsInspector) {
-                    settingsList
-                        .inspectorColumnWidth(min: 340, ideal: 400, max: 520)
-                        .presentationDetents([.medium, .large])
-                }
+            }
+            .sensoryFeedback(.impact(weight: .light), trigger: showsInspector)
+            .sensoryFeedback(.impact(weight: .light), trigger: showsSidebar)
+            .navigationTitle("Glass Clock")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { layoutMenu }
+                ToolbarItem(placement: .primaryAction) { applyButton }
+            }
         }
-        // The sidebar shows alongside on wide screens and tucks away on narrower ones, so the
-        // preview isn't squeezed between it and the inspector. (Letting it slide over the
-        // preview dimmed the clock.) The inspector's title switches groups without it.
+        // The groups sit alongside on wide screens and tuck away on narrower ones, so the
+        // preview isn't squeezed between the two panels.
         .onGeometryChange(for: Bool.self) { $0.size.width >= 1200 } action: { wide in
             isWide = wide
         }
-        .task(id: isWide) {
-            // The split view ignores a visibility change while it's first appearing.
-            try? await Task.sleep(for: .milliseconds(250))
-            sidebarVisibility = isWide ? .all : .detailOnly
+        .onChange(of: isWide, initial: true) {
+            withAnimation(.snappy) { showsSidebar = isWide }
         }
+    }
+
+    private let groupsWidth: CGFloat = 230
+
+    /// Panels slide in from their own edge, or fade when Reduce Motion is on.
+    private func panelTransition(_ edge: Edge) -> AnyTransition {
+        reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
+    }
+
+    /// The settings groups on a glass panel: a tap glides the settings to that group.
+    private var groupsPanel: some View {
+        ScrollView {
+            VStack(spacing: 4) {
+                ForEach(SettingsSection.allCases) { section in
+                    let selected = selectedSection == section
+                    Button {
+                        focus(section)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: section.icon)
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+                                .frame(width: 24)
+                            Text(section == .homeScreens ? "Home Screens" : section.title)
+                                .font(.body.weight(selected ? .semibold : .regular))
+                                .foregroundStyle(selected ? .white : .primary)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 11)
+                        .background(selected ? Color.accentColor : .clear, in: .capsule)
+                        .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+            .padding(Space.small + 2)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .fixedSize(horizontal: false, vertical: true)
+        .glassEffect(.regular, in: .rect(cornerRadius: 28))
+        .animation(.snappy, value: selectedSection)
     }
 
     /// Every settings group, open, in one scrolling list. A jump from the sidebar (or the chips
@@ -230,7 +282,7 @@ struct ContentView: View {
     private var settingsList: some View {
         ScrollViewReader { proxy in
             Form {
-                if !isWide {
+                if !showsSidebar {
                     Section { jumpChips(proxy) }
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
@@ -392,10 +444,12 @@ struct ContentView: View {
                 let dx = drag.translation.width
                 guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
                 withAnimation(.snappy) {
+                    // A swipe right pulls the groups in from the left, or pushes the settings away;
+                    // a swipe left does the opposite.
                     if dx > 0 {
-                        if showsInspector && !isWide { showsInspector = false } else { sidebarVisibility = .all }
+                        if !showsSidebar { showsSidebar = true } else { showsInspector = false }
                     } else {
-                        if sidebarVisibility != .detailOnly && !isWide { sidebarVisibility = .detailOnly } else { showsInspector = true }
+                        if !showsInspector { showsInspector = true } else { showsSidebar = false }
                     }
                 }
             }

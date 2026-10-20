@@ -107,7 +107,7 @@ enum InterfaceStyle: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .classic: "rectangle.split.2x1"
-        case .panels: "sidebar.squares.left"
+        case .panels: "rectangle.split.3x1"
         }
     }
 }
