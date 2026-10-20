@@ -40,11 +40,9 @@ enum ClockRaster {
 
     /// How far a glow or shadow reaches beyond the outline.
     private static func reach(_ style: ClockStyle, unit u: CGFloat) -> CGFloat {
-        switch style.effect {
-        case .none: 4 * u
-        case .glow: u * (8 + 40 * style.effectSize) * 2
-        case .shadow: u * (1 + 14 * style.effectSize) * 2 + u * 24 * style.effectDistance
-        }
+        max(4 * u,
+            style.glow ? u * (8 + 40 * style.glowSize) * 2 : 0,
+            style.shadow ? u * (1 + 14 * style.shadowSize) * 2 + u * 24 * style.shadowDistance : 0)
     }
 
     /// A tiny full-colour image of `colors` running from `start` to `end`, for filling shapes
@@ -175,7 +173,7 @@ struct Painter {
         // Wide blurs are slow at full resolution, and the widget draws an hour of entries at
         // once under a time limit ("Watchdog provision violated", observed 2026-10-20). They
         // look the same drawn at low resolution and scaled up, so they are.
-        let pixelsPerPoint = min(scale, max(0.05, 6 / blur))
+        let pixelsPerPoint = min(scale, max(0.1, 10 / blur))
         guard pixelsPerPoint < scale else {
             castShadow(moved, rule: rule, color: color, blur: blur * 2 * scale, knockout: knockout)
             return
@@ -235,16 +233,15 @@ struct Painter {
 
     /// The glow or shadow behind the text, as in `LightLayer`.
     func light(_ path: CGPath, style: ClockStyle, unit u: CGFloat) {
-        let color = style.resolvedEffectColor
-        switch style.effect {
-        case .none:
-            break
-        case .glow:
-            blurredCopy(path, color.opacity(style.effectStrength), blur: u * (2 + 10 * style.effectSize))
-            blurredCopy(path, color.opacity(0.8 * style.effectStrength), blur: u * (8 + 40 * style.effectSize))
-        case .shadow:
-            blurredCopy(path, color.opacity(style.effectStrength), blur: u * (1 + 14 * style.effectSize),
-                        offset: CGSize(width: 0, height: u * 24 * style.effectDistance))
+        // Not knocked out: the text is drawn on top, and erasing the part under it left a
+        // blocky hole showing through see-through text (user feedback, 2026-10-20).
+        if style.shadow {
+            blurredCopy(path, style.resolvedShadowColor.opacity(style.shadowStrength), blur: u * (1 + 14 * style.shadowSize),
+                        offset: style.shadowOffset(unit: u), knockout: false)
+        }
+        if style.glow {
+            blurredCopy(path, style.resolvedGlowColor.opacity(style.glowStrength), blur: u * (2 + 10 * style.glowSize), knockout: false)
+            blurredCopy(path, style.resolvedGlowColor.opacity(0.8 * style.glowStrength), blur: u * (8 + 40 * style.glowSize), knockout: false)
         }
     }
 

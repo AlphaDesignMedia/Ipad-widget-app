@@ -144,20 +144,6 @@ enum AMPMPlacement: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// Light around the text: a glow of colour, or a shadow cast onto the card.
-enum LightEffect: String, Codable, CaseIterable, Identifiable {
-    case none, glow, shadow
-    var id: Self { self }
-
-    var label: String {
-        switch self {
-        case .none: "None"
-        case .glow: "Glow"
-        case .shadow: "Shadow"
-        }
-    }
-}
-
 /// Everything the user can customise. Font weight, width and roundness are 0–1 positions
 /// along the chosen font's own variable axes (0.5 is regular weight and normal width).
 struct ClockStyle: Codable, Equatable {
@@ -192,14 +178,31 @@ struct ClockStyle: Codable, Equatable {
     var textOpacity: Double = 1
     var cardOpacity: Double = 1
 
-    var effect: LightEffect = .shadow
-    /// Automatic: the text colour for a glow, black for a shadow.
-    var effectColor: ClockColor = .auto
-    /// How far the light spreads, 0–1.
-    var effectSize: Double = 0.4
-    var effectStrength: Double = 0.5
-    /// How far a shadow falls below the text, 0–1.
-    var effectDistance: Double = 0.4
+    /// A glow of colour around the text. Glow and shadow are separate, so both can be on.
+    var glow = false
+    /// Automatic: the text colour.
+    var glowColor: ClockColor = .auto
+    /// How far the glow spreads, 0–1.
+    var glowSize: Double = 0.4
+    var glowStrength: Double = 0.7
+
+    /// A shadow cast onto the card.
+    var shadow = true
+    /// Automatic: black.
+    var shadowColor: ClockColor = .auto
+    /// How soft the shadow is, 0–1.
+    var shadowSize: Double = 0.4
+    var shadowStrength: Double = 0.5
+    /// How far the shadow falls from the text, 0–1.
+    var shadowDistance: Double = 0.4
+    /// The direction the shadow falls, in degrees: 90 is straight down, 0 is to the right.
+    var shadowAngle: Double = 90
+
+    /// The AM/PM and date line: its size and gap to the time (1 is the standard) and its
+    /// letter spacing (added to the font's own).
+    var detailSize: Double = 1
+    var detailGap: Double = 1
+    var detailTracking: Double = 0
 
     /// Colour glowing inside the digits from their edges, on its own rather than as a
     /// side effect of the outer glow. Nil is off.
@@ -242,16 +245,42 @@ struct ClockStyle: Codable, Equatable {
         gradientColor = try value(.gradientColor, d.gradientColor)
         textOpacity = try value(.textOpacity, d.textOpacity)
         cardOpacity = try value(.cardOpacity, d.cardOpacity)
-        effect = try value(.effect, d.effect)
-        effectColor = try value(.effectColor, d.effectColor)
-        effectSize = try value(.effectSize, d.effectSize)
-        effectStrength = try value(.effectStrength, d.effectStrength)
-        effectDistance = try value(.effectDistance, d.effectDistance)
+        glow = try value(.glow, d.glow)
+        glowColor = try value(.glowColor, d.glowColor)
+        glowSize = try value(.glowSize, d.glowSize)
+        glowStrength = try value(.glowStrength, d.glowStrength)
+        shadow = try value(.shadow, d.shadow)
+        shadowColor = try value(.shadowColor, d.shadowColor)
+        shadowSize = try value(.shadowSize, d.shadowSize)
+        shadowStrength = try value(.shadowStrength, d.shadowStrength)
+        shadowDistance = try value(.shadowDistance, d.shadowDistance)
+        shadowAngle = try value(.shadowAngle, d.shadowAngle)
+        detailSize = try value(.detailSize, d.detailSize)
+        detailGap = try value(.detailGap, d.detailGap)
+        detailTracking = try value(.detailTracking, d.detailTracking)
+        // Styles saved before glow and shadow were separate had one "effect".
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        if !c.contains(.glow), let effect = try legacy.decodeIfPresent(String.self, forKey: .effect) {
+            let color = try legacy.decodeIfPresent(ClockColor.self, forKey: .effectColor) ?? .auto
+            let size = try legacy.decodeIfPresent(Double.self, forKey: .effectSize) ?? 0.4
+            let strength = try legacy.decodeIfPresent(Double.self, forKey: .effectStrength) ?? 0.5
+            glow = effect == "glow"
+            shadow = effect == "shadow"
+            if glow { (glowColor, glowSize, glowStrength) = (color, size, strength) }
+            if shadow {
+                (shadowColor, shadowSize, shadowStrength) = (color, size, strength)
+                shadowDistance = try legacy.decodeIfPresent(Double.self, forKey: .effectDistance) ?? 0.4
+            }
+        }
         innerColor = try c.decodeIfPresent(ClockColor.self, forKey: .innerColor)
         innerStrength = try value(.innerStrength, d.innerStrength)
         keepsTimeColours = try value(.keepsTimeColours, d.keepsTimeColours)
         keepsDetailColours = try value(.keepsDetailColours, d.keepsDetailColours)
         keepsCardColours = try value(.keepsCardColours, d.keepsCardColours)
+    }
+
+    private enum LegacyKeys: String, CodingKey {
+        case effect, effectColor, effectSize, effectStrength, effectDistance
     }
 
     /// Starting points people can pick and then adjust.
@@ -261,23 +290,23 @@ struct ClockStyle: Codable, Equatable {
         ("Lock Screen", ClockStyle().with {
             $0.font = .sf; $0.fontWeight = 0.8; $0.fontWidth = 0.5; $0.spacing = -0.015
             $0.softness = 0.5; $0.fillsCard = false
-            $0.textFill = .glass; $0.effect = .none
+            $0.textFill = .glass; $0.shadow = false
             $0.ampm = .hidden; $0.showDate = true; $0.dateAbove = true
         }),
         ("Neon", ClockStyle().with {
             $0.font = .googleSansFlex; $0.fontWeight = 0.6; $0.fontWidth = 0.45; $0.roundness = 1
             $0.textFill = .solid; $0.color = .white; $0.innerColor = .purple; $0.innerStrength = 0.7
-            $0.effect = .glow; $0.effectColor = .purple; $0.effectSize = 0.6; $0.effectStrength = 0.9
+            $0.glow = true; $0.glowColor = .purple; $0.glowSize = 0.6; $0.glowStrength = 0.9; $0.shadow = false
             $0.ampm = .beside
         }),
         ("Minimal", ClockStyle().with {
             $0.font = .robotoFlex; $0.fontWeight = 0.25; $0.fontWidth = 0.5; $0.spacing = 0.04
-            $0.textFill = .solid; $0.effect = .none; $0.fillsCard = false
+            $0.textFill = .solid; $0.shadow = false; $0.fillsCard = false
             $0.ampm = .below; $0.showDate = true
         }),
         ("Stacked serif", ClockStyle().with {
             $0.font = .newYork; $0.fontWeight = 0.7; $0.textFill = .gradient; $0.color = .white
-            $0.gradientColor = .orange; $0.effect = .shadow; $0.effectStrength = 0.4
+            $0.gradientColor = .orange; $0.shadowStrength = 0.4
             $0.ampm = .stacked; $0.fillsCard = false
         }),
     ]
@@ -321,14 +350,16 @@ struct ClockStyle: Codable, Equatable {
         style.textFill = minimal ? .solid : [.glass, .glass, .solid, .solid, .gradient].randomElement()!
         if let card = palette.card, Bool.random() { style.backgroundColor = card }
 
-        // Glass reads best with a shadow; solid text suits a glow.
-        style.effect = minimal ? .none
-            : style.textFill == .glass ? [.shadow, .shadow, .none].randomElement()!
-            : [.glow, .glow, .shadow, .none].randomElement()!
-        style.effectColor = style.effect == .glow ? palette.accent : .auto
-        style.effectSize = .random(in: 0.3...0.7)
-        style.effectStrength = .random(in: 0.4...0.8)
-        style.effectDistance = .random(in: 0.2...0.6)
+        // Glass reads best with a shadow; solid text suits a glow. Sometimes both.
+        let glass = style.textFill == .glass
+        style.glow = !minimal && Double.random(in: 0...1) < (glass ? 0.25 : 0.6)
+        style.shadow = !minimal && Double.random(in: 0...1) < (glass ? 0.7 : 0.4)
+        style.glowColor = palette.accent
+        style.glowSize = .random(in: 0.3...0.7)
+        style.glowStrength = .random(in: 0.5...0.9)
+        style.shadowSize = .random(in: 0.3...0.6)
+        style.shadowStrength = .random(in: 0.3...0.6)
+        style.shadowDistance = .random(in: 0.2...0.6)
         if !minimal && Double.random(in: 0...1) < 0.25 {
             style.innerColor = palette.accent
             style.innerStrength = .random(in: 0.4...0.8)
@@ -356,10 +387,14 @@ struct ClockStyle: Codable, Equatable {
         }
     }
 
-    /// The colour of the glow or shadow.
-    var resolvedEffectColor: Color {
-        guard effectColor == .auto else { return effectColor.color }
-        return effect == .shadow ? .black : color.color
+    var resolvedGlowColor: Color { glowColor == .auto ? color.color : glowColor.color }
+    var resolvedShadowColor: Color { shadowColor == .auto ? .black : shadowColor.color }
+
+    /// Where the shadow falls, for a unit of `u` points (the digits' height / 100).
+    func shadowOffset(unit u: CGFloat) -> CGSize {
+        let distance = u * 24 * shadowDistance
+        let radians = shadowAngle * .pi / 180
+        return CGSize(width: distance * cos(radians), height: distance * sin(radians))
     }
 
     /// The card colour, or nil for the system default (plain glass, or the system background).

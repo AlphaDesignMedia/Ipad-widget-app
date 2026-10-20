@@ -34,6 +34,11 @@ struct ContentView: View {
     /// The style the widget shows.
     @State private var appliedStyle = ClockStyle.load()
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
+    @AppStorage("openPanels") private var openPanelList = "Presets,Font,Text"
+    private var openPanels: Set<String> {
+        get { Set(openPanelList.split(separator: ",").map(String.init)) }
+        nonmutating set { openPanelList = newValue.sorted().joined(separator: ",") }
+    }
     @Environment(\.scenePhase) private var scenePhase
     @State private var customPresets = StyleLibrary.loadPresets()
     /// The saved preset being named: nil for a new one. Shown when `namingPreset` is true.
@@ -291,7 +296,8 @@ struct ContentView: View {
 
     private var settings: some View {
         Form {
-            Section {
+            panel("Presets", icon: "sparkles",
+                  footer: "Save up to \(StyleLibrary.maxCustomPresets) of your own. Long-press one to update, rename or delete it.") {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         Button {
@@ -319,20 +325,11 @@ struct ContentView: View {
                         }
                     }
                 }
-            } header: {
-                Text("Presets")
-            } footer: {
-                Text("Save up to \(StyleLibrary.maxCustomPresets) of your own. Long-press one to update, rename or delete it.")
             }
 
-            Section("Font") {
+            panel("Font", icon: "textformat") {
                 Picker("Font", selection: $style.font) {
                     ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
-                }
-                Picker("AM/PM and date font", selection: $style.detailFont) {
-                    ForEach(DetailFont.allCases) { option in
-                        Text(option == .paired ? "Matched: \(style.font.pairing.label)" : option.label).tag(option)
-                    }
                 }
                 slider("Weight", value: $style.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
                 if style.font.hasWidth {
@@ -348,7 +345,7 @@ struct ContentView: View {
                 slider("Corners", value: $style.softness, in: 0...1, low: "Sharp", high: "Soft")
             }
 
-            Section("Text") {
+            panel("Text", icon: "paintbrush") {
                 Picker("Style", selection: $style.textFill) {
                     ForEach(TextFill.allCases) { Text($0.label).tag($0) }
                 }
@@ -360,15 +357,7 @@ struct ContentView: View {
                         swatchRow(selection: $style.gradientColor)
                     }
                 }
-                LabeledContent("Transparency") {
-                    Slider(value: $style.textOpacity, in: ClockStyle.textOpacityRange) {
-                        Text("Text transparency")
-                    } minimumValueLabel: {
-                        Text("Faint").font(.caption)
-                    } maximumValueLabel: {
-                        Text("Solid").font(.caption)
-                    }
-                }
+                slider("Transparency", value: $style.textOpacity, in: ClockStyle.textOpacityRange, low: "Faint", high: "Solid")
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Inner colour")
                     swatchGrid {
@@ -386,43 +375,8 @@ struct ContentView: View {
                 }
             }
 
-            Section("Glow and shadow") {
-                Picker("Effect", selection: $style.effect) {
-                    ForEach(LightEffect.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                if style.effect != .none {
-                    swatchRow(selection: $style.effectColor)
-                    slider("Size", value: $style.effectSize, in: 0...1, low: "Tight", high: "Wide")
-                    slider("Strength", value: $style.effectStrength, in: 0.1...1, low: "Soft", high: "Strong")
-                    if style.effect == .shadow {
-                        slider("Distance", value: $style.effectDistance, in: 0...1, low: "Close", high: "Far")
-                    }
-                }
-            }
-
-            Section {
-                Picker("Style", selection: $style.background) {
-                    ForEach(CardBackground.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                swatchRow(selection: $style.backgroundColor)
-                LabeledContent("Transparency") {
-                    Slider(value: $style.cardOpacity, in: ClockStyle.cardOpacityRange) {
-                        Text("Card transparency")
-                    } minimumValueLabel: {
-                        Text("Clear").font(.caption)
-                    } maximumValueLabel: {
-                        Text("Solid").font(.caption)
-                    }
-                }
-            } header: {
-                Text("Card")
-            } footer: {
-                Text("When your Home Screen uses the Clear or Tinted style, iPadOS supplies the card and colour. Liquid Glass text keeps its glass look.")
-            }
-
-            Section("Display") {
+            panel("AM/PM and Date", icon: "calendar",
+                  footer: "Size, gap and letter spacing shape the line under (or beside) the time.") {
                 Picker("Time format", selection: $style.timeFormat) {
                     ForEach(TimeFormat.allCases) { Text($0.label).tag($0) }
                 }
@@ -434,24 +388,56 @@ struct ContentView: View {
                 if style.showDate {
                     Toggle("Date above the time", isOn: $style.dateAbove)
                 }
+                Picker("Font", selection: $style.detailFont) {
+                    ForEach(DetailFont.allCases) { option in
+                        Text(option == .paired ? "Matched: \(style.font.pairing.label)" : option.label).tag(option)
+                    }
+                }
+                slider("Size", value: $style.detailSize, in: 0.7...1.6, low: "Small", high: "Large")
+                slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
+                slider("Letter spacing", value: $style.detailTracking, in: -0.06...0.25, low: "Tight", high: "Wide")
             }
 
-            Section {
+            panel("Glow", icon: "sun.max") {
+                Toggle("Glow", isOn: $style.glow)
+                if style.glow {
+                    swatchRow(selection: $style.glowColor)
+                    slider("Size", value: $style.glowSize, in: 0...1, low: "Tight", high: "Wide")
+                    slider("Strength", value: $style.glowStrength, in: 0.1...1, low: "Soft", high: "Strong")
+                }
+            }
+
+            panel("Shadow", icon: "shadow", footer: "Automatic is black. Pick white for a light shadow.") {
+                Toggle("Shadow", isOn: $style.shadow)
+                if style.shadow {
+                    swatchRow(selection: $style.shadowColor)
+                    slider("Direction", value: $style.shadowAngle, in: 0...180, low: "Right", high: "Left")
+                    slider("Distance", value: $style.shadowDistance, in: 0...1, low: "Close", high: "Far")
+                    slider("Softness", value: $style.shadowSize, in: 0...1, low: "Sharp", high: "Soft")
+                    slider("Strength", value: $style.shadowStrength, in: 0.1...1, low: "Light", high: "Dark")
+                }
+            }
+
+            panel("Card", icon: "rectangle.on.rectangle",
+                  footer: "When your Home Screen uses the Clear or Tinted style, iPadOS supplies the card and colour. Liquid Glass text keeps its glass look.") {
+                Picker("Style", selection: $style.background) {
+                    ForEach(CardBackground.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                swatchRow(selection: $style.backgroundColor)
+                slider("Transparency", value: $style.cardOpacity, in: ClockStyle.cardOpacityRange, low: "Clear", high: "Solid")
+            }
+
+            panel("Clear and Tinted Home Screens", icon: "circle.lefthalf.filled",
+                  footer: "iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless.") {
                 Toggle("Keep time colours", isOn: $style.keepsTimeColours)
                 Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
                 Toggle("Keep card colours", isOn: $style.keepsCardColours)
-            } header: {
-                Text("Clear and Tinted Home Screens")
-            } footer: {
-                Text("iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless.")
             }
 
-            Section {
+            panel("Applying Changes", icon: "arrow.down.circle",
+                  footer: "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if this is on.") {
                 Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
-            } header: {
-                Text("Applying changes")
-            } footer: {
-                Text("Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if this is on.")
             }
 
             Section {
@@ -461,6 +447,45 @@ struct ContentView: View {
             } footer: {
                 Text("To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock.")
             }
+        }
+    }
+
+    /// A settings section that opens and closes from its header. Which ones are open is
+    /// remembered, so people can keep the parts they use most at hand.
+    private func panel<Content: View>(_ title: String, icon: String, footer: String? = nil,
+                                      @ViewBuilder content: () -> Content) -> some View {
+        let open = openPanels.contains(title)
+        return Section {
+            if open { content() }
+        } header: {
+            Button {
+                withAnimation(.snappy) {
+                    if open { openPanels.remove(title) } else { openPanels.insert(title) }
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.tint)
+                        .frame(width: 24)
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(open ? 90 : 0))
+                }
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .textCase(nil)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityHint(open ? "Closes this section" : "Opens this section")
+        } footer: {
+            if open, let footer { Text(footer) }
         }
     }
 

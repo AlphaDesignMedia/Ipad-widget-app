@@ -28,7 +28,7 @@ struct StyleGallery: View {
     }
 
     private var accentVariants: [(String, ClockStyle, HomeScreenStyle)] {
-        let colourful = ClockStyle().with { $0.color = .yellow; $0.effect = .glow; $0.textFill = .solid }
+        let colourful = ClockStyle().with { $0.color = .yellow; $0.glow = true; $0.shadow = false; $0.textFill = .solid }
         let keepText = colourful.with { $0.keepsTimeColours = true; $0.keepsDetailColours = true }
         let keepAll = keepText.with { $0.keepsCardColours = true; $0.background = .solid; $0.backgroundColor = .purple }
         return [
@@ -51,20 +51,20 @@ struct StyleGallery: View {
             let glass = base.with { $0.textFill = .glass; $0.fontWeight = 0.9 }
             return [
                 ("Glass", glass),
-                ("Glass + shadow", glass.with { $0.effect = .shadow; $0.effectStrength = 0.5 }),
-                ("Glass + glow", glass.with { $0.effect = .glow; $0.effectColor = .blue; $0.effectStrength = 0.6 }),
+                ("Glass + shadow", glass.with { $0.shadow = true }),
+                ("Glass + glow + shadow", glass.with { $0.glow = true; $0.glowColor = .blue; $0.glowStrength = 0.6 }),
                 ("Glass + inner colour", glass.with { $0.innerColor = .orange }),
                 ("Glass, SF Rounded", glass.with { $0.font = .sfRounded }),
                 ("Glass, Google Sans Flex", glass.with { $0.font = .googleSansFlex; $0.fontWidth = 0.35 }),
             ]
         case "light":
             return [
-                ("Dark shadow", base.with { $0.effect = .shadow }),
-                ("Light shadow (white)", base.with { $0.color = .black; $0.effect = .shadow; $0.effectColor = .white; $0.effectStrength = 1 }),
-                ("Glow, text colour", base.with { $0.color = .yellow; $0.effect = .glow }),
-                ("Glow, own colour", base.with { $0.effect = .glow; $0.effectColor = .purple; $0.effectSize = 0.7 }),
+                ("Dark shadow", base.with { $0.shadow = true }),
+                ("Light shadow (white)", base.with { $0.color = .black; $0.shadowColor = .white; $0.shadowStrength = 1 }),
+                ("Glow, text colour", base.with { $0.color = .yellow; $0.glow = true; $0.shadow = false }),
+                ("Glow + shadow", base.with { $0.glow = true; $0.glowColor = .purple; $0.glowSize = 0.7 }),
                 ("Inner colour only", base.with { $0.innerColor = .red; $0.innerStrength = 0.8 }),
-                ("Inner colour + glow", base.with { $0.innerColor = .mint; $0.effect = .glow; $0.effectColor = .mint }),
+                ("Inner colour + glow", base.with { $0.innerColor = .mint; $0.glow = true; $0.glowColor = .mint }),
             ]
         case "pairs":
             return ClockFont.allCases.map { font in
@@ -75,7 +75,7 @@ struct StyleGallery: View {
             return ClockStyle.presets.map { ($0.name, $0.style.with { $0.timeFormat = .twelve }) }
         case "lock":
             // Settings that get close to the iPadOS Lock Screen clock.
-            let lock = base.with { $0.textFill = .glass; $0.fontWeight = 0.95; $0.height = 1.3; $0.effect = .shadow; $0.effectStrength = 0.35; $0.ampm = .hidden }
+            let lock = base.with { $0.textFill = .glass; $0.fontWeight = 0.95; $0.height = 1.3; $0.shadowStrength = 0.35; $0.ampm = .hidden }
             return [
                 ("SF Pro, heavy, taller", lock.with { $0.font = .sf; $0.fontWidth = 0.4 }),
                 ("SF Rounded, heavy, taller", lock.with { $0.font = .sfRounded }),

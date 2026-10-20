@@ -327,6 +327,16 @@ If we ever need a different layout per mode:
 - **Font pairings** for the AM/PM and date line (`DetailFont`): SF Pro → New York Italic, SF Rounded → Nunito, New York → SF Pro, SF Mono → Space Grotesk, Roboto Flex → Playfair Display Italic, Google Sans Flex → Instrument Serif Italic. Sans pairings are letter-spaced capitals; italics are written normally at 1.25× the size. Bundled fonts are SIL OFL (licences in Shared/Fonts).
 - **Keep time colours (third version):** a tiny full-colour swatch (`ClockRaster.swatch`) *clipped* to the digits' outline. A *masked* swatch was recoloured by iPadOS 27 like ordinary content (user test, 2026-10-20). Only the body (and glass rim) keep colour; glow, shadow and inner colour are left out in this mode (as rings of the outline they made the archive 14 MB). Timelines are 30 minutes with this on. The kept glass card is now a tiny wash with no rim (a 0.5× card was the biggest cost). Everything kept with a heavy style: "Reload success" in the simulator. **Confirmed on the iPad (iPadOS 27, 2026-10-20): the clipped time keeps its colour in Clear mode**, once the widget picks up its next update. A full-colour *picture of the digits* per minute (1–1.5×) was 14–20 MB and rejected, so clipping is the approach. The kept card didn't show: its glass wash (5–25%) was too faint on top of the system glass. It's now 30–75% with a colour (15% for Automatic) and clipped to `ContainerRelativeShape` like the time.
 
+### 6.3d Settings layout and light effects (2026-10-20)
+
+- **Collapsible sections** with an icon each (Presets, Font, Text, AM/PM and Date, Glow, Shadow, Card, Clear and Tinted, Applying Changes); which are open is remembered. Presets, Font and Text start open.
+- **Glow and Shadow are separate** (both can be on). Shadow has colour, direction (0° right → 90° down → 180° left), distance, softness and strength. Old saved styles with a single `effect` are migrated on load.
+- **Kept-colour images no longer knock out** the glow/shadow under the text (it left a blocky hole visible through glass), and wide blurs render at up to 10 px per blur radius.
+- **AM/PM and date line:** size (0.7–1.6×), gap to the time (0.3–2.5×) and extra letter spacing.
+- Everything kept with a heavy style: "Reload success" in the simulator.
+
+**To do next:** built-in photo backdrops (the owner's Earth image, original Apple-style designs), resize handle glitches, and the owner's report that applying sometimes stops updating the widget (check Keep options against the archive limit on the device).
+
 ### 6.4 Settings controls
 
 Use **standard** SwiftUI controls inside a `Form`: `Slider`, `Toggle`, `Picker(.segmented)` and plain `Button`s for the swatches. They get Liquid Glass when someone touches them, plus full accessibility behaviour, for free. **Don't** add `glassEffect` to them.

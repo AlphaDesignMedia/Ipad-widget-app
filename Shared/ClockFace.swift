@@ -42,7 +42,7 @@ extension ClockStyle {
             // numerals: a see-through body with a trace of the chosen colour, a crisp rim of
             // light on the upper-left edges, a darker edge on the lower right where the glass
             // bends light away, and a soft glow inside. A shadow underneath is the Shadow light
-            // effect (see `LightLayer`).
+            // (see `LightLayer`).
             if accented {
                 // Colour is replaced by the system's, so the glass is made of transparency
                 // alone: a frosted body, a solid rim and a soft inner glow. A dark edge would
@@ -179,8 +179,13 @@ struct ClockArtwork {
 
         // In a squarer card than the clock, stretch the digits taller to fill it, up to 1.6×.
         // The Height slider sets the minimum.
-        let belowRatio: CGFloat = 0.15, besideRatio: CGFloat = 0.24, belowGap: CGFloat = 0.16
-        let aboveScale: CGFloat = 0.7, aboveGap: CGFloat = 0.1
+        // Standard proportions (fractions of the digit height), scaled by the person's
+        // size and gap settings for the line.
+        let lineScale = CGFloat(style.detailSize), spread = CGFloat(style.detailGap)
+        let extraTracking = CGFloat(style.detailTracking)
+        let belowRatio: CGFloat = 0.15 * lineScale, besideRatio: CGFloat = 0.24 * lineScale
+        let belowGap: CGFloat = 0.16 * spread
+        let aboveScale: CGFloat = 0.7, aboveGap: CGFloat = 0.1 * spread
         let detailHeight = (below.isEmpty ? 0 : (belowGap + belowRatio) * digitHeight)
             + (above.isEmpty ? 0 : (aboveGap + belowRatio * aboveScale * 1.3) * digitHeight)
         let filling = (size.height / size.width * sizingWidth - detailHeight) / ink.height
@@ -211,7 +216,7 @@ struct ClockArtwork {
 
             // Beside the time: two letters stacked to the full height of the digits, or
             // small and lined up with the top of the digits.
-            let gap = 0.08 * digitHeight
+            let gap = 0.08 * digitHeight * spread
             if stacked {
                 let cap = (timeSize.height - 0.12 * timeSize.height) / 2
                 for (i, letter) in letters.enumerated() {
@@ -221,21 +226,21 @@ struct ClockArtwork {
                 }
             } else if let ampm, beside {
                 let cap = besideCap * digitHeight
-                place(ampm.uppercased(), cap: cap, tracking: 0.04, x: { _ in timeSize.width + gap }, baseline: cap)
+                place(ampm.uppercased(), cap: cap, tracking: 0.04 + extraTracking, x: { _ in timeSize.width + gap }, baseline: cap)
             }
 
             // A line underneath: letter-spaced capitals like the Lock Screen's date, or an italic
             // written normally.
             if !below.isEmpty {
                 let cap = belowCap * digitHeight * (capitals ? 1 : 1.25)
-                place(lineText(below), cap: cap, tracking: capitals ? 0.12 : 0.02,
+                place(lineText(below), cap: cap, tracking: (capitals ? 0.12 : 0.02) + extraTracking,
                       x: { timeSize.width / 2 - $0 / 2 },
                       baseline: timeSize.height + belowGap * digitHeight + cap)
             }
 
             if !above.isEmpty {
                 let cap = belowCap * aboveScale * digitHeight
-                place(above, cap: cap, tracking: 0.01,
+                place(above, cap: cap, tracking: 0.01 + extraTracking,
                       x: { timeSize.width / 2 - $0 / 2 },
                       baseline: -aboveGap * digitHeight)
             }
@@ -299,21 +304,20 @@ private struct LightLayer: View {
     var body: some View {
         let shape = OutlineShape(path: artwork.combined)
         let u = artwork.unit
-        let color = style.resolvedEffectColor
-        switch style.effect {
-        case .none:
-            EmptyView()
-        case .glow:
-            ZStack {
-                shape.fill(color).blur(radius: u * (2 + 10 * style.effectSize))
-                shape.fill(color).blur(radius: u * (8 + 40 * style.effectSize)).opacity(0.8)
+        ZStack {
+            if style.shadow {
+                shape.fill(style.resolvedShadowColor)
+                    .blur(radius: u * (1 + 14 * style.shadowSize))
+                    .offset(style.shadowOffset(unit: u))
+                    .opacity(style.shadowStrength)
             }
-            .opacity(style.effectStrength)
-        case .shadow:
-            shape.fill(color)
-                .blur(radius: u * (1 + 14 * style.effectSize))
-                .offset(y: u * 24 * style.effectDistance)
-                .opacity(style.effectStrength)
+            if style.glow {
+                ZStack {
+                    shape.fill(style.resolvedGlowColor).blur(radius: u * (2 + 10 * style.glowSize))
+                    shape.fill(style.resolvedGlowColor).blur(radius: u * (8 + 40 * style.glowSize)).opacity(0.8)
+                }
+                .opacity(style.glowStrength)
+            }
         }
     }
 }
