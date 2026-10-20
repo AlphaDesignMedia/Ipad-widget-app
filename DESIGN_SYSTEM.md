@@ -329,7 +329,7 @@ If we ever need a different layout per mode:
 
 ### 6.3d Settings layout and light effects (2026-10-20)
 
-- **Collapsible sections** with an icon each (Presets, Font, Text, AM/PM and Date, Glow, Shadow, Card, Clear and Tinted, Applying Changes); which are open is remembered. Presets, Font and Text start open.
+- **Collapsible sections** with an icon each, ordered the way a clock is designed (what it shows → how it looks → how the app behaves): Presets · Layout (time format, AM/PM, date, gap, stretch to fill) · Fonts (groups: Time; AM/PM and date) · Colour · Effects (groups: Inner colour, Glow, Shadow, each with a switch) · Card · Clear and Tinted Home Screens · Widget (apply when leaving, reset). Which are open is remembered; Presets, Layout and Fonts start open. *(Reorganised 2026-10-20.)*
 - **Glow and Shadow are separate** (both can be on). Shadow has colour, direction (0° right → 90° down → 180° left), distance, softness and strength. Old saved styles with a single `effect` are migrated on load.
 - **Kept-colour images no longer knock out** the glow/shadow under the text (it left a blocky hole visible through glass), and wide blurs render at up to 10 px per blur radius.
 - **AM/PM and date line:** size (0.7–1.6×), gap to the time (0.3–2.5×) and extra letter spacing.

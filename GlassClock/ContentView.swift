@@ -34,7 +34,8 @@ struct ContentView: View {
     /// The style the widget shows.
     @State private var appliedStyle = ClockStyle.load()
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
-    @AppStorage("openPanels") private var openPanelList = "Presets,Font,Text"
+    // A new key, so everyone starts with the new sections' defaults open.
+    @AppStorage("openSections") private var openPanelList = "Fonts,Layout,Presets"
     private var openPanels: Set<String> {
         get { Set(openPanelList.split(separator: ",").map(String.init)) }
         nonmutating set { openPanelList = newValue.sorted().joined(separator: ",") }
@@ -294,6 +295,8 @@ struct ContentView: View {
         }
     }
 
+    /// Ordered the way a clock is designed: what it shows, then how it looks, then how the
+    /// app behaves. Bigger sections are split into small labelled groups.
     private var settings: some View {
         Form {
             panel("Presets", icon: "sparkles",
@@ -327,7 +330,24 @@ struct ContentView: View {
                 }
             }
 
-            panel("Font", icon: "textformat") {
+            panel("Layout", icon: "rectangle.3.group") {
+                Picker("Time format", selection: $style.timeFormat) {
+                    ForEach(TimeFormat.allCases) { Text($0.label).tag($0) }
+                }
+                Picker("AM/PM", selection: $style.ampm) {
+                    ForEach(AMPMPlacement.allCases) { Text($0.label).tag($0) }
+                }
+                .disabled(!style.uses12Hour)
+                Toggle("Show date", isOn: $style.showDate)
+                if style.showDate {
+                    Toggle("Date above the time", isOn: $style.dateAbove)
+                }
+                slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
+                Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
+            }
+
+            panel("Fonts", icon: "textformat") {
+                groupLabel("Time")
                 Picker("Font", selection: $style.font) {
                     ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
                 }
@@ -339,13 +359,21 @@ struct ContentView: View {
                     slider("Roundness", value: $style.roundness, in: 0...1, low: "Sharp", high: "Round")
                 }
                 slider("Height", value: $style.height, in: ClockStyle.heightRange, low: "Normal", high: "Tall")
-                Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
-                Toggle("Bolder in small widgets", isOn: $style.adaptsToSize)
                 slider("Spacing", value: $style.spacing, in: ClockStyle.spacingRange, low: "Tight", high: "Loose")
                 slider("Corners", value: $style.softness, in: 0...1, low: "Sharp", high: "Soft")
+                Toggle("Bolder in small widgets", isOn: $style.adaptsToSize)
+
+                groupLabel("AM/PM and date")
+                Picker("Font", selection: $style.detailFont) {
+                    ForEach(DetailFont.allCases) { option in
+                        Text(option == .paired ? "Matched: \(style.font.pairing.label)" : option.label).tag(option)
+                    }
+                }
+                slider("Size", value: $style.detailSize, in: 0.7...1.6, low: "Small", high: "Large")
+                slider("Letter spacing", value: $style.detailTracking, in: -0.06...0.25, low: "Tight", high: "Wide")
             }
 
-            panel("Text", icon: "paintbrush") {
+            panel("Colour", icon: "paintpalette") {
                 Picker("Style", selection: $style.textFill) {
                     ForEach(TextFill.allCases) { Text($0.label).tag($0) }
                 }
@@ -358,10 +386,16 @@ struct ContentView: View {
                     }
                 }
                 slider("Transparency", value: $style.textOpacity, in: ClockStyle.textOpacityRange, low: "Faint", high: "Solid")
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Inner colour")
+            }
+
+            panel("Effects", icon: "sun.max", footer: "A shadow's Automatic colour is black. Pick white for a light shadow.") {
+                groupLabel("Inner colour")
+                Toggle("Inner colour", isOn: Binding(
+                    get: { style.innerColor != nil },
+                    set: { style.innerColor = $0 ? (style.innerColor ?? .orange) : nil }
+                ))
+                if style.innerColor != nil {
                     swatchGrid {
-                        noneSwatch(isSelected: style.innerColor == nil) { style.innerColor = nil }
                         ForEach(ClockColor.allCases.filter { $0 != .auto }) { option in
                             colorSwatch(option, selection: Binding(
                                 get: { style.innerColor ?? .auto },
@@ -369,45 +403,18 @@ struct ContentView: View {
                             ))
                         }
                     }
+                    slider("Strength", value: $style.innerStrength, in: 0.1...1, low: "Subtle", high: "Strong")
                 }
-                if style.innerColor != nil {
-                    slider("Inner strength", value: $style.innerStrength, in: 0.1...1, low: "Subtle", high: "Strong")
-                }
-            }
 
-            panel("AM/PM and Date", icon: "calendar",
-                  footer: "Size, gap and letter spacing shape the line under (or beside) the time.") {
-                Picker("Time format", selection: $style.timeFormat) {
-                    ForEach(TimeFormat.allCases) { Text($0.label).tag($0) }
-                }
-                Picker("AM/PM", selection: $style.ampm) {
-                    ForEach(AMPMPlacement.allCases) { Text($0.label).tag($0) }
-                }
-                .disabled(!style.uses12Hour)
-                Toggle("Show date", isOn: $style.showDate)
-                if style.showDate {
-                    Toggle("Date above the time", isOn: $style.dateAbove)
-                }
-                Picker("Font", selection: $style.detailFont) {
-                    ForEach(DetailFont.allCases) { option in
-                        Text(option == .paired ? "Matched: \(style.font.pairing.label)" : option.label).tag(option)
-                    }
-                }
-                slider("Size", value: $style.detailSize, in: 0.7...1.6, low: "Small", high: "Large")
-                slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
-                slider("Letter spacing", value: $style.detailTracking, in: -0.06...0.25, low: "Tight", high: "Wide")
-            }
-
-            panel("Glow", icon: "sun.max") {
+                groupLabel("Glow")
                 Toggle("Glow", isOn: $style.glow)
                 if style.glow {
                     swatchRow(selection: $style.glowColor)
                     slider("Size", value: $style.glowSize, in: 0...1, low: "Tight", high: "Wide")
                     slider("Strength", value: $style.glowStrength, in: 0.1...1, low: "Soft", high: "Strong")
                 }
-            }
 
-            panel("Shadow", icon: "shadow", footer: "Automatic is black. Pick white for a light shadow.") {
+                groupLabel("Shadow")
                 Toggle("Shadow", isOn: $style.shadow)
                 if style.shadow {
                     swatchRow(selection: $style.shadowColor)
@@ -435,19 +442,24 @@ struct ContentView: View {
                 Toggle("Keep card colours", isOn: $style.keepsCardColours)
             }
 
-            panel("Applying Changes", icon: "arrow.down.circle",
-                  footer: "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if this is on.") {
+            panel("Widget", icon: "square.grid.2x2",
+                  footer: "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock.") {
                 Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
-            }
-
-            Section {
                 Button("Reset to defaults", role: .destructive) {
                     style = ClockStyle()
                 }
-            } footer: {
-                Text("To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock.")
             }
         }
+    }
+
+    /// A small label that starts a group of settings inside a section.
+    private func groupLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .padding(.top, 4)
+            .listRowSeparator(.hidden, edges: .top)
     }
 
     /// A settings section that opens and closes from its header. Which ones are open is
@@ -525,20 +537,6 @@ struct ContentView: View {
                 Text(high).font(.caption)
             }
         }
-    }
-
-    private func noneSwatch(isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Circle()
-                .strokeBorder(.secondary.opacity(0.5), lineWidth: 1)
-                .overlay { Image(systemName: "slash.circle").foregroundStyle(.secondary) }
-                .overlay { Circle().strokeBorder(.tint, lineWidth: isSelected ? 3 : 0) }
-                .frame(width: 34, height: 34)
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("No inner colour")
     }
 
     /// Swatches wrap onto more rows when the window is narrow.
