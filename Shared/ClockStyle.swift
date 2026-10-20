@@ -197,6 +197,8 @@ struct ClockStyle: Codable, Equatable {
     var shadowDistance: Double = 0.4
     /// The direction the shadow falls, in degrees: 90 is straight down, 0 is to the right.
     var shadowAngle: Double = 90
+    static let shadowAngleRange = 45.0...135.0
+    static let shadowStrengthRange = 0.15...0.65
 
     /// The AM/PM and date line: its size and gap to the time (1 is the standard) and its
     /// letter spacing (added to the font's own).
@@ -390,12 +392,24 @@ struct ClockStyle: Codable, Equatable {
     var resolvedGlowColor: Color { glowColor == .auto ? color.color : glowColor.color }
     var resolvedShadowColor: Color { shadowColor == .auto ? .black : shadowColor.color }
 
-    /// Where the shadow falls, for a unit of `u` points (the digits' height / 100).
+    // The shadow is held to a soft, natural range so every combination looks good (owner
+    // feedback, 2026-10-20): it always keeps some blur, falls a modest distance, softens as it
+    // falls further (like a real shadow), only points downwards (45°–135°), and never goes
+    // darker than 65%. `u` is the digits' height / 100, in points.
+
+    /// Where the shadow falls.
     func shadowOffset(unit u: CGFloat) -> CGSize {
-        let distance = u * 24 * shadowDistance
-        let radians = shadowAngle * .pi / 180
+        let distance = u * (2 + 10 * min(max(shadowDistance, 0), 1))
+        let radians = min(max(shadowAngle, 45), 135) * .pi / 180
         return CGSize(width: distance * cos(radians), height: distance * sin(radians))
     }
+
+    /// How soft the shadow is: at least 4 units, more for Softness and for Distance.
+    func shadowBlur(unit u: CGFloat) -> CGFloat {
+        u * (4 + 10 * min(max(shadowSize, 0), 1) + 6 * min(max(shadowDistance, 0), 1))
+    }
+
+    var shadowOpacity: Double { min(max(shadowStrength, 0.1), 0.65) }
 
     /// The card colour, or nil for the system default (plain glass, or the system background).
     var cardTint: Color? {

@@ -42,7 +42,7 @@ enum ClockRaster {
     private static func reach(_ style: ClockStyle, unit u: CGFloat) -> CGFloat {
         max(4 * u,
             style.glow ? u * (8 + 40 * style.glowSize) * 2 : 0,
-            style.shadow ? u * (1 + 14 * style.shadowSize) * 2 + u * 24 * style.shadowDistance : 0)
+            style.shadow ? style.shadowBlur(unit: u) * 2 + u * 12 : 0)
     }
 
     /// A tiny full-colour image of `colors` running from `start` to `end`, for filling shapes
@@ -237,7 +237,7 @@ struct Painter {
         // Not knocked out: the text is drawn on top, and erasing the part under it left a
         // blocky hole showing through see-through text (user feedback, 2026-10-20).
         if style.shadow {
-            blurredCopy(path, style.resolvedShadowColor.opacity(style.shadowStrength), blur: u * (1 + 14 * style.shadowSize),
+            blurredCopy(path, style.resolvedShadowColor.opacity(style.shadowOpacity), blur: style.shadowBlur(unit: u),
                         offset: style.shadowOffset(unit: u), knockout: false)
         }
         if style.glow {

@@ -175,8 +175,12 @@ struct ContentView: View {
             backdropView
                 .ignoresSafeArea(edges: [.bottom, .horizontal])
 
+            // Separate glass bubbles float around the card: the Home Screen style above it,
+            // widget size and backdrop below. One container lets the glass shapes blend.
+            GlassEffectContainer(spacing: Space.large) {
             VStack(spacing: Space.large) {
                 Spacer(minLength: 0)
+                homeScreenBubble
                 // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets).
                 Text("Preview")
                     .font(.footnote.weight(.semibold))
@@ -203,12 +207,23 @@ struct ContentView: View {
                 .frame(maxHeight: previewSize.size.height)
                 .animation(.smooth, value: previewSize)
 
-                previewControls
+                // Side by side when they fit, otherwise one above the other.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: Space.medium) {
+                        sizeBubble
+                        backdropBubble
+                    }
+                    VStack(spacing: Space.medium) {
+                        sizeBubble
+                        backdropBubble
+                    }
+                }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, Space.large)
             .padding(.top, Space.medium)
             .padding(.bottom, Space.large)
+            }
         }
         // The labels and pickers follow the backdrop, so they stay readable when the iPad is
         // in dark mode but the Light preview is on.
@@ -234,65 +249,81 @@ struct ContentView: View {
         }
     }
 
-    /// Side by side when they fit, otherwise stacked, on a glass panel so they stay readable
-    /// over any backdrop (glass for the controls layer, HIG: Materials).
-    private var previewControls: some View {
-        let homePicker = labelled("Home Screen") {
+    /// A capsule of glass for a preview control (glass is for the controls layer, HIG: Materials).
+    private func bubble(icon: String, @ViewBuilder content: () -> some View) -> some View {
+        HStack(spacing: Space.small) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            content()
+        }
+        .padding(.leading, Space.medium)
+        .padding(.trailing, Space.small)
+        .padding(.vertical, Space.small)
+        .glassEffect(.regular, in: .capsule)
+    }
+
+    private var homeScreenBubble: some View {
+        bubble(icon: "house") {
             Picker("Home Screen style", selection: $homeScreen) {
                 ForEach(HomeScreenStyle.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
+            .frame(maxWidth: 360)
         }
-        let sizePicker = labelled("Widget size") {
+    }
+
+    private var sizeBubble: some View {
+        bubble(icon: "square.resize") {
             Picker("Widget size", selection: $previewSize) {
                 ForEach(PreviewSize.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
+            .frame(maxWidth: 380)
         }
-        let backdropMenu = labelled("Backdrop") {
-            HStack(spacing: Space.small) {
+    }
+
+    private var backdropBubble: some View {
+        bubble(icon: "photo") {
+            Menu {
                 Picker("Backdrop", selection: $backdrop) {
                     ForEach(PreviewBackdrop.allCases) { Text($0.label).tag($0) }
                 }
-                .pickerStyle(.menu)
                 if backdrop == .photo {
-                    Button("Change…") { choosingPhoto = true }
+                    Button("Choose Another Photo…", systemImage: "photo.on.rectangle") { choosingPhoto = true }
                 }
-            }
-        }
-        // Fills the width it's given: one row when everything fits, otherwise the two pickers
-        // share a row and the backdrop sits below, otherwise one per row.
-        return ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: Space.large) {
-                homePicker.frame(minWidth: 300, maxWidth: .infinity)
-                sizePicker.frame(minWidth: 340, maxWidth: .infinity)
-                backdropMenu.fixedSize()
-            }
-            VStack(alignment: .leading, spacing: Space.medium) {
-                HStack(alignment: .top, spacing: Space.large) {
-                    homePicker.frame(minWidth: 300, maxWidth: .infinity)
-                    sizePicker.frame(minWidth: 340, maxWidth: .infinity)
+            } label: {
+                HStack(spacing: Space.small) {
+                    backdropThumbnail
+                    Text(backdrop.label)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
-                backdropMenu
+                .padding(.vertical, 6)
+                .padding(.trailing, Space.small)
             }
-            VStack(alignment: .leading, spacing: Space.medium) {
-                homePicker.frame(maxWidth: .infinity)
-                sizePicker.frame(maxWidth: .infinity)
-                backdropMenu
-            }
+            .fixedSize()
+            .accessibilityLabel("Backdrop: \(backdrop.label)")
         }
-        .padding(Space.large)
-        .frame(maxWidth: .infinity)
-        .glassEffect(.regular, in: .rect(cornerRadius: 28))
     }
 
-    private func labelled(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: Space.small) {
-            Text(title)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-            content()
+    /// A small circle showing the current backdrop.
+    private var backdropThumbnail: some View {
+        Group {
+            if backdrop == .photo, let backdropPhoto {
+                Image(uiImage: backdropPhoto).resizable().scaledToFill()
+            } else if backdrop == .plain {
+                homeScreen == .dark ? Color.black : Color.white
+            } else {
+                LinearGradient(colors: backdrop.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
         }
+        .frame(width: 22, height: 22)
+        .clipShape(Circle())
+        .overlay { Circle().strokeBorder(.secondary.opacity(0.4), lineWidth: 1) }
     }
 
     /// Ordered the way a clock is designed: what it shows, then how it looks, then how the
@@ -418,10 +449,10 @@ struct ContentView: View {
                 Toggle("Shadow", isOn: $style.shadow)
                 if style.shadow {
                     swatchRow(selection: $style.shadowColor)
-                    slider("Direction", value: $style.shadowAngle, in: 0...180, low: "Right", high: "Left")
+                    slider("Direction", value: $style.shadowAngle, in: ClockStyle.shadowAngleRange, low: "Right", high: "Left")
                     slider("Distance", value: $style.shadowDistance, in: 0...1, low: "Close", high: "Far")
-                    slider("Softness", value: $style.shadowSize, in: 0...1, low: "Sharp", high: "Soft")
-                    slider("Strength", value: $style.shadowStrength, in: 0.1...1, low: "Light", high: "Dark")
+                    slider("Softness", value: $style.shadowSize, in: 0...1, low: "Crisp", high: "Soft")
+                    slider("Strength", value: $style.shadowStrength, in: ClockStyle.shadowStrengthRange, low: "Light", high: "Dark")
                 }
             }
 

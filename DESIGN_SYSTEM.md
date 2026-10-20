@@ -321,6 +321,8 @@ If we ever need a different layout per mode:
 ### 6.3c Workspace, presets and pairings (2026-10-20)
 
 - **Layout menu** (top left): Automatic, Side by Side, Stacked, Preview Only. A **drag handle** on the divider resizes the panes (settings keep ≥ 380 pt); sizes are remembered.
+- **Preview controls as floating glass bubbles** (2026-10-20): Home Screen style in a capsule above the card; Widget size and Backdrop (with a thumbnail of the current backdrop) in capsules below, side by side when they fit, stacked otherwise. All in one `GlassEffectContainer` so the glass shapes blend.
+- **Shadow held to a soft range** (2026-10-20): direction 45°–135° (always downward), distance 2–12 units, blur at least 4 units and growing with Softness *and* Distance, strength capped at 65%. Defined once in `ClockStyle.shadowOffset/shadowBlur/shadowOpacity`.
 - **Backdrop** behind the preview: Plain, four gradients, or the person's own photo (`PhotosPicker`, stored in Application Support). Apps can't read the Home Screen wallpaper, so a screenshot of the Home Screen is the way to preview against it. Preview controls sit on a `.regular` glass panel that fills the available width, so they stay readable over any backdrop.
 - **Applying:** edits are a draft kept in the app (`StyleLibrary`). The widget's style changes only on **Apply to Widget**, or on leaving the app when **Apply when leaving the app** is on (default). The Apply button shows "Applied" when nothing is waiting.
 - **Custom presets:** up to two, saved with a name; long-press to update, rename or delete.

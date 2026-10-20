@@ -307,9 +307,9 @@ private struct LightLayer: View {
         ZStack {
             if style.shadow {
                 shape.fill(style.resolvedShadowColor)
-                    .blur(radius: u * (1 + 14 * style.shadowSize))
+                    .blur(radius: style.shadowBlur(unit: u))
                     .offset(style.shadowOffset(unit: u))
-                    .opacity(style.shadowStrength)
+                    .opacity(style.shadowOpacity)
             }
             if style.glow {
                 ZStack {
