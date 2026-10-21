@@ -164,8 +164,10 @@ struct ContentView: View {
     /// the finger, stretch a little, and cancel if let go early).
     @State private var backdropPull: CGFloat = 0
     @State private var pulledBackdrop: PreviewBackdrop?
-    /// How far a finger travels to pull a backdrop all the way in.
-    private let pullLength: CGFloat = 520
+    /// How far a finger travels to pull a backdrop all the way in: the window's height, so the
+    /// backdrops move exactly with the finger.
+    private var pullLength: CGFloat { max(400, windowHeight) }
+    @State private var windowHeight: CGFloat = 1000
     /// The backdrop's name, shown briefly after it changes.
     @State private var backdropToast: String?
 
@@ -398,6 +400,7 @@ struct ContentView: View {
         // The groups sit alongside in full when there's room beside the real-size preview and
         // the settings, fold to their icons when only that fits, and tuck away otherwise.
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { windowHeight = $0 }
         // Opens set up neatly, with the widget in the free space between the panels; it can be
         // moved anywhere from there (owner direction, 2026-10-21).
         .onAppear { widgetColumn = -1; widgetRow = -1 }
@@ -1631,9 +1634,15 @@ struct ContentView: View {
         ZStack {
             // While a new backdrop is being pulled in, it waits underneath, settling from
             // slightly zoomed as the old one lifts away.
+            // The stage the backdrops slide across, seen in the gap between them.
+            Color(white: 0.06)
+                .zIndex(-2e12)
+            // While a new backdrop is being pulled in, it slides in from the edge alongside the
+            // current one, growing to full size, like the next card on a carousel.
             if let pulledBackdrop {
                 backdropFill(pulledBackdrop)
-                    .scaleEffect(1.06 - 0.06 * min(1, abs(backdropPull)))
+                    .modifier(CarouselSlide(progress: 1 - min(1, abs(backdropPull)),
+                                            edge: backdropPull <= 0 ? 1 : -1))
                     // Underneath everything, including the current backdrop's low zIndex below.
                     .zIndex(-1e12)
             }
@@ -1669,7 +1678,7 @@ struct ContentView: View {
     /// anything less springs back.
     private func finishBackdropPull(predicted: CGFloat) {
         guard let target = pulledBackdrop else { return }
-        let commits = abs(predicted) > 0.4 && (predicted < 0) == (backdropPull < 0)
+        let commits = abs(predicted) > 0.3 && (predicted < 0) == (backdropPull < 0)
         if commits {
             withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
                 backdropPull = backdropPull < 0 ? -1 : 1

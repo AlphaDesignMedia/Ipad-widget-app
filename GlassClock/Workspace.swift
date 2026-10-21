@@ -429,12 +429,18 @@ struct SettingsCard<Content: View>: View {
         .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
         // Like a carousel: cards grow as they near the middle of the list and shrink away
         // from it, smoothly as they scroll.
+        // Like a carousel turning under the finger: cards ease back and tip away a little as
+        // they move from the middle of the list, smoothly as they scroll. Done on the GPU, so it
+        // costs nothing extra while scrolling.
         .visualEffect { [glassy, reduceMotion, focusStrength] content, proxy in
             let frame = proxy.frame(in: .named("settingsList"))
-            let line: CGFloat = 260
-            let distance = min(1, abs(frame.midY - line) / 900)
-            let amount = glassy && !reduceMotion ? 0.06 * focusStrength : 0
-            return content.scaleEffect(1 + amount * 0.4 - amount * distance)
+            let line: CGFloat = 300
+            let offset = max(-1, min(1, (frame.midY - line) / 900))
+            let amount = glassy && !reduceMotion ? focusStrength : 0
+            return content
+                .scaleEffect(1 + 0.024 * amount - 0.06 * amount * abs(offset))
+                .rotation3DEffect(.degrees(-9 * amount * offset), axis: (x: 1, y: 0, z: 0),
+                                  anchor: offset < 0 ? .bottom : .top, perspective: 0.5)
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.78), value: focused)
     }
