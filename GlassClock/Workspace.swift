@@ -311,14 +311,15 @@ struct AppGlass<S: Shape>: ViewModifier {
 /// rounded by the panel's radius minus the gap between them, so their curves run parallel.
 enum Corner {
     /// The floating panels.
-    static let panel: CGFloat = 36
+    /// (Panel corners and gaps can be tuned live in Design Tweaks.)
+    static var panel: CGFloat { CGFloat(Tweak.panel.value) }
     /// The gap between a panel's edge and the cards inside it, and between cards, so the
     /// spacing reads as one even rhythm.
-    static let inset: CGFloat = 16
+    static var inset: CGFloat { CGFloat(Tweak.gap.value) }
     /// The cards of settings inside a panel.
-    static let card: CGFloat = panel - inset
+    static var card: CGFloat { max(4, panel - inset) }
     /// Padding inside a card, around its rows.
-    static let cardPadding: CGFloat = 18
+    static let cardPadding: CGFloat = 22
 }
 
 /// One group of settings as a card on its panel, its rows split by thin lines. In the Glass
@@ -331,6 +332,11 @@ struct SettingsCard<Content: View>: View {
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     @Environment(\.colorScheme) private var colorScheme
+    // Design Tweaks: read here so the cards redraw as the sliders move.
+    @AppStorage(Tweak.panel.key) private var tweakPanel = Tweak.panel.standard
+    @AppStorage(Tweak.gap.key) private var tweakGap = Tweak.gap.standard
+    @AppStorage(Tweak.frost.key) private var frost = Tweak.frost.standard
+    @AppStorage(Tweak.focus.key) private var focusStrength = Tweak.focus.standard
     /// The group's title, tucked inside the top of the card (owner feedback, 2026-10-21).
     var title: String?
     var icon: String?
@@ -377,13 +383,15 @@ struct SettingsCard<Content: View>: View {
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Overdone for now, to judge it (owner, 2026-10-21): resting cards fade back and soften.
-        .opacity(glassy && !focused ? 0.55 : 1)
-        .blur(radius: glassy && !focused && !reduceMotion ? 0.8 : 0)
+        // Resting cards fade back a little, never so far that their text is hard to read.
+        .opacity(glassy && !focused ? max(0.72, 1 - 0.18 * focusStrength) : 1)
         .background {
             ZStack {
                 if glassy {
                     // Resting cards lean towards clear; the one in use gets the full frost.
-                    GlassAmount.backing(focused ? max(0, glassAmount - 0.25) : 1, in: shape)
+                    // Frost (Design Tweaks) scales how thick the frost is: 0 is clear.
+                    GlassAmount.backing(1 - (1 - (focused ? max(0, glassAmount - 0.25) : 1)) * frost, in: shape)
+                        .opacity(min(1, frost))
                 } else {
                     shape.fill(.background.secondary)
                 }
@@ -391,8 +399,16 @@ struct SettingsCard<Content: View>: View {
             }
         }
         .modifier(CardGlass(on: glassy, shape: shape))
-        .scaleEffect(glassy && !reduceMotion ? (focused ? 1.03 : 0.97) : 1)
-        .shadow(color: .black.opacity(glassy && focused ? 0.16 : 0), radius: 18, y: 8)
+        .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
+        // Like a carousel: cards grow as they near the middle of the list and shrink away
+        // from it, smoothly as they scroll.
+        .visualEffect { [glassy, reduceMotion, focusStrength] content, proxy in
+            let frame = proxy.frame(in: .named("settingsList"))
+            let line: CGFloat = 260
+            let distance = min(1, abs(frame.midY - line) / 900)
+            let amount = glassy && !reduceMotion ? 0.06 * focusStrength : 0
+            return content.scaleEffect(1 + amount * 0.4 - amount * distance)
+        }
         .animation(.spring(response: 0.45, dampingFraction: 0.78), value: focused)
     }
 

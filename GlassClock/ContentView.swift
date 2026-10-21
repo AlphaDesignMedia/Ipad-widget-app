@@ -108,6 +108,12 @@ struct ContentView: View {
     @State private var ignoresNextCardTap = false
     /// How the widget leans while it's dragged, from the finger's speed: -1…1 each way.
     @State private var cardLean = CGSize.zero
+    // Design Tweaks, read here so the whole window redraws as the sliders move.
+    @AppStorage(Tweak.panel.key) private var tweakPanel = Tweak.panel.standard
+    @AppStorage(Tweak.gap.key) private var tweakGap = Tweak.gap.standard
+    @AppStorage(Tweak.wiggle.key) private var tweakWiggle = Tweak.wiggle.standard
+    @AppStorage(Tweak.lean.key) private var tweakLean = Tweak.lean.standard
+    @State private var showsTweaks = false
     /// The groups panel's dock, while the panel is closed: which side it's on and how far down
     /// (0…1), remembered, and how far it's being dragged.
     @AppStorage("dockOnTrailing") private var dockOnTrailing = false
@@ -120,6 +126,7 @@ struct ContentView: View {
     @AppStorage("settingsLeading") private var settingsLeading = false
     @AppStorage("groupsBelow") private var groupsBelow = false
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.45, dampingFraction: 0.82))) private var settingsMove = CGSize.zero
+    @GestureState private var settingsHeld = false
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.4, dampingFraction: 0.8))) private var sidebarMove = CGSize.zero
     /// Panel swipes are ignored for a moment after a widget drag, so moving the widget
     /// doesn't also open or close a panel.
@@ -340,6 +347,19 @@ struct ContentView: View {
                 .overlay {
                     if !showsSidebar { groupsDock(in: geometry.size) }
                 }
+                // Design Tweaks floats over everything at the top, so the app stays in view
+                // while the sliders move.
+                .overlay(alignment: .top) {
+                    if showsTweaks {
+                        DesignTweaksPanel {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = false }
+                        }
+                        .background { GlassAmount.backing(glassAmount, in: .rect(cornerRadius: Corner.panel)) }
+                        .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
+                        .padding(.top, Space.small)
+                        .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
+                    }
+                }
                 .overlay(alignment: settingsLeading ? .leading : .trailing) {
                     if !showsInspector {
                         edgeHandle("Show settings") { withAnimation(.snappy) { showsInspector = true } }
@@ -358,6 +378,11 @@ struct ContentView: View {
         // Opens set up neatly, with the widget in the free space between the panels; it can be
         // moved anywhere from there (owner direction, 2026-10-21).
         .onAppear { widgetColumn = -1; widgetRow = -1 }
+        // When the panels are rearranged, the widget settles back in the middle of the space
+        // left for it (owner direction, 2026-10-21).
+        .onChange(of: panelLayoutKey) {
+            withAnimation(Self.cardSettle) { widgetColumn = -1; widgetRow = -1 }
+        }
         .onChange(of: windowWidth, initial: true) { fitSidebar() }
         .onChange(of: previewSize) { fitSidebar() }
     }
@@ -652,9 +677,14 @@ struct ContentView: View {
             // A grabber along the top to pick the settings up and put them somewhere else; the
             // list itself still scrolls as normal.
             .overlay(alignment: .top) { panelGrabber(area: area) }
+            // Or hold anywhere on the panel for a moment, then drag: a quick swipe still scrolls.
+            .simultaneousGesture(settingsHoldAndDrag(area: area))
+            .sensoryFeedback(.impact(weight: .medium), trigger: settingsHeld) { _, held in held }
             .frame(width: width)
-            .scaleEffect(settingsMove == .zero ? 1 : 1.02)
-            .shadow(color: .black.opacity(settingsMove == .zero ? 0 : 0.18), radius: 20, y: 10)
+            // Lifts when it's picked up, like a widget on the Home Screen.
+            .scaleEffect(settingsMove == .zero && !settingsHeld ? 1 : 1.025)
+            .shadow(color: .black.opacity(settingsMove == .zero && !settingsHeld ? 0 : 0.2), radius: 22, y: 12)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: settingsHeld)
             .offset(settingsMove)
             .zIndex(settingsMove == .zero ? 0 : 1)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { inspectorRect = $0 }
@@ -678,6 +708,22 @@ struct ContentView: View {
             )
             .accessibilityLabel("Move settings")
             .accessibilityHint("Drag to the other side, or onto the groups to share a side")
+    }
+
+    private func settingsHoldAndDrag(area: CGSize) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.35)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .updating($settingsHeld) { value, state, _ in
+                if case .second(true, _) = value { state = true }
+            }
+            .updating($settingsMove) { value, state, _ in
+                if case .second(true, let drag?) = value { state = drag.translation }
+            }
+            .onEnded { value in
+                guard case .second(true, let drag?) = value else { return }
+                placePanel(groups: false, at: CGPoint(x: inspectorRect.midX + drag.translation.width,
+                                                      y: inspectorRect.minY + 40 + drag.translation.height), in: area)
+            }
     }
 
     /// Puts a panel down: on the side it's dropped, sharing that side if the other panel is
@@ -804,6 +850,12 @@ struct ContentView: View {
         if interface == .panels {
             ToolbarItem(placement: .topBarLeading) { fullScreenButton.tint(iconsOnGlass) }
             ToolbarItem(placement: .topBarLeading) { arrangeMenu.tint(iconsOnGlass) }
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Design Tweaks", systemImage: "slider.horizontal.3") {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks.toggle() }
+                }
+                .tint(iconsOnGlass)
+            }
         }
         ToolbarItem(placement: .principal) { interfaceSwitch }
         ToolbarItem(placement: .primaryAction) { refreshButton.tint(iconsOnGlass) }
@@ -972,9 +1024,10 @@ struct ContentView: View {
     /// through water, then settles back (owner idea, 2026-10-21: a gentle, fabric-like push and pull).
     private func cardFace(card: CGSize, scale: CGFloat) -> some View {
         let lean: CGSize = reduceMotion ? .zero : cardLean
-        let turn: Double = Double(lean.width) * 7, tip: Double = Double(-lean.height) * 7
-        let stretchX: CGFloat = 1 + abs(lean.width) * 0.035 - abs(lean.height) * 0.015
-        let stretchY: CGFloat = 1 + abs(lean.height) * 0.035 - abs(lean.width) * 0.015
+        let strength = CGFloat(tweakLean)
+        let turn: Double = Double(lean.width * strength) * 7, tip: Double = Double(-lean.height * strength) * 7
+        let stretchX: CGFloat = 1 + (abs(lean.width) * 0.035 - abs(lean.height) * 0.015) * strength
+        let stretchY: CGFloat = 1 + (abs(lean.height) * 0.035 - abs(lean.width) * 0.015) * strength
         let lift: CGFloat = draggingCard && !reduceMotion ? 1.04 : 1
         let pinch: CGFloat = reduceMotion ? 1 : min(1.6, max(0.6, clockPinch))
         let face = TimelineView(.everyMinute) { context in
@@ -1006,7 +1059,7 @@ struct ContentView: View {
                     .strokeBorder(AppColor.chosen(appColor), lineWidth: 3)
             }
         }
-        .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion))
+        .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0, degrees: tweakWiggle))
     }
 
     /// A soft highlight on each corner while editing, where it can be pulled to resize, like the
@@ -1340,6 +1393,8 @@ struct ContentView: View {
                                     }
                                     homeScreenBubble
                                     sizeBubble
+                                    // The backdrop picker rides along too (owner, 2026-10-21).
+                                    backdropBubble
                                 }
                                 .fixedSize()
                                 // A zero-height frame on the card's edge, with the
@@ -1425,7 +1480,9 @@ struct ContentView: View {
                     widgetGrid
                 }
 
-                // Side by side when they fit, otherwise one above the other.
+                // Side by side when they fit, otherwise one above the other. (In Panels the
+                // backdrop picker follows the widget instead.)
+                if !controlsFollowWidget {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: Space.medium) {
                         if !controlsFollowWidget { sizeBubble }
@@ -1437,6 +1494,7 @@ struct ContentView: View {
                     }
                 }
                 .modifier(StageChrome(shown: showsChrome))
+                }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, controlsFollowWidget ? Space.small : Space.large)
@@ -2121,10 +2179,11 @@ struct ContentView: View {
 /// The Home Screen's edit-mode wiggle: a small, quick rock back and forth while `active`.
 struct Wiggle: ViewModifier {
     var active: Bool
+    var degrees: Double = 0.7
 
     func body(content: Content) -> some View {
         if active {
-            content.phaseAnimator([-0.7, 0.7]) { view, angle in
+            content.phaseAnimator([-degrees, degrees]) { view, angle in
                 view.rotationEffect(.degrees(angle))
             } animation: { _ in
                 .easeInOut(duration: 0.17)

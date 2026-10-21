@@ -71,7 +71,9 @@ _Last updated 21 Oct 2026._
 | Settings cards stay clear until in use; the one you're scrolling past frosts over, comes forward slightly and reads more clearly; the groups list follows | ✅ | 21 Oct. Tell me if the change should be stronger. |
 | **Arrange the panels yourself**: swap sides, stack both on one side (top and bottom halves), drag panels to snap into place | ✅ | 21 Oct. Drag the groups panel or the settings' top grabber; a dashed outline shows where it will land. Also an Arrange menu at the top left. |
 | Buttons and labels over the preview always sit above the widget | ✅ | 21 Oct. |
-| **Design tweaks panel**: live sliders on the iPad for corners, gaps, frost, focus strength, wiggle and lean, so you can tune the feel yourself and send me the numbers | ⬜ | Suggested 21 Oct as a faster way to design together. |
+| **Design tweaks panel**: live sliders on the iPad for corners, gaps, frost, focus strength, wiggle and lean, so you can tune the feel yourself and send me the numbers | ✅ | 21 Oct. Sliders button at the top left; Copy Values, then paste them to me. |
+| Hold anywhere on the settings panel, then drag, to move it; widget re-centres when panels move; backdrop picker follows the widget; carousel-style cards with no blur; roomier card padding | ✅ | 21 Oct. |
+| **Guided tour / beginner mode**: annotated first-run guide to every gesture, easy to skip, with a "Keep it simple" option that goes straight to Classic | 🟡 | Your idea again, 21 Oct. In progress. |
 | **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
 | Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |
 | More backdrops in the spirit of Apple's wallpapers | ⬜ | Your request, 21 Oct. Next up. |
