@@ -137,8 +137,15 @@ enum CarryStyle: String, CaseIterable, Identifiable {
     }
 }
 
+/// The widget's controls as one bubble at a time, swiped sideways like pages with a dot for
+/// each (owner idea, 2026-10-21), instead of a stack of three. Off unless switched on.
+enum OneRowControls {
+    static let key = "tweak.oneRow"
+}
+
 struct DesignTweaksPanel: View {
     @AppStorage(CarryStyle.key) private var carry = CarryStyle.card
+    @AppStorage(OneRowControls.key) private var oneRow = false
     @AppStorage(Tweak.panel.key) private var panel = Tweak.panel.standard
     @AppStorage(Tweak.gap.key) private var gap = Tweak.gap.standard
     @AppStorage(Tweak.frost.key) private var frost = Tweak.frost.standard
@@ -191,6 +198,14 @@ struct DesignTweaksPanel: View {
                         }
                         .pickerStyle(.segmented)
                     }
+                    Toggle(isOn: $oneRow) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Widget controls in one row").font(.subheadline)
+                            Text("Swipe sideways, or tap a dot, to move between style, size and backdrop.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
             .frame(maxHeight: 460)
@@ -199,13 +214,14 @@ struct DesignTweaksPanel: View {
                     withAnimation(.smooth) {
                         for tweak in Tweak.allCases { binding(tweak).wrappedValue = tweak.standard }
                         carry = .card
+                        oneRow = false
                     }
                 }
                 Spacer()
                 Button(copied ? "Copied" : "Copy Values", systemImage: copied ? "checkmark" : "doc.on.doc") {
                     UIPasteboard.general.string = "Glass Clock design tweaks: " + Tweak.allCases
                         .map { "\($0.label) \($0.formatted(binding($0).wrappedValue))" }
-                        .joined(separator: ", ") + ", Carrying a panel \(carry.label)"
+                        .joined(separator: ", ") + ", Carrying a panel \(carry.label), One row \(oneRow ? "on" : "off")"
                     copied = true
                 }
                 .buttonStyle(.borderedProminent)

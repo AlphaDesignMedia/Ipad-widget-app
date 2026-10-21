@@ -197,6 +197,11 @@ enum StressTest {
     /// GLASSCLOCK_CARRIED=1: shows both panels as if being carried, so the stand-ins can be
     /// screenshotted without a drag.
     static var carried: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_CARRIED"] != nil }
+    /// GLASSCLOCK_ONE_ROW=<page> (0, 1 or 2): shows the widget's controls as one row, on that
+    /// page, so each page can be screenshotted without a swipe.
+    static var oneRowPage: Int? {
+        ProcessInfo.processInfo.environment["GLASSCLOCK_ONE_ROW"].flatMap(Int.init)
+    }
 }
 
 /// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.
@@ -234,5 +239,7 @@ enum StressTest {
     static var idle: Bool { false }
     static var plain: Bool { false }
     static var backdrop: PreviewBackdrop? { nil }
+    static var carried: Bool { false }
+    static var oneRowPage: Int? { nil }
 }
 #endif

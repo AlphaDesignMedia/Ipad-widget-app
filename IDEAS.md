@@ -150,4 +150,4 @@ you. The other option is to send screenshots with scribbles on them, which works
 - [x] Backdrop menu as small buttons (a short menu grouped by kind, plus Add Photo).
 - [x] Which kind you're in: swiping up/down shows the kind (Gradients, Mesh, Patterns) above the name, with a dot per backdrop in it.
 - [ ] Swipe the backdrop sideways through kinds: on hold, as sideways swipes already bring the panels in and out. Owner to decide (e.g. two-finger sideways swipe for kinds?).
-- [ ] One swipeable bubble with page dots (optional, Design Tweaks switch).
+- [x] One swipeable bubble with page dots (optional: Design Tweaks → Widget controls in one row).

@@ -179,6 +179,10 @@ struct ContentView: View {
     /// alone (owner direction, 2026-10-21).
     @AppStorage("groupsTextSize") private var groupsTextStep = 1
     @AppStorage(CarryStyle.key) private var carryStyle = CarryStyle.card
+    @AppStorage(OneRowControls.key) private var oneRowControls = false
+    /// Which bubble shows when the widget's controls are one row: 0 style, 1 size, 2 backdrop.
+    @State private var controlsPage = 0
+    @State private var controlsPageForward = true
     @State private var pinchingTextStep: Int?
     @State private var pinchingGroupsStep: Int?
     /// The text-size bubble, shown on the panel being pinched while pinching and briefly after.
@@ -281,6 +285,10 @@ struct ContentView: View {
             // A style passed in for testing (debug builds only) is applied, so the widget shows it too.
             if ClockStyle.launchOverride != nil { apply() }
             #if DEBUG
+            if let page = StressTest.oneRowPage {
+                oneRowControls = true
+                controlsPage = min(2, max(0, page))
+            }
             if let target = StressTest.backdrop {
                 Task {
                     try? await Task.sleep(for: .seconds(12))
@@ -1457,9 +1465,13 @@ struct ContentView: View {
                 // The Home Screen question rides along too, so the widget never covers it
                 // (owner feedback, 2026-10-21).
                 myHomeScreenNote
-                homeScreenBubble
+                if all && oneRowControls {
+                    controlsPager
+                } else {
+                    homeScreenBubble
+                }
             }
-            if !top || all {
+            if (!top || all) && !oneRowControls {
                 sizeBubble
                 backdropBubble
             }
@@ -1470,6 +1482,59 @@ struct ContentView: View {
         .frame(height: 0, alignment: above ? .bottom : .top)
         .offset(y: above ? -Space.medium : Space.medium + 14)
         .opacity(draggingCard ? 0.7 : 1)
+    }
+
+    /// The widget's controls one bubble at a time: swipe sideways to move between style, size
+    /// and backdrop, or tap a dot (owner idea, 2026-10-21). Switched on in Design Tweaks.
+    private var controlsPager: some View {
+        VStack(spacing: 6) {
+            Group {
+                switch controlsPage {
+                case 0: homeScreenBubble
+                case 1: sizeBubble
+                default: backdropBubble
+                }
+            }
+            .id(controlsPage)
+            .transition(reduceMotion ? .opacity : .push(from: controlsPageForward ? .trailing : .leading))
+            // Simultaneous, so taps on the picker inside still land first time.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { value in
+                        let width = value.translation.width
+                        guard abs(width) > 40, abs(width) > abs(value.translation.height) else { return }
+                        turnControlsPage(to: controlsPage + (width < 0 ? 1 : -1))
+                    }
+            )
+            HStack(spacing: 2) {
+                ForEach(0..<3, id: \.self) { page in
+                    Button { turnControlsPage(to: page) } label: {
+                        Capsule()
+                            .fill(.primary.opacity(page == controlsPage ? 0.9 : 0.35))
+                            .frame(width: page == controlsPage ? 16 : 7, height: 7)
+                            .frame(width: 26, height: 22)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(["Style", "Size", "Backdrop"][page])
+                    .accessibilityAddTraits(page == controlsPage ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, 6)
+            .background { bubbleBacking(.capsule) }
+            .appGlass(.capsule)
+            .environment(\.colorScheme, controlScheme)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Widget controls")
+        }
+        .sensoryFeedback(.selection, trigger: controlsPage)
+    }
+
+    private func turnControlsPage(to page: Int) {
+        let page = min(2, max(0, page))
+        guard page != controlsPage else { return }
+        controlsPageForward = page > controlsPage
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy) { controlsPage = page }
     }
 
     private var previewTag: some View {
@@ -1876,7 +1941,7 @@ struct ContentView: View {
             // the Home Screen style above, size and backdrop below, so the widget sits centred
             // between them. Where one side hasn't room, they all go to the side that has more.
             let roomAbove = home.minY, roomBelow = space.size.height - home.maxY
-            let controlsSplit = roomAbove >= 190 && roomBelow >= 150
+            let controlsSplit = !oneRowControls && roomAbove >= 190 && roomBelow >= 150
             let controlsAbove = roomAbove > 170 || roomAbove > roomBelow
             ZStack(alignment: .topLeading) {
                 // While it wiggles, tapping anywhere else finishes, as on the Home Screen.
