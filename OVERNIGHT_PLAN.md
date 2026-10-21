@@ -33,6 +33,21 @@ small, bite-sized groups; repeating an option in two places is fine.
   - Use Instruments if useful (`xcrun xctrace record --template "Time Profiler"` against the
     simulator app) to find what's slow.
   - Fix, then tap through 50+ times without a hitch. Write what it was in Progress.
+- P0b. **Breathing room (owner, 1:25 p.m.).** Text sits too close to edges in places; it should
+  feel designed everywhere. Do a spacing pass after P0:
+  - Screenshot every card, panel, bubble, chip, menu and the toolbar in Panels and Classic, at
+    the smallest and largest panel text sizes, and list every spot where text is within ~12 pt of
+    an edge or where padding is uneven between similar things.
+  - Compare with how Apple's own iPad apps with a similar style space things (Settings, Photos
+    sidebar, Freeform inspector, Control Centre modules, Home Screen widget gallery): generous
+    insets (often 16–20 pt inside cards, 20+ pt from panel edges), consistent row heights, labels
+    never touching rounded corners. Write the reference values you choose in DESIGN_SYSTEM.md.
+  - Don't set it in stone: add the new spacing as sliders in Design Tweaks (e.g. "Panel edge
+    padding", "Title bar height", "Bubble padding", "Chip padding", "Footer padding") next to the
+    existing Card padding / Row spacing / Gaps, defaulting to your best values, so the owner can
+    tune them on the iPad and send back Copy Values. Where it's quick, offer 2–3 named spacing
+    presets too ("Compact", "Comfortable", "Airy") in Design Tweaks.
+  - Corners stay concentric when padding changes (inner radius = outer radius − padding).
 - P1. **Tap audit (most important after P0).** In the simulator, tap every segmented control, toggle,
   picker, slider and button in every settings group, in Panels and Classic, in Glass/Frosted/
   Colour/Home Screen looks. Wait 2 s before each screenshot (the screen redraws late). Earlier
