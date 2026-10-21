@@ -335,6 +335,10 @@ struct SettingsCard<Content: View>: View {
     var title: String?
     var icon: String?
     var highlighted = false
+    /// Whether this is the card being used. In the Glass theme the others go clearer and a
+    /// little faded, and this one frosts over, comes forward and reads more clearly (owner
+    /// idea, 2026-10-21).
+    var focused = true
     /// A short note at the bottom of the card.
     var footer: String?
     @ViewBuilder var content: Content
@@ -372,10 +376,12 @@ struct SettingsCard<Content: View>: View {
         .padding(.horizontal, Corner.cardPadding)
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(glassy && !focused ? 0.78 : 1)
         .background {
             ZStack {
                 if glassy {
-                    GlassAmount.backing(glassAmount, in: shape)
+                    // Resting cards lean towards clear; the one in use gets the full frost.
+                    GlassAmount.backing(focused ? glassAmount : min(1, glassAmount + 0.45), in: shape)
                 } else {
                     shape.fill(.background.secondary)
                 }
@@ -383,7 +389,11 @@ struct SettingsCard<Content: View>: View {
             }
         }
         .modifier(CardGlass(on: glassy, shape: shape))
+        .scaleEffect(glassy && focused && !reduceMotion ? 1.015 : 1)
+        .animation(.smooth(duration: 0.35), value: focused)
     }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var tint: Color { AppColor.chosen(appColor) }
 }

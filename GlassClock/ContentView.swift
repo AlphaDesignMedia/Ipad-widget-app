@@ -74,6 +74,8 @@ struct ContentView: View {
     @State private var focusRequest = 0
     /// The group that's briefly lit up after a jump.
     @State private var highlighted: SettingsSection?
+    /// The settings card in use: the one being scrolled past, or jumped to.
+    @State private var focusedSection: SettingsSection?
     @GestureState(resetTransaction: Transaction(animation: ContentView.cardSettle)) private var clockPinch: CGFloat = 1
     /// Where the widget sits on the preview's Home Screen grid (-1: the middle), remembered.
     @AppStorage("widgetColumn") private var widgetColumn = -1
@@ -490,8 +492,22 @@ struct ContentView: View {
                 ForEach(SettingsSection.allCases) { section in
                     Section {
                         SettingsCard(title: section.title, icon: section.icon,
-                                     highlighted: highlighted == section, footer: section.footer) {
+                                     highlighted: highlighted == section,
+                                     focused: focusedSection == nil || focusedSection == section,
+                                     footer: section.footer) {
                             sectionContent(section)
+                        }
+                        // The card crossing a line a third of the way down is the one in use.
+                        .onGeometryChange(for: Bool.self) { proxy in
+                            let frame = proxy.frame(in: .named("settingsList"))
+                            let line = max(120, inspectorRect.height / 3)
+                            return frame.minY <= line && frame.maxY >= line
+                        } action: { onLine in
+                            if onLine, focusedSection != section {
+                                focusedSection = section
+                                // The groups list follows along.
+                                if selectedSection != section { selectedSection = section }
+                            }
                         }
                         .settingsCardRow()
                         .id(section)
@@ -499,6 +515,7 @@ struct ContentView: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .coordinateSpace(name: "settingsList")
             .listSectionSpacing(Corner.inset)
             .contentMargins([.horizontal, .top], Corner.inset, for: .scrollContent)
             .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
@@ -509,7 +526,7 @@ struct ContentView: View {
                 withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
                     proxy.scrollTo(target, anchor: .top)
                 }
-                withAnimation(.easeOut(duration: 0.25)) { highlighted = target }
+                withAnimation(.easeOut(duration: 0.25)) { highlighted = target; focusedSection = target }
                 try? await Task.sleep(for: .seconds(1.4))
                 withAnimation(.easeInOut(duration: 0.6)) { highlighted = nil }
             }
