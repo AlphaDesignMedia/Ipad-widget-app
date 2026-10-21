@@ -11,7 +11,7 @@ Read first:
 - GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
   GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
-## Evening summary (updated 5:50 p.m.; later runs refresh this)
+## Evening summary (updated 6:45 p.m.; later runs refresh this)
 **Done**
 - **The stutter and freezes on Light / Dark / Clear / Tinted are fixed.** The app was redrawing
   the whole widget area and every piece of glass on each tap. Now the widget changes at once and
@@ -31,7 +31,13 @@ Read first:
   a separate Add Photo button.
 - **Swiping the backdrop shows which kind you're in:** a small card says GRADIENTS, MESH or
   PATTERNS above the name, with a dot for each backdrop in that kind.
-- Screenshots are in Screenshots/afternoon/: p0c-kind-hint.png, p0-after-40-taps-tinted.png,
+- **Pinching a panel only changes that panel's text size.** Settings and groups keep their
+  own sizes; Accessibility has a plain − / + for each (Settings text, Groups text).
+- **Panels shrink while you carry them** by their bar: to a small title card ("Layout") or a
+  round puck, and spring back where you drop them. Pick which in Design Tweaks → Carrying a
+  panel (or Full size for the old way).
+- Screenshots are in Screenshots/afternoon/: p0e-carried-title-card.png, p0e-carried-puck.png,
+  p0d-separate-text-sizes.png, p0c-kind-hint.png, p0-after-40-taps-tinted.png,
   p0-home-look-after-41-taps-light.png, p0b-panels-tweaks.png, p0b-classic.png,
   p0c-split.png, p0c-rail-whole-group.png, p0c-backdrop-buttons.png
 
@@ -43,10 +49,14 @@ Read first:
 - Swiping sideways through backdrop kinds wasn't added: sideways swipes already bring the
   panels in and out. Would a two-finger sideways swipe be OK for kinds, or skip it?
 
+- Title card or puck while carrying a panel: which do you prefer?
+- Not done yet: the optional one-row swipeable bubble (P0c) and the tap audit (P1), which needs
+  someone at the simulator since scheduled runs can't tap.
+
 **3 things to try on the iPad**
 1. Tap quickly through Light, Dark, Clear and Tinted, in the Glass look and in My Home Screen.
-2. Switch to Classic and back a few times.
-3. Swipe up and down on the backdrop a few times: does the kind card help you keep your place?
+2. Drag the settings by their bar: try Title card, then Puck (Design Tweaks → Carrying a panel).
+3. Pinch the settings, then the groups: each should change size on its own.
 
 ## Afternoon plan, 21 Oct (owner away until 10 p.m.): do these FIRST, in order
 Everything before this section is done or superseded. The owner's newest direction:
