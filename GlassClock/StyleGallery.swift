@@ -189,6 +189,11 @@ enum StressTest {
     static var idle: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_STRESS_IDLE"] != nil }
     /// GLASSCLOCK_STRESS_PLAIN=1: changes the style without an animation.
     static var plain: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_STRESS_PLAIN"] != nil }
+    /// GLASSCLOCK_BACKDROP=<name> (e.g. dune): switches to that backdrop a few seconds after
+    /// launch, as a swipe would, so the backdrop name and its kind hint can be screenshotted.
+    static var backdrop: PreviewBackdrop? {
+        ProcessInfo.processInfo.environment["GLASSCLOCK_BACKDROP"].flatMap(PreviewBackdrop.init(rawValue:))
+    }
 }
 
 /// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.
@@ -225,5 +230,6 @@ enum StressTest {
     static var homeTaps: Int? { nil }
     static var idle: Bool { false }
     static var plain: Bool { false }
+    static var backdrop: PreviewBackdrop? { nil }
 }
 #endif

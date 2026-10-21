@@ -55,6 +55,12 @@ enum BackdropKind: String, CaseIterable, Identifiable {
     }
 }
 
+extension PreviewBackdrop {
+    /// The family this backdrop belongs to, for the small "which kind" hint when swiping.
+    /// Your Photo has none.
+    var kind: BackdropKind? { BackdropKind.allCases.first { $0.backdrops.contains(self) } }
+}
+
 /// What's behind the preview card. Apps can't see the Home Screen wallpaper, so the closest
 /// thing is a photo the person picks, such as a screenshot of their own Home Screen.
 enum PreviewBackdrop: String, CaseIterable, Identifiable {

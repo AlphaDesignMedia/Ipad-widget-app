@@ -276,6 +276,13 @@ struct ContentView: View {
             // A style passed in for testing (debug builds only) is applied, so the widget shows it too.
             if ClockStyle.launchOverride != nil { apply() }
             #if DEBUG
+            if let target = StressTest.backdrop {
+                Task {
+                    try? await Task.sleep(for: .seconds(12))
+                    backdropTravel = .bottom
+                    withAnimation(.smooth(duration: 0.55)) { backdrop = target }
+                }
+            }
             if let taps = StressTest.homeTaps {
                 Task {
                     try? await Task.sleep(for: .seconds(4))
@@ -2038,15 +2045,39 @@ struct ContentView: View {
             .padding(.bottom, Space.large)
             .overlay(alignment: .top) {
                 if showsChrome, let backdropToast {
-                    Text(backdropToast)
-                        .font(.headline)
-                        .padding(.horizontal, Space.medium)
-                        .padding(.vertical, Space.small)
-                        .appGlass(.capsule)
-                        .environment(\.colorScheme, controlScheme)
-                        .padding(.top, Space.small)
-                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)))
-                        .accessibilityHidden(true)
+                    VStack(spacing: 4) {
+                        // Which family the swipe has reached, with a dot per backdrop in it, so
+                        // it's clear when the swipe moves from Gradients into Mesh and so on.
+                        if let kind = backdrop.kind {
+                            Text(kind.title.uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(backdropToast)
+                            .font(.headline)
+                        if let kind = backdrop.kind {
+                            HStack(spacing: 5) {
+                                // The current one is a longer pill, so it reads by shape as
+                                // well as by shade.
+                                ForEach(kind.backdrops) { item in
+                                    Capsule()
+                                        .fill(item == backdrop ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                                        .frame(width: item == backdrop ? 16 : 6, height: 6)
+                                }
+                            }
+                            .padding(.top, 2)
+                        }
+                    }
+                    .padding(.horizontal, Space.medium)
+                    .padding(.vertical, Space.small)
+                    // Rounds to a capsule when it's one line (Your Photo), a soft card when three.
+                    // Frosted like the bubbles, so it reads on dark patterns too.
+                    .background { bubbleBacking(.rect(cornerRadius: 20)) }
+                    .appGlass(.rect(cornerRadius: 20))
+                    .environment(\.colorScheme, controlScheme)
+                    .padding(.top, Space.small)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)))
+                    .accessibilityHidden(true)
                 }
             }
     }
@@ -2132,7 +2163,8 @@ struct ContentView: View {
         withAnimation(.snappy) { backdropToast = name }
         Task {
             try? await Task.sleep(for: .seconds(1.3))
-            if backdropToast == name { withAnimation(.easeOut(duration: 0.4)) { backdropToast = nil } }
+            // Kept up for screenshots when a backdrop was passed in for testing.
+            if backdropToast == name, StressTest.backdrop == nil { withAnimation(.easeOut(duration: 0.4)) { backdropToast = nil } }
             backdropTravel = .bottom
         }
     }
