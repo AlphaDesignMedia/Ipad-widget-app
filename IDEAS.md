@@ -84,7 +84,7 @@ _Last updated 21 Oct 2026._
 | Selected Home Screen style tile is bright glass with a rim and a shine; style icons have a soft shadow | ✅ | 21 Oct. |
 | **App text matches the clock font** (rounded, serif or mono), with a switch to turn it off | ✅ | 21 Oct. App and Widget, under Reduce glass. An experiment: tell me if you keep it. |
 | **Preset photo backdrops**: a few simple, basic images | ⬜ | 21 Oct. Send me some images and I'll add them. |
-| The "Preview" label could look better | ⬜ | 21 Oct, to discuss. |
+| The "Preview" label could look better | 🟡 | 21 Oct: now a small glass tag on the widget's bottom edge in Panels. See if you like it. |
 | **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
 | Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |
 | More backdrops in the spirit of Apple's wallpapers | ✅ | 21 Oct: five soft mesh backdrops. Photo presets still to come from your images. |

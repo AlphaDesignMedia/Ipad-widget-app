@@ -1090,6 +1090,13 @@ struct ContentView: View {
                 .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
         }
         .overlay { if editingWidget { cornerHighlights(scale: scale) } }
+        // A small glass tag on the bottom edge, so the preview isn't mistaken for the real
+        // widget (HIG: Widgets), and it travels with it (owner feedback, 2026-10-21).
+        .overlay(alignment: .bottom) {
+            if controlsFollowWidget && !editingWidget {
+                previewTag.offset(y: 11)
+            }
+        }
         .shimmer(trigger: appliedShine, in: .rect(cornerRadius: 28 * scale))
         return face
             // Lifts while it's being moved, like a widget on the Home Screen.
@@ -1113,6 +1120,21 @@ struct ContentView: View {
             }
         }
         .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0, degrees: tweakWiggle))
+    }
+
+    private var previewTag: some View {
+        Text("Preview")
+            .font(.caption2.weight(.semibold))
+            .textCase(.uppercase)
+            .tracking(1.2)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background { bubbleBacking(.capsule) }
+            .appGlass(.capsule)
+            .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
+            .allowsHitTesting(false)
+            .transition(.opacity)
     }
 
     /// A soft highlight on each corner while editing, where it can be pulled to resize, like the
@@ -1576,12 +1598,15 @@ struct ContentView: View {
                 if !controlsFollowWidget { homeScreenBubble }
                 myHomeScreenNote
                     .modifier(StageChrome(shown: showsChrome))
-                // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets).
-                Text("Preview")
-                    .font(.footnote.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(.secondary)
-                    .modifier(StageChrome(shown: showsChrome))
+                // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets). In
+                // Panels the label is a tag on the widget itself (`previewTag`).
+                if !controlsFollowWidget {
+                    Text("Preview")
+                        .font(.footnote.weight(.semibold))
+                        .textCase(.uppercase)
+                        .foregroundStyle(.secondary)
+                        .modifier(StageChrome(shown: showsChrome))
+                }
 
                 // The card keeps the real widget's size (shrunk only if the window is too small).
                 // In Panels the widget lives on a grid over the whole window (`widgetLayer`), with
