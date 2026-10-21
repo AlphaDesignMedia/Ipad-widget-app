@@ -356,6 +356,14 @@ If we ever need a different layout per mode:
 
 iPadOS doesn't tell apps the Home Screen style, and a widget can't reliably tell either (it's pre-drawn in every style: the logs showed fullColor and accented renders for the same reload). So the person says once (`MyHomeScreen`: Light or Dark (Automatic), Light, Dark, Clear, Tinted; asked in a glass bubble under the Home Screen picker until set, and in Panels → Clear and Tinted Home Screens). The preview opens on it and follows the iPad between Light and Dark when it's Automatic. Previewing any other style shows "Previewing X. Your Home Screen is Y." with **Show Mine**, and how to change the style on the iPad.
 
+### 6.3f Lucky, locks, text size, themes (2026-10-21)
+
+- **Lucky** is three buttons: I'm Feeling Lucky (everything), Lucky Colours (`StylePart.colourParts`), Lucky Style (`styleParts`: font, effects, layout, card). Time format is never rolled.
+- **Locks** (`StylePart`, stored as `lockedParts`): a locked part keeps its settings when a preset, saved preset or Lucky is used (`ClockStyle.taking(_:from:)`). Clear and Tinted starts locked.
+- **Text-size bubble:** pinching the settings shows a glass capsule (steps, size name, − and +), hidden 1.6 s after the last change; fixed at `.large` itself.
+- **Spacing:** both settings lists have `listSectionSpacing(24)` and 32 pt bottom content margin.
+- **App look:** Theme Glass / Crystal (`.clear` glass; panels get the system background at 70% so text stays readable: 22% black and 50% weren't enough over bright backdrops) / Colour (glass tinted with the app colour); App colour (tint); Appearance Automatic/Light/Dark (`preferredColorScheme`). Reduce glass overrides the theme.
+
 ### 6.4 Settings controls
 
 Use **standard** SwiftUI controls inside a `Form`: `Slider`, `Toggle`, `Picker(.segmented)` and plain `Button`s for the swatches. They get Liquid Glass when someone touches them, plus full accessibility behaviour, for free. **Don't** add `glassEffect` to them.
