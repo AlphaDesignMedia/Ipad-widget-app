@@ -1407,6 +1407,40 @@ struct ContentView: View {
         .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0, degrees: tweakWiggle))
     }
 
+    /// The controls that ride with the widget, hanging off its top or bottom edge.
+    /// - Parameters:
+    ///   - top: the Home Screen part (Done, the question and Light/Dark/Clear/Tinted).
+    ///   - all: everything in one stack, for when only one side has room.
+    ///   - above: hangs above the widget rather than below it.
+    private func floatingControls(top: Bool, all: Bool, above: Bool) -> some View {
+        VStack(spacing: Space.small) {
+            if top || all {
+                if editingWidget {
+                    Button("Done") { setEditingWidget(false) }
+                        .font(.headline)
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .tint(AppColor.chosen(appColor))
+                        .transition(.scale.combined(with: .opacity))
+                }
+                // The Home Screen question rides along too, so the widget never covers it
+                // (owner feedback, 2026-10-21).
+                myHomeScreenNote
+                homeScreenBubble
+            }
+            if !top || all {
+                sizeBubble
+                backdropBubble
+            }
+        }
+        .fixedSize()
+        // A zero-height frame on the card's edge, with the controls hanging off it away
+        // from the card. Below, they clear the Preview tag on the card's bottom edge.
+        .frame(height: 0, alignment: above ? .bottom : .top)
+        .offset(y: above ? -Space.medium : Space.medium + 14)
+        .opacity(draggingCard ? 0.7 : 1)
+    }
+
     private var previewTag: some View {
         Text("Preview")
             .font(.caption2.weight(.semibold))
@@ -1661,17 +1695,22 @@ struct ContentView: View {
         .sensoryFeedback(.success, trigger: appliedStyle)
     }
 
-    /// A tiny "9" in the clock's own font and colour, so the button shows the style it will
-    /// send (owner idea, 2026-10-21).
+    /// The widget in miniature: a small widget-shaped card with "12" in the clock's own font
+    /// and colour, so the button shows the style it will send (owner idea, 2026-10-21). It
+    /// was a "9" in a circle, which read as a count (owner feedback, 1:30 p.m.).
     private var styleGlyph: some View {
-        Text("9")
-            .font(Font(style.font.font(size: 15, weight: style.fontWeight, width: style.fontWidth, roundness: style.roundness)))
+        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        return Text("12")
+            .font(Font(style.font.font(size: 14, weight: max(style.fontWeight, 0.6), width: style.fontWidth, roundness: style.roundness)))
             .foregroundStyle(style.color == .auto ? AnyShapeStyle(.white) : AnyShapeStyle(style.color.color))
-            .frame(width: 22, height: 22)
-            .background(.black.opacity(0.25), in: .circle)
-            .overlay { Circle().strokeBorder(.white.opacity(0.5), lineWidth: 1) }
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .frame(width: 32, height: 22)
+            .background(.black.opacity(0.3), in: shape)
+            .overlay { shape.strokeBorder(.white.opacity(0.6), lineWidth: 1) }
             .contentTransition(.opacity)
             .animation(.smooth, value: style)
+            .accessibilityHidden(true)
     }
 
     /// Sends the edited style to the widget.
@@ -1780,9 +1819,12 @@ struct ContentView: View {
             let home = grid.frame(column: slot.column, row: slot.row, span: span)
             let centre = CGPoint(x: home.midX + cardDrag.width, y: home.midY + cardDrag.height)
             let landing = grid.nearest(to: centre, span: span)
-            // The floating controls sit above the widget (owner preference, 2026-10-21), unless
-            // there isn't room there and there's more below.
-            let controlsAbove = home.minY > 170 || home.minY > space.size.height - home.maxY
+            // The floating controls are split around the widget (owner direction, 2026-10-21):
+            // the Home Screen style above, size and backdrop below, so the widget sits centred
+            // between them. Where one side hasn't room, they all go to the side that has more.
+            let roomAbove = home.minY, roomBelow = space.size.height - home.maxY
+            let controlsSplit = roomAbove >= 190 && roomBelow >= 150
+            let controlsAbove = roomAbove > 170 || roomAbove > roomBelow
             ZStack(alignment: .topLeading) {
                 // While it wiggles, tapping anywhere else finishes, as on the Home Screen.
                 if editingWidget {
@@ -1847,34 +1889,18 @@ struct ContentView: View {
                         .accessibilityAction(named: "Move down") { moveWidget(0, 1, grid: grid, slot: slot) }
                         // The style and size controls ride along with the widget as it's
                         // moved, so they're always next to it (owner request, 2026-10-21).
-                        .overlay(alignment: controlsAbove ? .top : .bottom) {
-                            if controlsFollowWidget {
-                                VStack(spacing: Space.small) {
-                                    if editingWidget {
-                                        Button("Done") { setEditingWidget(false) }
-                                            .font(.headline)
-                                            .buttonStyle(.borderedProminent)
-                                            .buttonBorderShape(.capsule)
-                                            .tint(AppColor.chosen(appColor))
-                                            .transition(.scale.combined(with: .opacity))
-                                    }
-                                    // The Home Screen question rides along too, so the
-                                    // widget never covers it (owner feedback, 2026-10-21).
-                                    myHomeScreenNote
-                                    homeScreenBubble
-                                    sizeBubble
-                                    // The backdrop picker rides along too (owner, 2026-10-21).
-                                    backdropBubble
-                                }
-                                .fixedSize()
-                                // A zero-height frame on the card's edge, with the
-                                // controls hanging off it away from the card.
-                                .frame(height: 0, alignment: controlsAbove ? .bottom : .top)
-                                .offset(y: controlsAbove ? -Space.medium : Space.medium)
-                                .opacity(draggingCard ? 0.7 : 1)
-                                .animation(.smooth, value: controlsAbove)
+                        .overlay(alignment: .top) {
+                            if controlsFollowWidget && (controlsSplit || controlsAbove) {
+                                floatingControls(top: true, all: !controlsSplit, above: true)
                             }
                         }
+                        .overlay(alignment: .bottom) {
+                            if controlsFollowWidget && (controlsSplit || !controlsAbove) {
+                                floatingControls(top: controlsSplit ? false : true, all: !controlsSplit, above: false)
+                            }
+                        }
+                        .animation(.smooth, value: controlsSplit)
+                        .animation(.smooth, value: controlsAbove)
                 .position(x: centre.x, y: centre.y)
                 // The resize handle sits beside the widget rather than on it, so the
                 // widget's own drag doesn't take its touches.
