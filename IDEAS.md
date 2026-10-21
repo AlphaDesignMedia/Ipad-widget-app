@@ -58,7 +58,7 @@ _Last updated 21 Oct 2026._
 | Resizing feels a bit buggy | ⬜ | Low priority. |
 | Remove icons that don't do anything | ✅ | |
 | **Analog clock** with the same glass, colours and effects as the digital one | ✅ | 21 Oct. Layout → Digital/Analog. Weight sets how bold the hands are. |
-| **Home Screen-style edit mode**: long-press makes the widget wiggle, then drag it or pull a corner handle to resize | ⬜ | Your idea, 21 Oct. Familiar to anyone who has arranged a Home Screen. |
+| **Home Screen-style edit mode**: long-press makes the widget wiggle, then drag it or pull a corner handle to resize | ✅ | 21 Oct, Panels. Hold the widget, drag the round corner handle to resize, tap Done or anywhere else to finish. |
 | **Pull to change backdrop**: the next backdrop follows your finger with a bending-glass edge and an elastic snap; let go early to cancel | 🟡 | In progress, 21 Oct. Feel matters more than look. |
 | Better font pairings, researched from real clock and watch designs | ⬜ | Research and suggestions to come. |
 

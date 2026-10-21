@@ -85,6 +85,14 @@ struct ContentView: View {
     /// The spring the widget settles with after a drag or pinch.
     static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.82)
     @State private var draggingCard = false
+    /// Like editing the Home Screen: a long press makes the widget wiggle, and a handle on its
+    /// corner resizes it (owner idea, 2026-10-21).
+    @State private var editingWidget = false
+    /// The size the widget had when the corner handle was picked up.
+    @State private var resizeStart: PreviewSize?
+    /// Lifting the finger after the long press also counts as a tap; this stops that tap from
+    /// finishing editing straight away.
+    @State private var ignoresNextCardTap = false
     /// Panel swipes are ignored for a moment after a widget drag, so moving the widget
     /// doesn't also open or close a panel.
     @State private var swipesPausedUntil = Date.distantPast
@@ -612,6 +620,51 @@ struct ContentView: View {
             }
     }
 
+    /// The corner handle: the widget snaps to whichever size is closest to where the finger has
+    /// pulled its corner, live as the finger moves.
+    private func resizeGesture(scale: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+            .onChanged { value in
+                let start = resizeStart ?? previewSize
+                if resizeStart == nil { resizeStart = start }
+                let wanted = CGSize(width: start.size.width * scale + value.translation.width,
+                                    height: start.size.height * scale + value.translation.height)
+                let nearest = PreviewSize.allCases.min { a, b in
+                    hypot(a.size.width * scale - wanted.width, a.size.height * scale - wanted.height)
+                        < hypot(b.size.width * scale - wanted.width, b.size.height * scale - wanted.height)
+                } ?? start
+                if nearest != previewSize { withAnimation(Self.cardSettle) { previewSize = nearest } }
+            }
+            .onEnded { _ in
+                resizeStart = nil
+                swipesPausedUntil = .now.addingTimeInterval(0.4)
+            }
+    }
+
+    /// The round handle on the widget's bottom-right corner while it wiggles.
+    private func resizeHandle(scale: CGFloat) -> some View {
+        Image(systemName: "arrow.up.left.and.arrow.down.right")
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 36, height: 36)
+            .background(AppColor.chosen(appColor), in: .circle)
+            .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+            .shadow(color: .black.opacity(0.3), radius: 6, y: 2)
+            // A bigger target than it looks, so it's easy to grab.
+            .frame(width: 56, height: 56)
+            .contentShape(.circle)
+            .offset(x: -6, y: -6)
+            .gesture(resizeGesture(scale: scale))
+            .accessibilityLabel("Resize")
+            .accessibilityHint("Drag to change the widget size.")
+            .transition(.scale.combined(with: .opacity))
+    }
+
+    private func setEditingWidget(_ on: Bool) {
+        withAnimation(.snappy) { editingWidget = on }
+        ignoresNextCardTap = on
+    }
+
     private let textSizes: [DynamicTypeSize] = [.medium, .large, .xLarge, .xxLarge, .xxxLarge]
 
     /// The settings' text size, following the fingers while a pinch is under way.
@@ -766,10 +819,10 @@ struct ContentView: View {
             .updating($panelDrag) { drag, state, _ in
                 // Leans only for sideways drags, so scrolling up and down doesn't wobble, and not
                 // while the widget itself is being moved or pinched.
-                if !draggingCard, clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
+                if !draggingCard, !editingWidget, clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
             }
             .onChanged { drag in
-                guard !draggingCard, clockPinch == 1, !reduceMotion, Date.now > swipesPausedUntil else { return }
+                guard !draggingCard, !editingWidget, clockPinch == 1, !reduceMotion, Date.now > swipesPausedUntil else { return }
                 let dx = drag.translation.width, dy = drag.translation.height
                 // Up and down pull the next or previous backdrop in, following the finger.
                 guard pulledBackdrop != nil || abs(dy) > abs(dx) * 1.5 else { return }
@@ -782,7 +835,7 @@ struct ContentView: View {
                     finishBackdropPull(predicted: drag.predictedEndTranslation.height / pullLength)
                     return
                 }
-                guard !draggingCard, clockPinch == 1, Date.now > swipesPausedUntil else { return }
+                guard !draggingCard, !editingWidget, clockPinch == 1, Date.now > swipesPausedUntil else { return }
                 let dx = drag.translation.width, dy = drag.translation.height
                 // Up and down flick through the backdrops (not Your Photo, which opens a picker).
                 if abs(dy) > 60, abs(dy) > abs(dx) * 1.5 {
@@ -851,6 +904,12 @@ struct ContentView: View {
                     // The floating controls go on whichever side of the widget has more room.
                     let controlsAbove = home.minY > space.size.height - home.maxY
                     ZStack(alignment: .topLeading) {
+                        // While it wiggles, tapping anywhere else finishes, as on the Home Screen.
+                        if editingWidget {
+                            Color.clear
+                                .contentShape(.rect)
+                                .onTapGesture { setEditingWidget(false) }
+                        }
                         // While dragging: the empty slots, and where the widget will land.
                         if draggingCard {
                             ForEach(Array(grid.slotFrames.enumerated()), id: \.offset) { _, frame in
@@ -882,14 +941,40 @@ struct ContentView: View {
                                 // Grows and shrinks with the fingers while pinching, then settles
                                 // on the nearest widget size.
                                 .scaleEffect(reduceMotion ? 1 : min(1.6, max(0.6, clockPinch)))
+                                // With Reduce Motion there's no wiggle, just an outline.
+                                .overlay {
+                                    if editingWidget && reduceMotion {
+                                        RoundedRectangle(cornerRadius: 28 * scale)
+                                            .strokeBorder(AppColor.chosen(appColor), lineWidth: 3)
+                                    }
+                                }
+                                .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion))
                                 .contentShape(.rect)
                                 // Double-tap clears the panels away (as on the rest of the preview);
-                                // a single tap in Panels goes straight to the fonts.
-                                .onTapGesture(count: 2) { if interface == .panels { toggleBothPanels() } }
+                                // a single tap in Panels goes straight to the fonts, or finishes
+                                // editing while it wiggles.
+                                .onTapGesture(count: 2) { if interface == .panels, !editingWidget { toggleBothPanels() } }
                                 .onTapGesture {
-                                    if interface == .panels { focus(.fonts) }
+                                    if ignoresNextCardTap { ignoresNextCardTap = false }
+                                    else if editingWidget { setEditingWidget(false) }
+                                    else if interface == .panels { focus(.fonts) }
+                                }
+                                .onLongPressGesture(minimumDuration: 0.45) {
+                                    if interface == .panels, !editingWidget { setEditingWidget(true) }
+                                } onPressingChanged: { pressing in
+                                    // The tap that comes with lifting the finger arrives straight
+                                    // away; after that, taps count again.
+                                    guard !pressing, ignoresNextCardTap else { return }
+                                    Task {
+                                        try? await Task.sleep(for: .milliseconds(300))
+                                        ignoresNextCardTap = false
+                                    }
                                 }
                                 .gesture(cardGesture(grid: grid, home: home, span: span))
+                                .sensoryFeedback(.impact(weight: .medium), trigger: editingWidget) { _, on in on }
+                                .accessibilityAction(named: editingWidget ? "Done editing" : "Edit widget") {
+                                    setEditingWidget(!editingWidget)
+                                }
                                 .sensoryFeedback(.impact(weight: .light), trigger: draggingCard)
                                 .sensoryFeedback(.selection, trigger: landing.column * 100 + landing.row)
                                 .accessibilityHint("Drag to move it on the Home Screen grid. Pinch to change the widget size.")
@@ -902,6 +987,14 @@ struct ContentView: View {
                                 .overlay(alignment: controlsAbove ? .top : .bottom) {
                                     if controlsFollowWidget {
                                         VStack(spacing: Space.small) {
+                                            if editingWidget {
+                                                Button("Done") { setEditingWidget(false) }
+                                                    .font(.headline)
+                                                    .buttonStyle(.borderedProminent)
+                                                    .buttonBorderShape(.capsule)
+                                                    .tint(AppColor.chosen(appColor))
+                                                    .transition(.scale.combined(with: .opacity))
+                                            }
                                             homeScreenBubble
                                             sizeBubble
                                         }
@@ -916,6 +1009,13 @@ struct ContentView: View {
                                 }
                         }
                         .position(x: centre.x, y: centre.y)
+                        // The resize handle sits beside the widget rather than on it, so the
+                        // widget's own drag doesn't take its touches.
+                        if editingWidget && !draggingCard {
+                            resizeHandle(scale: scale)
+                                .position(x: centre.x + card.width * scale / 2,
+                                          y: centre.y + card.height * scale / 2)
+                        }
                     }
                     .frame(width: space.size.width, height: space.size.height)
                 }
@@ -1599,4 +1699,21 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+}
+
+/// The Home Screen's edit-mode wiggle: a small, quick rock back and forth while `active`.
+struct Wiggle: ViewModifier {
+    var active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.phaseAnimator([-1.1, 1.1]) { view, angle in
+                view.rotationEffect(.degrees(angle))
+            } animation: { _ in
+                .easeInOut(duration: 0.13)
+            }
+        } else {
+            content
+        }
+    }
 }

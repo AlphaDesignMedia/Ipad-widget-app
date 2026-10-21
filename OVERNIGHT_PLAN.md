@@ -109,3 +109,5 @@ At the end, write a short summary at the top of this file, plain and friendly:
 
 ## Progress
 (Each run appends a line here: time, item, done or partly done, and what's left.)
+
+- 10:35, 21 Oct (in the main chat, as the 9:33 run was stuck on a permission prompt): **1. Edit mode done.** Long-press (Panels) wiggles the widget; a round handle on the bottom-right corner resizes it live, snapping between sizes; Done pill or tap anywhere else finishes; Reduce Motion shows an outline instead; panel and backdrop swipes are ignored while editing. Screenshots: Screenshots/overnight-2/edit-mode-wiggle.png, edit-mode-resized-large.png. Note: the simulator's long-press needs about 1.5 s to register.
