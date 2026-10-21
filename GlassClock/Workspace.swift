@@ -895,3 +895,48 @@ extension View {
         modifier(Shimmer(trigger: trigger, shape: shape))
     }
 }
+
+/// While a panel is carried by its bar, it shrinks to a small stand-in (a title card or a
+/// puck) that's easy to move, and springs back to full size where it's dropped. The panel
+/// itself stays (all but invisible) under the finger so the drag carries on. With Simpler
+/// effects the stand-in just fades in, without the shrink.
+struct CarriedShape: ViewModifier {
+    var carried: Bool
+    var style: CarryStyle
+    var icon: String
+    var title: String
+    var simple: Bool
+
+    func body(content: Content) -> some View {
+        let shrinks = carried && style != .lift
+        content
+            .opacity(shrinks ? 0.02 : 1)
+            .scaleEffect(shrinks && !simple ? 0.35 : 1, anchor: .top)
+            .overlay(alignment: .top) {
+                if shrinks {
+                    standIn
+                        .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
+                        .transition(simple ? .opacity : .opacity.combined(with: .scale(scale: 2.2, anchor: .top)))
+                        .allowsHitTesting(false)
+                }
+            }
+            .animation(simple ? .easeOut(duration: 0.15) : .spring(response: 0.35, dampingFraction: 0.78), value: shrinks)
+    }
+
+    @ViewBuilder
+    private var standIn: some View {
+        if style == .puck {
+            Image(systemName: icon)
+                .font(.title2.weight(.semibold))
+                .frame(width: 64, height: 64)
+                .appGlass(.circle)
+        } else {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .padding(.horizontal, 20)
+                .frame(height: 52)
+                .fixedSize()
+                .appGlass(.capsule)
+        }
+    }
+}

@@ -194,6 +194,9 @@ enum StressTest {
     static var backdrop: PreviewBackdrop? {
         ProcessInfo.processInfo.environment["GLASSCLOCK_BACKDROP"].flatMap(PreviewBackdrop.init(rawValue:))
     }
+    /// GLASSCLOCK_CARRIED=1: shows both panels as if being carried, so the stand-ins can be
+    /// screenshotted without a drag.
+    static var carried: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_CARRIED"] != nil }
 }
 
 /// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.

@@ -178,6 +178,7 @@ struct ContentView: View {
     /// The same for the groups. Each panel keeps its own size, so pinching one leaves the other
     /// alone (owner direction, 2026-10-21).
     @AppStorage("groupsTextSize") private var groupsTextStep = 1
+    @AppStorage(CarryStyle.key) private var carryStyle = CarryStyle.card
     @State private var pinchingTextStep: Int?
     @State private var pinchingGroupsStep: Int?
     /// The text-size bubble, shown on the panel being pinched while pinching and briefly after.
@@ -800,6 +801,7 @@ struct ContentView: View {
             .simultaneousGesture(textPinchGesture(.groups))
             .sensoryFeedback(.selection, trigger: groupsTextSize)
             .frame(width: width)
+            .modifier(CarriedShape(carried: sidebarMove != .zero || StressTest.carried, style: carryStyle, icon: "list.bullet", title: "Groups", simple: reduceMotion))
             .scaleEffect(sidebarMove == .zero && !groupsHeld ? 1 : 1.025)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: groupsHeld)
             .shadow(color: .black.opacity(sidebarMove == .zero ? 0 : 0.18), radius: 20, y: 10)
@@ -839,6 +841,9 @@ struct ContentView: View {
             .modifier(PanelFocus(active: activePanel == nil || activePanel == .settings, strength: tweakFocus))
             .sensoryFeedback(.impact(weight: .medium), trigger: settingsHeld) { _, held in held }
             .frame(width: width)
+            .modifier(CarriedShape(carried: settingsMove != .zero || StressTest.carried, style: carryStyle,
+                                   icon: selectedSection?.icon ?? "slider.horizontal.3",
+                                   title: selectedSection?.title ?? "Settings", simple: reduceMotion))
             // Lifts when it's picked up, like a widget on the Home Screen.
             .scaleEffect(settingsMove == .zero && !settingsHeld ? 1 : 1.025)
             .shadow(color: .black.opacity(settingsMove == .zero && !settingsHeld ? 0 : 0.2), radius: 22, y: 12)

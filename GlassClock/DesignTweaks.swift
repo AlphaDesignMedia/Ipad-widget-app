@@ -116,7 +116,29 @@ enum SpacingPreset: String, CaseIterable, Identifiable {
 }
 
 /// The tweaks as sliders, on a small floating panel so the app stays in view while they change.
+/// How a panel looks while it's carried by its bar (owner idea, 2026-10-21: small and easy
+/// to move, springing back to full size where it's dropped).
+enum CarryStyle: String, CaseIterable, Identifiable {
+    /// Stays full size, lifted a little.
+    case lift
+    /// Shrinks to a small card with the panel's icon and title.
+    case card
+    /// Shrinks to a round puck with just the icon.
+    case puck
+
+    static let key = "tweak.carry"
+    var id: Self { self }
+    var label: String {
+        switch self {
+        case .lift: "Full size"
+        case .card: "Title card"
+        case .puck: "Puck"
+        }
+    }
+}
+
 struct DesignTweaksPanel: View {
+    @AppStorage(CarryStyle.key) private var carry = CarryStyle.card
     @AppStorage(Tweak.panel.key) private var panel = Tweak.panel.standard
     @AppStorage(Tweak.gap.key) private var gap = Tweak.gap.standard
     @AppStorage(Tweak.frost.key) private var frost = Tweak.frost.standard
@@ -162,18 +184,28 @@ struct DesignTweaksPanel: View {
                             sliderRow(tweak)
                         }
                     }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Carrying a panel").font(.subheadline)
+                        Picker("Carrying a panel", selection: $carry) {
+                            ForEach(CarryStyle.allCases) { Text($0.label).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                    }
                 }
             }
             .frame(maxHeight: 460)
             HStack {
                 Button("Reset", systemImage: "arrow.counterclockwise") {
-                    withAnimation(.smooth) { for tweak in Tweak.allCases { binding(tweak).wrappedValue = tweak.standard } }
+                    withAnimation(.smooth) {
+                        for tweak in Tweak.allCases { binding(tweak).wrappedValue = tweak.standard }
+                        carry = .card
+                    }
                 }
                 Spacer()
                 Button(copied ? "Copied" : "Copy Values", systemImage: copied ? "checkmark" : "doc.on.doc") {
                     UIPasteboard.general.string = "Glass Clock design tweaks: " + Tweak.allCases
                         .map { "\($0.label) \($0.formatted(binding($0).wrappedValue))" }
-                        .joined(separator: ", ")
+                        .joined(separator: ", ") + ", Carrying a panel \(carry.label)"
                     copied = true
                 }
                 .buttonStyle(.borderedProminent)
