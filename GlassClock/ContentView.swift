@@ -113,8 +113,13 @@ struct ContentView: View {
     @AppStorage("dockOnTrailing") private var dockOnTrailing = false
     @AppStorage("dockHeight") private var dockHeight = 0.35
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.4, dampingFraction: 0.75))) private var dockDrag = CGSize.zero
-    /// Where the groups panel has been moved to, and how far it's being dragged.
-    @State private var sidebarOffset = CGSize.zero
+    /// Where the panels go (owner idea, 2026-10-21): the groups on the right instead of the
+    /// left, the settings on the left instead of the right, and when both share a side, whether
+    /// the groups sit below the settings. Drag a panel to put it somewhere else.
+    @AppStorage("groupsTrailing") private var groupsTrailing = false
+    @AppStorage("settingsLeading") private var settingsLeading = false
+    @AppStorage("groupsBelow") private var groupsBelow = false
+    @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.45, dampingFraction: 0.82))) private var settingsMove = CGSize.zero
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.4, dampingFraction: 0.8))) private var sidebarMove = CGSize.zero
     /// Panel swipes are ignored for a moment after a widget drag, so moving the widget
     /// doesn't also open or close a panel.
@@ -231,16 +236,16 @@ struct ContentView: View {
                     switch arrangement {
                     case .sideBySide:
                         HStack(spacing: Space.medium) {
-                            previewStage
+                            previewStage()
                             settingsPanel
                                 .frame(width: min(480, max(340, besideRoom)))
                         }
                         .padding([.horizontal, .bottom], Space.medium)
                     case .previewOnly:
-                        previewStage
+                        previewStage()
                     default:
                         VStack(spacing: Space.medium) {
-                            previewStage
+                            previewStage()
                                 .frame(height: min(stageHeight, max(300, size.height - 280)))
                             settingsPanel
                         }
@@ -285,9 +290,9 @@ struct ContentView: View {
                     ZStack {
                         backdropView
                             .ignoresSafeArea()
-                        previewStage
-                            .padding(.leading, sidebarAlongside ? groupsWidth + Space.medium : 0)
-                            .padding(.trailing, showsInspector ? settingsWidth + Space.medium : 0)
+                        previewStage(showsChrome: false)
+                            .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
+                            .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
                             .offset(x: rubberBand(panelDrag))
                     }
                     .contentShape(Rectangle())
@@ -299,45 +304,43 @@ struct ContentView: View {
                         // Over the panels while it's being moved or edited, under them otherwise.
                         .zIndex(draggingCard || editingWidget ? 2 : 0)
 
+                    // The stage's labels and buttons, over the widget so it never hides them.
+                    previewStage(measures: false)
+                        .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
+                        .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
+                        .offset(x: rubberBand(panelDrag))
+                        .zIndex(0.9)
+
+                    // While a panel is carried, a soft outline shows where it will settle.
+                    if let dropHint = panelDropHint(in: geometry.size, settingsWidth: settingsWidth) {
+                        RoundedRectangle(cornerRadius: Corner.panel, style: .continuous)
+                            .fill(.white.opacity(0.12))
+                            .strokeBorder(.white.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [10, 8]))
+                            .frame(width: dropHint.width, height: dropHint.height)
+                            .position(x: dropHint.midX, y: dropHint.midY)
+                            .allowsHitTesting(false)
+                            .transition(.opacity)
+                            .animation(.snappy, value: dropHint)
+                            .zIndex(0.5)
+                    }
+
+                    // The panels in two columns, each on whichever side it's been put; both can
+                    // share a side, one above the other (owner idea, 2026-10-21).
                     HStack(alignment: .top, spacing: Space.medium) {
-                        if showsSidebar {
-                            groupsPanel
-                                .dynamicTypeSize(settingsTextSize)
-                                .frame(width: groupsWidth)
-                                .scaleEffect(sidebarMove == .zero ? 1 : 1.02)
-                                .shadow(color: .black.opacity(sidebarMove == .zero ? 0 : 0.18), radius: 20, y: 10)
-                                .offset(x: sidebarOffset.width + sidebarMove.width,
-                                        y: sidebarOffset.height + sidebarMove.height)
-                                .simultaneousGesture(sidebarMoveGesture(in: geometry.size))
-                                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sidebarRect = $0 }
-                                .transition(panelTransition(.leading))
-                        }
+                        panelColumn(leading: true, area: geometry.size, settingsWidth: settingsWidth)
                         Spacer(minLength: 0)
-                        if showsInspector {
-                            settingsList
-                                .dynamicTypeSize(settingsTextSize)
-                                .simultaneousGesture(settingsPinchGesture)
-                                .sensoryFeedback(.selection, trigger: settingsTextSize)
-                                .clipShape(.rect(cornerRadius: Corner.panel))
-                                // In the Glass theme there's no panel behind the cards: each card
-                                // is its own window of glass, apart from the others by the gap
-                                // between them (owner direction, 2026-10-21).
-                                .modifier(PanelBacking(clear: appTheme == .glass && !reducesGlass))
-                                .overlay(alignment: .top) { textSizeOverlay }
-                                .frame(width: settingsWidth)
-                                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { inspectorRect = $0 }
-                                .transition(panelTransition(.trailing))
-                        }
+                        panelColumn(leading: false, area: geometry.size, settingsWidth: settingsWidth)
                     }
                     .padding([.horizontal, .bottom], Space.medium)
                     // Kept to the top, so one panel stays put when the other tucks away.
                     .frame(maxHeight: .infinity, alignment: .top)
+                    .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82), value: panelLayoutKey)
                     .zIndex(1)
                 }
                 .overlay {
                     if !showsSidebar { groupsDock(in: geometry.size) }
                 }
-                .overlay(alignment: .trailing) {
+                .overlay(alignment: settingsLeading ? .leading : .trailing) {
                     if !showsInspector {
                         edgeHandle("Show settings") { withAnimation(.snappy) { showsInspector = true } }
                     }
@@ -423,53 +426,38 @@ struct ContentView: View {
 
     /// The settings groups on a glass panel: a tap glides the settings to that group. It folds
     /// down to just its icons with the button at the top, to give the preview more room.
-    private var groupsPanel: some View {
-        ScrollView {
-            VStack(spacing: 4) {
-                Button {
-                    withAnimation(reduceMotion ? nil : .snappy) { groupsCollapsed.toggle() }
-                } label: {
-                    Image(systemName: groupsCollapsed ? "sidebar.right" : "sidebar.left")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, height: 24)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: groupsCollapsed ? .center : .leading)
-                        .contentShape(Rectangle())
+    private var groupsPanel: some View { groupsPanel(asStrip: false) }
+
+    /// The groups as a list, or (sharing a side with the settings) a compact grid of icons
+    /// across the top, so the settings keep most of the height.
+    private func groupsPanel(asStrip: Bool) -> some View {
+        let iconsOnly = groupsCollapsed || asStrip
+        return ScrollView {
+            if asStrip {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 48), spacing: 4)], spacing: 4) {
+                    ForEach(SettingsSection.allCases) { section in groupButton(section, iconsOnly: true) }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(groupsCollapsed ? "Show group names" : "Show icons only")
-                ForEach(SettingsSection.allCases) { section in
-                    let selected = selectedSection == section
+                .padding(Space.small + 2)
+            } else {
+                VStack(spacing: 4) {
                     Button {
-                        focus(section)
+                        withAnimation(reduceMotion ? nil : .snappy) { groupsCollapsed.toggle() }
                     } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: section.icon)
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
-                                .frame(width: 24)
-                            if !groupsCollapsed {
-                                Text(section == .homeScreens ? "Home Screens" : section.title)
-                                    .font(.body.weight(selected ? .semibold : .regular))
-                                    .foregroundStyle(selected ? .white : .primary)
-                                    .lineLimit(1)
-                                    .transition(.opacity.combined(with: .move(edge: .leading)))
-                                Spacer(minLength: 0)
-                            }
-                        }
-                        .padding(.horizontal, groupsCollapsed ? 10 : 14)
-                        .padding(.vertical, 11)
-                        .background(selected ? AppColor.chosen(appColor) : .clear, in: .capsule)
-                        .contentShape(.capsule)
+                        Image(systemName: groupsCollapsed ? "sidebar.right" : "sidebar.left")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: groupsCollapsed ? .center : .leading)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(section.title)
-                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .accessibilityLabel(groupsCollapsed ? "Show group names" : "Show icons only")
+                    ForEach(SettingsSection.allCases) { section in groupButton(section, iconsOnly: iconsOnly) }
                 }
+                .padding(Space.small + 2)
             }
-            .padding(Space.small + 2)
         }
         .scrollBounceBehavior(.basedOnSize)
         // It all fits, and a drag moves the panel rather than scrolling it.
@@ -477,6 +465,35 @@ struct ContentView: View {
         .fixedSize(horizontal: false, vertical: true)
         .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
         .animation(.snappy, value: selectedSection)
+    }
+
+    private func groupButton(_ section: SettingsSection, iconsOnly: Bool) -> some View {
+        let selected = selectedSection == section
+        return Button {
+            focus(section)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: section.icon)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+                    .frame(width: 24)
+                if !iconsOnly {
+                    Text(section == .homeScreens ? "Home Screens" : section.title)
+                        .font(.body.weight(selected ? .semibold : .regular))
+                        .foregroundStyle(selected ? .white : .primary)
+                        .lineLimit(1)
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                    Spacer(minLength: 0)
+                }
+            }
+            .padding(.horizontal, iconsOnly ? 10 : 14)
+            .padding(.vertical, 11)
+            .background(selected ? AppColor.chosen(appColor) : .clear, in: .capsule)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(section.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     /// Every settings group, open, in one scrolling list. A jump from the sidebar (or the chips
@@ -581,8 +598,124 @@ struct ContentView: View {
         .accessibilityLabel(label)
     }
 
-    /// The groups panel can be picked up and moved anywhere. A quick flick sends it to the
-    /// side, where it folds into its dock (owner direction, 2026-10-21).
+    /// Which side each panel is on, and which is on top when they share a side.
+    private var panelsStacked: Bool { groupsTrailing != settingsLeading }
+    private var panelLayoutKey: String { "\(groupsTrailing)\(settingsLeading)\(groupsBelow)" }
+
+    /// How much room the panels on one side take from the preview.
+    private func panelInset(leading: Bool, settingsWidth: CGFloat) -> CGFloat {
+        let groupsHere = showsSidebar && sidebarAlongside && groupsTrailing != leading
+        let settingsHere = showsInspector && settingsLeading == leading
+        if settingsHere { return settingsWidth + Space.medium }
+        return groupsHere ? groupsWidth + Space.medium : 0
+    }
+
+    /// One side's panels: none, one, or both stacked (the groups at their own height, the
+    /// settings taking the rest).
+    @ViewBuilder
+    private func panelColumn(leading: Bool, area: CGSize, settingsWidth: CGFloat) -> some View {
+        let groupsHere = showsSidebar && groupsTrailing != leading
+        let settingsHere = showsInspector && settingsLeading == leading
+        if groupsHere || settingsHere {
+            VStack(spacing: Space.medium) {
+                if groupsHere && !groupsBelow { groupsColumnPanel(leading: leading, area: area, width: settingsHere ? settingsWidth : groupsWidth, strip: settingsHere) }
+                if settingsHere { settingsColumnPanel(leading: leading, area: area, width: settingsWidth) }
+                if groupsHere && groupsBelow { groupsColumnPanel(leading: leading, area: area, width: settingsHere ? settingsWidth : groupsWidth, strip: settingsHere) }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+    }
+
+    private func groupsColumnPanel(leading: Bool, area: CGSize, width: CGFloat, strip: Bool) -> some View {
+        groupsPanel(asStrip: strip)
+            .dynamicTypeSize(settingsTextSize)
+            .frame(width: width)
+            .scaleEffect(sidebarMove == .zero ? 1 : 1.02)
+            .shadow(color: .black.opacity(sidebarMove == .zero ? 0 : 0.18), radius: 20, y: 10)
+            .offset(sidebarMove)
+            .zIndex(sidebarMove == .zero ? 0 : 1)
+            .simultaneousGesture(sidebarMoveGesture(in: area))
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sidebarRect = $0 }
+            .transition(panelTransition(leading ? .leading : .trailing))
+    }
+
+    private func settingsColumnPanel(leading: Bool, area: CGSize, width: CGFloat) -> some View {
+        settingsList
+            .dynamicTypeSize(settingsTextSize)
+            .simultaneousGesture(settingsPinchGesture)
+            .sensoryFeedback(.selection, trigger: settingsTextSize)
+            .clipShape(.rect(cornerRadius: Corner.panel))
+            // In the Glass theme there's no panel behind the cards: each card is its own window
+            // of glass, apart from the others by the gap between them (owner direction, 2026-10-21).
+            .modifier(PanelBacking(clear: appTheme == .glass && !reducesGlass))
+            .overlay(alignment: .top) { textSizeOverlay }
+            // A grabber along the top to pick the settings up and put them somewhere else; the
+            // list itself still scrolls as normal.
+            .overlay(alignment: .top) { panelGrabber(area: area) }
+            .frame(width: width)
+            .scaleEffect(settingsMove == .zero ? 1 : 1.02)
+            .shadow(color: .black.opacity(settingsMove == .zero ? 0 : 0.18), radius: 20, y: 10)
+            .offset(settingsMove)
+            .zIndex(settingsMove == .zero ? 0 : 1)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { inspectorRect = $0 }
+            .transition(panelTransition(leading ? .leading : .trailing))
+    }
+
+    private func panelGrabber(area: CGSize) -> some View {
+        Capsule()
+            .fill(.primary.opacity(settingsMove == .zero ? 0.35 : 0.6))
+            .frame(width: 44, height: 5)
+            .padding(.vertical, 6)
+            .frame(width: 140, height: 22)
+            .contentShape(.rect)
+            .gesture(
+                DragGesture(minimumDistance: 4, coordinateSpace: .global)
+                    .updating($settingsMove) { drag, state, _ in state = drag.translation }
+                    .onEnded { drag in
+                        placePanel(groups: false, at: CGPoint(x: inspectorRect.midX + drag.translation.width,
+                                                              y: inspectorRect.minY + 40 + drag.translation.height), in: area)
+                    }
+            )
+            .accessibilityLabel("Move settings")
+            .accessibilityHint("Drag to the other side, or onto the groups to share a side")
+    }
+
+    /// Puts a panel down: on the side it's dropped, sharing that side if the other panel is
+    /// already there (above or below it, by where it was dropped).
+    private func placePanel(groups: Bool, at point: CGPoint, in area: CGSize) {
+        let leading = point.x < area.width / 2
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+            if groups { groupsTrailing = !leading } else { settingsLeading = leading }
+            if panelsStacked {
+                let other = groups ? inspectorRect : sidebarRect
+                let above = point.y < (other == .zero ? area.height / 2 : other.midY)
+                groupsBelow = groups ? !above : above
+            }
+        }
+    }
+
+    /// Where a carried panel would settle, as an outline (in the panels' space).
+    private func panelDropHint(in area: CGSize, settingsWidth: CGFloat) -> CGRect? {
+        let carryingGroups = sidebarMove != .zero
+        guard carryingGroups || settingsMove != .zero else { return nil }
+        let base = carryingGroups ? sidebarRect : inspectorRect
+        let move = carryingGroups ? sidebarMove : settingsMove
+        let leading = base.midX + move.width < area.width / 2
+        let otherHere = carryingGroups ? (showsInspector && settingsLeading == leading) : (showsSidebar && groupsTrailing != leading)
+        let width = otherHere || !carryingGroups ? settingsWidth : groupsWidth
+        let x = leading ? Space.medium : area.width - Space.medium - width
+        if otherHere {
+            // Half of that side, above or below the panel that's there.
+            let other = carryingGroups ? inspectorRect : sidebarRect
+            let top = base.minY + move.height < other.midY
+            let half = (area.height - Space.medium * 3) / 2
+            return CGRect(x: x, y: top ? 0 : half + Space.medium, width: width, height: half)
+        }
+        return CGRect(x: x, y: 0, width: width, height: carryingGroups ? base.height : area.height - Space.medium)
+    }
+
+    /// The groups panel can be picked up and put on either side, or with the settings; it snaps
+    /// into place. A hard flick sends it away to fold into its dock (owner direction, 2026-10-21).
     private func sidebarMoveGesture(in area: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 12, coordinateSpace: .global)
             .updating($sidebarMove) { drag, state, _ in state = drag.translation }
@@ -591,7 +724,7 @@ struct ContentView: View {
                                    height: drag.predictedEndTranslation.height - drag.translation.height)
                 let end = CGPoint(x: sidebarRect.midX + drag.translation.width,
                                   y: sidebarRect.midY + drag.translation.height)
-                if hypot(flick.width, flick.height) > 320 {
+                if hypot(flick.width, flick.height) > 600 {
                     // Flicked away: fold into the dock on the side it was flicked towards.
                     withAnimation(reduceMotion ? nil : .smooth(duration: 0.4)) {
                         dockOnTrailing = flick.width > 0 ? true : flick.width < 0 ? false : end.x > area.width / 2
@@ -600,12 +733,7 @@ struct ContentView: View {
                     }
                     return
                 }
-                let maxX = max(0, area.width - groupsWidth - Space.medium * 2)
-                let maxY = max(0, area.height - sidebarRect.height - Space.medium)
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    sidebarOffset = CGSize(width: min(maxX, max(0, sidebarOffset.width + drag.translation.width)),
-                                           height: min(maxY, max(0, sidebarOffset.height + drag.translation.height)))
-                }
+                placePanel(groups: true, at: end, in: area)
             }
     }
 
@@ -675,10 +803,33 @@ struct ContentView: View {
         ToolbarItem(placement: .topBarLeading) { tourButton.tint(iconsOnGlass) }
         if interface == .panels {
             ToolbarItem(placement: .topBarLeading) { fullScreenButton.tint(iconsOnGlass) }
+            ToolbarItem(placement: .topBarLeading) { arrangeMenu.tint(iconsOnGlass) }
         }
         ToolbarItem(placement: .principal) { interfaceSwitch }
         ToolbarItem(placement: .primaryAction) { refreshButton.tint(iconsOnGlass) }
         ToolbarItem(placement: .primaryAction) { applyButton }
+    }
+
+    /// The panel arrangements in a menu, for anyone who'd rather pick than drag.
+    private var arrangeMenu: some View {
+        Menu {
+            Button("Groups Left, Settings Right", systemImage: "rectangle.split.3x1") { arrange(groupsRight: false, settingsLeft: false) }
+            Button("Settings Left, Groups Right", systemImage: "arrow.left.arrow.right") { arrange(groupsRight: true, settingsLeft: true) }
+            Button("Both on the Left", systemImage: "rectangle.lefthalf.inset.filled") { arrange(groupsRight: false, settingsLeft: true) }
+            Button("Both on the Right", systemImage: "rectangle.righthalf.inset.filled") { arrange(groupsRight: true, settingsLeft: false) }
+        } label: {
+            Label("Arrange Panels", systemImage: "rectangle.3.group")
+        }
+    }
+
+    private func arrange(groupsRight: Bool, settingsLeft: Bool) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+            groupsTrailing = groupsRight
+            settingsLeading = settingsLeft
+            groupsBelow = false
+            showsSidebar = true
+            showsInspector = true
+        }
     }
 
     /// Clears both panels away for the whole Home Screen, or brings them back.
@@ -1244,17 +1395,24 @@ struct ContentView: View {
         }
     }
 
-    private var previewStage: some View {
+    /// - Parameters:
+    ///   - showsChrome: false lays the labels and buttons out without showing them.
+    ///   - measures: false for a second copy that only draws them.
+    /// In Panels the stage is drawn twice, so its labels and buttons sit above the widget,
+    /// which can be moved anywhere, and are never hidden under it (owner feedback, 2026-10-21).
+    private func previewStage(showsChrome: Bool = true, measures: Bool = true) -> some View {
             VStack(spacing: Space.large) {
                 Spacer(minLength: 0)
                 // In Panels the style and size controls float with the widget instead (below).
                 if !controlsFollowWidget { homeScreenBubble }
                 myHomeScreenNote
+                    .modifier(StageChrome(shown: showsChrome))
                 // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets).
                 Text("Preview")
                     .font(.footnote.weight(.semibold))
                     .textCase(.uppercase)
                     .foregroundStyle(.secondary)
+                    .modifier(StageChrome(shown: showsChrome))
 
                 // The card keeps the real widget's size (shrunk only if the window is too small).
                 // In Panels the widget lives on a grid over the whole window (`widgetLayer`), with
@@ -1262,7 +1420,7 @@ struct ContentView: View {
                 if interface == .panels {
                     Color.clear
                         .frame(maxHeight: .infinity)
-                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stageRect = $0 }
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if measures { stageRect = $0 } }
                 } else {
                     widgetGrid
                 }
@@ -1278,13 +1436,14 @@ struct ContentView: View {
                         backdropBubble
                     }
                 }
+                .modifier(StageChrome(shown: showsChrome))
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, controlsFollowWidget ? Space.small : Space.large)
             .padding(.top, Space.medium)
             .padding(.bottom, Space.large)
             .overlay(alignment: .top) {
-                if let backdropToast {
+                if showsChrome, let backdropToast {
                     Text(backdropToast)
                         .font(.headline)
                         .padding(.horizontal, Space.medium)
@@ -2034,5 +2193,17 @@ struct PanelBacking: ViewModifier {
         } else {
             content.appGlass(.rect(cornerRadius: Corner.panel), panel: true)
         }
+    }
+}
+
+/// Shows a part of the preview stage, or keeps its place without showing it.
+private struct StageChrome: ViewModifier {
+    var shown: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .allowsHitTesting(shown)
+            .accessibilityHidden(!shown)
     }
 }

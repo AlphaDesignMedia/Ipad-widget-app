@@ -376,12 +376,14 @@ struct SettingsCard<Content: View>: View {
         .padding(.horizontal, Corner.cardPadding)
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .opacity(glassy && !focused ? 0.78 : 1)
+        // Overdone for now, to judge it (owner, 2026-10-21): resting cards fade back and soften.
+        .opacity(glassy && !focused ? 0.55 : 1)
+        .blur(radius: glassy && !focused && !reduceMotion ? 0.8 : 0)
         .background {
             ZStack {
                 if glassy {
                     // Resting cards lean towards clear; the one in use gets the full frost.
-                    GlassAmount.backing(focused ? glassAmount : min(1, glassAmount + 0.45), in: shape)
+                    GlassAmount.backing(focused ? max(0, glassAmount - 0.25) : 1, in: shape)
                 } else {
                     shape.fill(.background.secondary)
                 }
@@ -389,8 +391,9 @@ struct SettingsCard<Content: View>: View {
             }
         }
         .modifier(CardGlass(on: glassy, shape: shape))
-        .scaleEffect(glassy && focused && !reduceMotion ? 1.015 : 1)
-        .animation(.smooth(duration: 0.35), value: focused)
+        .scaleEffect(glassy && !reduceMotion ? (focused ? 1.03 : 0.97) : 1)
+        .shadow(color: .black.opacity(glassy && focused ? 0.16 : 0), radius: 18, y: 8)
+        .animation(.spring(response: 0.45, dampingFraction: 0.78), value: focused)
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
