@@ -35,7 +35,7 @@ enum WorkspaceLayout: String, CaseIterable, Identifiable {
 /// What's behind the preview card. Apps can't see the Home Screen wallpaper, so the closest
 /// thing is a photo the person picks, such as a screenshot of their own Home Screen.
 enum PreviewBackdrop: String, CaseIterable, Identifiable {
-    case plain, aurora, sunset, ocean, graphite, photo
+    case plain, aurora, sunset, ocean, graphite, bloom, dune, lagoon, midnight, glow, photo
     var id: Self { self }
 
     var label: String {
@@ -45,6 +45,11 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
         case .sunset: "Sunset"
         case .ocean: "Ocean"
         case .graphite: "Graphite"
+        case .bloom: "Bloom"
+        case .dune: "Dune"
+        case .lagoon: "Lagoon"
+        case .midnight: "Midnight"
+        case .glow: "Glow"
         case .photo: "Your Photo"
         }
     }
@@ -56,6 +61,31 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
         case .sunset: [.purple, .pink, .orange]
         case .ocean: [Color(red: 0.02, green: 0.1, blue: 0.35), .blue, .teal]
         case .graphite: [Color(white: 0.12), Color(white: 0.3), Color(white: 0.18)]
+        case .bloom, .dune, .lagoon, .midnight, .glow: mesh ?? []
+        }
+    }
+
+    /// Soft, blended mesh backdrops in the spirit of the iPad's own wallpapers (owner request,
+    /// 2026-10-21): nine colours on a 3×3 grid, top-left to bottom-right.
+    var mesh: [Color]? {
+        func c(_ r: Double, _ g: Double, _ b: Double) -> Color { Color(red: r, green: g, blue: b) }
+        return switch self {
+        case .bloom: [c(0.98, 0.78, 0.86), c(0.86, 0.62, 0.95), c(0.62, 0.66, 0.98),
+                      c(0.99, 0.62, 0.70), c(0.80, 0.50, 0.92), c(0.48, 0.56, 0.96),
+                      c(1.00, 0.80, 0.66), c(0.94, 0.56, 0.74), c(0.56, 0.72, 0.98)]
+        case .dune: [c(0.99, 0.91, 0.78), c(0.97, 0.82, 0.62), c(0.93, 0.70, 0.52),
+                     c(0.96, 0.80, 0.62), c(0.90, 0.64, 0.46), c(0.80, 0.52, 0.40),
+                     c(0.86, 0.62, 0.48), c(0.72, 0.46, 0.38), c(0.56, 0.36, 0.34)]
+        case .lagoon: [c(0.62, 0.92, 0.88), c(0.36, 0.80, 0.86), c(0.20, 0.58, 0.86),
+                       c(0.40, 0.84, 0.74), c(0.16, 0.64, 0.74), c(0.10, 0.40, 0.72),
+                       c(0.20, 0.66, 0.56), c(0.08, 0.46, 0.56), c(0.06, 0.26, 0.52)]
+        case .midnight: [c(0.10, 0.10, 0.26), c(0.18, 0.12, 0.38), c(0.08, 0.16, 0.36),
+                         c(0.14, 0.08, 0.30), c(0.30, 0.16, 0.50), c(0.10, 0.22, 0.46),
+                         c(0.04, 0.04, 0.14), c(0.12, 0.08, 0.26), c(0.04, 0.10, 0.24)]
+        case .glow: [c(1.00, 0.86, 0.50), c(1.00, 0.66, 0.36), c(0.98, 0.44, 0.34),
+                     c(1.00, 0.62, 0.30), c(0.96, 0.40, 0.30), c(0.86, 0.24, 0.36),
+                     c(0.94, 0.36, 0.28), c(0.78, 0.20, 0.34), c(0.52, 0.12, 0.36)]
+        default: nil
         }
     }
 }

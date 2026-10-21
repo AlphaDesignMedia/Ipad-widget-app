@@ -36,7 +36,7 @@ _Last updated 21 Oct 2026._
 | Glass that bends the clock and text around its edges, or moves with motion | ⬜ | You liked a glimpse of this. Shimmer was ruled out (it would freeze the widget). |
 | **Background generator**: one or two sliders make a unique abstract glass backdrop, plus Lucky | ⬜ | Your idea from 21 Oct. Doable with shaders. A good next big feature. |
 | Preset photo backdrops in the spirit of Apple's wallpapers | 🟡 | Gradient backdrops exist. Real photos not yet (the Earth photo needs the file). |
-| Apple-style mesh backdrops | ⬜ | |
+| Apple-style mesh backdrops | ✅ | 21 Oct: Bloom, Dune, Lagoon, Midnight, Glow. |
 | Themed I'm Feeling Lucky presets that feel more curated | 🟡 | Split into Lucky Colours and Lucky Style. More theming could help. |
 
 ## Layout and gestures
@@ -87,7 +87,7 @@ _Last updated 21 Oct 2026._
 | The "Preview" label could look better | ⬜ | 21 Oct, to discuss. |
 | **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
 | Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |
-| More backdrops in the spirit of Apple's wallpapers | ⬜ | Your request, 21 Oct. Next up. |
+| More backdrops in the spirit of Apple's wallpapers | ✅ | 21 Oct: five soft mesh backdrops. Photo presets still to come from your images. |
 | See-through app window, so the widget floats over your real Home Screen | 💤 | Not possible: iPadOS doesn't let apps show or read the Home Screen wallpaper. Closest: pick a screenshot or photo of your wallpaper as the backdrop (Your Photo). |
 | Soften the glass edge on the backdrop pull (still reads as a stripe) | ⬜ | 21 Oct. |
 
