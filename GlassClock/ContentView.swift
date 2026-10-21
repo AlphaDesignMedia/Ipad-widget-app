@@ -33,6 +33,8 @@ struct ContentView: View {
     @State private var style = ClockStyle.launchOverride ?? StyleLibrary.loadDraft() ?? ClockStyle.load()
     /// The style the widget shows.
     @State private var appliedStyle = ClockStyle.load()
+    /// Counts taps on Refresh Widget, to spin its arrow.
+    @State private var refreshTurns = 0
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
     // A new key, so everyone starts with the new sections' defaults open.
     @AppStorage("openSections") private var openPanelList = "Fonts,Layout,Presets"
@@ -158,6 +160,7 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { layoutMenu }
                 ToolbarItem(placement: .topBarLeading) { tourButton }
+                ToolbarItem(placement: .primaryAction) { refreshButton }
                 ToolbarItem(placement: .primaryAction) { applyButton }
             }
         }
@@ -235,6 +238,7 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { layoutMenu }
                 ToolbarItem(placement: .topBarLeading) { tourButton }
+                ToolbarItem(placement: .primaryAction) { refreshButton }
                 ToolbarItem(placement: .primaryAction) { applyButton }
             }
         }
@@ -458,6 +462,20 @@ struct ContentView: View {
         } label: {
             Label("Show the Tour", systemImage: "questionmark.circle")
         }
+    }
+
+    /// Asks the widget to redraw now with the applied style, for when it looks out of date, for
+    /// example after an install, or if iPadOS paused its updates. Unfinished edits aren't sent.
+    private var refreshButton: some View {
+        Button {
+            WidgetCenter.shared.reloadAllTimelines()
+            withAnimation(.smooth(duration: 0.6)) { refreshTurns += 1 }
+        } label: {
+            Label("Refresh Widget", systemImage: "arrow.clockwise")
+                .rotationEffect(.degrees(360 * Double(refreshTurns)))
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: refreshTurns)
+        .accessibilityHint("Redraws the widget on your Home Screen")
     }
 
     private var applyButton: some View {
