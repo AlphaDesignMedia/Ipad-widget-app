@@ -11,6 +11,38 @@ Read first:
 - GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
   GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
+## Afternoon plan, 21 Oct (owner away until 10 p.m.): do these FIRST, in order
+Everything before this section is done or superseded. The owner's newest direction:
+**usability before flair.** Every effect must be possible to turn down (Accessibility →
+Simpler effects), and every control must answer a plain tap. Keep names short and the settings in
+small, bite-sized groups; repeating an option in two places is fine.
+
+- P1. **Tap audit (most important).** In the simulator, tap every segmented control, toggle,
+  picker, slider and button in every settings group, in Panels and Classic, in Glass/Frosted/
+  Colour/Home Screen looks. Wait 2 s before each screenshot (the screen redraws late). Earlier
+  today the settings panel's hold-to-drag gesture swallowed taps on segmented controls; look for
+  any other gesture doing the same (pinch on the panel, the groups' hold-to-drag, the widget
+  layer). Fix anything that doesn't respond first time.
+- P2. **Test the stuck-on groups** (new): drag the groups panel by its bar onto the widget and
+  onto the settings panel (use touch_path with a slow drag); check it sticks beside them, slides in
+  to a tab when pushed towards them, slides out when the tab is tapped or pulled, and unsticks
+  when pulled well away. Check it follows the widget when the widget is dragged, stays on screen,
+  and never covers the widget's controls. Smooth any jumps.
+- P3. **Settings can stick too**: the same idea for the settings panel (onto the widget's side),
+  only if P1–P2 are solid. Use the same rail/tab pattern; keep it optional.
+- P4. **Suggestions**: like the "Which Home Screen style do you use?" bubble, a small, dismissable
+  hint that rides with the widget and points at a likely next step (e.g. "Try a font" after a
+  preset, "Apply to Widget" when there are changes). At most one at a time; never covering the
+  widget. Make sure it reads clearly in every look (contrast first).
+- P5. **Make your own backdrop**: in the backdrop menu, "Make your own…": pick two or three
+  colours and a pattern (none, lines, waves, dots, rings); saved and shown like the others,
+  adapting to Light and Dark. Only the app's backdrop (not the widget) for now.
+- P6. **Small polish**: Classic top and bottom padding; group names short; check every bubble's
+  contrast on every backdrop (including the new pattern ones and Midnight); check Simpler effects
+  really stops wiggle, lean, shimmer, carousel and fading.
+- Do not attempt: a see-through window over the Home Screen; changes to the widget extension's
+  look beyond what's asked.
+
 ## Owner's latest direction (21 Oct, about 10:55 a.m.): read this first
 Items 1 and most of 2 are done (see Progress). The owner now wants the focus on **interactions,
 animation and subtle UI polish**, softer and smoother than Apple rather than copying it. Do these
