@@ -68,6 +68,7 @@ _Last updated 21 Oct 2026._
 | Right panel clear in the Glass theme: each card its own glass window | ✅ | 21 Oct. |
 | Glassy corner highlights; the card gives softly with the finger while resizing | ✅ | 21 Oct. |
 | Style and size controls sit above the widget; bubbles share the cards' frost | ✅ | 21 Oct. |
+| Settings cards stay clear until in use; the one you're scrolling past frosts over, comes forward slightly and reads more clearly; the groups list follows | ✅ | 21 Oct. Tell me if the change should be stronger. |
 | **Arrange the panels yourself**: swap sides, stack both on one side (top and bottom halves), drag panels to snap into place | ⬜ | Your idea, 21 Oct. Next big interaction piece. |
 | **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
 | Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |
