@@ -28,11 +28,40 @@ struct GlassSheetEffect: ViewModifier, Animatable {
     }
 
     private let edgeHeight: CGFloat = 64
+    /// How deep the bent rim of the sheet is.
+    private let rimDepth: CGFloat = 110
+
+    /// The bend fades in as the sheet starts moving and out as it finishes, so it's never
+    /// there while the backdrop is still.
+    private var bend: CGFloat {
+        max(0, min(1, progress * 8, (1 - progress) * 8))
+    }
+
+    private var moving: Bool { progress > 0.001 && progress < 0.999 }
 
     func body(content: Content) -> some View {
         GeometryReader { geometry in
             content
                 .frame(width: geometry.size.width, height: geometry.size.height)
+                // The sheet's rim bends the picture on it, like the rounded edge of thick glass:
+                // a squeezed copy, drawn from a little further in, fades in towards the edge.
+                // The glass lip below then bends whatever the edge passes over.
+                .overlay {
+                    if moving {
+                        content
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .scaleEffect(x: 1 + 0.02 * bend, y: 1 - 0.22 * bend, anchor: upward ? .bottom : .top)
+                            .brightness(0.06 * bend)
+                            .mask {
+                                LinearGradient(colors: [.black, .black.opacity(0)],
+                                               startPoint: upward ? .bottom : .top,
+                                               endPoint: upward ? .top : .bottom)
+                                    .frame(height: rimDepth)
+                                    .frame(maxHeight: .infinity, alignment: upward ? .bottom : .top)
+                            }
+                            .allowsHitTesting(false)
+                    }
+                }
                 .overlay(alignment: upward ? .bottom : .top) {
                     if progress > 0.001 && progress < 0.999 {
                         edge

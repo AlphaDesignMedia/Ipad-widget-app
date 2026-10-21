@@ -1068,6 +1068,8 @@ struct ContentView: View {
             if let pulledBackdrop {
                 backdropFill(pulledBackdrop)
                     .scaleEffect(1.06 - 0.06 * min(1, abs(backdropPull)))
+                    // Underneath everything, including the current backdrop's low zIndex below.
+                    .zIndex(-1e12)
             }
             backdropFill(backdrop)
                 .modifier(GlassSheetEffect(progress: abs(backdropPull), upward: backdropPull <= 0))
