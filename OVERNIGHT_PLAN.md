@@ -48,6 +48,19 @@ small, bite-sized groups; repeating an option in two places is fine.
     tune them on the iPad and send back Copy Values. Where it's quick, offer 2–3 named spacing
     presets too ("Compact", "Comfortable", "Airy") in Design Tweaks.
   - Corners stay concentric when padding changes (inner radius = outer radius − padding).
+- P0c. **Controls above the widget (owner, 1:30 p.m.).**
+  - The backdrop list is too long as one menu. Try: swipe left/right on the backdrop to move
+    through kinds (Photos, Mesh, Patterns, Gradients) and up/down to move through colours within a
+    kind. Keep the existing up/down pull working; show a small hint of which kind you're in.
+  - Turn the backdrop menu into 1–3 small buttons (e.g. "Backdrop", "Add photo", "Make your own")
+    instead of one long list.
+  - The bubbles above the widget (Light/Dark/Clear/Tinted, sizes, backdrop) could be one bubble you
+    swipe sideways between, like pages, so only one row shows at a time, with page dots. Try it,
+    keep it optional (Design Tweaks switch) and keep everything reachable by a plain tap.
+  - The "9" on Apply to Widget wasn't clear: it was meant as the clock's style in miniature, not a
+    count. Make it obvious: e.g. a tiny widget-shaped glyph with "12" in the clock's font and
+    colour, bolder, or go back to a clear symbol if that reads better. Check it at a glance.
+  - Plain and Aurora looked identical on Clear/Tinted: fixed (Plain is now slate there); check it.
 - P1. **Tap audit (most important after P0).** In the simulator, tap every segmented control, toggle,
   picker, slider and button in every settings group, in Panels and Classic, in Glass/Frosted/
   Colour/Home Screen looks. Wait 2 s before each screenshot (the screen redraws late). Earlier

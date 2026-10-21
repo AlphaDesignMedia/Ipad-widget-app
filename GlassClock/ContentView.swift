@@ -2062,6 +2062,10 @@ struct ContentView: View {
         switch backdrop {
         case .plain where homeScreen.accent == nil:
             homeScreen == .dark ? Color.black : Color.white
+        case .plain:
+            // Clear and Tinted draw white text, so Plain is a quiet slate there rather than
+            // white; it used to fall back to Aurora and looked the same (owner, 2026-10-21).
+            LinearGradient(colors: [Color(white: 0.34), Color(white: 0.18)], startPoint: .top, endPoint: .bottom)
         case .photo where backdropPhoto != nil:
             Color.clear.overlay {
                 Image(uiImage: backdropPhoto!)
