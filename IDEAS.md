@@ -2,6 +2,11 @@
 
 Ideas you've shared that aren't built yet. Claude reminds you of these when they're relevant.
 
+## Smooth animation between Classic and Panels
+*Added 2026-10-21. Status: future.*
+
+- Switching between Classic and Panels should animate smoothly: the panels glide and reshape into the new layout instead of jumping.
+
 ## Claude usage tracker (side project, not Glass Clock)
 *Added 2026-10-21. Status: idea only, not now.*
 

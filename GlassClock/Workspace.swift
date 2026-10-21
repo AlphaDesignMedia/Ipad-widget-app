@@ -479,14 +479,15 @@ struct HomeGrid {
         gap = Self.gap * scale
         // Classic can lay the preview out at zero size for a moment, which made the step zero
         // and these counts infinite, crashing the app on opening Classic (owner, 2026-10-21).
-        func count(_ length: CGFloat) -> Int {
-            let value = (length + Self.gap * scale) / step
-            return value.isFinite ? max(1, min(Int(value), 50)) : 1
-        }
-        columns = count(area.width)
-        rows = count(area.height)
+        columns = Self.count(area.width, gap: gap, step: step)
+        rows = Self.count(area.height, gap: gap, step: step)
         let width = CGFloat(columns) * step - gap, height = CGFloat(rows) * step - gap
         origin = CGPoint(x: (area.width - width) / 2, y: (area.height - height) / 2)
+    }
+
+    private static func count(_ length: CGFloat, gap: CGFloat, step: CGFloat) -> Int {
+        let value = (length + gap) / step
+        return value.isFinite ? max(1, min(Int(value), 50)) : 1
     }
 
     /// The frame of a widget covering `span` slots from `column`, `row`.
