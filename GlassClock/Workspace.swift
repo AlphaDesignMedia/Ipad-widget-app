@@ -379,6 +379,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
 /// The Home Screen style the app's own glass follows, when the app look is My Home Screen.
 extension EnvironmentValues {
     @Entry var homeLook: HomeScreenStyle?
+    /// Moving the settings panel by holding a card's title bar.
+    @Entry var panelCarry: PanelCarry?
     /// The design of headings when the app's text matches the clock font. A serif clock font
     /// pairs serif headings with plain body text, which reads better at small sizes (owner
     /// feedback, 2026-10-21).
@@ -586,6 +588,10 @@ struct SettingsCard<Content: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(windowBand)
                 .overlay(alignment: .bottom) { Divider().opacity(0.6) }
+                // Hold the title bar, then drag, to move the whole panel (owner, 22 Oct 2026).
+                // Only the title bar, so switches and sliders in the rows always answer taps.
+                .contentShape(.rect)
+                .gesture(titleHold)
                 .accessibilityAddTraits(.isHeader)
             }
             Group(subviews: content) { rows in
@@ -650,7 +656,9 @@ struct SettingsCard<Content: View>: View {
             // (A 3D tilt was tried and tore the glass edges, 2026-10-21; scale and a little
             // drift towards the middle give the carousel feel instead.)
             return content
-                .scaleEffect(1 + 0.024 * amount - 0.06 * amount * abs(offset))
+                // Never above full size: a card grown past the panel had its rounded corners and
+                // highlight rim cut off by the panel's edge (owner, 22 Oct 2026).
+                .scaleEffect(1 - 0.05 * min(amount, 1.5) * abs(offset))
                 .offset(y: -14 * amount * offset * abs(offset))
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.78), value: focused)
@@ -659,6 +667,20 @@ struct SettingsCard<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("simpleMotion") private var simpleMotion = false
     private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
+    @Environment(\.panelCarry) private var panelCarry
+
+    private var titleHold: some Gesture {
+        LongPressGesture(minimumDuration: 0.3)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .onChanged { value in
+                guard let panelCarry, case .second(true, let drag) = value else { return }
+                panelCarry.moved(drag?.translation ?? .zero)
+            }
+            .onEnded { value in
+                guard let panelCarry else { return }
+                if case .second(true, let drag?) = value { panelCarry.ended(drag.translation) } else { panelCarry.ended(nil) }
+            }
+    }
 
     private var tint: Color { AppColor.chosen(appColor) }
 
@@ -981,4 +1003,11 @@ struct CarriedShape: ViewModifier {
                 .appGlass(.capsule)
         }
     }
+}
+
+/// What holding and dragging a card's title bar does: moves the panel it's in.
+struct PanelCarry {
+    var moved: (CGSize) -> Void
+    /// The final distance, or nil if it was let go without moving.
+    var ended: (CGSize?) -> Void
 }

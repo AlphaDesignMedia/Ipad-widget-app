@@ -38,23 +38,23 @@ enum Tweak: String, CaseIterable, Identifiable {
 
     var standard: Double {
         switch self {
-        // The owner's picks from Design Tweaks, 21 Oct 2026.
-        case .panel: 41
-        case .gap: 22
-        case .cardPadding: 22
-        case .rowSpacing: 11
+        // The owner's picks from Design Tweaks, 21 Oct 2026 (evening).
+        case .panel: 42
+        case .gap: 29
+        case .cardPadding: 29
+        case .rowSpacing: 14
         // Breathing-room pass, 21 Oct 2026 (see DESIGN_SYSTEM.md, Spacing).
-        case .panelEdge: 22
-        case .titleBar: 18
-        case .footer: 14
-        case .bubble: 10
-        case .chip: 12
-        case .shimmer: 0.45
-        case .rim: 0.7
-        case .frost: 1.85
-        case .focus: 1.35
-        case .wiggle: 1.65
-        case .lean: 1.1
+        case .panelEdge: 29
+        case .titleBar: 23
+        case .footer: 18
+        case .bubble: 13
+        case .chip: 16
+        case .shimmer: 1.0
+        case .rim: 0.9
+        case .frost: 1.75
+        case .focus: 2.0
+        case .wiggle: 0.25
+        case .lean: 1.2
         }
     }
 
@@ -144,7 +144,7 @@ enum OneRowControls {
 }
 
 struct DesignTweaksPanel: View {
-    @AppStorage(CarryStyle.key) private var carry = CarryStyle.card
+    @AppStorage(CarryStyle.key) private var carry = CarryStyle.lift
     @AppStorage(OneRowControls.key) private var oneRow = false
     @AppStorage(Tweak.panel.key) private var panel = Tweak.panel.standard
     @AppStorage(Tweak.gap.key) private var gap = Tweak.gap.standard

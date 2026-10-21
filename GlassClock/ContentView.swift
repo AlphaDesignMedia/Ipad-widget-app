@@ -159,6 +159,10 @@ struct ContentView: View {
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.45, dampingFraction: 0.82))) private var settingsMove = CGSize.zero
     @GestureState private var settingsHeld = false
+    /// The settings being carried by a card's title bar (see `PanelCarry`).
+    @State private var titleCarry: CGSize?
+    private var carriedSettings: CGSize { settingsMove != .zero ? settingsMove : (titleCarry ?? .zero) }
+    private var settingsLifted: Bool { settingsHeld || titleCarry != nil }
     @GestureState private var groupsHeld = false
     /// Where the finger carrying the groups is, in the window.
     @GestureState private var groupsFinger: CGPoint?
@@ -182,7 +186,7 @@ struct ContentView: View {
     /// The same for the groups. Each panel keeps its own size, so pinching one leaves the other
     /// alone (owner direction, 2026-10-21).
     @AppStorage("groupsTextSize") private var groupsTextStep = 1
-    @AppStorage(CarryStyle.key) private var carryStyle = CarryStyle.card
+    @AppStorage(CarryStyle.key) private var carryStyle = CarryStyle.lift
     @AppStorage(OneRowControls.key) private var oneRowControls = false
     /// Which bubble shows when the widget's controls are one row: 0 style, 1 size, 2 backdrop.
     @State private var controlsPage = 0
@@ -460,7 +464,9 @@ struct ContentView: View {
                         .zIndex(draggingCard || editingWidget ? 2 : 0)
 
                     // The stage's labels and buttons, over the widget so it never hides them.
-                    AnyView(previewStage(measures: false))
+                    // Only labels in Panels, so it lets taps through: it covered the top bar and
+                    // swallowed taps on Classic (owner report, 22 Oct 2026).
+                    AnyView(previewStage(measures: false)).allowsHitTesting(false)
                         .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                         .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
                         .offset(x: rubberBand(panelDrag))
@@ -501,19 +507,6 @@ struct ContentView: View {
                 }
                 .overlay(alignment: .topLeading) {
                     if showsSidebar && !groupsFree { AnyView(attachedGroups(in: geometry.size)) }
-                }
-                // Design Tweaks floats over everything at the top, so the app stays in view
-                // while the sliders move.
-                .overlay(alignment: .top) {
-                    if showsTweaks {
-                        DesignTweaksPanel {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = false }
-                        }
-                        .background { GlassAmount.backing(glassAmount, in: .rect(cornerRadius: Corner.panel)) }
-                        .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
-                        .padding(.top, Space.small)
-                        .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
-                    }
                 }
                 .overlay(alignment: settingsLeading ? .leading : .trailing) {
                     if !showsInspector {
@@ -713,7 +706,7 @@ struct ContentView: View {
                 }
             }
             .shimmer(trigger: selected, in: Capsule())
-            .scaleEffect((selected ? 1.04 : 1) * scrubGrowth(section), anchor: iconsOnly ? .center : .leading)
+            .scaleEffect(scrubGrowth(section), anchor: iconsOnly ? .center : .leading)
             .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.75), value: scrubY)
             .contentShape(.capsule)
         }
@@ -866,7 +859,7 @@ struct ContentView: View {
             .zIndex(sidebarMove == .zero ? 0 : 1)
             // The same bar along the top as the settings panel: drag it to move the panel, or
             // hold anywhere for a moment, then drag (owner idea, 2026-10-21: one way for both).
-            .overlay(alignment: .top) { groupsGrabber(area: area) }
+            // (The grab bar is gone, owner 22 Oct 2026: hold anywhere on the groups, then drag.)
             .simultaneousGesture(groupsHoldAndDrag(area: area))
             .sensoryFeedback(.impact(weight: .medium), trigger: groupsHeld) { _, held in held }
             .overlay(alignment: .top) { textSizeOverlay(.groups) }
@@ -888,7 +881,7 @@ struct ContentView: View {
             .overlay(alignment: .top) { textSizeOverlay(.settings) }
             // A grabber along the top to pick the settings up and put them somewhere else; the
             // list itself still scrolls as normal.
-            .overlay(alignment: .top) { panelGrabber(area: area) }
+            // (No grab bar, owner 22 Oct 2026: hold a card's title bar, then drag; see PanelCarry.)
             // Or hold anywhere on the panel for a moment, then drag: a quick swipe still scrolls.
             // (Holding anywhere on the panel to move it stopped segmented controls inside from
             // answering taps, 2026-10-21: usability first, so it moves by its bar only.)
@@ -898,15 +891,25 @@ struct ContentView: View {
             .modifier(PanelFocus(active: activePanel == nil || activePanel == .settings, strength: tweakFocus))
             .sensoryFeedback(.impact(weight: .medium), trigger: settingsHeld) { _, held in held }
             .frame(width: width)
-            .modifier(CarriedShape(carried: settingsMove != .zero || StressTest.carried, style: carryStyle,
+            .modifier(CarriedShape(carried: carriedSettings != .zero || StressTest.carried, style: carryStyle,
                                    icon: selectedSection?.icon ?? "slider.horizontal.3",
                                    title: selectedSection?.title ?? "Settings", simple: reduceMotion))
             // Lifts when it's picked up, like a widget on the Home Screen.
-            .scaleEffect(settingsMove == .zero && !settingsHeld ? 1 : 1.025)
-            .shadow(color: .black.opacity(settingsMove == .zero && !settingsHeld ? 0 : 0.2), radius: 22, y: 12)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: settingsHeld)
-            .offset(settingsMove)
-            .zIndex(settingsMove == .zero ? 0 : 1)
+            .scaleEffect(carriedSettings == .zero && !settingsLifted ? 1 : 1.025)
+            .shadow(color: .black.opacity(carriedSettings == .zero && !settingsLifted ? 0 : 0.2), radius: 22, y: 12)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: settingsLifted)
+            .offset(carriedSettings)
+            .zIndex(carriedSettings == .zero ? 0 : 1)
+            .environment(\.panelCarry, PanelCarry(
+                moved: { titleCarry = $0 },
+                ended: { moved in
+                    if let moved {
+                        placePanel(groups: false, at: CGPoint(x: inspectorRect.midX + moved.width,
+                                                              y: inspectorRect.minY + 40 + moved.height), in: area)
+                    }
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { titleCarry = nil }
+                }))
+            .sensoryFeedback(.impact(weight: .medium), trigger: titleCarry != nil) { _, lifted in lifted }
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { inspectorRect = $0 }
             .transition(panelTransition(leading ? .leading : .trailing))
     }
@@ -963,9 +966,9 @@ struct ContentView: View {
     /// Where a carried panel would settle, as an outline (in the panels' space).
     private func panelDropHint(in area: CGSize, settingsWidth: CGFloat) -> CGRect? {
         let carryingGroups = sidebarMove != .zero
-        guard carryingGroups || settingsMove != .zero else { return nil }
+        guard carryingGroups || carriedSettings != .zero else { return nil }
         let base = carryingGroups ? sidebarRect : inspectorRect
-        let move = carryingGroups ? sidebarMove : settingsMove
+        let move = carryingGroups ? sidebarMove : carriedSettings
         // Over the widget or the settings: where it would stick on.
         if carryingGroups, let finger = groupsFinger, let target = attachmentTarget(at: finger) {
             let frame = railFrame(for: target, size: railSize)
@@ -1282,12 +1285,6 @@ struct ContentView: View {
         if interface == .panels {
             ToolbarItem(placement: .topBarLeading) { fullScreenButton.tint(iconsOnGlass) }
             ToolbarItem(placement: .topBarLeading) { arrangeMenu.tint(iconsOnGlass) }
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Design Tweaks", systemImage: "slider.horizontal.3") {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks.toggle() }
-                }
-                .tint(iconsOnGlass)
-            }
         }
         ToolbarItem(placement: .principal) { interfaceSwitch }
         ToolbarItem(placement: .primaryAction) { refreshButton.tint(iconsOnGlass) }
@@ -1347,12 +1344,9 @@ struct ContentView: View {
         }
         .pickerStyle(.segmented)
         .frame(width: 220)
-        .opacity(switchSettled ? 0.6 : 1)
-        // Lined up over the widget's controls rather than the middle of the window.
-        .offset(x: interface == .panels && stageRect != .zero
-                // Kept clear of the buttons on either side.
-                ? max(min(0, 330 - windowWidth / 2), min(max(0, windowWidth / 2 - 490), stageRect.midX - windowWidth / 2)) : 0)
-        .animation(.smooth(duration: 0.5), value: stageRect.midX)
+        .opacity(switchSettled ? 0.75 : 1)
+        // (It used to slide sideways to line up with the widget, but its tap area stayed behind,
+        // so Classic couldn't be tapped; owner report, 22 Oct 2026. It stays in the middle.)
         .animation(.easeInOut(duration: 0.8), value: switchSettled)
         .task(id: interface) {
             switchSettled = false
@@ -1488,7 +1482,7 @@ struct ContentView: View {
                 // picker (2026-10-21). Size changes still animate.
                 .transaction(value: homeScreen) { $0.animation = nil }
         }
-        .overlay { if editingWidget { cornerHighlights(scale: scale) } }
+        // (The glass corner highlights while editing are gone, owner 22 Oct 2026.)
         // A small glass tag on the bottom edge, so the preview isn't mistaken for the real
         // widget (HIG: Widgets), and it travels with it (owner feedback, 2026-10-21).
         .overlay(alignment: .bottom) {
@@ -1820,6 +1814,19 @@ struct ContentView: View {
             }
         }
         .tint(AppColor.resolve(appColor))
+        // Design Tweaks floats over everything at the top, in Classic and Panels alike, so the
+        // app stays in view while the sliders move. Opened from App settings.
+        .overlay(alignment: .top) {
+            if showsTweaks {
+                DesignTweaksPanel {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = false }
+                }
+                .background { GlassAmount.backing(glassAmount, in: .rect(cornerRadius: Corner.panel)) }
+                .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
+                .padding(.top, 70)
+                .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
+            }
+        }
         .preferredColorScheme(appColorScheme)
         .environment(\.homeLook, appTheme == .home ? settledHomeScreen : nil)
         .fontDesign(bodyDesign)
@@ -2060,11 +2067,11 @@ struct ContentView: View {
                                 focus(section(at: location))
                             }
                         }
+                        // Hold it and it lifts with a gentle wiggle; then pinch or drag it. No
+                        // corner handles or glass corners any more (owner, 22 Oct 2026).
                         .onLongPressGesture(minimumDuration: 0.45) {
                             if interface == .panels, !editingWidget { setEditingWidget(true) }
                         } onPressingChanged: { pressing in
-                            // The tap that comes with lifting the finger arrives straight
-                            // away; after that, taps count again.
                             guard !pressing, ignoresNextCardTap else { return }
                             Task {
                                 try? await Task.sleep(for: .milliseconds(300))
@@ -2072,10 +2079,6 @@ struct ContentView: View {
                             }
                         }
                         .gesture(cardGesture(grid: grid, home: home, span: span))
-                        .sensoryFeedback(.impact(weight: .medium), trigger: editingWidget) { _, on in on }
-                        .accessibilityAction(named: editingWidget ? "Done editing" : "Edit widget") {
-                            setEditingWidget(!editingWidget)
-                        }
                         .sensoryFeedback(.impact(weight: .light), trigger: draggingCard)
                         .sensoryFeedback(.selection, trigger: landing.column * 100 + landing.row)
                         .accessibilityHint("Drag to move it on the Home Screen grid. Pinch to change the widget size.")
@@ -2968,6 +2971,10 @@ struct ContentView: View {
             Picker("When the widget is moved under a panel", selection: $panelsMakeWay) {
                 ForEach(PanelsMakeWay.allCases) { Text($0.label).tag($0) }
             }
+            Button("Design Tweaks…") {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = true }
+            }
+            .buttonStyle(.borderless)
             groupLabel("Widget")
             Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
             // Borderless, so each button answers only its own taps now the group is one card.
