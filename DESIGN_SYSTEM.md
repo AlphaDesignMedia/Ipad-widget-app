@@ -352,6 +352,10 @@ If we ever need a different layout per mode:
 - **Backdrop changes slide** (`.push` from below for a swipe up or a menu pick, from above for a swipe down) and show the backdrop's name on a glass capsule for 1.3 s.
 - **Refresh Widget** (arrow in the top bar) reloads the widget with the applied style; the widget also reloads whenever the app becomes active.
 
+### 6.3e My Home Screen (2026-10-21)
+
+iPadOS doesn't tell apps the Home Screen style, and a widget can't reliably tell either (it's pre-drawn in every style: the logs showed fullColor and accented renders for the same reload). So the person says once (`MyHomeScreen`: Light or Dark (Automatic), Light, Dark, Clear, Tinted; asked in a glass bubble under the Home Screen picker until set, and in Panels → Clear and Tinted Home Screens). The preview opens on it and follows the iPad between Light and Dark when it's Automatic. Previewing any other style shows "Previewing X. Your Home Screen is Y." with **Show Mine**, and how to change the style on the iPad.
+
 ### 6.4 Settings controls
 
 Use **standard** SwiftUI controls inside a `Form`: `Slider`, `Toggle`, `Picker(.segmented)` and plain `Button`s for the swatches. They get Liquid Glass when someone touches them, plus full accessibility behaviour, for free. **Don't** add `glassEffect` to them.

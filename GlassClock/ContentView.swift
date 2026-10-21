@@ -46,6 +46,11 @@ struct ContentView: View {
     @State private var namingPreset = false
     @State private var previewSize = PreviewSize.medium
     @State private var homeScreen = HomeScreenStyle.light
+    /// The Home Screen style the person actually uses; the preview opens on it.
+    @AppStorage("myHomeScreen") private var myHomeScreen = MyHomeScreen.unknown
+    /// The iPad's own appearance (the views below override theirs for the preview).
+    @Environment(\.colorScheme) private var systemColorScheme
+    private var mine: HomeScreenStyle? { myHomeScreen.style(in: systemColorScheme) }
     @AppStorage("workspaceLayout") private var layout = WorkspaceLayout.automatic
     @AppStorage("previewBackdrop") private var backdrop = PreviewBackdrop.plain
     @AppStorage("interfaceStyle") private var interface = InterfaceStyle.classic
@@ -111,6 +116,18 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showsTour, onDismiss: { hasSeenTour = true }) {
             OnboardingView()
+        }
+        .onAppear {
+            if let mine { homeScreen = mine }
+        }
+        .onChange(of: myHomeScreen) {
+            if let mine { withAnimation(.snappy) { homeScreen = mine } }
+        }
+        .onChange(of: systemColorScheme) { old, _ in
+            // Following the iPad between Light and Dark, unless another style is being tried.
+            if myHomeScreen == .automatic, homeScreen == MyHomeScreen.automatic.style(in: old), let mine {
+                withAnimation(.snappy) { homeScreen = mine }
+            }
         }
         .onAppear {
             // A style passed in for testing (debug builds only) is applied, so the widget shows it too.
@@ -603,6 +620,7 @@ struct ContentView: View {
             VStack(spacing: Space.large) {
                 Spacer(minLength: 0)
                 homeScreenBubble
+                myHomeScreenNote
                 // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets).
                 Text("Preview")
                     .font(.footnote.weight(.semibold))
@@ -722,6 +740,70 @@ struct ContentView: View {
             .padding(.horizontal, Space.small)
             .padding(.vertical, Space.small)
             .appGlass(.capsule)
+    }
+
+    /// Under the Home Screen picker: a question until the person says which style they use,
+    /// then a quiet confirmation, or a nudge when they're previewing a different style.
+    @ViewBuilder
+    private var myHomeScreenNote: some View {
+        Group {
+            if mine == nil {
+                bubble {
+                    myHomeScreenMenu {
+                        HStack(spacing: Space.small) {
+                            Image(systemName: "questionmark.circle.fill")
+                            Text("Which Home Screen style do you use?")
+                            Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold))
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, Space.small)
+                        .padding(.vertical, 6)
+                    }
+                }
+            } else if let mine, homeScreen != mine {
+                VStack(spacing: 6) {
+                    bubble {
+                        HStack(spacing: Space.small) {
+                            Image(systemName: "info.circle.fill").foregroundStyle(.tint)
+                            Text("Previewing \(homeScreen.rawValue). Your Home Screen is \(mine.rawValue).")
+                                .font(.subheadline)
+                            Button("Show Mine") { withAnimation(.snappy) { homeScreen = mine } }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                        }
+                        .padding(.leading, Space.small)
+                    }
+                    Text("To use \(homeScreen.rawValue) on your iPad: long-press the Home Screen, tap Edit, then Customise.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+            } else {
+                bubble {
+                    myHomeScreenMenu {
+                        Label("Your Home Screen", systemImage: "checkmark.circle.fill")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, Space.small)
+                            .padding(.vertical, 2)
+                    }
+                }
+            }
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        .animation(.snappy, value: homeScreen)
+        .animation(.snappy, value: myHomeScreen)
+    }
+
+    private func myHomeScreenMenu(@ViewBuilder label: () -> some View) -> some View {
+        Menu {
+            Picker("My Home Screen", selection: $myHomeScreen) {
+                ForEach(MyHomeScreen.allCases.filter { $0 != .unknown }) { Text($0.label).tag($0) }
+            }
+        } label: {
+            label()
+        }
+        .accessibilityLabel("My Home Screen style: \(myHomeScreen.label)")
     }
 
     private var homeScreenBubble: some View {
@@ -976,6 +1058,9 @@ struct ContentView: View {
             slider("Transparency", value: $style.cardOpacity, in: ClockStyle.cardOpacityRange, low: "Clear", high: "Solid")
 
         case .homeScreens:
+            Picker("My Home Screen", selection: $myHomeScreen) {
+                ForEach(MyHomeScreen.allCases) { Text($0.label).tag($0) }
+            }
             Toggle("Keep time colours", isOn: $style.keepsTimeColours)
             Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
             Toggle("Keep card colours", isOn: $style.keepsCardColours)

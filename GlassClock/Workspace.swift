@@ -236,3 +236,34 @@ extension View {
         modifier(AppGlass(shape: shape, interactive: interactive, tint: tint))
     }
 }
+
+/// The Home Screen style the person uses. iPadOS doesn't tell apps (and a widget is pre-drawn
+/// in every style, so it can't tell either), so the person says once and the preview opens on
+/// it. Automatic is Light or Dark following the iPad's appearance.
+enum MyHomeScreen: String, CaseIterable, Identifiable {
+    case unknown, automatic, light, dark, clear, tinted
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .unknown: "Not set"
+        case .automatic: "Light or Dark (Automatic)"
+        case .light: "Light"
+        case .dark: "Dark"
+        case .clear: "Clear"
+        case .tinted: "Tinted"
+        }
+    }
+
+    /// The preview style that matches, for the iPad's current appearance. Nil until it's set.
+    func style(in colorScheme: ColorScheme) -> HomeScreenStyle? {
+        switch self {
+        case .unknown: nil
+        case .automatic: colorScheme == .dark ? .dark : .light
+        case .light: .light
+        case .dark: .dark
+        case .clear: .clear
+        case .tinted: .tinted
+        }
+    }
+}
