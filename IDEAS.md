@@ -38,6 +38,7 @@ _Last updated 21 Oct 2026._
 | Idea | Status | Notes |
 |---|---|---|
 | Classic (simple) and Panels (customisable) interfaces, quick switch | ✅ | Classic stays plain and functional. |
+| Smooth animation between Classic and Panels: panels glide and reshape instead of jumping | ⬜ | For the future. |
 | Left panel jumps to and highlights a group in the right list | ✅ | |
 | Collapsible icon sidebar; double-tap hides both panels | ✅ | |
 | Pinch the clock to change widget size | ✅ | |
@@ -75,6 +76,12 @@ _Last updated 21 Oct 2026._
 | Overnight work while you sleep | 🟡 | Scheduled tasks have been used before. Set up again when needed. |
 | Reminder: set up a keep-awake app (like Caffeine/Amphetamine) on your Mac | ⬜ | So overnight work isn't stopped by sleep. |
 | You were listing settings you flick between often | ⬜ | The message got cut off. Tell me the rest when you can. |
+
+## Side projects (not Glass Clock)
+
+| Idea | Status | Notes |
+|---|---|---|
+| Claude usage tracker and optimiser | 💤 | Shows what's used and what's left. Suggests ways to get more done with less: batch small requests, compact sooner, a cheaper model for simple jobs, big work overnight. |
 
 ## Design tools: suggestion
 
