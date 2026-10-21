@@ -77,7 +77,9 @@ _Last updated 21 Oct 2026._
 | Your Design Tweaks picks are the defaults (corners 41, gaps 22, frost 1.85, focus 1.35, wiggle 1.65, lean 1.10) | ✅ | 21 Oct. |
 | Readable frost everywhere: resting cards and the groups panel keep enough frost for text | ✅ | 21 Oct. |
 | Focus effect across the UI: the panel in use comes forward, the other steps back; selected group is bright glass with a rim and a sweep of light; jumped-to cards get a rim and shimmer; the widget shines on Apply | ✅ | 21 Oct. |
-| **Match my Home Screen**: the app's own glass follows your Home Screen style (Light, Dark, Clear, Tinted with your tint), so the whole app feels like your Home Screen and the preview is exact | ⬜ | Your direction, 21 Oct. Next. |
+| **Match my Home Screen**: the app's own glass follows your Home Screen style (Light, Dark, Clear, Tinted with your tint), so the whole app feels like your Home Screen and the preview is exact | ✅ | 21 Oct. App and Widget → App look → Home Screen. Tinted uses your App colour as the tint. |
+| More Design Tweaks: card padding, row spacing, shimmer, highlight rim | ✅ | 21 Oct. Shimmer toned down by default. |
+| The "Preview" label could look better | ⬜ | 21 Oct, to discuss. |
 | **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
 | Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |
 | More backdrops in the spirit of Apple's wallpapers | ⬜ | Your request, 21 Oct. Next up. |

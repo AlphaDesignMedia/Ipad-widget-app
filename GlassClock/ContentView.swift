@@ -117,6 +117,8 @@ struct ContentView: View {
     @Namespace private var groupSelection
     @AppStorage(Tweak.frost.key) private var tweakFrost = Tweak.frost.standard
     @AppStorage(Tweak.focus.key) private var tweakFocus = Tweak.focus.standard
+    @AppStorage(Tweak.rim.key) private var tweakRim = Tweak.rim.standard
+    @AppStorage(Tweak.cardPadding.key) private var tweakCardPadding = Tweak.cardPadding.standard
     /// Which panel is being used: it comes forward and the other steps back a little, like the
     /// cards in the settings (owner direction, 2026-10-21: the focus effect everywhere).
     @State private var activePanel: ActivePanel?
@@ -176,15 +178,7 @@ struct ContentView: View {
     }
 
     var body: some View {
-        Group {
-            switch interface {
-            case .classic: classicInterface.transition(interfaceTransition)
-            case .panels: panelsInterface.transition(interfaceTransition)
-            }
-        }
-        .tint(AppColor.resolve(appColor))
-        .preferredColorScheme(appAppearance.colorScheme)
-        .animation(.smooth, value: appTheme)
+        themedInterface
         .photosPicker(isPresented: $choosingPhoto, selection: $photoItem, matching: .images)
         .onChange(of: photoItem) {
             Task {
@@ -520,7 +514,7 @@ struct ContentView: View {
         // Frosted like the cards, so its labels read on any backdrop (owner feedback,
         // 2026-10-21: clear glass looked lovely but wasn't readable).
         .background {
-            if appTheme == .glass && !reducesGlass {
+            if appTheme.isGlassy && !reducesGlass {
                 GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .rect(cornerRadius: Corner.panel))
             }
         }
@@ -554,8 +548,8 @@ struct ContentView: View {
             // 2026-10-21) rather than a fill of colour.
             .background {
                 if selected {
-                    Capsule().fill(.white.opacity(0.55))
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.9), lineWidth: 1))
+                    Capsule().fill(.background.opacity(0.6))
+                        .overlay(Capsule().strokeBorder(.white.opacity(tweakRim), lineWidth: 1))
                         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
                         .matchedGeometryEffect(id: "group selection", in: groupSelection)
                 }
@@ -722,7 +716,7 @@ struct ContentView: View {
             .clipShape(.rect(cornerRadius: Corner.panel))
             // In the Glass theme there's no panel behind the cards: each card is its own window
             // of glass, apart from the others by the gap between them (owner direction, 2026-10-21).
-            .modifier(PanelBacking(clear: appTheme == .glass && !reducesGlass))
+            .modifier(PanelBacking(clear: appTheme.isGlassy && !reducesGlass))
             .overlay(alignment: .top) { textSizeOverlay }
             // A grabber along the top to pick the settings up and put them somewhere else; the
             // list itself still scrolls as normal.
@@ -950,7 +944,7 @@ struct ContentView: View {
     /// Icons on the clear glass toolbar: black or white to suit the backdrop in the Glass theme
     /// (see `AppGlass`), so they never blend into a backdrop of the same colour.
     private var iconsOnGlass: Color? {
-        appTheme == .glass && !reducesGlass ? .primary : nil
+        appTheme.isGlassy && !reducesGlass ? .primary : nil
     }
 
     /// Classic (simple) or Panels (everything), always one tap away in the middle of the top bar.
@@ -1263,6 +1257,32 @@ struct ContentView: View {
     private func endTour() {
         withAnimation(.smooth(duration: 0.35)) { showsTour = false }
         hasSeenTour = true
+    }
+
+    /// The interface in the app's look and colours.
+    private var themedInterface: some View {
+        Group {
+            switch interface {
+            case .classic: classicInterface.transition(interfaceTransition)
+            case .panels: panelsInterface.transition(interfaceTransition)
+            }
+        }
+        .tint(AppColor.resolve(appColor))
+        .preferredColorScheme(appColorScheme)
+        .environment(\.homeLook, appTheme == .home ? homeScreen : nil)
+        .animation(.smooth, value: appTheme)
+        .animation(.smooth, value: homeScreen)
+    }
+
+    /// The app's Light or Dark: from Appearance, or from the Home Screen being matched (Dark
+    /// and Tinted Home Screens are dark; Clear follows Appearance).
+    private var appColorScheme: ColorScheme? {
+        guard appTheme == .home else { return appAppearance.colorScheme }
+        switch homeScreen {
+        case .light: return .light
+        case .dark, .tinted: return .dark
+        case .clear: return appAppearance.colorScheme
+        }
     }
 
     /// Brings the tour back, for a refresher or to show someone.
@@ -1722,7 +1742,7 @@ struct ContentView: View {
     /// feedback, 2026-10-21: consistency).
     @ViewBuilder
     private func bubbleBacking(_ shape: some Shape) -> some View {
-        if appTheme == .glass && !reducesGlass {
+        if appTheme.isGlassy && !reducesGlass {
             GlassAmount.backing(glassAmount, in: shape)
         }
     }
@@ -2085,7 +2105,7 @@ struct ContentView: View {
             }
             .pickerStyle(.segmented)
             .disabled(reducesGlass)
-            if appTheme == .glass && !reducesGlass {
+            if appTheme.isGlassy && !reducesGlass {
                 slider("Glass", value: $glassAmount, in: 0...1, low: "Frosted", high: "Clear")
             }
             VStack(alignment: .leading, spacing: 8) {

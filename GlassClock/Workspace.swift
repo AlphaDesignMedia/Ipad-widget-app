@@ -212,7 +212,10 @@ struct FlowLayout: Layout {
 /// "super glassy… but really focus on contrast"). Frosted is the standard, more opaque Liquid
 /// Glass; Colour tints it with the app colour.
 enum AppTheme: String, CaseIterable, Identifiable {
-    case glass, frosted, colour
+    /// `home` matches the Home Screen style being previewed: Light and Dark set the app's
+    /// appearance, Clear is clear glass, and Tinted tints the glass with the app colour (owner
+    /// direction, 2026-10-21: the app should feel like your own Home Screen).
+    case glass, frosted, colour, home
     var id: Self { self }
 
     var label: String {
@@ -220,8 +223,17 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .glass: "Glass"
         case .frosted: "Frosted"
         case .colour: "Colour"
+        case .home: "Home Screen"
         }
     }
+
+    /// Clear glass with frosted cards: the Glass look, which My Home Screen builds on.
+    var isGlassy: Bool { self == .glass || self == .home }
+}
+
+/// The Home Screen style the app's own glass follows, when the app look is My Home Screen.
+extension EnvironmentValues {
+    @Entry var homeLook: HomeScreenStyle?
 }
 
 /// Light, Dark, or following the iPad.
@@ -265,6 +277,7 @@ enum AppColor {
 /// instead, so the design doesn't lean on glass (HIG: Accessibility, Materials).
 struct AppGlass<S: Shape>: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @Environment(\.homeLook) private var homeLook
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var theme = AppTheme.glass
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
@@ -290,17 +303,20 @@ struct AppGlass<S: Shape>: ViewModifier {
                 // it between black and white to suit what's behind, which the primary colour
                 // does, so in the Glass theme icons and labels on glass use it. Selected items
                 // keep their colour on a solid fill, and the settings cards set their own tint.
-                .tint(theme == .glass && tint == nil ? Color.primary : nil)
+                .tint(theme.isGlassy && tint == nil ? Color.primary : nil)
                 .glassEffect(glass.interactive(interactive), in: shape)
         }
     }
 
     private var glass: Glass {
         if let tint { return .regular.tint(tint) }
+        if theme == .home, homeLook == .tinted {
+            return .clear.tint(AppColor.chosen(appColor).opacity(panel ? 0.3 : 0.38))
+        }
         switch theme {
         // Clear all the way; readability comes from the frosted cards inside panels
         // (`SettingsCard`) rather than from tinting the glass.
-        case .glass: return .clear
+        case .glass, .home: return .clear
         case .frosted: return .regular
         case .colour: return .regular.tint(AppColor.resolve(appColor).opacity(panel ? 0.22 : 0.3))
         }
@@ -319,7 +335,7 @@ enum Corner {
     /// The cards of settings inside a panel.
     static var card: CGFloat { max(4, panel - inset) }
     /// Padding inside a card, around its rows.
-    static let cardPadding: CGFloat = 22
+    static var cardPadding: CGFloat { CGFloat(Tweak.cardPadding.value) }
 }
 
 /// One group of settings as a card on its panel, its rows split by thin lines. In the Glass
@@ -337,6 +353,9 @@ struct SettingsCard<Content: View>: View {
     @AppStorage(Tweak.gap.key) private var tweakGap = Tweak.gap.standard
     @AppStorage(Tweak.frost.key) private var frost = Tweak.frost.standard
     @AppStorage(Tweak.focus.key) private var focusStrength = Tweak.focus.standard
+    @AppStorage(Tweak.cardPadding.key) private var tweakCardPadding = Tweak.cardPadding.standard
+    @AppStorage(Tweak.rowSpacing.key) private var rowSpacing = Tweak.rowSpacing.standard
+    @AppStorage(Tweak.rim.key) private var rim = Tweak.rim.standard
     /// The group's title, tucked inside the top of the card (owner feedback, 2026-10-21).
     var title: String?
     var icon: String?
@@ -351,7 +370,7 @@ struct SettingsCard<Content: View>: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Corner.card, style: .continuous)
-        let glassy = theme == .glass && !systemReducesTransparency && !reducesGlass
+        let glassy = theme.isGlassy && !systemReducesTransparency && !reducesGlass
         VStack(alignment: .leading, spacing: 0) {
             if let title {
                 Label {
@@ -366,7 +385,7 @@ struct SettingsCard<Content: View>: View {
             }
             Group(subviews: content) { rows in
                 ForEach(rows) { row in
-                    row.padding(.vertical, 11)
+                    row.padding(.vertical, rowSpacing)
                     if row.id != rows.last?.id { Divider() }
                 }
             }
@@ -402,7 +421,7 @@ struct SettingsCard<Content: View>: View {
         // Jumped to from the groups: a bright rim and a sweep of light across the glass,
         // rather than a wash of colour (owner direction, 2026-10-21).
         .overlay {
-            shape.strokeBorder(.white.opacity(highlighted ? 0.85 : 0), lineWidth: 1.5)
+            shape.strokeBorder(.white.opacity(highlighted ? rim : 0), lineWidth: 1.5)
                 .animation(.easeOut(duration: 0.3), value: highlighted)
         }
         .shimmer(trigger: highlighted, in: shape)
@@ -448,7 +467,7 @@ struct PanelLabelBacking: ViewModifier {
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
 
     func body(content: Content) -> some View {
-        if theme == .glass && !systemReducesTransparency && !reducesGlass {
+        if theme.isGlassy && !systemReducesTransparency && !reducesGlass {
             // Pills, like the app's other small controls.
             content
                 .padding(.horizontal, 12)
@@ -484,6 +503,8 @@ enum GlassAmount {
 /// Glass amount slider moves towards Frosted.
 private struct GlassBacking<S: Shape>: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.homeLook) private var homeLook
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     var amount: Double
     var shape: S
 
@@ -491,6 +512,10 @@ private struct GlassBacking<S: Shape>: View {
         ZStack {
             shape.fill(colorScheme == .dark ? Color.black : .white)
                 .opacity(0.16 + 0.26 * (1 - amount))
+            // A Tinted Home Screen's glass carries the tint all through.
+            if homeLook == .tinted {
+                shape.fill(AppColor.chosen(appColor).opacity(0.32))
+            }
             // Thins out towards the Clear end too, so Clear is properly see-through
             // (owner feedback, 2026-10-21), while still keeping a little frost behind text.
             shape.fill(.ultraThinMaterial).opacity(1 - 0.4 * amount)
@@ -633,15 +658,17 @@ struct Shimmer<S: Shape>: ViewModifier {
     var trigger: Bool
     var shape: S
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// How bright the sweep is (Design Tweaks).
+    @AppStorage(Tweak.shimmer.key) private var strength = Tweak.shimmer.standard
 
     func body(content: Content) -> some View {
         content.overlay {
-            if !reduceMotion {
+            if !reduceMotion && strength > 0 {
                 GeometryReader { proxy in
                     Color.clear
                         .keyframeAnimator(initialValue: -0.6, trigger: trigger) { view, x in
                             view.overlay {
-                                LinearGradient(colors: [.white.opacity(0), .white.opacity(0.55), .white.opacity(0)],
+                                LinearGradient(colors: [.white.opacity(0), .white.opacity(0.9 * strength), .white.opacity(0)],
                                                startPoint: .leading, endPoint: .trailing)
                                     .frame(width: max(60, proxy.size.width * 0.35))
                                     .rotationEffect(.degrees(18))
