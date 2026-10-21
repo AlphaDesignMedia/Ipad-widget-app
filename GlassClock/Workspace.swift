@@ -297,13 +297,14 @@ struct AppGlass<S: Shape>: ViewModifier {
 /// rounded by the panel's radius minus the gap between them, so their curves run parallel.
 enum Corner {
     /// The floating panels.
-    static let panel: CGFloat = 34
-    /// The gap between a panel's edge and the cards inside it.
-    static let inset: CGFloat = 12
+    static let panel: CGFloat = 36
+    /// The gap between a panel's edge and the cards inside it, and between cards, so the
+    /// spacing reads as one even rhythm.
+    static let inset: CGFloat = 16
     /// The cards of settings inside a panel.
     static let card: CGFloat = panel - inset
     /// Padding inside a card, around its rows.
-    static let cardPadding: CGFloat = 16
+    static let cardPadding: CGFloat = 18
 }
 
 /// One group of settings as a card on its panel, its rows split by thin lines. In the Glass
@@ -314,20 +315,46 @@ struct SettingsCard<Content: View>: View {
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var theme = AppTheme.glass
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    @Environment(\.colorScheme) private var colorScheme
+    /// The group's title, tucked inside the top of the card (owner feedback, 2026-10-21).
+    var title: String?
+    var icon: String?
     var highlighted = false
+    /// A short note at the bottom of the card.
+    var footer: String?
     @ViewBuilder var content: Content
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Corner.card, style: .continuous)
         let glassy = theme == .glass && !systemReducesTransparency && !reducesGlass
         VStack(alignment: .leading, spacing: 0) {
+            if let title {
+                Label {
+                    Text(title).foregroundStyle(highlighted ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                } icon: {
+                    if let icon { Image(systemName: icon).foregroundStyle(.tint) }
+                }
+                .font(.title3.weight(.semibold))
+                .padding(.top, 16)
+                .padding(.bottom, 6)
+                .accessibilityAddTraits(.isHeader)
+            }
             Group(subviews: content) { rows in
                 ForEach(rows) { row in
                     row.padding(.vertical, 11)
                     if row.id != rows.last?.id { Divider() }
                 }
             }
+            if let footer {
+                Text(footer)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 14)
+            }
         }
+        // Tinted text (buttons, values) is lightened in Dark so it stays readable on the glass.
+        .tint(colorScheme == .dark ? tint.mix(with: .white, by: 0.35) : tint)
         .padding(.horizontal, Corner.cardPadding)
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -343,6 +370,8 @@ struct SettingsCard<Content: View>: View {
         }
         .modifier(CardGlass(on: glassy, shape: shape))
     }
+
+    private var tint: Color { AppColor.resolve(appColor) }
 }
 
 private struct CardGlass<S: Shape>: ViewModifier {
@@ -388,9 +417,24 @@ enum GlassAmount {
 
     /// The frosted backing behind text: a thin frost always, plus a thicker one that fades out
     /// as the amount goes up.
-    @ViewBuilder
     static func backing<S: Shape>(_ amount: Double, in shape: S) -> some View {
+        GlassBacking(amount: amount, shape: shape)
+    }
+}
+
+/// Contrast comes first (owner direction, 2026-10-21): glass is a fun effect, never a reason
+/// text can't be read. So under the frost there's always a light wash in Light and a dark
+/// wash in Dark, pushing the backdrop away from the text's colour, a little more as the
+/// Glass amount slider moves towards Frosted.
+private struct GlassBacking<S: Shape>: View {
+    @Environment(\.colorScheme) private var colorScheme
+    var amount: Double
+    var shape: S
+
+    var body: some View {
         ZStack {
+            shape.fill(colorScheme == .dark ? Color.black : .white)
+                .opacity(0.22 + 0.2 * (1 - amount))
             shape.fill(.ultraThinMaterial)
             shape.fill(.regularMaterial).opacity(1 - amount)
         }

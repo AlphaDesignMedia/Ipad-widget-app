@@ -27,6 +27,12 @@ _Last updated 21 Oct 2026._
 | Expand the fonts a little and think more about theming | ⬜ | |
 | Your favourite font, AM/PM style and effect as defaults | ✅ | |
 | App themes (Glass, Frosted, Colour), app colour, Light/Dark | ✅ | |
+| **Glass transitions** like unlocking the iPad or pulling down Notification Centre (blur and refraction sweeping across) | ⬜ | Your idea, 21 Oct. Lean into glass. Ask you to confirm a reference first. |
+| Change the app's overall font slightly | ⬜ | Ask which feel you want (rounded, condensed, serif headings). |
+| Section titles tucked inside their boxes; a more spacious layout | ✅ | 21 Oct. Keep refining with references. |
+| Light/Dark/Clear/Tinted options with tiny icons | ✅ | Our own drawing. A proper logo may come later. |
+| **Contrast always comes first**: glass is a fun effect, never unreadable | 🟡 | Contrast wash behind the glass, lighter tints in Dark. Keep checking. |
+| Tools (style, size and backdrop controls) follow the widget as you move it | ⬜ | Needs a quick check on what you mean. |
 | Glass that bends the clock and text around its edges, or moves with motion | ⬜ | You liked a glimpse of this. Shimmer was ruled out (it would freeze the widget). |
 | **Background generator**: one or two sliders make a unique abstract glass backdrop, plus Lucky | ⬜ | Your idea from 21 Oct. Doable with shaders. A good next big feature. |
 | Preset photo backdrops in the spirit of Apple's wallpapers | 🟡 | Gradient backdrops exist. Real photos not yet (the Earth photo needs the file). |

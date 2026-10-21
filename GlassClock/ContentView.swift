@@ -429,27 +429,18 @@ struct ContentView: View {
                 }
                 ForEach(SettingsSection.allCases) { section in
                     Section {
-                        SettingsCard(highlighted: highlighted == section) { sectionContent(section) }
-                            .settingsCardRow()
-                    } header: {
-                        Label(section.title, systemImage: section.icon)
-                            .font(.headline)
-                            .foregroundStyle(highlighted == section ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, highlighted == section ? 10 : 0)
-                            .background(highlighted == section ? Color.accentColor.opacity(0.14) : .clear, in: .capsule)
-                            .panelLabelBacking()
-                            .textCase(nil)
-                            .accessibilityAddTraits(.isHeader)
-                            .id(section)
-                    } footer: {
-                        if let footer = section.footer { Text(footer).panelLabelBacking() }
+                        SettingsCard(title: section.title, icon: section.icon,
+                                     highlighted: highlighted == section, footer: section.footer) {
+                            sectionContent(section)
+                        }
+                        .settingsCardRow()
+                        .id(section)
                     }
                 }
             }
             .scrollContentBackground(.hidden)
-            .listSectionSpacing(Space.large)
-            .contentMargins(.horizontal, Corner.inset, for: .scrollContent)
+            .listSectionSpacing(Corner.inset)
+            .contentMargins([.horizontal, .top], Corner.inset, for: .scrollContent)
             .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
             .task(id: focusRequest) {
                 guard focusRequest > 0, let target = selectedSection else { return }
@@ -1034,11 +1025,8 @@ struct ContentView: View {
 
     private var homeScreenBubble: some View {
         bubble {
-            Picker("Home Screen style", selection: $homeScreen) {
-                ForEach(HomeScreenStyle.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
+            HomeStylePicker(selection: $homeScreen)
+                .frame(maxWidth: 440)
         }
     }
 
@@ -1100,15 +1088,8 @@ struct ContentView: View {
         Form {
             ForEach(SettingsSection.classic) { section in
                 Section {
-                    SettingsCard { sectionContent(section, simple: true) }
+                    SettingsCard(title: section.title, icon: section.icon) { sectionContent(section, simple: true) }
                         .settingsCardRow()
-                } header: {
-                    Label(section.title, systemImage: section.icon)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .panelLabelBacking()
-                        .textCase(nil)
-                        .accessibilityAddTraits(.isHeader)
                 }
             }
             Section {
@@ -1138,8 +1119,8 @@ struct ContentView: View {
                 .wrappedInSettingsCard()
             }
         }
-        .listSectionSpacing(Space.large)
-        .contentMargins(.horizontal, Corner.inset, for: .scrollContent)
+        .listSectionSpacing(Corner.inset)
+        .contentMargins([.horizontal, .top], Corner.inset, for: .scrollContent)
         .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
     }
 
