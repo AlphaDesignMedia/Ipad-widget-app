@@ -28,12 +28,17 @@ struct HomeStylePicker: View {
                     .frame(maxWidth: .infinity)
                     .background {
                         if selected {
+                            // Bright glass with a light rim, like every other selection in
+                            // the app (owner direction, 2026-10-21), rather than a solid tile.
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color(uiColor: .systemBackground))
+                                .fill(.background.opacity(0.6))
+                                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .strokeBorder(.white.opacity(Tweak.rim.value), lineWidth: 1))
                                 .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
                                 .matchedGeometryEffect(id: "selection", in: selectionSpace)
                         }
                     }
+                    .shimmer(trigger: selected, in: .rect(cornerRadius: 16, style: .continuous))
                     .contentShape(.rect(cornerRadius: 16))
                 }
                 .buttonStyle(.plain)
@@ -76,6 +81,8 @@ struct HomeStyleIcon: View {
                 .foregroundStyle(glyph)
         }
         .frame(width: size, height: size)
+        // A soft shadow keeps each icon apart from a background of the same colour.
+        .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
         .accessibilityHidden(true)
     }
 

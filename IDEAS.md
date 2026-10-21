@@ -79,6 +79,11 @@ _Last updated 21 Oct 2026._
 | Focus effect across the UI: the panel in use comes forward, the other steps back; selected group is bright glass with a rim and a sweep of light; jumped-to cards get a rim and shimmer; the widget shines on Apply | ✅ | 21 Oct. |
 | **Match my Home Screen**: the app's own glass follows your Home Screen style (Light, Dark, Clear, Tinted with your tint), so the whole app feels like your Home Screen and the preview is exact | ✅ | 21 Oct. App and Widget → App look → Home Screen. Tinted uses your App colour as the tint. |
 | More Design Tweaks: card padding, row spacing, shimmer, highlight rim | ✅ | 21 Oct. Shimmer toned down by default. |
+| Backdrop change as a carousel that follows the finger 1:1, rounded edges, soft blurred gap (no white or black edges) | ✅ | 21 Oct. |
+| Settings cards ease back and drift together as they scroll, like a carousel (3D tilt tried and dropped: it tore the glass edges) | ✅ | 21 Oct. |
+| Selected Home Screen style tile is bright glass with a rim and a shine; style icons have a soft shadow | ✅ | 21 Oct. |
+| **App text matches the clock font** (rounded, serif or mono), with a switch to turn it off | ✅ | 21 Oct. App and Widget, under Reduce glass. An experiment: tell me if you keep it. |
+| **Preset photo backdrops**: a few simple, basic images | ⬜ | 21 Oct. Send me some images and I'll add them. |
 | The "Preview" label could look better | ⬜ | 21 Oct, to discuss. |
 | **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
 | Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |

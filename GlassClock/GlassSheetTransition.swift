@@ -33,8 +33,8 @@ struct CarouselSlide: ViewModifier, Animatable {
             let p = min(1, max(0, progress))
             content
                 .frame(width: geometry.size.width, height: geometry.size.height)
-                .clipShape(.rect(cornerRadius: 44 * min(1, p * 4), style: .continuous))
-                .scaleEffect(1 - 0.08 * p)
+                .clipShape(.rect(cornerRadius: 36 * min(1, p * 4), style: .continuous))
+                .scaleEffect(1 - 0.05 * p)
                 .offset(y: edge * p * geometry.size.height)
         }
     }

@@ -124,6 +124,7 @@ struct ContentView: View {
     @State private var activePanel: ActivePanel?
     @State private var activePanelReset: Task<Void, Never>?
     @State private var appliedShine = false
+    @AppStorage("matchesClockFont") private var matchesClockFont = true
     /// Where the widget is on screen, for the guided tour.
     @State private var widgetRect = CGRect.zero
     /// The groups panel's dock, while the panel is closed: which side it's on and how far down
@@ -1273,6 +1274,8 @@ struct ContentView: View {
         .tint(AppColor.resolve(appColor))
         .preferredColorScheme(appColorScheme)
         .environment(\.homeLook, appTheme == .home ? homeScreen : nil)
+        .fontDesign(matchesClockFont ? style.font.appDesign(roundness: style.roundness) : nil)
+        .animation(.smooth, value: style.font)
         .animation(.smooth, value: appTheme)
         .animation(.smooth, value: homeScreen)
     }
@@ -1634,8 +1637,11 @@ struct ContentView: View {
         ZStack {
             // While a new backdrop is being pulled in, it waits underneath, settling from
             // slightly zoomed as the old one lifts away.
-            // The stage the backdrops slide across, seen in the gap between them.
-            Color(white: 0.06)
+            // The stage the backdrops slide across, seen in the gap between them: a soft blur
+            // of the backdrop itself, so there's never a hard black edge.
+            backdropFill(backdrop)
+                .blur(radius: 40)
+                .scaleEffect(1.2)
                 .zIndex(-2e12)
             // While a new backdrop is being pulled in, it slides in from the edge alongside the
             // current one, growing to full size, like the next card on a carousel.
@@ -2128,6 +2134,9 @@ struct ContentView: View {
                 ForEach(AppAppearance.allCases) { Text($0.label).tag($0) }
             }
             Toggle("Reduce glass", isOn: $reducesGlass)
+            // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's
+            // style. Off keeps the standard system text, for anyone who finds that easier to read.
+            Toggle("App text matches the clock font", isOn: $matchesClockFont)
             groupLabel("Widget")
             Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
             // Borderless, so each button answers only its own taps now the group is one card.
@@ -2397,5 +2406,19 @@ struct PanelFocus: ViewModifier {
         content
             .opacity(active ? 1 : max(0.75, 1 - 0.15 * strength))
             .scaleEffect(active || reduceMotion ? 1 : 1 - 0.012 * strength)
+    }
+}
+
+extension ClockFont {
+    /// The system text design closest to this clock font, for the app's own text when it
+    /// matches the clock: rounded, serif, monospaced, or the standard design.
+    func appDesign(roundness: Double) -> Font.Design {
+        switch self {
+        case .sfRounded: .rounded
+        case .newYork: .serif
+        case .sfMono: .monospaced
+        case .googleSansFlex: roundness > 0.5 ? .rounded : .default
+        case .sf, .robotoFlex: .default
+        }
     }
 }
