@@ -299,12 +299,13 @@ struct SettingsRowBackground: View {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var theme = AppTheme.glass
+    @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     var highlighted = false
 
     var body: some View {
         ZStack {
             if theme == .glass && !systemReducesTransparency && !reducesGlass {
-                Rectangle().fill(.regularMaterial)
+                GlassAmount.backing(glassAmount, in: Rectangle())
             } else {
                 Rectangle().fill(.background.secondary)
             }
@@ -320,15 +321,33 @@ struct PanelLabelBacking: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var theme = AppTheme.glass
+    @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
 
     func body(content: Content) -> some View {
         if theme == .glass && !systemReducesTransparency && !reducesGlass {
+            // Pills, like the app's other small controls.
             content
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(.regularMaterial, in: .rect(cornerRadius: 12))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background { GlassAmount.backing(glassAmount, in: Capsule()) }
         } else {
             content
+        }
+    }
+}
+
+/// How clear the Glass theme is (owner request, 2026-10-21): 0 is the frosted backing rows had
+/// before, 1 is the clearest that still keeps text readable, a very thin frost over the glass.
+enum GlassAmount {
+    static let standard = 0.5
+
+    /// The frosted backing behind text: a thin frost always, plus a thicker one that fades out
+    /// as the amount goes up.
+    @ViewBuilder
+    static func backing<S: Shape>(_ amount: Double, in shape: S) -> some View {
+        ZStack {
+            shape.fill(.ultraThinMaterial)
+            shape.fill(.regularMaterial).opacity(1 - amount)
         }
     }
 }
@@ -368,6 +387,74 @@ enum MyHomeScreen: String, CaseIterable, Identifiable {
         case .dark: .dark
         case .clear: .clear
         case .tinted: .tinted
+        }
+    }
+}
+
+extension PreviewSize {
+    /// How many Home Screen slots the widget covers, across and down. A slot is a Small widget.
+    var span: (columns: Int, rows: Int) {
+        switch self {
+        case .small: (1, 1)
+        case .medium: (2, 1)
+        case .large: (2, 2)
+        case .extraLarge: (4, 2)
+        }
+    }
+}
+
+/// A Home Screen-style grid of widget slots filling the preview area. The spacing is iPadOS's:
+/// a Small widget is 170 pt and a Medium one 378.5 pt, which puts slots 208.5 pt apart with a
+/// 38.5 pt gap (HIG widget sizes for the 13-inch iPad), so every size lines up exactly.
+struct HomeGrid {
+    static let slot: CGFloat = 170
+    static let gap: CGFloat = 38.5
+
+    let columns: Int
+    let rows: Int
+    let step: CGFloat
+    let gap: CGFloat
+    let origin: CGPoint
+
+    /// - Parameter scale: below 1 when the area is too small for the widget at its real size.
+    init(area: CGSize, scale: CGFloat) {
+        step = (Self.slot + Self.gap) * scale
+        gap = Self.gap * scale
+        columns = max(1, Int((area.width + gap) / step))
+        rows = max(1, Int((area.height + gap) / step))
+        let width = CGFloat(columns) * step - gap, height = CGFloat(rows) * step - gap
+        origin = CGPoint(x: (area.width - width) / 2, y: (area.height - height) / 2)
+    }
+
+    /// The frame of a widget covering `span` slots from `column`, `row`.
+    func frame(column: Int, row: Int, span: (columns: Int, rows: Int)) -> CGRect {
+        CGRect(x: origin.x + CGFloat(column) * step, y: origin.y + CGFloat(row) * step,
+               width: CGFloat(span.columns) * step - gap, height: CGFloat(span.rows) * step - gap)
+    }
+
+    /// The nearest position where a widget of `span` fits, for a widget centred at `point`.
+    /// A widget too big for the grid sits at its centre (and spills over evenly).
+    func nearest(to point: CGPoint, span: (columns: Int, rows: Int)) -> (column: Int, row: Int) {
+        func axis(_ value: CGFloat, start: CGFloat, count: Int, size: Int) -> Int {
+            guard count >= size else { return 0 }
+            let leading = (value - start - (CGFloat(size) * step - gap) / 2) / step
+            return min(count - size, max(0, Int(leading.rounded())))
+        }
+        return (axis(point.x, start: origin.x, count: columns, size: span.columns),
+                axis(point.y, start: origin.y, count: rows, size: span.rows))
+    }
+
+    /// A stored position kept inside the grid; -1 (never placed) means the middle.
+    func clamped(column: Int, row: Int, span: (columns: Int, rows: Int)) -> (column: Int, row: Int) {
+        let maxColumn = max(0, columns - span.columns), maxRow = max(0, rows - span.rows)
+        return (column < 0 ? maxColumn / 2 : min(column, maxColumn),
+                row < 0 ? maxRow / 2 : min(row, maxRow))
+    }
+
+    /// Frames of every empty slot, for the outlines shown while dragging.
+    var slotFrames: [CGRect] {
+        (0..<rows).flatMap { row in
+            (0..<columns).map { column in frame(column: column, row: row, span: (1, 1)) }
         }
     }
 }

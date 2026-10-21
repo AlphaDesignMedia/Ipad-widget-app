@@ -39,6 +39,7 @@ struct ContentView: View {
     /// Swaps the app's glass panels for solid ones (also follows Reduce Transparency).
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var appTheme = AppTheme.glass
+    @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     @AppStorage("appAppearance") private var appAppearance = AppAppearance.automatic
     @Environment(\.scenePhase) private var scenePhase
@@ -74,6 +75,15 @@ struct ContentView: View {
     /// The group that's briefly lit up after a jump.
     @State private var highlighted: SettingsSection?
     @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var clockPinch: CGFloat = 1
+    /// Where the widget sits on the preview's Home Screen grid (-1: the middle), remembered.
+    @AppStorage("widgetColumn") private var widgetColumn = -1
+    @AppStorage("widgetRow") private var widgetRow = -1
+    /// How far the widget has been dragged from its slot, while it's being moved.
+    @GestureState private var cardDrag: CGSize = .zero
+    @State private var draggingCard = false
+    /// Panel swipes are ignored for a moment after a widget drag, so moving the widget
+    /// doesn't also open or close a panel.
+    @State private var swipesPausedUntil = Date.distantPast
     /// How big the settings' text and rows are, as a step through `textSizes`. Pinch the
     /// settings to change it.
     @AppStorage("settingsTextSize") private var textSizeStep = 1
@@ -313,6 +323,12 @@ struct ContentView: View {
         }
     }
 
+    /// Moves the widget one slot (for VoiceOver's actions).
+    private func moveWidget(_ dx: Int, _ dy: Int, grid: HomeGrid, slot: (column: Int, row: Int)) {
+        let next = grid.clamped(column: slot.column + dx, row: slot.row + dy, span: previewSize.span)
+        withAnimation(.snappy) { widgetColumn = next.column; widgetRow = next.row }
+    }
+
     /// Clears both panels away for a full view of the clock, or brings them both back.
     private func toggleBothPanels() {
         withAnimation(reduceMotion ? nil : .snappy) {
@@ -541,16 +557,43 @@ struct ContentView: View {
     }
 
     /// Pinching the clock out steps up through the widget sizes, pinching in steps down.
-    private var clockPinchGesture: some Gesture {
+    /// One gesture for the widget: two fingers pinch it to the next size up or down, one finger
+    /// drags it to another slot on the grid. They're one gesture because a pinch moves too, and a
+    /// separate drag would steal it.
+    private func cardGesture(grid: HomeGrid, home: CGRect, span: (columns: Int, rows: Int)) -> some Gesture {
         MagnifyGesture()
-            .updating($clockPinch) { value, state, _ in state = value.magnification }
+            .simultaneously(with: DragGesture(minimumDistance: 8))
+            .updating($clockPinch) { value, state, _ in
+                if let pinch = value.first { state = pinch.magnification }
+            }
+            .updating($cardDrag) { value, state, _ in
+                if value.first == nil, let drag = value.second { state = drag.translation }
+            }
+            .onChanged { value in
+                if value.first == nil, value.second != nil, !draggingCard {
+                    withAnimation(.snappy) { draggingCard = true }
+                }
+            }
             .onEnded { value in
-                let sizes = PreviewSize.allCases
-                guard let index = sizes.firstIndex(of: previewSize) else { return }
-                let m = value.magnification
-                let step = m > 1.15 ? (m > 1.9 ? 2 : 1) : m < 0.87 ? (m < 0.55 ? -2 : -1) : 0
-                let next = min(sizes.count - 1, max(0, index + step))
-                withAnimation(.bouncy) { previewSize = sizes[next] }
+                swipesPausedUntil = .now.addingTimeInterval(0.4)
+                if let pinch = value.first {
+                    let sizes = PreviewSize.allCases
+                    guard let index = sizes.firstIndex(of: previewSize) else { return }
+                    let m = pinch.magnification
+                    let step = m > 1.15 ? (m > 1.9 ? 2 : 1) : m < 0.87 ? (m < 0.55 ? -2 : -1) : 0
+                    let next = min(sizes.count - 1, max(0, index + step))
+                    withAnimation(.bouncy) { previewSize = sizes[next]; draggingCard = false }
+                } else if let drag = value.second {
+                    let end = CGPoint(x: home.midX + drag.translation.width, y: home.midY + drag.translation.height)
+                    let target = grid.nearest(to: end, span: span)
+                    withAnimation(reduceMotion ? nil : .bouncy(duration: 0.4)) {
+                        widgetColumn = target.column
+                        widgetRow = target.row
+                        draggingCard = false
+                    }
+                } else {
+                    draggingCard = false
+                }
             }
     }
 
@@ -706,10 +749,12 @@ struct ContentView: View {
     private var panelSwipe: some Gesture {
         DragGesture(minimumDistance: 24)
             .updating($panelDrag) { drag, state, _ in
-                // Leans only for sideways drags, so scrolling up and down doesn't wobble.
-                if abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
+                // Leans only for sideways drags, so scrolling up and down doesn't wobble, and not
+                // while the widget itself is being moved.
+                if !draggingCard, abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
             }
             .onEnded { drag in
+                guard !draggingCard, Date.now > swipesPausedUntil else { return }
                 let dx = drag.translation.width, dy = drag.translation.height
                 // Up and down flick through the backdrops (not Your Photo, which opens a picker).
                 if abs(dy) > 60, abs(dy) > abs(dx) * 1.5 {
@@ -761,36 +806,74 @@ struct ContentView: View {
                     .textCase(.uppercase)
                     .foregroundStyle(.secondary)
 
-                // The card keeps the real widget's proportions, shrunk to fit narrow windows. It's
-                // drawn at that size rather than drawn full size and scaled down: scaling turned
-                // the glass into a blurry picture (owner feedback, 2026-10-20).
+                // The card keeps the real widget's size (shrunk only if the window is too small),
+                // on a Home Screen-style grid: drag it to another slot and it snaps there, like
+                // moving a widget on the Home Screen. It's drawn at its size rather than scaled
+                // down: scaling turned the glass into a blurry picture (owner feedback, 2026-10-20).
                 GeometryReader { space in
                     let card = previewSize.size
                     let scale = min(1, space.size.width / card.width, space.size.height / card.height)
-                    TimelineView(.everyMinute) { context in
-                        ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
-                                  simulatesClear: !homeScreen.showsKeptColours)
-                            .padding(16 * scale)
-                            .frame(width: card.width * scale, height: card.height * scale)
-                            .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28 * scale), homeScreen: homeScreen))
-                            .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
-                            // Grows and shrinks with the fingers while pinching, then settles on
-                            // the nearest widget size.
-                            .scaleEffect(reduceMotion ? 1 : min(1.6, max(0.6, clockPinch)))
-                            .contentShape(.rect)
-                            // Double-tap clears the panels away (as on the rest of the preview);
-                            // a single tap in Panels goes straight to the fonts.
-                            .onTapGesture(count: 2) { if interface == .panels { toggleBothPanels() } }
-                            .onTapGesture {
-                                if interface == .panels { focus(.fonts) }
+                    let grid = HomeGrid(area: space.size, scale: scale)
+                    let span = previewSize.span
+                    let slot = grid.clamped(column: widgetColumn, row: widgetRow, span: span)
+                    let home = grid.frame(column: slot.column, row: slot.row, span: span)
+                    let centre = CGPoint(x: home.midX + cardDrag.width, y: home.midY + cardDrag.height)
+                    let landing = grid.nearest(to: centre, span: span)
+                    ZStack(alignment: .topLeading) {
+                        // While dragging: the empty slots, and where the widget will land.
+                        if draggingCard {
+                            ForEach(Array(grid.slotFrames.enumerated()), id: \.offset) { _, frame in
+                                RoundedRectangle(cornerRadius: 22 * scale)
+                                    .fill(.white.opacity(0.08))
+                                    .strokeBorder(.white.opacity(0.25), lineWidth: 1)
+                                    .frame(width: frame.width, height: frame.height)
+                                    .position(x: frame.midX, y: frame.midY)
                             }
-                            .gesture(clockPinchGesture)
-                            .accessibilityHint("Pinch to change the widget size")
+                            let target = grid.frame(column: landing.column, row: landing.row, span: span)
+                            RoundedRectangle(cornerRadius: 28 * scale)
+                                .fill(.white.opacity(0.18))
+                                .strokeBorder(.white.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                                .frame(width: target.width, height: target.height)
+                                .position(x: target.midX, y: target.midY)
+                                .animation(.snappy, value: landing.column)
+                                .animation(.snappy, value: landing.row)
+                        }
+                        TimelineView(.everyMinute) { context in
+                            ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
+                                      simulatesClear: !homeScreen.showsKeptColours)
+                                .padding(16 * scale)
+                                .frame(width: card.width * scale, height: card.height * scale)
+                                .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28 * scale), homeScreen: homeScreen))
+                                .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
+                                // Lifts while it's being moved, like a widget on the Home Screen.
+                                .scaleEffect(draggingCard && !reduceMotion ? 1.04 : 1)
+                                .shadow(color: .black.opacity(draggingCard ? 0.3 : 0), radius: 24, y: 12)
+                                // Grows and shrinks with the fingers while pinching, then settles
+                                // on the nearest widget size.
+                                .scaleEffect(reduceMotion ? 1 : min(1.6, max(0.6, clockPinch)))
+                                .contentShape(.rect)
+                                // Double-tap clears the panels away (as on the rest of the preview);
+                                // a single tap in Panels goes straight to the fonts.
+                                .onTapGesture(count: 2) { if interface == .panels { toggleBothPanels() } }
+                                .onTapGesture {
+                                    if interface == .panels { focus(.fonts) }
+                                }
+                                .gesture(cardGesture(grid: grid, home: home, span: span))
+                                .sensoryFeedback(.impact(weight: .light), trigger: draggingCard)
+                                .sensoryFeedback(.selection, trigger: landing.column * 100 + landing.row)
+                                .accessibilityHint("Drag to move it on the Home Screen grid. Pinch to change the widget size.")
+                                .accessibilityAction(named: "Move left") { moveWidget(-1, 0, grid: grid, slot: slot) }
+                                .accessibilityAction(named: "Move right") { moveWidget(1, 0, grid: grid, slot: slot) }
+                                .accessibilityAction(named: "Move up") { moveWidget(0, -1, grid: grid, slot: slot) }
+                                .accessibilityAction(named: "Move down") { moveWidget(0, 1, grid: grid, slot: slot) }
+                        }
+                        .position(x: centre.x, y: centre.y)
                     }
                     .frame(width: space.size.width, height: space.size.height)
                 }
-                // No taller than the card itself, so the controls stay close to it.
-                .frame(maxHeight: previewSize.size.height)
+                // In Panels the preview is a Home Screen to move the widget around; in Classic
+                // it's no taller than the card, so the controls stay close to it.
+                .frame(maxHeight: interface == .panels ? .infinity : previewSize.size.height)
                 .animation(.smooth, value: previewSize)
                 .sensoryFeedback(.selection, trigger: previewSize)
                 .zIndex(1)
@@ -1234,6 +1317,9 @@ struct ContentView: View {
             }
             .pickerStyle(.segmented)
             .disabled(reducesGlass)
+            if appTheme == .glass && !reducesGlass {
+                slider("Glass", value: $glassAmount, in: 0...1, low: "Frosted", high: "Clear")
+            }
             VStack(alignment: .leading, spacing: 8) {
                 Text("App colour")
                 swatchRow(selection: Binding(
