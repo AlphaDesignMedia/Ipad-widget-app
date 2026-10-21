@@ -73,7 +73,7 @@ _Last updated 21 Oct 2026._
 | Buttons and labels over the preview always sit above the widget | ✅ | 21 Oct. |
 | **Design tweaks panel**: live sliders on the iPad for corners, gaps, frost, focus strength, wiggle and lean, so you can tune the feel yourself and send me the numbers | ✅ | 21 Oct. Sliders button at the top left; Copy Values, then paste them to me. |
 | Hold anywhere on the settings panel, then drag, to move it; widget re-centres when panels move; backdrop picker follows the widget; carousel-style cards with no blur; roomier card padding | ✅ | 21 Oct. |
-| **Guided tour / beginner mode**: annotated first-run guide to every gesture, easy to skip, with a "Keep it simple" option that goes straight to Classic | 🟡 | Your idea again, 21 Oct. In progress. |
+| **Guided tour / beginner mode**: annotated first-run guide to every gesture, easy to skip, with a "Keep it simple" option that goes straight to Classic | ✅ | 21 Oct. Spotlight glides over the real app: widget, settings, groups, backdrop swipe, toolbar. Replay with the ? button. New users now start in Panels. |
 | **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
 | Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |
 | More backdrops in the spirit of Apple's wallpapers | ⬜ | Your request, 21 Oct. Next up. |
@@ -94,7 +94,7 @@ _Last updated 21 Oct 2026._
 
 | Idea | Status | Notes |
 |---|---|---|
-| Onboarding as annotations over the real app, not pop-ups | 🟡 | Tour exists, with a button to replay it. Could be richer. |
+| Onboarding as annotations over the real app, not pop-ups | ✅ | 21 Oct: the guided tour. |
 | **Beginner mode**: gentle hints that tell you what to try, switch off any time to learn it yourself (like Procreate) | ⬜ | Goes with the proper onboarding. |
 | Reduce glass setting, following iPadOS | ✅ | |
 | Accessibility simplifications | ⬜ | You said "later". |
