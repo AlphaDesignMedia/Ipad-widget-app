@@ -139,6 +139,10 @@ struct ContentView: View {
     @AppStorage("matchesClockFont") private var matchesClockFont = true
     /// Where the widget is on screen, for the guided tour.
     @State private var widgetRect = CGRect.zero
+    /// Where the controls above and below the widget are, in the window, so the stuck-on groups
+    /// line up with the whole widget group rather than just the card.
+    @State private var controlsAboveRect = CGRect.zero
+    @State private var controlsBelowRect = CGRect.zero
     /// The groups panel's dock, while the panel is closed: which side it's on and how far down
     /// (0…1), remembered, and how far it's being dragged.
     @AppStorage("dockOnTrailing") private var dockOnTrailing = false
@@ -985,15 +989,23 @@ struct ContentView: View {
     /// What the groups would stick to if let go at `point` (in the window).
     private func attachmentTarget(at point: CGPoint) -> GroupsAttachment? {
         guard interface == .panels else { return nil }
-        if widgetRect.insetBy(dx: -24, dy: -24).contains(point) { return .widget }
+        if widgetGroupRect.insetBy(dx: -24, dy: -24).contains(point) { return .widget }
         if showsInspector, inspectorRect.contains(point) { return .settings }
         return nil
+    }
+
+    /// The widget together with the controls riding above and below it, in the window.
+    private var widgetGroupRect: CGRect {
+        guard widgetRect != .zero else { return .zero }
+        return [controlsAboveRect, controlsBelowRect]
+            .filter { $0 != .zero && controlsFollowWidget }
+            .reduce(widgetRect) { $0.union($1) }
     }
 
     /// Where the stuck-on groups sit, in the window: beside the side of the widget or settings
     /// that faces the middle, or the side with more room.
     private func railFrame(for target: GroupsAttachment, size: CGSize) -> CGRect {
-        let anchor = target == .widget ? widgetRect : inspectorRect
+        let anchor = target == .widget ? widgetGroupRect : inspectorRect
         guard anchor != .zero else { return .zero }
         let onLeft = anchor.midX > windowWidth / 2
         let gap: CGFloat = 10
@@ -1006,7 +1018,7 @@ struct ContentView: View {
     /// them. Push it in and it slides away to a small tab against the edge; pull the tab and it
     /// slides back out, like Slide Over. Pull it well away and it comes off as its own panel.
     private func attachedGroups(in area: CGSize) -> some View {
-        let anchor = groupsAttachment == .widget ? widgetRect : inspectorRect
+        let anchor = groupsAttachment == .widget ? widgetGroupRect : inspectorRect
         let onLeft = anchor.midX > windowWidth / 2
         let tab = CGSize(width: 14, height: 86)
         let size = groupsTucked ? tab : railSize
@@ -1892,11 +1904,15 @@ struct ContentView: View {
                         .overlay(alignment: .top) {
                             if controlsFollowWidget && (controlsSplit || controlsAbove) {
                                 floatingControls(top: true, all: !controlsSplit, above: true)
+                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { controlsAboveRect = $0 }
+                                    .onDisappear { controlsAboveRect = .zero }
                             }
                         }
                         .overlay(alignment: .bottom) {
                             if controlsFollowWidget && (controlsSplit || !controlsAbove) {
                                 floatingControls(top: controlsSplit ? false : true, all: !controlsSplit, above: false)
+                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { controlsBelowRect = $0 }
+                                    .onDisappear { controlsBelowRect = .zero }
                             }
                         }
                         .animation(.smooth, value: controlsSplit)
