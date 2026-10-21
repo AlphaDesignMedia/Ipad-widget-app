@@ -60,6 +60,17 @@ C. **Glass effect styles (plan + try one).** The owner loved a look where the gl
    can't sample the wallpaper or run glassEffect, so widget versions must be drawn. Add the
    best one as a new option and write the others up as a short plan in the Morning summary.
 
+D. **Background generator (owner idea, ~1:20 a.m.; do after A–C, only if time — otherwise
+   write a short design for the morning).** A generated abstract "light sculpture" behind the
+   clock, in the spirit of light passing through glass (think Apple's "Air" artwork — make
+   something original, not a copy). Keep it simple: a random seed plus ONE or TWO sliders
+   (e.g. "Flow" for how swirly/complex, "Glow" for how soft/bright) and a palette from the
+   clock's colours. I'm Feeling Lucky rerolls the seed. In the app it can be a live SwiftUI
+   shader / MeshGradient. In the widget it must be a still image made ONCE per style (never per
+   minute — archive limit), drawn with Core Graphics/Core Image like ClockRaster (ImageRenderer
+   left widgets blank on iPadOS 27), used as the card background in full-colour mode; on
+   Clear/Tinted it only shows if kept as `.fullColor` and clipped (see B).
+
 ## Tonight's work (in order)
 
 1. **Panels as the fun, interactive mode** (the big one — "really cook on this").
