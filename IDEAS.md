@@ -140,3 +140,5 @@ you. The other option is to send screenshots with scribbles on them, which works
 - [x] Panels move aside when the widget is moved under them (option: Tuck away instead).
 - [ ] Suggestions like the Home Screen question, elsewhere: small prompts that point people at the setting they probably want next.
 - [x] Accessibility group (Simpler effects, Reduce glass, clock-font text, panel text size); shorter group names (App, Home Screens).
+- [ ] Pinch to resize text per panel only (in afternoon plan), and more direct-touch interactions like it.
+- [ ] Graceful window resizing (Stage Manager, windowed vs full screen): panels and grid adapt without struggling.

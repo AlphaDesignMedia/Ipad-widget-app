@@ -61,6 +61,12 @@ small, bite-sized groups; repeating an option in two places is fine.
     count. Make it obvious: e.g. a tiny widget-shaped glyph with "12" in the clock's font and
     colour, bolder, or go back to a clear symbol if that reads better. Check it at a glance.
   - Plain and Aurora looked identical on Clear/Tinted: fixed (Plain is now slate there); check it.
+- P0d. **Pinch per panel (owner, 1:35 p.m.).** Pinching to change text size should only change the
+  panel being pinched (groups and settings each keep their own size; store them separately).
+  Then try a few more direct-touch interactions in the same spirit, each small and optional, e.g.
+  pinch a settings card to collapse/expand it, two-finger swipe on the groups to hide them,
+  pinch the backdrop to zoom a photo. Keep the ones that feel natural; note the rest in IDEAS.md.
+  Nothing may stop a plain tap from working.
 - P1. **Tap audit (most important after P0).** In the simulator, tap every segmented control, toggle,
   picker, slider and button in every settings group, in Panels and Classic, in Glass/Frosted/
   Colour/Home Screen looks. Wait 2 s before each screenshot (the screen redraws late). Earlier
@@ -84,6 +90,10 @@ small, bite-sized groups; repeating an option in two places is fine.
 - P6. **Small polish**: Classic top and bottom padding; group names short; check every bubble's
   contrast on every backdrop (including the new pattern ones and Midnight); check Simpler effects
   really stops wiggle, lean, shimmer, carousel and fading.
+- Later (not this afternoon unless everything above is done): panels struggle when the window
+  is resized (Stage Manager / windowed vs full screen). Look for a more elegant layout that adapts
+  smoothly (panels collapse to strips or tabs in narrow windows, the grid rescales without jumps).
+  Log findings in IDEAS.md.
 - Do not attempt: a see-through window over the Home Screen; changes to the widget extension's
   look beyond what's asked.
 
