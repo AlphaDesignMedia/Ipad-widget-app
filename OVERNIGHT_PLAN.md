@@ -17,7 +17,23 @@ Everything before this section is done or superseded. The owner's newest directi
 Simpler effects), and every control must answer a plain tap. Keep names short and the settings in
 small, bite-sized groups; repeating an option in two places is fine.
 
-- P1. **Tap audit (most important).** In the simulator, tap every segmented control, toggle,
+- P0. **Crashes and slowdowns (owner report, 1:20 p.m.): top priority.** Tapping Light, Dark,
+  Clear and Tinted in the Home Screen picker above the widget sometimes stutters badly or crashes
+  on the iPad. Find the cause and fix it before anything else:
+  - Get the crash logs: from the iPad (`xcrun devicectl device info files` / copy the crash
+    reports, or `idevicecrashreport` if installed) and from the simulator
+    (~/Library/Logs/DiagnosticReports, files starting GlassClock). Read the stack trace.
+  - Reproduce in the simulator: tap through all four quickly, many times, in each app look
+    (Glass, Frosted, Colour, Home Screen) and on a mesh and a pattern backdrop.
+  - Suspects to check: the app's colour scheme flipping (Home Screen look follows the style), which
+    redraws everything at once; ClockRaster's image cache growing per style/scheme; the drawn
+    pattern backdrops (Canvas) and MeshGradient redrawing on every change; many `.animation`
+    modifiers and glassEffects animating together; onGeometryChange loops (widgetRect, railSize,
+    groupFrames, stageRect) feeding state back into layout; the Shimmer keyframes restarting.
+  - Use Instruments if useful (`xcrun xctrace record --template "Time Profiler"` against the
+    simulator app) to find what's slow.
+  - Fix, then tap through 50+ times without a hitch. Write what it was in Progress.
+- P1. **Tap audit (most important after P0).** In the simulator, tap every segmented control, toggle,
   picker, slider and button in every settings group, in Panels and Classic, in Glass/Frosted/
   Colour/Home Screen looks. Wait 2 s before each screenshot (the screen redraws late). Earlier
   today the settings panel's hold-to-drag gesture swallowed taps on segmented controls; look for
