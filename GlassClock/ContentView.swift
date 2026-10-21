@@ -298,6 +298,12 @@ struct ContentView: View {
                 oneRowControls = true
                 controlsPage = min(2, max(0, page))
             }
+            if StressTest.classic {
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    interface = .classic
+                }
+            }
             if StressTest.makeBackdrop {
                 Task {
                     try? await Task.sleep(for: .seconds(3))
@@ -370,8 +376,10 @@ struct ContentView: View {
                             settingsPanel
                                 .frame(width: min(480, max(340, besideRoom)))
                         }
+                        // The same gap under the top bar as at the sides, so the panel doesn't
+                        // crowd the toolbar (owner, breathing room, 21 Oct).
                         .padding(.horizontal, Space.medium)
-                        .padding(.top, Space.small)
+                        .padding(.top, Space.medium)
                         .padding(.bottom, Space.large)
                     case .previewOnly:
                         previewStage()
@@ -381,8 +389,10 @@ struct ContentView: View {
                                 .frame(height: min(stageHeight, max(300, size.height - 280)))
                             settingsPanel
                         }
+                        // The same gap under the top bar as at the sides, so the panel doesn't
+                        // crowd the toolbar (owner, breathing room, 21 Oct).
                         .padding(.horizontal, Space.medium)
-                        .padding(.top, Space.small)
+                        .padding(.top, Space.medium)
                         .padding(.bottom, Space.large)
                     }
                 }

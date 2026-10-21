@@ -207,6 +207,8 @@ enum StressTest {
     static var suggestion: String? { ProcessInfo.processInfo.environment["GLASSCLOCK_SUGGEST"] }
     /// GLASSCLOCK_MAKE_BACKDROP=1: opens Make Your Own a few seconds after launch.
     static var makeBackdrop: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_MAKE_BACKDROP"] != nil }
+    /// GLASSCLOCK_CLASSIC=1: opens Classic a few seconds after launch, so it can be screenshotted.
+    static var classic: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_CLASSIC"] != nil }
 }
 
 /// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.
@@ -248,5 +250,6 @@ enum StressTest {
     static var oneRowPage: Int? { nil }
     static var suggestion: String? { nil }
     static var makeBackdrop: Bool { false }
+    static var classic: Bool { false }
 }
 #endif

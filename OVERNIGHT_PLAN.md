@@ -11,8 +11,12 @@ Read first:
 - GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
   GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
-## Evening summary (updated 8:50 p.m.; later runs refresh this)
-**New since 7:55 p.m.**
+## Evening summary (updated 9:40 p.m.; later runs refresh this)
+**New since 8:50 p.m.**
+- **Classic spacing.** The settings panel sat only 8 pt under the top bar; it now has the same
+  16 pt gap as at the sides. Screenshot: Screenshots/afternoon/p6-classic-padding.png
+
+**Since 7:55 p.m.**
 - **Contrast check on all 14 backdrops.** The bubbles by the widget read well everywhere. The
   Presets card's chips (Lucky Colours, starter styles…) had faint blue text on warm backdrops;
   in Dark they now have white text on their coloured pill.
@@ -42,7 +46,7 @@ panel, panels shrinking while carried (see Progress for details and screenshots)
 - One row or the stacked bubbles: which do you prefer?
 - Earlier questions still open: the 1/3-second pause before bubbles turn dark, instant widget
   style switching, Title card vs Puck, a two-finger swipe for backdrop kinds.
-- Not done: the tap audit (P1), stuck-on groups test (P2) and settings sticking (P3) need
+- All of P4–P6 is done. Not done: the tap audit (P1), stuck-on groups test (P2) and settings sticking (P3) need
   someone at the simulator; scheduled runs can't tap.
 
 **3 things to try on the iPad**
@@ -277,3 +281,4 @@ At the end, write a short summary at the top of this file, plain and friendly:
 - 19:55, 21 Oct (hourly run): **P6 partly done (Simpler effects check).** Went through every effect in code: wiggle, lean, light sweeps, the settings cards' carousel, panel slides, the new one-row pager and the carried stand-ins all already respect Simpler effects. One gap fixed: pulling the backdrop up or down still slid and bent it; now it just fades to the next one. Not done in P6: Classic top/bottom padding and the bubble contrast check on every backdrop (needs screenshots on each; the `GLASSCLOCK_BACKDROP` switch can do it). P1–P3 still need an attended session.
 - 20:50, 21 Oct (hourly run): **P6: contrast check on every backdrop done.** Screenshotted the app on all 14 backdrops (Screenshots/afternoon/p6-contrast/). The bubbles above and below the widget read clearly on all of them, including Midnight and the patterns. Fixed: the blue text on the Presets card's chips (Lucky Colours, starter styles, Save Current, your styles) sank into warm backdrops like Sunset and Dune; in Dark the text is now white and the pill keeps its colour. Screenshot: Screenshots/afternoon/p6-chips-readable-sunset.png. Left for the owner: the white clock and battery at the very top are faint on pale Dune and Glow (that's the system's bar; could darken a strip behind it, or switch to dark text on pale backdrops). Still open in P6: Classic top/bottom padding, short group names. P1–P3 need an attended session.
 - 20:55, 21 Oct (hourly run): **P6: group names checked**: already short (Presets, Layout, Fonts, Colour, Effects, Card, Home Screens, App, Accessibility); nothing changed. Installed on the iPad. Left in P6: Classic top/bottom padding (opening Classic needs a tap, so an attended session). P1–P3 need an attended session too.
+- 21:40, 21 Oct (hourly run): **P6 done: Classic top and bottom padding.** Classic's settings panel sat 8 pt under the top bar but 16 pt from the sides; now 16 pt all round the top (24 pt above the Home bar, unchanged). The list's own margins were already even. New debug switch `GLASSCLOCK_CLASSIC=1` opens Classic for screenshots (the first-run tour switches new installs to Panels, so setting the preference alone didn't stick). Screenshot: Screenshots/afternoon/p6-classic-padding.png. P6 finished. Left: P1–P3 need an attended session (taps and drags).

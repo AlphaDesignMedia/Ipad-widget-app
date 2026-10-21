@@ -54,7 +54,7 @@ _Last updated 21 Oct 2026._
 | **Guiding principle:** "anything you feel you could do, you can do". Small, lovely interactions | 🟡 | Your direction, 21 Oct. Use it to judge every new feature. |
 | Smooth, non-jittery pinch and drag of the widget | 🟡 | Fixed 21 Oct. Now leans softly into the drag (a gentle, fabric-like push and pull) and springs back. Check the feel. |
 | Move the widget anywhere on the full screen, like a real Home Screen, not only inside the preview area | ✅ | 21 Oct, Panels. The grid covers the whole window; putting the widget under a panel tucks that panel away. Opens neatly between the panels each time. |
-| Use the available space well, with nice padding | 🟡 | Part of the spacing pass. |
+| Use the available space well, with nice padding | 🟡 | Part of the spacing pass. Classic's top gap evened to 16 pt (21 Oct). |
 | Resizing feels a bit buggy | ⬜ | Low priority. |
 | Remove icons that don't do anything | ✅ | |
 | **Analog clock** with the same glass, colours and effects as the digital one | ✅ | 21 Oct. Layout → Digital/Analog. Weight sets how bold the hands are. |
