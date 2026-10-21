@@ -64,7 +64,7 @@ struct ContentView: View {
     private var mine: HomeScreenStyle? { myHomeScreen.style(in: systemColorScheme) }
     @AppStorage("workspaceLayout") private var layout = WorkspaceLayout.automatic
     @AppStorage("previewBackdrop") private var backdrop = PreviewBackdrop.plain
-    @AppStorage("interfaceStyle") private var interface = InterfaceStyle.classic
+    @AppStorage("interfaceStyle") private var interface = InterfaceStyle.panels
     @State private var selectedSection: SettingsSection? = .presets
     @State private var showsInspector = true
     @State private var showsSidebar = true
@@ -114,6 +114,8 @@ struct ContentView: View {
     @AppStorage(Tweak.wiggle.key) private var tweakWiggle = Tweak.wiggle.standard
     @AppStorage(Tweak.lean.key) private var tweakLean = Tweak.lean.standard
     @State private var showsTweaks = false
+    /// Where the widget is on screen, for the guided tour.
+    @State private var widgetRect = CGRect.zero
     /// The groups panel's dock, while the panel is closed: which side it's on and how far down
     /// (0…1), remembered, and how far it's being dragged.
     @AppStorage("dockOnTrailing") private var dockOnTrailing = false
@@ -196,8 +198,25 @@ struct ContentView: View {
         } message: {
             Text(presetIndex == nil ? "Saves the current style so you can come back to it." : "")
         }
-        .sheet(isPresented: $showsTour, onDismiss: { hasSeenTour = true }) {
-            OnboardingView()
+        // The guided tour, over the real app (owner idea, 2026-10-21).
+        .overlay {
+            if showsTour {
+                GuidedTour(targets: tourTargets, finish: endTour) {
+                    withAnimation(.smooth(duration: 0.45)) { interface = .classic }
+                    endTour()
+                }
+                .tint(AppColor.chosen(appColor))
+            }
+        }
+        .onChange(of: showsTour) { _, on in
+            // The tour shows off Panels, with both panels out.
+            guard on else { return }
+            withAnimation(.smooth(duration: 0.45)) {
+                interface = .panels
+                showsSidebar = true
+                showsInspector = true
+                editingWidget = false
+            }
         }
         .onAppear {
             if let mine { homeScreen = mine }
@@ -214,7 +233,9 @@ struct ContentView: View {
         .onAppear {
             // A style passed in for testing (debug builds only) is applied, so the widget shows it too.
             if ClockStyle.launchOverride != nil { apply() }
-            if !hasSeenTour && ClockStyle.launchOverride == nil { showsTour = true }
+            if !hasSeenTour && ClockStyle.launchOverride == nil {
+                Task { try? await Task.sleep(for: .seconds(0.8)); showsTour = true }
+            }
         }
         .onChange(of: style) {
             StyleLibrary.saveDraft(style)
@@ -1052,6 +1073,7 @@ struct ContentView: View {
             .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: resizeStretch)
             // Grows and shrinks with the fingers while pinching, then settles on the nearest size.
             .scaleEffect(pinch)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { widgetRect = $0 }
         // With Reduce Motion there's no wiggle, just an outline.
         .overlay {
             if editingWidget && reduceMotion {
@@ -1181,6 +1203,22 @@ struct ContentView: View {
         .animation(.snappy, value: current)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Settings text size: \(textSizeNames[current])")
+    }
+
+    /// Where the guided tour points, step by step.
+    private var tourTargets: [GuideStep: CGRect] {
+        var targets: [GuideStep: CGRect] = [:]
+        if widgetRect != .zero { targets[.widget] = widgetRect }
+        if showsInspector, inspectorRect != .zero { targets[.settings] = inspectorRect }
+        if showsSidebar, sidebarRect != .zero { targets[.groups] = sidebarRect }
+        if stageRect != .zero { targets[.backdrop] = stageRect.insetBy(dx: 20, dy: 40) }
+        targets[.toolbar] = CGRect(x: 12, y: 28, width: max(200, windowWidth - 24), height: 52)
+        return targets
+    }
+
+    private func endTour() {
+        withAnimation(.smooth(duration: 0.35)) { showsTour = false }
+        hasSeenTour = true
     }
 
     /// Brings the tour back, for a refresher or to show someone.
