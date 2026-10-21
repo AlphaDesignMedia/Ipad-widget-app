@@ -11,6 +11,35 @@ Read first:
 - GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
   GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
+## Evening summary (updated 4:30 p.m.; later runs refresh this)
+**Done**
+- **The stutter and freezes on Light / Dark / Clear / Tinted are fixed.** The app was redrawing
+  the whole widget area and every piece of glass on each tap. Now the widget changes at once and
+  the rest of the app catches up a moment after you stop tapping. In a test of 40 quick taps, it
+  went from about 1 in 4 frames on time to nearly all of them.
+- **A real crash is fixed:** switching to Classic could close the app.
+- **More breathing room**, plus new sliders in Design Tweaks: Panel edge padding, Title bar
+  height, Footer padding, Bubble padding and Chip padding. There are also Compact, Comfortable
+  and Airy buttons that set all of them at once.
+- **The controls are split around the widget:** Light/Dark/Clear/Tinted sit above it, and size
+  and backdrop sit below.
+- **Apply to Widget** now shows a tiny widget with "12" in your clock's font. The old "9" was
+  easy to mistake for a count.
+- Screenshots are in Screenshots/afternoon/: p0-after-40-taps-tinted.png,
+  p0-home-look-after-41-taps-light.png, p0b-panels-tweaks.png, p0b-classic.png,
+  p0c-split.png
+
+**Needs your eyes**
+- Does the short pause before the bubbles turn dark (about a third of a second) feel right, or
+  should it be quicker?
+- The widget now switches style instantly instead of fading. Is that OK?
+- Spacing: try Compact and Airy in Design Tweaks, then send back Copy Values.
+
+**3 things to try on the iPad**
+1. Tap quickly through Light, Dark, Clear and Tinted, in the Glass look and in My Home Screen.
+2. Switch to Classic and back a few times.
+3. Open Design Tweaks (the sliders button) and tap Airy.
+
 ## Afternoon plan, 21 Oct (owner away until 10 p.m.): do these FIRST, in order
 Everything before this section is done or superseded. The owner's newest direction:
 **usability before flair.** Every effect must be possible to turn down (Accessibility →
