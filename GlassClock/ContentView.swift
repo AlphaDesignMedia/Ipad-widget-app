@@ -424,6 +424,8 @@ struct ContentView: View {
     /// with a swipe across the preview or a tap on the glass tab at the edge; there are no
     /// sidebar buttons (owner feedback 2026-10-21: the system's edge-to-edge columns and toggle
     /// buttons on iPadOS 27 didn't look right).
+    /// (Big pieces are wrapped in AnyView: the full nested view type grew so deep that working
+    /// it out at launch overflowed the stack on the iPad, 2026-10-21.)
     private var panelsInterface: some View {
         NavigationStack {
             GeometryReader { geometry in
@@ -432,9 +434,9 @@ struct ContentView: View {
                 let settingsWidth = min(440, max(320, besideRoom))
                 ZStack {
                     ZStack {
-                        backdropView
+                        AnyView(backdropView)
                             .ignoresSafeArea()
-                        previewStage(showsChrome: false)
+                        AnyView(previewStage(showsChrome: false))
                             .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                             .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
                             .offset(x: rubberBand(panelDrag))
@@ -444,12 +446,12 @@ struct ContentView: View {
                     // Double-tap the preview to clear both panels away, and again to bring them back.
                     .onTapGesture(count: 2, perform: toggleBothPanels)
 
-                    widgetLayer
+                    AnyView(widgetLayer)
                         // Over the panels while it's being moved or edited, under them otherwise.
                         .zIndex(draggingCard || editingWidget ? 2 : 0)
 
                     // The stage's labels and buttons, over the widget so it never hides them.
-                    previewStage(measures: false)
+                    AnyView(previewStage(measures: false))
                         .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                         .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
                         .offset(x: rubberBand(panelDrag))
@@ -471,9 +473,9 @@ struct ContentView: View {
                     // The panels in two columns, each on whichever side it's been put; both can
                     // share a side, one above the other (owner idea, 2026-10-21).
                     HStack(alignment: .top, spacing: Space.medium) {
-                        panelColumn(leading: true, area: geometry.size, settingsWidth: settingsWidth)
+                        AnyView(panelColumn(leading: true, area: geometry.size, settingsWidth: settingsWidth))
                         Spacer(minLength: 0)
-                        panelColumn(leading: false, area: geometry.size, settingsWidth: settingsWidth)
+                        AnyView(panelColumn(leading: false, area: geometry.size, settingsWidth: settingsWidth))
                     }
                     // More room below than at the sides (owner feedback, 2026-10-21).
                     .padding(.horizontal, Space.medium)
@@ -486,10 +488,10 @@ struct ContentView: View {
                 }
                 .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { panelsOrigin = $0 }
                 .overlay {
-                    if !showsSidebar { groupsDock(in: geometry.size) }
+                    if !showsSidebar { AnyView(groupsDock(in: geometry.size)) }
                 }
                 .overlay(alignment: .topLeading) {
-                    if showsSidebar && !groupsFree { attachedGroups(in: geometry.size) }
+                    if showsSidebar && !groupsFree { AnyView(attachedGroups(in: geometry.size)) }
                 }
                 // Design Tweaks floats over everything at the top, so the app stays in view
                 // while the sliders move.
