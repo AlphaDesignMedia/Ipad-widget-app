@@ -1,101 +1,111 @@
-# Overnight plan — 21 Oct 2026, starting 4 a.m.
+# Overnight plan: 21 Oct 2026, from about 9:20 a.m.
 
-Done before bed (21 Oct, ~12:30 a.m.):
-- Classic is a fixed glass settings panel over the full-window backdrop (no jittery divider).
-- Panels: sidebar tucks away in portrait; tapping a group opens its settings; settings title switches groups.
-- A four-card, skippable first-launch tour ("Show the tour" in Widget settings brings it back).
-- First swipe gestures in Panels: swipe right across the preview for the groups list, swipe left for settings.
+Written before bed (about 5:50 a.m.). The owner is asleep and non-technical. Work through the
+items **in order**. Each item is finished when it builds, has been checked in the simulator with
+screenshots, and is committed and pushed. Record progress in the **Progress** section at the
+bottom, so a later run can carry on from where an earlier one stopped.
 
-Also done before bed (~12:45 a.m.), owner's direction:
-- Panels' right panel is now ONE scrolling list of every setting (like Classic, all open). The left
-  sidebar is just quick navigation: tapping a group glides the list to it and lights it up
-  (`focus(_:)`, `settingsList`, `focusRequest`, `highlighted` in ContentView.swift). When the
-  sidebar is tucked away, glass jump chips sit at the top of the list. Keep this model.
-- Swipe: the preview leans with your finger (rubber band, springs back) and glass edge tabs
-  show where a hidden panel lives; light haptics on open/close.
-- Tour rebuilt as animated, annotated mini-scenes of the app (Onboarding.swift), with an
-  "I don't want a fancy layout" button that switches to Classic. Finishing the tour lands in Panels.
+Read first:
+- IDEAS.md: the owner's ideas and their status. Update it as items land.
+- DESIGN_SYSTEM.md
+- GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
+  GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
-Also done (~1 a.m.), owner loved the focus/jump and gestures — "lean further into the gestures":
-- Panels are now custom floating glass panels (no system sidebar/inspector, no sidebar toggle
-  buttons). Question-mark button in the top bar reopens the tour.
-- Pinch the clock card: it follows the fingers, then settles on the next widget size up/down.
-- Pinch the settings panel: text and rows get bigger/smaller in steps (experiment; owner may not
-  keep it). Stored as "settingsTextSize".
-- Tap the clock (Panels) jumps to Fonts. Swipe up/down on the preview flicks through backdrops.
-- Owner: hold off on the photo backdrop work for now.
+House rules the owner has set:
+- **Contrast always comes first.** Glass is a fun effect, never a reason for text to be unreadable.
+  - In the Glass theme, icons and labels on glass are black or white, depending on what's behind
+    them (see `AppGlass`).
+  - Anything selected or primary uses the app colour (`AppColor.chosen`) with white text.
+- **Consistency** across Glass, Frosted and Colour themes, in Light and Dark. Stick to the existing
+  style unless something clearly looks better.
+- **Corners are concentric.** An inner radius is the outer radius minus the gap
+  (`Corner.panel` / `inset` / `card`). The spacing between cards matches their gap from the panel edge.
+- **Classic** stays simple and functional. **Panels** is the fun, interactive one.
+- Guiding principle: *"anything you feel you could do, you can do"*. Familiar, satisfying,
+  Home Screen-like interactions. Prioritise feel over look.
 
-## NEW TOP PRIORITY (owner, ~1:10 a.m.) — the widget on the real Home Screen
+## 1. Home Screen-style edit mode for the preview widget (Panels)
+- Long-press the widget: it starts to wiggle, like editing the Home Screen. Keep the haptics.
+- While it wiggles, it can be dragged (the current snapping grid drag in `cardGesture`, which is
+  smooth now; keep that smoothness).
+- A round corner handle on the bottom-right can be dragged to resize. It snaps between Small,
+  Medium, Large and Extra Large (`PreviewSize`), live as the finger moves.
+- Tap empty space, or a "Done" pill, to stop wiggling.
+- Keep the one-finger drag and pinch working when not wiggling.
+- Respect Reduce Motion: no wiggle, just a highlight outline.
+- The style and size controls already float with the widget. Keep that.
 
-Do this BEFORE item 1 below. The owner reports, on the iPad (iPadOS 27, they use Tinted/Clear):
+## 2. Pull-to-change backdrop: feel and bending glass (in the app only, not the widget)
+- New code (untested on device): `backdropPull`, `pulledBackdrop`, `finishBackdropPull` and
+  `elastic` in ContentView.swift, plus `GlassSheetEffect`.
+- What the owner wants:
+  - The next backdrop follows the finger up or down.
+  - It stretches elastically near the end.
+  - Letting go early springs it back; a long pull or a flick carries on.
+  - Feel matters more than looks.
+- The simulator's swipe tool didn't trigger the vertical swipe. Investigate why (the drag may start
+  on the widget or controls; try touch_path in empty preview space, or the Classic preview), and
+  verify by recording with `xcrun simctl io <id> recordVideo` and pulling frames out with an
+  AVAssetImageGenerator Swift script.
+- Make the glass edge actually **bend** what's behind it, like the iPad unlock and Notification
+  Centre:
+  - In-app only, so a SwiftUI `.layerEffect`/`.distortionEffect` Metal shader is fine. Add a
+    `.metal` file to the GlassClock target.
+  - A lens band along the moving edge that magnifies and refracts, with a bright rim.
+  - Keep it 60 fps. Reduce Motion: a plain crossfade.
 
-A. **Default/Dark vs Clear/Tinted look like two different clock styles.** In full-colour mode
-   `ClockFace` draws `LightLayer` + the full text style (glow, inner colour, shadow, dark edge);
-   in accented mode it switches to the transparency-only glass recipe (`textStyle(accented: true)`,
-   no light layer). The owner wants ONE look across all four. Direction: design a single glass
-   recipe that reads the same in both — e.g. build the full-colour glass from the same layers as
-   the accented one (frosted body + rim + soft inner glow), with the person's colour applied as
-   a tint on top in full-colour mode (and via the kept-colour swatch in accented mode when
-   "keep colours" is on). Make the in-app Light/Dark/Clear/Tinted preview show the same thing.
-   Put a side-by-side of all four in Screenshots/overnight (StyleGallery can render pages).
-B. **"Keep colours" has regressed to plain system glass** — kept parts show as solid shapes on
-   the regular system glass, not the person's colours. No widget code changed since commit
-   e96863c (only app UI changed tonight), so first check: (1) the keep settings actually reach
-   the widget after Apply (free-team builds share settings through the keychain — see
-   Config/FreeTeam.entitlements and how ClockStyle.load() reads them); (2) the timeline isn't
-   being rejected (simulator: `xcrun simctl spawn booted log show --predicate 'process == "chronod"'`
-   for "too large timeline archive" / "Watchdog provision violated") with the owner's current
-   style; (3) the many reinstalls tonight — a reinstall may leave the Home Screen widget on an
-   old archive until its next reload. Read DESIGN_SYSTEM.md §"Keeping colours" first: it lists
-   what already failed on iPadOS 27 (ImageRenderer images = blank widget; masked swatches get
-   recoloured; only swatches CLIPPED to a vector outline keep colour). Don't reintroduce those.
-   The simulator is iPadOS 26.5 and does NOT show kept colours on Clear; Tinted is the better
-   simulator check. You cannot see the iPad: install it, and in the Morning summary give the
-   owner a 3-step Home Screen test (which style to set, what they should see).
-C. **Glass effect styles (plan + try one).** The owner loved a look where the glass edge bends
-   the clock and text around it (a lens/refraction rim). Explore new card/text "glass styles":
-   a lensing rim (offset/scaled copy of the digits visible through a thick rim), a prism edge
-   with a faint colour split, and — in the app preview only, since widgets can't animate —
-   a highlight that moves with the iPad's tilt (CoreMotion, respect Reduce Motion). Widgets
-   can't sample the wallpaper or run glassEffect, so widget versions must be drawn. Add the
-   best one as a new option and write the others up as a short plan in the Morning summary.
+## 3. Better font pairings
+- Research how clocks, watch faces and timepieces pair a numeral face with a secondary face:
+  Apple Watch faces, Braun and Swiss railway clocks, Lock Screen styles, editorial clocks.
+- Write References/font-pairings.md: a short, plain summary with links and 5–8 suggested
+  pairings, using only free, open-licence fonts.
+- Improve the weakest current pairings in `DetailFont` / ClockFonts.swift. Add at most two
+  open-licence fonts, following how existing fonts are bundled and registered.
+- Screenshot every pairing (the debug gallery's "pairs" page) before and after.
 
-D. **Background generator (owner idea, ~1:20 a.m.; do after A–C, only if time — otherwise
-   write a short design for the morning).** A generated abstract "light sculpture" behind the
-   clock, in the spirit of light passing through glass (think Apple's "Air" artwork — make
-   something original, not a copy). Keep it simple: a random seed plus ONE or TWO sliders
-   (e.g. "Flow" for how swirly/complex, "Glow" for how soft/bright) and a palette from the
-   clock's colours. I'm Feeling Lucky rerolls the seed. In the app it can be a live SwiftUI
-   shader / MeshGradient. In the widget it must be a still image made ONCE per style (never per
-   minute — archive limit), drawn with Core Graphics/Core Image like ClockRaster (ImageRenderer
-   left widgets blank on iPadOS 27), used as the card background in full-colour mode; on
-   Clear/Tinted it only shows if kept as `.fullColor` and clipped (see B).
+## 4. Contrast and consistency audit
+- Screenshot every theme (Glass, Frosted, Colour) × Light/Dark × three backdrops (light Aurora,
+  dark, Plain) in Panels and Classic.
+- Fix anything that is low-contrast or inconsistent: text, icons, selected states, segmented
+  controls, bubbles, the Home Screen style picker, toolbar.
+- Save before/after screenshots in Screenshots/overnight-2/.
 
-## Before you sleep (owner reminder)
-- Set up Caffeine (or similar) on the Mac so it stays awake for the 4 a.m. run.
-- Leave the Claude app open and the iPad plugged in.
+## 5. Analog clock polish
+- The new analog face is in `ClockArtwork.analog`.
+- Check it on Clear and Tinted Home Screens, at every widget size, with glow and shadow, and in
+  the widget gallery (`GLASSCLOCK_STYLE` override).
+- Consider an option for hour numerals in the chosen font (only if it looks good).
+- Make sure Lucky and presets never switch digital ↔ analog.
 
-## Tonight's work (in order)
+## 6. If time remains
+These are optional. Pick one, keep it small and polished:
+- Beginner mode: gentle hints that can be switched off.
+- Background generator: one or two sliders that make a unique abstract backdrop, plus a Lucky option.
 
-1. **Panels as the fun, interactive mode** (the big one — "really cook on this").
-   Classic stays the quick, functional mode; Panels becomes the playful one.
-   - Panels slide in with your finger: a live, rubber-banded drag from the left and right
-     edges that follows the finger and springs open or closed, instead of jumping.
-   - Grab handles: small glass pills on each edge showing where a panel lives.
-   - Tapping a part of the clock opens the matching settings (tap the time → Fonts,
-     the AM/PM or date → Fonts' detail group, the card → Card, the glow → Effects).
-   - (Done: scroll-to-and-highlight. Tap-a-part-of-the-clock should call `focus(section)`.)
-   - Polish the tour scenes if anything looks off; keep it skippable.
-   - Pinch the preview to switch widget size; swipe up/down on it to cycle backdrops.
-   - Haptics on open/close; respects Reduce Motion (fades instead of slides).
-2. **Apple-style backdrops**: original mesh-gradient wallpapers in the spirit of iPadOS
-   (not Apple's own images), and default the preview to one.
-3. **Two more fonts with pairings** (open-licence, e.g. Fraunces and Bricolage Grotesque).
-4. **Themed I'm Feeling Lucky**: named themes (e.g. "Midnight Neon", "Sunday Paper")
-   that set fonts, colours, effects and a matching backdrop, with the theme name shown.
-5. Screenshots of both interfaces, update DESIGN_SYSTEM.md, save to GitHub, install on the iPad.
+## How to work
+- Build:
+  ```
+  xcodebuild -project GlassClock.xcodeproj -scheme GlassClock -configuration Debug -destination "id=0C98318B-5E7B-488C-9949-D60434F34C60" -derivedDataPath "$TMPDIR/gc-sim" -quiet build
+  ```
+  This needs the sandbox disabled.
+- Launch with arguments like:
+  ```
+  -interfaceStyle panels -appTheme glass -appAppearance light -hasSeenTour YES -widgetRow 0
+  ```
+  Use `SIMCTL_CHILD_GLASSCLOCK_STYLE='{"face":"analog"}'` for test styles.
+- The app takes about 20 seconds to appear after launch.
+- Commit on **main** after each finished item, with a clear message ending with
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Push with `git push` (gh is in
+  ~/.local/bin; pushing needs the sandbox disabled).
+- Install on the iPad with `Scripts/run-on-ipad.sh`. If it isn't reachable (the owner is asleep
+  and it may be locked), skip the install. That's fine.
+- Never leave the working tree dirty, and never switch branches.
 
-## Waiting for you in the morning
-- Try the gestures on the iPad and say what feels good or fiddly.
-- Earth photo backdrop: save that image to Downloads so it can be added.
-- Figma design system: still to finish (components, screens).
+## Morning summary
+At the end, write a short summary at the top of this file, plain and friendly:
+- What was done, with screenshot paths.
+- What needs the owner's eyes.
+- 3 things to try on the iPad.
+
+## Progress
+(Each run appends a line here: time, item, done or partly done, and what's left.)
