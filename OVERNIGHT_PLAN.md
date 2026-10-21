@@ -61,6 +61,13 @@ small, bite-sized groups; repeating an option in two places is fine.
     count. Make it obvious: e.g. a tiny widget-shaped glyph with "12" in the clock's font and
     colour, bolder, or go back to a clear symbol if that reads better. Check it at a glance.
   - Plain and Aurora looked identical on Clear/Tinted: fixed (Plain is now slate there); check it.
+  - Stuck-on groups (owner likes the small puck/tab): align the rail and tab to the whole widget
+    group (widget plus its bubbles above and below), not just the widget card. Measure that whole
+    group's rect (e.g. onGeometryChange on the ZStack holding card + controls) and use it in
+    `railFrame` / `attachedGroups`.
+  - Split the controls top and bottom: Home Screen style (Light/Dark/Clear/Tinted) and the
+    Home Screen question above the widget; size (Small…Extra Large) and backdrop below it, so the
+    widget sits centred between them. Keep the "flip when there's no room" behaviour.
 - P0d. **Pinch per panel (owner, 1:35 p.m.).** Pinching to change text size should only change the
   panel being pinched (groups and settings each keep their own size; store them separately).
   Then try a few more direct-touch interactions in the same spirit, each small and optional, e.g.
