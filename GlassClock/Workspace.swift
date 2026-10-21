@@ -475,10 +475,12 @@ struct HomeGrid {
 
     /// - Parameter scale: below 1 when the area is too small for the widget at its real size.
     init(area: CGSize, scale: CGFloat) {
+        // Classic can lay the preview out at zero size for a moment, which made the scale and
+        // step zero and the grid maths infinite, crashing the app on opening Classic
+        // (owner, 2026-10-21). A tiny floor keeps every step finite.
+        let scale = scale.isFinite ? max(scale, 0.05) : 1
         step = (Self.slot + Self.gap) * scale
         gap = Self.gap * scale
-        // Classic can lay the preview out at zero size for a moment, which made the step zero
-        // and these counts infinite, crashing the app on opening Classic (owner, 2026-10-21).
         columns = Self.count(area.width, gap: gap, step: step)
         rows = Self.count(area.height, gap: gap, step: step)
         let width = CGFloat(columns) * step - gap, height = CGFloat(rows) * step - gap
