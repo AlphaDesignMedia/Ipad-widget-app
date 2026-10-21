@@ -452,11 +452,12 @@ enum Corner {
     /// The floating panels.
     /// (Panel corners and gaps can be tuned live in Design Tweaks.)
     static var panel: CGFloat { CGFloat(Tweak.panel.value) }
-    /// The gap between a panel's edge and the cards inside it, and between cards, so the
-    /// spacing reads as one even rhythm.
+    /// The gap between cards (the panel's edge has its own padding, `edge`).
     static var inset: CGFloat { CGFloat(Tweak.gap.value) }
+    /// The padding between a panel's edge and its cards.
+    static var edge: CGFloat { CGFloat(Tweak.panelEdge.value) }
     /// The cards of settings inside a panel.
-    static var card: CGFloat { max(4, panel - inset) }
+    static var card: CGFloat { max(4, panel - edge) }
     /// Padding inside a card, around its rows.
     static var cardPadding: CGFloat { CGFloat(Tweak.cardPadding.value) }
 }
@@ -479,6 +480,9 @@ struct SettingsCard<Content: View>: View {
     @AppStorage(Tweak.cardPadding.key) private var tweakCardPadding = Tweak.cardPadding.standard
     @AppStorage(Tweak.rowSpacing.key) private var rowSpacing = Tweak.rowSpacing.standard
     @AppStorage(Tweak.rim.key) private var rim = Tweak.rim.standard
+    @AppStorage(Tweak.panelEdge.key) private var tweakEdge = Tweak.panelEdge.standard
+    @AppStorage(Tweak.titleBar.key) private var titleBar = Tweak.titleBar.standard
+    @AppStorage(Tweak.footer.key) private var footerPadding = Tweak.footer.standard
     /// The group's title, tucked inside the top of the card (owner feedback, 2026-10-21).
     var title: String?
     var icon: String?
@@ -506,8 +510,8 @@ struct SettingsCard<Content: View>: View {
                 .font(.title3.weight(.bold))
                 .headingFont()
                 .padding(.horizontal, Corner.cardPadding)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
+                .padding(.top, titleBar)
+                .padding(.bottom, max(4, titleBar - 4))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(windowBand)
                 .overlay(alignment: .bottom) { Divider().opacity(0.6) }
@@ -527,7 +531,7 @@ struct SettingsCard<Content: View>: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, Corner.cardPadding)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, footerPadding)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(windowBand)
                     .overlay(alignment: .top) { Divider().opacity(0.6) }

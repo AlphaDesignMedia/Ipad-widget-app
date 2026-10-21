@@ -197,6 +197,26 @@ func font(size: CGFloat) -> Font {
 
 ---
 
+#### Breathing room (21 Oct 2026)
+Reference values, chosen against Apple's iPad apps (Settings and Freeform's inspector use about
+16–20 pt inside cards and 20+ pt from a panel's edge; labels never touch a rounded corner). All
+are sliders in Design Tweaks (Spacing), with Compact (×0.72), Comfortable (standard) and Airy
+(×1.3) presets:
+
+| Tweak | Standard | Where |
+|---|---|---|
+| Panel edge padding | 22 pt | panel edge to its cards |
+| Gaps | 22 pt | between cards |
+| Card padding | 22 pt | inside a card, left and right |
+| Row spacing | 11 pt | above and below each row |
+| Title bar height | 18 pt top, 14 pt bottom | card title bar |
+| Footer padding | 14 pt | card footer strip, top and bottom |
+| Bubble padding | 10 pt (8 pt top and bottom on capsules) | glass bubbles over the preview |
+| Chip padding | 12 pt sides, 6 pt top and bottom | lock chips |
+
+Corners stay concentric: card radius = panel radius − panel edge padding; the Home Screen
+picker bubble's radius = its 16 pt selection radius + bubble padding.
+
 ## 6. Components
 
 ### 6.1 `ClockFace`: shared by app and widget

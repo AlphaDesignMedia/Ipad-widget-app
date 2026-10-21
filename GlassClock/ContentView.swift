@@ -117,9 +117,13 @@ struct ContentView: View {
     // Design Tweaks, read here so the whole window redraws as the sliders move.
     @AppStorage(Tweak.panel.key) private var tweakPanel = Tweak.panel.standard
     @AppStorage(Tweak.gap.key) private var tweakGap = Tweak.gap.standard
+    @AppStorage(Tweak.panelEdge.key) private var tweakEdge = Tweak.panelEdge.standard
+    @AppStorage(Tweak.bubble.key) private var tweakBubble = Tweak.bubble.standard
+    @AppStorage(Tweak.chip.key) private var tweakChip = Tweak.chip.standard
     @AppStorage(Tweak.wiggle.key) private var tweakWiggle = Tweak.wiggle.standard
     @AppStorage(Tweak.lean.key) private var tweakLean = Tweak.lean.standard
-    @State private var showsTweaks = false
+    /// Opens at launch with `-showsTweaks` (for checking it in the simulator).
+    @State private var showsTweaks = ProcessInfo.processInfo.arguments.contains("-showsTweaks")
     /// The Classic/Panels switch stands out at first, then settles back (owner idea, 2026-10-21).
     @State private var switchSettled = false
     @Namespace private var groupSelection
@@ -683,7 +687,7 @@ struct ContentView: View {
             .scrollContentBackground(.hidden)
             .coordinateSpace(name: "settingsList")
             .listSectionSpacing(Corner.inset)
-            .contentMargins([.horizontal, .top], Corner.inset, for: .scrollContent)
+            .contentMargins([.horizontal, .top], Corner.edge, for: .scrollContent)
             .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
             .task(id: focusRequest) {
                 guard focusRequest > 0, let target = selectedSection else { return }
@@ -1763,7 +1767,11 @@ struct ContentView: View {
     private var widgetGrid: some View {
         GeometryReader { space in
             let card = previewSize.size
-            let scale = min(1, space.size.width / card.width, space.size.height / card.height)
+            // Floored like the grid's: Classic lays this out at zero size for a moment, and a
+            // zero scale gave the card's glass a NaN size, which crashed the app on opening
+            // Classic (2026-10-21).
+            let fit = min(1, space.size.width / card.width, space.size.height / card.height)
+            let scale = fit.isFinite ? max(fit, 0.05) : 1
             let grid = HomeGrid(area: space.size, scale: scale)
             let span = previewSize.span
             let slot = widgetColumn < 0 && interface == .panels && stageRect != .zero
@@ -2124,7 +2132,7 @@ struct ContentView: View {
     /// A capsule of glass for a preview control (glass is for the controls layer, HIG: Materials).
     private func roundedBubble(cornerRadius: CGFloat, @ViewBuilder content: () -> some View) -> some View {
         content()
-            .padding(Space.small)
+            .padding(tweakBubble)
             .background { bubbleBacking(.rect(cornerRadius: cornerRadius, style: .continuous)) }
             .appGlass(.rect(cornerRadius: cornerRadius, style: .continuous))
             .environment(\.colorScheme, controlScheme)
@@ -2132,8 +2140,8 @@ struct ContentView: View {
 
     private func bubble(@ViewBuilder content: () -> some View) -> some View {
         content()
-            .padding(.horizontal, Space.small)
-            .padding(.vertical, Space.small)
+            .padding(.horizontal, tweakBubble)
+            .padding(.vertical, tweakBubble * 0.8)
             .background { bubbleBacking(.capsule) }
             .appGlass(.capsule)
             .environment(\.colorScheme, controlScheme)
@@ -2225,8 +2233,8 @@ struct ContentView: View {
     }
 
     private var homeScreenBubble: some View {
-        // Rounded to fit its taller icon buttons: 16 inside plus the 8 padding.
-        roundedBubble(cornerRadius: 24) {
+        // Concentric with its taller icon buttons: their 16 plus the bubble's padding.
+        roundedBubble(cornerRadius: 16 + tweakBubble) {
             HomeStylePicker(selection: $homeScreen)
                 .frame(maxWidth: 440)
         }
@@ -2324,7 +2332,7 @@ struct ContentView: View {
             }
         }
         .listSectionSpacing(Corner.inset)
-        .contentMargins([.horizontal, .top], Corner.inset, for: .scrollContent)
+        .contentMargins([.horizontal, .top], Corner.edge, for: .scrollContent)
         .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
     }
 
@@ -2610,8 +2618,8 @@ struct ContentView: View {
                             Text(part.label)
                         }
                         .font(.subheadline.weight(locked ? .semibold : .regular))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, tweakChip)
+                        .padding(.vertical, tweakChip / 2)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(locked ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))

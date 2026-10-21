@@ -5,10 +5,13 @@ import UIKit
 /// 2026-10-21: a faster way to design together than describing changes back and forth). Each
 /// is saved, and Copy Values puts them all on the clipboard to send over, to become the defaults.
 enum Tweak: String, CaseIterable, Identifiable {
-    case panel, gap, cardPadding, rowSpacing, frost, focus, shimmer, rim, wiggle, lean
+    case panel, panelEdge, gap, cardPadding, rowSpacing, titleBar, footer, bubble, chip
+    case frost, focus, shimmer, rim, wiggle, lean
 
     /// Spacing first, then the effects.
-    var isSpacing: Bool { [.panel, .gap, .cardPadding, .rowSpacing].contains(self) }
+    var isSpacing: Bool {
+        [.panel, .panelEdge, .gap, .cardPadding, .rowSpacing, .titleBar, .footer, .bubble, .chip].contains(self)
+    }
 
     var id: Self { self }
     var key: String { "tweak.\(rawValue)" }
@@ -19,6 +22,11 @@ enum Tweak: String, CaseIterable, Identifiable {
         case .gap: "Gaps"
         case .cardPadding: "Card padding"
         case .rowSpacing: "Row spacing"
+        case .panelEdge: "Panel edge padding"
+        case .titleBar: "Title bar height"
+        case .footer: "Footer padding"
+        case .bubble: "Bubble padding"
+        case .chip: "Chip padding"
         case .shimmer: "Shimmer"
         case .rim: "Highlight rim"
         case .frost: "Frost"
@@ -35,6 +43,12 @@ enum Tweak: String, CaseIterable, Identifiable {
         case .gap: 22
         case .cardPadding: 22
         case .rowSpacing: 11
+        // Breathing-room pass, 21 Oct 2026 (see DESIGN_SYSTEM.md, Spacing).
+        case .panelEdge: 22
+        case .titleBar: 18
+        case .footer: 14
+        case .bubble: 10
+        case .chip: 12
         case .shimmer: 0.45
         case .rim: 0.7
         case .frost: 1.85
@@ -50,6 +64,11 @@ enum Tweak: String, CaseIterable, Identifiable {
         case .gap: 6...32
         case .cardPadding: 12...36
         case .rowSpacing: 4...20
+        case .panelEdge: 8...36
+        case .titleBar: 8...30
+        case .footer: 6...24
+        case .bubble: 4...20
+        case .chip: 6...20
         case .shimmer, .rim: 0...1
         case .frost, .focus, .lean: 0...2
         case .wiggle: 0...2.5
@@ -62,7 +81,7 @@ enum Tweak: String, CaseIterable, Identifiable {
     var ends: (String, String) {
         switch self {
         case .panel: ("Square", "Round")
-        case .gap, .cardPadding, .rowSpacing: ("Tight", "Airy")
+        case .gap, .cardPadding, .rowSpacing, .panelEdge, .titleBar, .footer, .bubble, .chip: ("Tight", "Airy")
         case .shimmer, .rim: ("None", "Bright")
         case .frost: ("Clear", "Frosted")
         case .focus, .lean: ("None", "Strong")
@@ -74,10 +93,26 @@ enum Tweak: String, CaseIterable, Identifiable {
         isSpacing ? "\(Int(value.rounded())) pt" : String(format: "%.2f", value)
     }
 
+    /// Spacing values for the named presets in Design Tweaks. Comfortable is the standard.
+    func preset(_ preset: SpacingPreset) -> Double {
+        let scale: Double = switch preset {
+        case .compact: 0.72
+        case .comfortable: 1
+        case .airy: 1.3
+        }
+        return min(range.upperBound, max(range.lowerBound, (standard * scale).rounded()))
+    }
+
     /// The saved value, or the standard one.
     var value: Double {
         UserDefaults.standard.object(forKey: key) as? Double ?? standard
     }
+}
+
+/// Three ready-made sets of spacing, to start from before fine-tuning with the sliders.
+enum SpacingPreset: String, CaseIterable, Identifiable {
+    case compact = "Compact", comfortable = "Comfortable", airy = "Airy"
+    var id: Self { self }
 }
 
 /// The tweaks as sliders, on a small floating panel so the app stays in view while they change.
@@ -92,6 +127,11 @@ struct DesignTweaksPanel: View {
     @AppStorage(Tweak.rowSpacing.key) private var rowSpacing = Tweak.rowSpacing.standard
     @AppStorage(Tweak.shimmer.key) private var shimmer = Tweak.shimmer.standard
     @AppStorage(Tweak.rim.key) private var rim = Tweak.rim.standard
+    @AppStorage(Tweak.panelEdge.key) private var panelEdge = Tweak.panelEdge.standard
+    @AppStorage(Tweak.titleBar.key) private var titleBar = Tweak.titleBar.standard
+    @AppStorage(Tweak.footer.key) private var footer = Tweak.footer.standard
+    @AppStorage(Tweak.bubble.key) private var bubble = Tweak.bubble.standard
+    @AppStorage(Tweak.chip.key) private var chip = Tweak.chip.standard
     @State private var copied = false
     var close: () -> Void = {}
 
@@ -117,6 +157,7 @@ struct DesignTweaksPanel: View {
                             .textCase(.uppercase)
                             .foregroundStyle(.secondary)
                             .padding(.top, spacing ? 0 : 6)
+                        if spacing { spacingPresets }
                         ForEach(Tweak.allCases.filter { $0.isSpacing == spacing }) { tweak in
                             sliderRow(tweak)
                         }
@@ -141,7 +182,25 @@ struct DesignTweaksPanel: View {
         }
         .padding(20)
         .frame(width: 340)
-        .onChange(of: [panel, gap, frost, focus, wiggle, lean, cardPadding, rowSpacing, shimmer, rim]) { copied = false }
+        .onChange(of: [panel, gap, frost, focus, wiggle, lean, cardPadding, rowSpacing, shimmer, rim,
+                       panelEdge, titleBar, footer, bubble, chip]) { copied = false }
+    }
+
+    /// Compact, Comfortable and Airy: set every spacing slider at once.
+    private var spacingPresets: some View {
+        HStack(spacing: 8) {
+            ForEach(SpacingPreset.allCases) { preset in
+                Button(preset.rawValue) {
+                    withAnimation(.smooth) {
+                        for tweak in Tweak.allCases where tweak.isSpacing && tweak != .panel {
+                            binding(tweak).wrappedValue = tweak.preset(preset)
+                        }
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+        }
     }
 
     private func sliderRow(_ tweak: Tweak) -> some View {
@@ -176,6 +235,11 @@ struct DesignTweaksPanel: View {
         case .rowSpacing: $rowSpacing
         case .shimmer: $shimmer
         case .rim: $rim
+        case .panelEdge: $panelEdge
+        case .titleBar: $titleBar
+        case .footer: $footer
+        case .bubble: $bubble
+        case .chip: $chip
         }
     }
 }

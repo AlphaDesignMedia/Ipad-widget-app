@@ -143,3 +143,4 @@ you. The other option is to send screenshots with scribbles on them, which works
 - [ ] Pinch to resize text per panel only (in afternoon plan), and more direct-touch interactions like it.
 - [ ] Graceful window resizing (Stage Manager, windowed vs full screen): panels and grid adapt without struggling.
 - [x] Smooth Light/Dark/Clear/Tinted switching: the widget changes at once, the app around it follows when tapping stops (fixes the stutter and freezes).
+- [x] Breathing room: spacing sliders (panel edge, title bar, footer, bubble, chip) and Compact / Comfortable / Airy presets in Design Tweaks.
