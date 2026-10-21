@@ -143,6 +143,10 @@ struct ContentView: View {
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.45, dampingFraction: 0.82))) private var settingsMove = CGSize.zero
     @GestureState private var settingsHeld = false
+    @GestureState private var groupsHeld = false
+    /// Running a finger down the groups: where it is, and where each group's button is.
+    @State private var scrubY: CGFloat?
+    @State private var groupFrames: [SettingsSection: CGRect] = [:]
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.4, dampingFraction: 0.8))) private var sidebarMove = CGSize.zero
     /// Panel swipes are ignored for a moment after a widget drag, so moving the widget
     /// doesn't also open or close a panel.
@@ -499,7 +503,9 @@ struct ContentView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 48), spacing: 4)], spacing: 4) {
                     ForEach(SettingsSection.allCases) { section in groupButton(section, iconsOnly: true) }
                 }
-                .padding(Space.small + 2)
+                .padding(.horizontal, Space.small + 2)
+                .padding(.top, 20)
+                .padding(.bottom, Space.small + 2)
             } else {
                 VStack(spacing: 4) {
                     Button {
@@ -516,9 +522,18 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(groupsCollapsed ? "Show group names" : "Show icons only")
-                    ForEach(SettingsSection.allCases) { section in groupButton(section, iconsOnly: iconsOnly) }
+                    ForEach(SettingsSection.allCases) { section in
+                        groupButton(section, iconsOnly: iconsOnly)
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("groupsList")) } action: { groupFrames[section] = $0 }
+                    }
                 }
-                .padding(Space.small + 2)
+                .coordinateSpace(name: "groupsList")
+                // Run a finger down the groups to glide through them, the one under it growing
+                // like icons in the Dock (owner idea, 2026-10-21). Holding first moves the panel.
+                .simultaneousGesture(groupsScrub)
+                .padding(.horizontal, Space.small + 4)
+                .padding(.top, 22)
+                .padding(.bottom, Space.small + 4)
             }
         }
         .scrollBounceBehavior(.basedOnSize)
@@ -555,8 +570,8 @@ struct ContentView: View {
                     Spacer(minLength: 0)
                 }
             }
-            .padding(.horizontal, iconsOnly ? 10 : 14)
-            .padding(.vertical, 11)
+            .padding(.horizontal, iconsOnly ? 10 : 16)
+            .padding(.vertical, 12)
             // The group in use is a brighter piece of glass with a light rim, with a sweep of
             // light when it's picked, matching the focus on the cards (owner direction,
             // 2026-10-21) rather than a fill of colour.
@@ -569,7 +584,8 @@ struct ContentView: View {
                 }
             }
             .shimmer(trigger: selected, in: Capsule())
-            .scaleEffect(selected ? 1.04 : 1)
+            .scaleEffect((selected ? 1.04 : 1) * scrubGrowth(section), anchor: iconsOnly ? .center : .leading)
+            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.75), value: scrubY)
             .contentShape(.capsule)
         }
         .buttonStyle(.plain)
@@ -711,11 +727,16 @@ struct ContentView: View {
         groupsPanel(asStrip: strip)
             .dynamicTypeSize(settingsTextSize)
             .frame(width: width)
-            .scaleEffect(sidebarMove == .zero ? 1 : 1.02)
+            .scaleEffect(sidebarMove == .zero && !groupsHeld ? 1 : 1.025)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: groupsHeld)
             .shadow(color: .black.opacity(sidebarMove == .zero ? 0 : 0.18), radius: 20, y: 10)
             .offset(sidebarMove)
             .zIndex(sidebarMove == .zero ? 0 : 1)
-            .simultaneousGesture(sidebarMoveGesture(in: area))
+            // The same bar along the top as the settings panel: drag it to move the panel, or
+            // hold anywhere for a moment, then drag (owner idea, 2026-10-21: one way for both).
+            .overlay(alignment: .top) { groupsGrabber(area: area) }
+            .simultaneousGesture(groupsHoldAndDrag(area: area))
+            .sensoryFeedback(.impact(weight: .medium), trigger: groupsHeld) { _, held in held }
             .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in markActive(.groups) })
             .modifier(PanelFocus(active: activePanel == nil || activePanel == .groups, strength: tweakFocus))
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sidebarRect = $0 }
@@ -822,25 +843,71 @@ struct ContentView: View {
 
     /// The groups panel can be picked up and put on either side, or with the settings; it snaps
     /// into place. A hard flick sends it away to fold into its dock (owner direction, 2026-10-21).
-    private func sidebarMoveGesture(in area: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 12, coordinateSpace: .global)
-            .updating($sidebarMove) { drag, state, _ in state = drag.translation }
-            .onEnded { drag in
-                let flick = CGSize(width: drag.predictedEndTranslation.width - drag.translation.width,
-                                   height: drag.predictedEndTranslation.height - drag.translation.height)
-                let end = CGPoint(x: sidebarRect.midX + drag.translation.width,
-                                  y: sidebarRect.midY + drag.translation.height)
-                if hypot(flick.width, flick.height) > 600 {
-                    // Flicked away: fold into the dock on the side it was flicked towards.
-                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.4)) {
-                        dockOnTrailing = flick.width > 0 ? true : flick.width < 0 ? false : end.x > area.width / 2
-                        dockHeight = min(0.9, max(0.1, end.y / max(area.height, 1)))
-                        showsSidebar = false
-                    }
-                    return
-                }
-                placePanel(groups: true, at: end, in: area)
+    private func groupsGrabber(area: CGSize) -> some View {
+        Capsule()
+            .fill(.primary.opacity(sidebarMove == .zero ? 0.35 : 0.6))
+            .frame(width: groupsCollapsed ? 28 : 44, height: 5)
+            .padding(.vertical, 6)
+            .frame(width: groupsCollapsed ? 60 : 140, height: 22)
+            .contentShape(.rect)
+            .gesture(sidebarMoveGesture(in: area))
+            .accessibilityLabel("Move groups")
+            .accessibilityHint("Drag to another side, or flick away to fold it into a button")
+    }
+
+    private func groupsHoldAndDrag(area: CGSize) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.35)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .updating($groupsHeld) { value, state, _ in
+                if case .second(true, _) = value { state = true }
             }
+            .updating($sidebarMove) { value, state, _ in
+                if case .second(true, let drag?) = value { state = drag.translation }
+            }
+            .onEnded { value in
+                guard case .second(true, let drag?) = value else { return }
+                endSidebarMove(drag, in: area)
+            }
+    }
+
+    private var groupsScrub: some Gesture {
+        DragGesture(minimumDistance: 6, coordinateSpace: .named("groupsList"))
+            .onChanged { drag in
+                guard !groupsHeld, sidebarMove == .zero else { scrubY = nil; return }
+                scrubY = drag.location.y
+                let nearest = groupFrames.min { abs($0.value.midY - drag.location.y) < abs($1.value.midY - drag.location.y) }?.key
+                if let nearest, nearest != selectedSection { focus(nearest) }
+            }
+            .onEnded { _ in scrubY = nil }
+    }
+
+    /// How much a group's button grows while a finger runs down the list: most under the finger.
+    private func scrubGrowth(_ section: SettingsSection) -> CGFloat {
+        guard let scrubY, let frame = groupFrames[section], !reduceMotion else { return 1 }
+        return 1 + 0.1 * max(0, 1 - abs(frame.midY - scrubY) / 80)
+    }
+
+    private func sidebarMoveGesture(in area: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .global)
+            .updating($sidebarMove) { drag, state, _ in state = drag.translation }
+            .onEnded { drag in endSidebarMove(drag, in: area) }
+    }
+
+    private func endSidebarMove(_ drag: DragGesture.Value, in area: CGSize) {
+        let flick = CGSize(width: drag.predictedEndTranslation.width - drag.translation.width,
+                           height: drag.predictedEndTranslation.height - drag.translation.height)
+        let end = CGPoint(x: sidebarRect.midX + drag.translation.width,
+                          y: sidebarRect.midY + drag.translation.height)
+        if hypot(flick.width, flick.height) > 600 {
+            // Flicked away: fold into the dock on the side it was flicked towards.
+            withAnimation(reduceMotion ? nil : .smooth(duration: 0.4)) {
+                dockOnTrailing = flick.width > 0 ? true : flick.width < 0 ? false : end.x > area.width / 2
+                dockHeight = min(0.9, max(0.1, end.y / max(area.height, 1)))
+                showsSidebar = false
+            }
+            return
+        }
+        placePanel(groups: true, at: end, in: area)
     }
 
     /// The groups panel when it's closed: a small glass dock on the side of the window. Drag it
