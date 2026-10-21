@@ -255,6 +255,21 @@ struct ContentView: View {
         .onAppear {
             // A style passed in for testing (debug builds only) is applied, so the widget shows it too.
             if ClockStyle.launchOverride != nil { apply() }
+            #if DEBUG
+            if let taps = StressTest.homeTaps {
+                Task {
+                    try? await Task.sleep(for: .seconds(4))
+                    let meter = HitchMeter()
+                    meter.start()
+                    for tap in 0..<taps {
+                        withAnimation(.snappy) { homeScreen = HomeScreenStyle.allCases[tap % 4] }
+                        try? await Task.sleep(for: .milliseconds(180))
+                    }
+                    try? await Task.sleep(for: .seconds(1))
+                    print("STRESS home taps \(taps): \(meter.stop())")
+                }
+            }
+            #endif
             if !hasSeenTour && ClockStyle.launchOverride == nil {
                 Task { try? await Task.sleep(for: .seconds(0.8)); showsTour = true }
             }

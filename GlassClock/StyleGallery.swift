@@ -177,8 +177,47 @@ struct StyleGallery: View {
         }
     }
 }
+
+/// GLASSCLOCK_STRESS_HOME=<taps> (environment): taps through Light, Dark, Clear and Tinted by
+/// itself, as fast as a person would, and prints how many frames were late. For checking the
+/// Home Screen picker stays smooth (owner report, 2026-10-21: it stuttered and froze).
+enum StressTest {
+    static var homeTaps: Int? {
+        ProcessInfo.processInfo.environment["GLASSCLOCK_STRESS_HOME"].flatMap(Int.init)
+    }
+}
+
+/// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.
+@MainActor final class HitchMeter: NSObject {
+    private var link: CADisplayLink?
+    private var last: CFTimeInterval = 0
+    private(set) var frames = 0, late = 0
+    private(set) var worst: CFTimeInterval = 0
+
+    func start() {
+        link = CADisplayLink(target: self, selector: #selector(tick))
+        link?.add(to: .main, forMode: .common)
+    }
+
+    func stop() -> String {
+        link?.invalidate()
+        return "frames \(frames), late \(late), worst \(Int(worst * 1000)) ms"
+    }
+
+    @objc private func tick(_ link: CADisplayLink) {
+        defer { last = link.timestamp }
+        guard last > 0 else { return }
+        let gap = link.timestamp - last, expected = link.targetTimestamp - link.timestamp
+        frames += 1
+        worst = max(worst, gap)
+        if gap > max(expected, 1.0 / 120) * 1.5 { late += 1 }
+    }
+}
 #else
 extension ClockStyle {
     static var launchOverride: ClockStyle? { nil }
+}
+enum StressTest {
+    static var homeTaps: Int? { nil }
 }
 #endif
