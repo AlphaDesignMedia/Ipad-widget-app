@@ -71,6 +71,10 @@ D. **Background generator (owner idea, ~1:20 a.m.; do after A–C, only if time 
    left widgets blank on iPadOS 27), used as the card background in full-colour mode; on
    Clear/Tinted it only shows if kept as `.fullColor` and clipped (see B).
 
+## Before you sleep (owner reminder)
+- Set up Caffeine (or similar) on the Mac so it stays awake for the 4 a.m. run.
+- Leave the Claude app open and the iPad plugged in.
+
 ## Tonight's work (in order)
 
 1. **Panels as the fun, interactive mode** (the big one — "really cook on this").
