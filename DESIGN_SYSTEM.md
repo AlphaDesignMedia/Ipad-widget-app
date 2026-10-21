@@ -341,6 +341,17 @@ If we ever need a different layout per mode:
 
 **To do next:** built-in photo backdrops (the owner's Earth image, original Apple-style designs), resize handle glitches, and the owner's report that applying sometimes stops updating the widget (check Keep options against the archive limit on the device).
 
+### 6.3d Classic vs Panels (owner direction, 2026-10-21)
+
+- **Classic is the simple mode:** Presets (with I'm Feeling Lucky and saved presets), Font (choice and weight) and Colour (style and swatches), plus a "More options in Panels" row. `SettingsSection.classic`, `sectionContent(_:simple:)`.
+- **Panels is the full customisation canvas:** every group, the sidebar, gestures.
+- **Switch:** a Classic | Panels segmented control in the middle of the top bar (cross-fades; fades only with Reduce Motion). The arrangement menu shows only in Classic.
+- **Preview first:** the stage asks for the room the widget needs at its real size (`stageWidth`, `stageHeight`), and the settings take what's left: beside it when ≥ 340 pt remains, otherwise below. In Panels the groups sidebar sits alongside only when there's room for it, the real-size preview and 340 pt of settings; a bigger widget size tucks it away.
+- **Collapsible sidebar:** folds to its icons (68 pt) from the button at its top; remembered (`groupsCollapsed`).
+- **Reduce glass:** `appGlass(_:)` is Liquid Glass normally and a solid secondary surface with a hairline when Reduce Transparency is on in Settings or the app's Reduce glass switch (Widget group) is on. Used by every panel, bubble and chip. The preview card keeps real glass, since it previews the widget.
+- **Backdrop changes slide** (`.push` from below for a swipe up or a menu pick, from above for a swipe down) and show the backdrop's name on a glass capsule for 1.3 s.
+- **Refresh Widget** (arrow in the top bar) reloads the widget with the applied style; the widget also reloads whenever the app becomes active.
+
 ### 6.4 Settings controls
 
 Use **standard** SwiftUI controls inside a `Form`: `Slider`, `Toggle`, `Picker(.segmented)` and plain `Button`s for the swatches. They get Liquid Glass when someone touches them, plus full accessibility behaviour, for free. **Don't** add `glassEffect` to them.

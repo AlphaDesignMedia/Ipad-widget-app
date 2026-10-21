@@ -119,6 +119,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case presets, layout, fonts, colour, effects, card, homeScreens, widget
     var id: Self { self }
 
+    /// The groups Classic shows; Panels has them all.
+    static let classic: [SettingsSection] = [.presets, .fonts, .colour]
+
     var title: String {
         switch self {
         case .presets: "Presets"
@@ -156,7 +159,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .homeScreens:
             "iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless."
         case .widget:
-            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock."
+            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. Reduce glass swaps the app's glass panels for solid ones; it's also automatic when Reduce Transparency is on in Settings. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock."
         case .layout, .fonts, .colour:
             nil
         }
@@ -201,5 +204,35 @@ struct FlowLayout: Layout {
             }
         }
         return rows
+    }
+}
+
+/// The app's own glass for panels and controls: Liquid Glass normally. When Reduce Transparency
+/// is on in iPadOS Settings, or the app's Reduce glass switch is, it's a calm solid surface
+/// instead, so the design doesn't lean on glass (HIG: Accessibility, Materials).
+struct AppGlass<S: Shape>: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    var shape: S
+    var interactive = false
+    var tint: Color?
+
+    func body(content: Content) -> some View {
+        if systemReducesTransparency || reducesGlass {
+            content
+                .background {
+                    shape.fill(.background.secondary)
+                        .overlay { if let tint { shape.fill(tint.opacity(0.2)) } }
+                        .overlay { shape.stroke(.separator, lineWidth: 1) }
+                }
+        } else {
+            content.glassEffect((tint.map { Glass.regular.tint($0) } ?? .regular).interactive(interactive), in: shape)
+        }
+    }
+}
+
+extension View {
+    func appGlass<S: Shape>(_ shape: S, interactive: Bool = false, tint: Color? = nil) -> some View {
+        modifier(AppGlass(shape: shape, interactive: interactive, tint: tint))
     }
 }

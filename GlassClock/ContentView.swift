@@ -36,12 +36,8 @@ struct ContentView: View {
     /// Counts taps on Refresh Widget, to spin its arrow.
     @State private var refreshTurns = 0
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
-    // A new key, so everyone starts with the new sections' defaults open.
-    @AppStorage("openSections") private var openPanelList = "Fonts,Layout,Presets"
-    private var openPanels: Set<String> {
-        get { Set(openPanelList.split(separator: ",").map(String.init)) }
-        nonmutating set { openPanelList = newValue.sorted().joined(separator: ",") }
-    }
+    /// Swaps the app's glass panels for solid ones (also follows Reduce Transparency).
+    @AppStorage("reduceGlass") private var reducesGlass = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var customPresets = StyleLibrary.loadPresets()
     /// The saved preset being named: nil for a new one. Shown when `namingPreset` is true.
@@ -73,6 +69,10 @@ struct ContentView: View {
     @State private var backdropPhoto = BackdropPhoto.load()
     @State private var photoItem: PhotosPickerItem?
     @State private var choosingPhoto = false
+    /// Which way the next backdrop slides in: up from the bottom, or down from the top.
+    @State private var backdropTravel = Edge.bottom
+    /// The backdrop's name, shown briefly after it changes.
+    @State private var backdropToast: String?
 
     /// Spacing on an 8-point grid (HIG: Layout).
     private enum Space {
@@ -85,8 +85,8 @@ struct ContentView: View {
     var body: some View {
         Group {
             switch interface {
-            case .classic: classicInterface
-            case .panels: panelsInterface
+            case .classic: classicInterface.transition(interfaceTransition)
+            case .panels: panelsInterface.transition(interfaceTransition)
             }
         }
         .photosPicker(isPresented: $choosingPhoto, selection: $photoItem, matching: .images)
@@ -100,6 +100,7 @@ struct ContentView: View {
         }
         .onChange(of: backdrop) {
             if backdrop == .photo && backdropPhoto == nil { choosingPhoto = true }
+            showBackdropName()
         }
         .alert(presetIndex == nil ? "Save Preset" : "Rename Preset", isPresented: $namingPreset) {
             TextField("Name", text: $presetName)
@@ -121,25 +122,31 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) {
             if scenePhase == .background && applyWhenLeaving && style != appliedStyle { apply() }
+            // Opening the app also nudges the widget, so it never stays out of date for long.
+            if scenePhase == .active { WidgetCenter.shared.reloadAllTimelines() }
         }
     }
 
     /// The backdrop fills the window, with the preview on it and the settings in a fixed glass
-    /// panel floating over it: on the right when there's room, along the bottom when it's narrow.
-    /// (A draggable divider was here before; dragging it felt jittery, owner feedback 2026-10-21.)
+    /// panel floating over it. The preview comes first: it gets the room the widget needs at
+    /// its real size, and the settings take what's left, beside it when there's room and below
+    /// when there isn't (owner direction, 2026-10-21: "the app goes around the widget's size").
     private var classicInterface: some View {
         NavigationStack {
             GeometryReader { geometry in
                 let size = geometry.size
+                let besideRoom = size.width - stageWidth - Space.medium * 3
+                let arrangement = layout == .automatic
+                    ? (besideRoom >= 340 ? WorkspaceLayout.sideBySide : .stacked) : layout
                 ZStack {
                     backdropView
                         .ignoresSafeArea()
-                    switch layout.resolved(width: size.width) {
+                    switch arrangement {
                     case .sideBySide:
                         HStack(spacing: Space.medium) {
                             previewStage
                             settingsPanel
-                                .frame(width: min(480, max(380, size.width * 0.38)))
+                                .frame(width: min(480, max(340, besideRoom)))
                         }
                         .padding([.horizontal, .bottom], Space.medium)
                     case .previewOnly:
@@ -147,22 +154,19 @@ struct ContentView: View {
                     default:
                         VStack(spacing: Space.medium) {
                             previewStage
-                                .frame(height: max(300, size.height * 0.4))
+                                .frame(height: min(stageHeight, max(300, size.height - 280)))
                             settingsPanel
                         }
                         .padding([.horizontal, .bottom], Space.medium)
                     }
                 }
+                .animation(reduceMotion ? nil : .smooth(duration: 0.4), value: arrangement)
+                .animation(reduceMotion ? nil : .smooth(duration: 0.4), value: previewSize)
             }
             .animation(.smooth, value: layout)
             .navigationTitle("Glass Clock")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { layoutMenu }
-                ToolbarItem(placement: .topBarLeading) { tourButton }
-                ToolbarItem(placement: .primaryAction) { refreshButton }
-                ToolbarItem(placement: .primaryAction) { applyButton }
-            }
+            .toolbar { toolbarItems }
         }
     }
 
@@ -174,7 +178,7 @@ struct ContentView: View {
             .sensoryFeedback(.selection, trigger: settingsTextSize)
             .scrollContentBackground(.hidden)
             .clipShape(.rect(cornerRadius: 28))
-            .glassEffect(.regular, in: .rect(cornerRadius: 28))
+            .appGlass(.rect(cornerRadius: 28))
     }
 
     /// Two floating glass panels over the full-window backdrop, like Classic's: a short list of
@@ -186,7 +190,9 @@ struct ContentView: View {
     private var panelsInterface: some View {
         NavigationStack {
             GeometryReader { geometry in
-                let settingsWidth = min(440, max(360, geometry.size.width * 0.36))
+                let besideRoom = geometry.size.width - stageWidth - Space.medium * 3
+                    - (isWide && showsSidebar ? groupsWidth + Space.medium : 0)
+                let settingsWidth = min(440, max(320, besideRoom))
                 ZStack {
                     ZStack {
                         backdropView
@@ -213,7 +219,7 @@ struct ContentView: View {
                                 .simultaneousGesture(settingsPinchGesture)
                                 .sensoryFeedback(.selection, trigger: settingsTextSize)
                                 .clipShape(.rect(cornerRadius: 28))
-                                .glassEffect(.regular, in: .rect(cornerRadius: 28))
+                                .appGlass(.rect(cornerRadius: 28))
                                 .frame(width: settingsWidth)
                                 .transition(panelTransition(.trailing))
                         }
@@ -235,34 +241,60 @@ struct ContentView: View {
             .sensoryFeedback(.impact(weight: .light), trigger: showsSidebar)
             .navigationTitle("Glass Clock")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { layoutMenu }
-                ToolbarItem(placement: .topBarLeading) { tourButton }
-                ToolbarItem(placement: .primaryAction) { refreshButton }
-                ToolbarItem(placement: .primaryAction) { applyButton }
-            }
+            .toolbar { toolbarItems }
         }
-        // The groups sit alongside on wide screens and tuck away on narrower ones, so the
-        // preview isn't squeezed between the two panels.
-        .onGeometryChange(for: Bool.self) { $0.size.width >= 1200 } action: { wide in
-            isWide = wide
+        // The groups sit alongside when there's room for them, the real-size preview and the
+        // settings together, and tuck away otherwise, so the preview isn't squeezed.
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+            isWide = width >= stageWidth + groupsWidth + 340 + Space.medium * 4
+        }
+        .onChange(of: previewSize) {
+            // A bigger widget may no longer leave room for the sidebar, and the reverse.
+            withAnimation(.snappy) { showsSidebar = isWide }
         }
         .onChange(of: isWide, initial: true) {
             withAnimation(.snappy) { showsSidebar = isWide }
         }
     }
 
-    private let groupsWidth: CGFloat = 230
+    /// The room the preview stage needs to show the widget at its real size, with its padding
+    /// and the controls around it.
+    private var stageWidth: CGFloat { max(previewSize.size.width, 420) + Space.large * 2 }
+    private var stageHeight: CGFloat { previewSize.size.height + 220 }
+
+    /// The groups sidebar, full or folded down to its icons.
+    @AppStorage("groupsCollapsed") private var groupsCollapsed = false
+    private var groupsWidth: CGFloat { groupsCollapsed ? 68 : 230 }
+
+    /// Switching between Classic and Panels cross-fades with a slight zoom, or just fades.
+    private var interfaceTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.97))
+    }
 
     /// Panels slide in from their own edge, or fade when Reduce Motion is on.
     private func panelTransition(_ edge: Edge) -> AnyTransition {
         reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
     }
 
-    /// The settings groups on a glass panel: a tap glides the settings to that group.
+    /// The settings groups on a glass panel: a tap glides the settings to that group. It folds
+    /// down to just its icons with the button at the top, to give the preview more room.
     private var groupsPanel: some View {
         ScrollView {
             VStack(spacing: 4) {
+                Button {
+                    withAnimation(reduceMotion ? nil : .snappy) { groupsCollapsed.toggle() }
+                } label: {
+                    Image(systemName: groupsCollapsed ? "sidebar.right" : "sidebar.left")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, height: 24)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: groupsCollapsed ? .center : .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(groupsCollapsed ? "Show group names" : "Show icons only")
                 ForEach(SettingsSection.allCases) { section in
                     let selected = selectedSection == section
                     Button {
@@ -273,17 +305,22 @@ struct ContentView: View {
                                 .font(.body.weight(.semibold))
                                 .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
                                 .frame(width: 24)
-                            Text(section == .homeScreens ? "Home Screens" : section.title)
-                                .font(.body.weight(selected ? .semibold : .regular))
-                                .foregroundStyle(selected ? .white : .primary)
-                            Spacer(minLength: 0)
+                            if !groupsCollapsed {
+                                Text(section == .homeScreens ? "Home Screens" : section.title)
+                                    .font(.body.weight(selected ? .semibold : .regular))
+                                    .foregroundStyle(selected ? .white : .primary)
+                                    .lineLimit(1)
+                                    .transition(.opacity.combined(with: .move(edge: .leading)))
+                                Spacer(minLength: 0)
+                            }
                         }
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, groupsCollapsed ? 10 : 14)
                         .padding(.vertical, 11)
                         .background(selected ? Color.accentColor : .clear, in: .capsule)
                         .contentShape(.capsule)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(section.title)
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
@@ -291,7 +328,7 @@ struct ContentView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .fixedSize(horizontal: false, vertical: true)
-        .glassEffect(.regular, in: .rect(cornerRadius: 28))
+        .appGlass(.rect(cornerRadius: 28))
         .animation(.snappy, value: selectedSection)
     }
 
@@ -355,8 +392,8 @@ struct ContentView: View {
                             .padding(.vertical, Space.small)
                     }
                     .buttonStyle(.plain)
-                    .glassEffect(selectedSection == section ? .regular.tint(.accentColor.opacity(0.35)).interactive() : .regular.interactive(),
-                                 in: .capsule)
+                    .appGlass(.capsule, interactive: true,
+                              tint: selectedSection == section ? .accentColor.opacity(0.35) : nil)
                 }
             }
             .padding(.vertical, 4)
@@ -383,7 +420,7 @@ struct ContentView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .appGlass(.capsule, interactive: true)
         .padding(.horizontal, 6)
         .transition(.opacity.combined(with: .scale(scale: 0.6)))
         .accessibilityLabel(label)
@@ -397,25 +434,43 @@ struct ContentView: View {
         return limit * (1 - exp(-abs(x) / 120)) * (x < 0 ? -1 : 1)
     }
 
-    /// Switches between the interfaces, and between the Classic interface's arrangements.
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        if interface == .classic {
+            ToolbarItem(placement: .topBarLeading) { layoutMenu }
+        }
+        ToolbarItem(placement: .topBarLeading) { tourButton }
+        ToolbarItem(placement: .principal) { interfaceSwitch }
+        ToolbarItem(placement: .primaryAction) { refreshButton }
+        ToolbarItem(placement: .primaryAction) { applyButton }
+    }
+
+    /// Classic (simple) or Panels (everything), always one tap away in the middle of the top bar.
+    private var interfaceSwitch: some View {
+        Picker("Interface", selection: Binding(
+            get: { interface },
+            set: { next in withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { interface = next } }
+        )) {
+            // Words rather than icons: a segmented control shows only the icon of a Label.
+            ForEach(InterfaceStyle.allCases) { option in
+                Text(option.label).tag(option)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 220)
+        .accessibilityHint("Classic keeps things simple; Panels has every setting")
+    }
+
+    /// Classic's arrangement of the preview and its settings.
     private var layoutMenu: some View {
         Menu {
-            Picker("Interface", selection: $interface) {
-                ForEach(InterfaceStyle.allCases) { option in
+            Picker("Arrangement", selection: $layout) {
+                ForEach(WorkspaceLayout.allCases) { option in
                     Label(option.label, systemImage: option.symbol).tag(option)
                 }
             }
-            if interface == .classic {
-                Section("Arrangement") {
-                    Picker("Arrangement", selection: $layout) {
-                        ForEach(WorkspaceLayout.allCases) { option in
-                            Label(option.label, systemImage: option.symbol).tag(option)
-                        }
-                    }
-                }
-            }
         } label: {
-            Label("Layout", systemImage: interface == .panels ? interface.symbol : layout.symbol)
+            Label("Arrangement", systemImage: layout.symbol)
         }
     }
 
@@ -523,7 +578,8 @@ struct ContentView: View {
                 if abs(dy) > 60, abs(dy) > abs(dx) * 1.5 {
                     let options = PreviewBackdrop.allCases.filter { $0 != .photo || backdropPhoto != nil }
                     let index = options.firstIndex(of: backdrop) ?? 0
-                    withAnimation(.smooth) {
+                    backdropTravel = dy < 0 ? .bottom : .top
+                    withAnimation(.smooth(duration: 0.55)) {
                         backdrop = options[(index + (dy < 0 ? 1 : options.count - 1)) % options.count]
                     }
                     return
@@ -601,15 +657,50 @@ struct ContentView: View {
             .padding(.horizontal, Space.large)
             .padding(.top, Space.medium)
             .padding(.bottom, Space.large)
+            .overlay(alignment: .top) {
+                if let backdropToast {
+                    Text(backdropToast)
+                        .font(.headline)
+                        .padding(.horizontal, Space.medium)
+                        .padding(.vertical, Space.small)
+                        .appGlass(.capsule)
+                        .padding(.top, Space.small)
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)))
+                        .accessibilityHidden(true)
+                }
+            }
             // The labels and pickers follow the backdrop, so they stay readable when the iPad
             // is in dark mode but the Light preview is on.
             .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
     }
 
-    /// What's behind the card. Plain is white or black, so the card looks as it will on a
-    /// plain Home Screen; Clear and Tinted need a wallpaper for their white content to show up.
-    @ViewBuilder
+    /// What's behind the card, sliding in when it changes: up for a swipe up or a pick from the
+    /// menu, down for a swipe down. With Reduce Motion it fades instead.
     private var backdropView: some View {
+        ZStack {
+            backdropFill
+                .id(backdrop)
+                .transition(reduceMotion ? .opacity : .push(from: backdropTravel))
+        }
+        .animation(.smooth(duration: 0.55), value: backdrop)
+        .clipped()
+    }
+
+    /// Briefly shows the new backdrop's name over the preview.
+    private func showBackdropName() {
+        let name = backdrop.label
+        withAnimation(.snappy) { backdropToast = name }
+        Task {
+            try? await Task.sleep(for: .seconds(1.3))
+            if backdropToast == name { withAnimation(.easeOut(duration: 0.4)) { backdropToast = nil } }
+            backdropTravel = .bottom
+        }
+    }
+
+    /// Plain is white or black, so the card looks as it will on a plain Home Screen; Clear and
+    /// Tinted need a wallpaper for their white content to show up.
+    @ViewBuilder
+    private var backdropFill: some View {
         switch backdrop {
         case .plain where homeScreen.accent == nil:
             homeScreen == .dark ? Color.black : Color.white
@@ -630,7 +721,7 @@ struct ContentView: View {
         content()
             .padding(.horizontal, Space.small)
             .padding(.vertical, Space.small)
-            .glassEffect(.regular, in: .capsule)
+            .appGlass(.capsule)
     }
 
     private var homeScreenBubble: some View {
@@ -695,19 +786,54 @@ struct ContentView: View {
         .overlay { Circle().strokeBorder(.secondary.opacity(0.4), lineWidth: 1) }
     }
 
-    /// Every settings group as a collapsible section, for the Classic interface.
+    /// Classic keeps to the basics: presets, the font and the colour. Everything else is in
+    /// Panels, a tap away (owner direction, 2026-10-21: "keep Classic as simple as possible").
     private var settings: some View {
         Form {
-            ForEach(SettingsSection.allCases) { section in
-                panel(section) { sectionContent(section) }
+            ForEach(SettingsSection.classic) { section in
+                Section {
+                    sectionContent(section, simple: true)
+                } header: {
+                    Label(section.title, systemImage: section.icon)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .textCase(nil)
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
+            Section {
+                Button {
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { interface = .panels }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: InterfaceStyle.panels.symbol)
+                            .font(.body.weight(.semibold))
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("More options in Panels")
+                                .font(.headline)
+                            Text("Layout, effects, the card, Home Screen colours and more")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 
     /// The controls for one settings group, shared by both interfaces. Bigger groups are split
     /// into small labelled parts.
+    /// `simple` trims a group to its basics, for Classic.
     @ViewBuilder
-    private func sectionContent(_ section: SettingsSection) -> some View {
+    private func sectionContent(_ section: SettingsSection, simple: Bool = false) -> some View {
         switch section {
         case .presets:
             // Wraps into rows, so it reads well in the narrower inspector too.
@@ -757,6 +883,12 @@ struct ContentView: View {
             slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
             Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
 
+        case .fonts where simple:
+            Picker("Font", selection: $style.font) {
+                ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
+            }
+            slider("Weight", value: $style.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
+
         case .fonts:
             groupLabel("Time")
             Picker("Font", selection: $style.font) {
@@ -795,7 +927,9 @@ struct ContentView: View {
                     swatchRow(selection: $style.gradientColor)
                 }
             }
-            slider("Transparency", value: $style.textOpacity, in: ClockStyle.textOpacityRange, low: "Faint", high: "Solid")
+            if !simple {
+                slider("Transparency", value: $style.textOpacity, in: ClockStyle.textOpacityRange, low: "Faint", high: "Solid")
+            }
 
         case .effects:
             groupLabel("Inner colour")
@@ -848,6 +982,7 @@ struct ContentView: View {
 
         case .widget:
             Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
+            Toggle("Reduce glass", isOn: $reducesGlass)
             Button("Show the tour") { showsTour = true }
             Button("Reset to defaults", role: .destructive) {
                 style = ClockStyle()
@@ -863,46 +998,6 @@ struct ContentView: View {
             .textCase(.uppercase)
             .padding(.top, 4)
             .listRowSeparator(.hidden, edges: .top)
-    }
-
-    /// A settings section that opens and closes from its header. Which ones are open is
-    /// remembered, so people can keep the parts they use most at hand.
-    private func panel<Content: View>(_ section: SettingsSection,
-                                      @ViewBuilder content: () -> Content) -> some View {
-        let title = section.title, icon = section.icon, footer = section.footer
-        let open = openPanels.contains(title)
-        return Section {
-            if open { content() }
-        } header: {
-            Button {
-                withAnimation(.snappy) {
-                    if open { openPanels.remove(title) } else { openPanels.insert(title) }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: icon)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.tint)
-                        .frame(width: 24)
-                    Text(title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(open ? 90 : 0))
-                }
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .textCase(nil)
-            .accessibilityAddTraits(.isHeader)
-            .accessibilityHint(open ? "Closes this section" : "Opens this section")
-        } footer: {
-            if open, let footer { Text(footer) }
-        }
     }
 
     private func customPresetButton(_ index: Int) -> some View {
