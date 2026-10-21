@@ -64,7 +64,7 @@ extension PreviewBackdrop {
 /// What's behind the preview card. Apps can't see the Home Screen wallpaper, so the closest
 /// thing is a photo the person picks, such as a screenshot of their own Home Screen.
 enum PreviewBackdrop: String, CaseIterable, Identifiable {
-    case plain, aurora, sunset, ocean, graphite, bloom, dune, lagoon, midnight, glow, lines, waves, dots, rings, photo
+    case plain, aurora, sunset, ocean, graphite, bloom, dune, lagoon, midnight, glow, lines, waves, dots, rings, custom, photo
     var id: Self { self }
 
     var label: String {
@@ -83,6 +83,7 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
         case .waves: "Waves"
         case .dots: "Dots"
         case .rings: "Rings"
+        case .custom: "Your Own"
         case .photo: "Your Photo"
         }
     }
@@ -90,6 +91,8 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
     var colors: [Color] {
         switch self {
         case .plain, .photo: [.indigo, .teal, .orange]
+        case .custom: CustomBackdrop.decode(UserDefaults.standard.string(forKey: CustomBackdrop.key) ?? "")?.colors
+            ?? CustomBackdrop().colors
         case .aurora: [.indigo, .teal, .orange]
         case .sunset: [.purple, .pink, .orange]
         case .ocean: [Color(red: 0.02, green: 0.1, blue: 0.35), .blue, .teal]
@@ -104,7 +107,7 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
 
     /// The simple drawn patterns (owner request, 2026-10-21: lines and patterns as ideas
     /// for backdrops). They follow Light and Dark, see `PatternBackdrop`.
-    var isPattern: Bool { [.lines, .waves, .dots, .rings].contains(self) }
+    var isPattern: Bool { [.lines, .waves, .dots, .rings, .custom].contains(self) }
 
     /// Soft, blended mesh backdrops in the spirit of the iPad's own wallpapers (owner request,
     /// 2026-10-21): nine colours on a 3×3 grid, top-left to bottom-right.
@@ -135,18 +138,21 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
 /// darker marks in Light, deep with lighter marks in Dark.
 struct PatternBackdrop: View {
     var kind: PreviewBackdrop
+    /// For Your Own: its colours and pattern, passed in so it redraws as they change.
+    var custom: CustomBackdrop? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let dark = colorScheme == .dark
-        let base = kind.colors
+        let base = custom?.colors ?? kind.colors
+        let marks = kind == .custom ? custom?.pattern.drawn : kind
         ZStack {
             LinearGradient(colors: base, startPoint: .topLeading, endPoint: .bottomTrailing)
             // Light: washed towards white; Dark: towards black.
             (dark ? Color.black : Color.white).opacity(dark ? 0.45 : 0.55)
             Canvas { context, size in
                 let ink = GraphicsContext.Shading.color(dark ? .white.opacity(0.16) : base[0].opacity(0.35))
-                switch kind {
+                switch marks {
                 case .lines:
                     var path = Path()
                     let gap: CGFloat = 26
@@ -178,7 +184,7 @@ struct PatternBackdrop: View {
                             context.fill(Path(ellipseIn: CGRect(x: x - 2, y: y - 2, width: 4, height: 4)), with: ink)
                         }
                     }
-                default:
+                case .rings:
                     let centre = CGPoint(x: size.width * 0.15, y: size.height * 0.85)
                     let reach = hypot(size.width, size.height)
                     for radius in stride(from: CGFloat(40), through: reach, by: 38) {
@@ -186,6 +192,8 @@ struct PatternBackdrop: View {
                                                               width: radius * 2, height: radius * 2)),
                                        with: ink, lineWidth: 1.4)
                     }
+                default:
+                    break
                 }
             }
         }

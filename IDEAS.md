@@ -135,7 +135,8 @@ you. The other option is to send screenshots with scribbles on them, which works
 
 ## Owner ideas, 21 Oct 2026 (afternoon)
 - [x] Stick the groups onto the widget or the settings; slide in to a tab and out again, pull well away to unstick. (Settings sticking to things: not yet.)
-- [ ] Make-your-own backdrops: generate gradients and patterns for the widget's own background, and for the view behind it, adapting to Light and Dark.
+- [x] Make-your-own backdrop for the app (21 Oct): two or three colours and None/Lines/Waves/Dots/Rings, pale in Light and deep in Dark (paintbrush button by the backdrop, or the backdrop menu).
+- [ ] Make-your-own backgrounds for the widget itself (not started: the widget's look was kept as is).
 - [ ] Try more "make way" options when the widget moves under a panel (shrink to a strip, slide down) alongside Move aside and Tuck away.
 - [x] Panels move aside when the widget is moved under them (option: Tuck away instead).
 - [x] Suggestions like the Home Screen question, elsewhere: "Try a font" after a preset, and Apply when changes wait (only if Apply when leaving is off). One at a time, with a ✕.

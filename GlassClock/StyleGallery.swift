@@ -205,6 +205,8 @@ enum StressTest {
     /// GLASSCLOCK_SUGGEST=font or apply: uses a preset at launch (and sets My Home Screen) so the
     /// suggestion under the Home Screen picker can be screenshotted.
     static var suggestion: String? { ProcessInfo.processInfo.environment["GLASSCLOCK_SUGGEST"] }
+    /// GLASSCLOCK_MAKE_BACKDROP=1: opens Make Your Own a few seconds after launch.
+    static var makeBackdrop: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_MAKE_BACKDROP"] != nil }
 }
 
 /// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.
@@ -245,5 +247,6 @@ enum StressTest {
     static var carried: Bool { false }
     static var oneRowPage: Int? { nil }
     static var suggestion: String? { nil }
+    static var makeBackdrop: Bool { false }
 }
 #endif

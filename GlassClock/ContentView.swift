@@ -185,6 +185,9 @@ struct ContentView: View {
     @State private var controlsPageForward = true
     /// Set when a preset is used, so a "Try a font" suggestion can follow it.
     @State private var suggestsFont = false
+    /// Your Own backdrop's colours and pattern, saved as JSON; empty until one is made.
+    @AppStorage(CustomBackdrop.key) private var customBackdropRaw = ""
+    @State private var makingBackdrop = false
     /// True once the style has been left alone for a few seconds, so the Apply suggestion
     /// doesn't flicker in while someone is still changing things.
     @State private var changesSettled = false
@@ -294,6 +297,12 @@ struct ContentView: View {
             if let page = StressTest.oneRowPage {
                 oneRowControls = true
                 controlsPage = min(2, max(0, page))
+            }
+            if StressTest.makeBackdrop {
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    openBackdropMaker()
+                }
             }
             if let hint = StressTest.suggestion {
                 myHomeScreen = .automatic
@@ -1896,7 +1905,7 @@ struct ContentView: View {
                 let dx = drag.translation.width, dy = drag.translation.height
                 // Up and down flick through the backdrops (not Your Photo, which opens a picker).
                 if abs(dy) > 60, abs(dy) > abs(dx) * 1.5 {
-                    let options = PreviewBackdrop.allCases.filter { $0 != .photo || backdropPhoto != nil }
+                    let options = availableBackdrops
                     let index = options.firstIndex(of: backdrop) ?? 0
                     backdropTravel = dy < 0 ? .bottom : .top
                     withAnimation(.smooth(duration: 0.55)) {
@@ -2233,7 +2242,7 @@ struct ContentView: View {
 
     /// The backdrop after (upwards) or before this one, skipping Your Photo until there is one.
     private func neighbourBackdrop(upward: Bool) -> PreviewBackdrop {
-        let options = PreviewBackdrop.allCases.filter { $0 != .photo || backdropPhoto != nil }
+        let options = availableBackdrops
         let index = options.firstIndex(of: backdrop) ?? 0
         return options[(index + (upward ? 1 : options.count - 1)) % options.count]
     }
@@ -2302,7 +2311,7 @@ struct ContentView: View {
             }
             .clipped()
         case _ where backdrop.isPattern:
-            PatternBackdrop(kind: backdrop)
+            PatternBackdrop(kind: backdrop, custom: backdrop == .custom ? customBackdrop.wrappedValue : nil)
         default:
             if let mesh = backdrop.mesh {
                 // The middle points sit off-centre, so the colours flow rather than form a grid.
@@ -2511,6 +2520,10 @@ struct ContentView: View {
                             ForEach(kind.backdrops) { option in backdropChoice(option) }
                         }
                     }
+                    Section("Your Own") {
+                        if !customBackdropRaw.isEmpty { backdropChoice(.custom) }
+                        Button("Make Your Own…", systemImage: "paintbrush") { openBackdropMaker() }
+                    }
                     if backdropPhoto != nil {
                         Section("Photo") { backdropChoice(.photo) }
                     }
@@ -2539,7 +2552,54 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(backdropPhoto == nil ? "Add Photo" : "Choose Another Photo")
+
+                Button { openBackdropMaker() } label: {
+                    Image(systemName: "paintbrush")
+                        .font(.body.weight(.medium))
+                        .frame(width: 36, height: 36)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Make Your Own Backdrop")
+                .popover(isPresented: $makingBackdrop) {
+                    CustomBackdropEditor(backdrop: customBackdrop, tint: AppColor.chosen(appColor)) { makingBackdrop = false }
+                        .presentationCompactAdaptation(.popover)
+                }
             }
+        }
+    }
+
+    /// Every backdrop that can be shown: Your Photo once there is one, Your Own once it's made.
+    private var availableBackdrops: [PreviewBackdrop] {
+        PreviewBackdrop.allCases.filter {
+            ($0 != .photo || backdropPhoto != nil) && ($0 != .custom || !customBackdropRaw.isEmpty)
+        }
+    }
+
+    private var customBackdrop: Binding<CustomBackdrop> {
+        Binding {
+            CustomBackdrop.decode(customBackdropRaw) ?? CustomBackdrop()
+        } set: {
+            customBackdropRaw = $0.encoded
+        }
+    }
+
+    /// Opens Make Your Own, showing Your Own behind it so changes are seen straight away.
+    private func openBackdropMaker() {
+        if customBackdropRaw.isEmpty { customBackdropRaw = CustomBackdrop().encoded }
+        if backdrop != .custom {
+            backdropTravel = .bottom
+            withAnimation(.smooth(duration: 0.55)) { backdrop = .custom }
+        }
+        // In one row, the editor hangs off the backdrop page, so turn to it first.
+        if oneRowControls && controlsPage != 2 {
+            turnControlsPage(to: 2)
+            Task {
+                try? await Task.sleep(for: .milliseconds(350))
+                makingBackdrop = true
+            }
+        } else {
+            makingBackdrop = true
         }
     }
 
@@ -2564,7 +2624,7 @@ struct ContentView: View {
             } else if backdrop == .plain {
                 homeScreen == .dark ? Color.black : Color.white
             } else if backdrop.isPattern {
-                PatternBackdrop(kind: backdrop)
+                PatternBackdrop(kind: backdrop, custom: backdrop == .custom ? customBackdrop.wrappedValue : nil)
             } else {
                 LinearGradient(colors: backdrop.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
             }
