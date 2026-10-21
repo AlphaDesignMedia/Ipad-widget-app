@@ -82,14 +82,14 @@ struct ContentView: View {
     @State private var highlighted: SettingsSection?
     /// The settings card in use: the one being scrolled past, or jumped to.
     @State private var focusedSection: SettingsSection?
-    @GestureState(resetTransaction: Transaction(animation: ContentView.cardSettle)) private var clockPinch: CGFloat = 1
+    /// Live positions while a finger moves something (see `LiveMotion`).
+    @State private var motion = LiveMotion()
     /// Where the widget sits on the preview's Home Screen grid (-1: the middle), remembered.
     @AppStorage("widgetColumn") private var widgetColumn = -1
     @AppStorage("widgetRow") private var widgetRow = -1
-    /// How far the widget has been dragged from its slot, while it's being moved. It springs back
-    /// to zero with the same spring that moves the widget to its new slot, so the two cancel out
-    /// and the widget glides on from under the finger instead of jumping back first.
-    @GestureState(resetTransaction: Transaction(animation: ContentView.cardSettle)) private var cardDrag: CGSize = .zero
+    /// The slot the widget would land in while it's dragged (column × 100 + row; -1 when not
+    /// dragging). Only changes slot to slot, so the rest of the screen redraws rarely.
+    @State private var landingKey = -1
     /// The spring the widget settles with after a drag or pinch.
     static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.82)
     @State private var draggingCard = false
@@ -112,8 +112,6 @@ struct ContentView: View {
     /// Lifting the finger after the long press also counts as a tap; this stops that tap from
     /// finishing editing straight away.
     @State private var ignoresNextCardTap = false
-    /// How the widget leans while it's dragged, from the finger's speed: -1…1 each way.
-    @State private var cardLean = CGSize.zero
     // Design Tweaks, read here so the whole window redraws as the sliders move.
     @AppStorage(Tweak.panel.key) private var tweakPanel = Tweak.panel.standard
     @AppStorage(Tweak.gap.key) private var tweakGap = Tweak.gap.standard
@@ -157,26 +155,23 @@ struct ContentView: View {
     @AppStorage("settingsLeading") private var settingsLeading = false
     @AppStorage("groupsBelow") private var groupsBelow = false
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
-    @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.45, dampingFraction: 0.82))) private var settingsMove = CGSize.zero
-    @GestureState private var settingsHeld = false
     /// The settings being carried by a card's title bar (see `PanelCarry`).
-    @State private var titleCarry: CGSize?
-    private var carriedSettings: CGSize { settingsMove != .zero ? settingsMove : (titleCarry ?? .zero) }
-    private var settingsLifted: Bool { settingsHeld || titleCarry != nil }
+    @State private var settingsCarried = false
     @GestureState private var groupsHeld = false
-    /// Where the finger carrying the groups is, in the window.
-    @GestureState private var groupsFinger: CGPoint?
+    @State private var groupsCarried = false
+    /// Where a carried panel would settle, while one is carried.
+    @State private var carryTarget: CarryTarget?
     /// The groups stuck onto the widget or the settings panel, rather than a panel of their own
     /// (owner idea, 2026-10-21), and whether they're slid in to a small tab.
     @AppStorage("groupsAttachment") private var groupsAttachment = GroupsAttachment.none
     @AppStorage("groupsTucked") private var groupsTucked = false
-    @GestureState private var railDrag = CGSize.zero
+    @GestureState private var railHeld = false
+    @State private var railCarried = false
     @State private var railSize = CGSize(width: 64, height: 400)
     @State private var panelsOrigin = CGPoint.zero
     /// Running a finger down the groups: where it is, and where each group's button is.
     @State private var scrubY: CGFloat?
     @State private var groupFrames: [SettingsSection: CGRect] = [:]
-    @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.4, dampingFraction: 0.8))) private var sidebarMove = CGSize.zero
     /// Panel swipes are ignored for a moment after a widget drag, so moving the widget
     /// doesn't also open or close a panel.
     @State private var swipesPausedUntil = Date.distantPast
@@ -205,7 +200,6 @@ struct ContentView: View {
     /// The text-size bubble, shown on the panel being pinched while pinching and briefly after.
     @State private var textSizeBubblePanel: TextPanel?
     @State private var hideTextSizeBubble: Task<Void, Never>?
-    @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var panelDrag: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     /// Simpler effects (Accessibility settings): no wiggle, lean, sweep or carousel.
     @AppStorage("simpleMotion") private var simpleMotion = false
@@ -449,7 +443,7 @@ struct ContentView: View {
                         AnyView(previewStage(showsChrome: false))
                             .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                             .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
-                            .offset(x: rubberBand(panelDrag))
+                            .modifier(LivePull(motion: motion, still: reduceMotion))
                     }
                     .contentShape(Rectangle())
                     .simultaneousGesture(panelSwipe)
@@ -469,7 +463,7 @@ struct ContentView: View {
                     AnyView(previewStage(measures: false)).allowsHitTesting(false)
                         .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                         .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
-                        .offset(x: rubberBand(panelDrag))
+                        .modifier(LivePull(motion: motion, still: reduceMotion))
                         .zIndex(0.9)
 
                     // While a panel is carried, a soft outline shows where it will settle.
@@ -516,6 +510,10 @@ struct ContentView: View {
             }
             .sensoryFeedback(.impact(weight: .light), trigger: showsInspector)
             .sensoryFeedback(.impact(weight: .light), trigger: showsSidebar)
+            // A panel opened over the widget: the widget steps out to the free space, so it's
+            // never hidden (owner, 22 Oct 2026: the widget is what you want to look at).
+            .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels() } }
+            .onChange(of: showsSidebar) { _, shown in if shown { clearWidgetFromPanels() } }
             .navigationTitle("Glass Clock")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarItems }
@@ -752,7 +750,9 @@ struct ContentView: View {
             }
             .scrollContentBackground(.hidden)
             .coordinateSpace(name: "settingsList")
-            .listSectionSpacing(Corner.inset)
+            // Tighter than the gap between panels: the carousel draws cards together anyway
+            // (owner, 22 Oct 2026: "a bit too much spacing").
+            .listSectionSpacing(Corner.inset * 0.6)
             .contentMargins([.horizontal, .top], Corner.edge, for: .scrollContent)
             .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
             .task(id: focusRequest) {
@@ -802,19 +802,23 @@ struct ContentView: View {
     /// A little glass tab on the edge of the preview, where a tucked-away panel lives. Tap it,
     /// or swipe in from that side.
     private func edgeHandle(_ label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Capsule()
-                .fill(.clear)
-                .frame(width: 6, height: 64)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 12)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .appGlass(.capsule, interactive: true)
-        .padding(.horizontal, 6)
-        .transition(.opacity.combined(with: .scale(scale: 0.6)))
-        .accessibilityLabel(label)
+        Capsule()
+            .fill(.clear)
+            .frame(width: 6, height: 64)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+            .appGlass(.capsule, interactive: true)
+            .onTapGesture(perform: action)
+            // Or grab it and pull it inwards, like Slide Over (owner, 22 Oct 2026).
+            .gesture(DragGesture(minimumDistance: 8).onEnded { drag in
+                if abs(drag.predictedEndTranslation.width) > 50 || abs(drag.translation.width) > 30 { action() }
+            })
+            .padding(.horizontal, 6)
+            .transition(.opacity.combined(with: .scale(scale: 0.6)))
+            .accessibilityLabel(label)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { action() }
     }
 
     /// Which side each panel is on, and which is on top when they share a side.
@@ -851,12 +855,15 @@ struct ContentView: View {
             .simultaneousGesture(textPinchGesture(.groups))
             .sensoryFeedback(.selection, trigger: groupsTextSize)
             .frame(width: width)
-            .modifier(CarriedShape(carried: sidebarMove != .zero || StressTest.carried, style: carryStyle, icon: "list.bullet", title: "Groups", simple: reduceMotion))
-            .scaleEffect(sidebarMove == .zero && !groupsHeld ? 1 : 1.025)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: groupsHeld)
-            .shadow(color: .black.opacity(sidebarMove == .zero ? 0 : 0.18), radius: 20, y: 10)
-            .offset(sidebarMove)
-            .zIndex(sidebarMove == .zero ? 0 : 1)
+            // Measured at rest, before the lift and the carry: measuring after them wrote new
+            // state on every frame of a drag, redrawing the whole screen (owner: "feels slow").
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !groupsCarried { sidebarRect = $0 } }
+            .modifier(CarriedShape(carried: groupsCarried || StressTest.carried, style: carryStyle, icon: "list.bullet", title: "Groups", simple: reduceMotion))
+            .scaleEffect(groupsCarried || groupsHeld ? 1.025 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: groupsHeld || groupsCarried)
+            .shadow(color: .black.opacity(groupsCarried || groupsHeld ? 0.18 : 0), radius: 20, y: 10)
+            .modifier(LiveOffset(motion: motion, path: \.groupsMove))
+            .zIndex(groupsCarried ? 1 : 0)
             // The same bar along the top as the settings panel: drag it to move the panel, or
             // hold anywhere for a moment, then drag (owner idea, 2026-10-21: one way for both).
             // (The grab bar is gone, owner 22 Oct 2026: hold anywhere on the groups, then drag.)
@@ -865,7 +872,6 @@ struct ContentView: View {
             .overlay(alignment: .top) { textSizeOverlay(.groups) }
             .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in markActive(.groups) })
             .modifier(PanelFocus(active: activePanel == nil || activePanel == .groups, strength: tweakFocus))
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sidebarRect = $0 }
             .transition(panelTransition(leading ? .leading : .trailing))
     }
 
@@ -889,64 +895,38 @@ struct ContentView: View {
             // stopped segmented controls inside from answering taps, 2026-10-21.)
             .onScrollPhaseChange { _, phase in if phase != .idle { markActive(.settings) } }
             .modifier(PanelFocus(active: activePanel == nil || activePanel == .settings, strength: tweakFocus))
-            .sensoryFeedback(.impact(weight: .medium), trigger: settingsHeld) { _, held in held }
             .frame(width: width)
-            .modifier(CarriedShape(carried: carriedSettings != .zero || StressTest.carried, style: carryStyle,
+            // Measured at rest, before the lift and the carry (see the groups panel).
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !settingsCarried { inspectorRect = $0 } }
+            .modifier(CarriedShape(carried: settingsCarried || StressTest.carried, style: carryStyle,
                                    icon: selectedSection?.icon ?? "slider.horizontal.3",
                                    title: selectedSection?.title ?? "Settings", simple: reduceMotion))
             // Lifts when it's picked up, like a widget on the Home Screen.
-            .scaleEffect(carriedSettings == .zero && !settingsLifted ? 1 : 1.025)
-            .shadow(color: .black.opacity(carriedSettings == .zero && !settingsLifted ? 0 : 0.2), radius: 22, y: 12)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: settingsLifted)
-            .offset(carriedSettings)
-            .zIndex(carriedSettings == .zero ? 0 : 1)
+            .scaleEffect(settingsCarried ? 1.025 : 1)
+            .shadow(color: .black.opacity(settingsCarried ? 0.2 : 0), radius: 22, y: 12)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: settingsCarried)
+            .modifier(LiveOffset(motion: motion, path: \.settingsMove))
+            .zIndex(settingsCarried ? 1 : 0)
             .environment(\.panelCarry, PanelCarry(
-                moved: { titleCarry = $0 },
+                moved: { move in
+                    if !settingsCarried { settingsCarried = true }
+                    motion.settingsMove = move
+                    track(carryTarget(groups: false, move: move, finger: nil, in: area))
+                },
                 ended: { moved in
                     if let moved {
                         placePanel(groups: false, at: CGPoint(x: inspectorRect.midX + moved.width,
                                                               y: inspectorRect.minY + 40 + moved.height), in: area)
                     }
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { titleCarry = nil }
-                }))
-            .sensoryFeedback(.impact(weight: .medium), trigger: titleCarry != nil) { _, lifted in lifted }
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { inspectorRect = $0 }
-            .transition(panelTransition(leading ? .leading : .trailing))
-    }
-
-    private func panelGrabber(area: CGSize) -> some View {
-        Capsule()
-            .fill(.primary.opacity(settingsMove == .zero ? 0.35 : 0.6))
-            .frame(width: 44, height: 5)
-            .padding(.vertical, 6)
-            .frame(width: 140, height: 22)
-            .contentShape(.rect)
-            .gesture(
-                DragGesture(minimumDistance: 4, coordinateSpace: .global)
-                    .updating($settingsMove) { drag, state, _ in state = drag.translation }
-                    .onEnded { drag in
-                        placePanel(groups: false, at: CGPoint(x: inspectorRect.midX + drag.translation.width,
-                                                              y: inspectorRect.minY + 40 + drag.translation.height), in: area)
+                    carryTarget = nil
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                        motion.settingsMove = .zero
+                        settingsCarried = false
                     }
-            )
-            .accessibilityLabel("Move settings")
-            .accessibilityHint("Drag to the other side, or onto the groups to share a side")
-    }
-
-    private func settingsHoldAndDrag(area: CGSize) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.35)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
-            .updating($settingsHeld) { value, state, _ in
-                if case .second(true, _) = value { state = true }
-            }
-            .updating($settingsMove) { value, state, _ in
-                if case .second(true, let drag?) = value { state = drag.translation }
-            }
-            .onEnded { value in
-                guard case .second(true, let drag?) = value else { return }
-                placePanel(groups: false, at: CGPoint(x: inspectorRect.midX + drag.translation.width,
-                                                      y: inspectorRect.minY + 40 + drag.translation.height), in: area)
-            }
+                },
+                flicked: { towardsLeading in flickSettings(towardsLeading: towardsLeading, in: area) }))
+            .sensoryFeedback(.impact(weight: .medium), trigger: settingsCarried) { _, lifted in lifted }
+            .transition(panelTransition(leading ? .leading : .trailing))
     }
 
     /// Puts a panel down: on the side it's dropped, sharing that side if the other panel is
@@ -963,85 +943,113 @@ struct ContentView: View {
         }
     }
 
+    /// Where a carried panel would settle, worked out from where it's been carried to.
+    private func carryTarget(groups: Bool, move: CGSize, finger: CGPoint?, in area: CGSize) -> CarryTarget {
+        let base = groups ? sidebarRect : inspectorRect
+        let other = groups ? inspectorRect : sidebarRect
+        return CarryTarget(groups: groups,
+                           leading: base.midX + move.width < area.width / 2,
+                           top: base.minY + move.height < other.midY,
+                           attach: groups ? finger.flatMap { attachmentTarget(at: $0) } : nil)
+    }
+
+    /// Keeps the carry target, only when it changes (so a drag redraws the screen rarely).
+    private func track(_ target: CarryTarget) {
+        if carryTarget != target { carryTarget = target }
+    }
+
     /// Where a carried panel would settle, as an outline (in the panels' space).
     private func panelDropHint(in area: CGSize, settingsWidth: CGFloat) -> CGRect? {
-        let carryingGroups = sidebarMove != .zero
-        guard carryingGroups || carriedSettings != .zero else { return nil }
+        guard let target = carryTarget else { return nil }
+        let carryingGroups = target.groups
         let base = carryingGroups ? sidebarRect : inspectorRect
-        let move = carryingGroups ? sidebarMove : carriedSettings
         // Over the widget or the settings: where it would stick on.
-        if carryingGroups, let finger = groupsFinger, let target = attachmentTarget(at: finger) {
-            let frame = railFrame(for: target, size: railSize)
+        if let attach = target.attach {
+            let frame = railFrame(for: attach, size: railSize)
             if frame != .zero { return frame.offsetBy(dx: -panelsOrigin.x, dy: -panelsOrigin.y) }
         }
-        let leading = base.midX + move.width < area.width / 2
+        let leading = target.leading
         let otherHere = carryingGroups ? (showsInspector && settingsLeading == leading) : (showsSidebar && groupsTrailing != leading)
         let width = otherHere || !carryingGroups ? settingsWidth : groupsWidth
         let x = leading ? Space.medium : area.width - Space.medium - width
         if otherHere {
             // Half of that side, above or below the panel that's there.
-            let other = carryingGroups ? inspectorRect : sidebarRect
-            let top = base.minY + move.height < other.midY
             let half = (area.height - Space.medium * 3) / 2
-            return CGRect(x: x, y: top ? 0 : half + Space.medium, width: width, height: half)
+            return CGRect(x: x, y: target.top ? 0 : half + Space.medium, width: width, height: half)
         }
         return CGRect(x: x, y: 0, width: width, height: carryingGroups ? base.height : area.height - Space.medium)
     }
 
-    /// The groups panel can be picked up and put on either side, or with the settings; it snaps
-    /// into place. A hard flick sends it away to fold into its dock (owner direction, 2026-10-21).
-    private func groupsGrabber(area: CGSize) -> some View {
-        Capsule()
-            .fill(.primary.opacity(sidebarMove == .zero ? 0.35 : 0.6))
-            .frame(width: groupsCollapsed ? 28 : 44, height: 5)
-            .padding(.vertical, 6)
-            .frame(width: groupsCollapsed ? 60 : 140, height: 22)
-            .contentShape(.rect)
-            .gesture(sidebarMoveGesture(in: area))
-            .accessibilityLabel("Move groups")
-            .accessibilityHint("Drag to another side, or flick away to fold it into a button")
+    /// A quick sideways flick on a settings card's title bar pushes the panel aside: towards its
+    /// own edge it slides away to a tab, towards the other side it moves across (owner, 22 Oct
+    /// 2026: "swipe it and it should feel like I'm pushing it aside").
+    private func flickSettings(towardsLeading: Bool, in area: CGSize) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) {
+            if towardsLeading == settingsLeading {
+                showsInspector = false
+            } else {
+                placePanel(groups: false, at: CGPoint(x: towardsLeading ? 0 : area.width, y: inspectorRect.minY + 40), in: area)
+            }
+        }
     }
 
+    /// Hold anywhere on the groups for a moment, then drag, to carry the panel.
     private func groupsHoldAndDrag(area: CGSize) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.35)
+        LongPressGesture(minimumDuration: 0.22)
             .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
             .updating($groupsHeld) { value, state, _ in
                 if case .second(true, _) = value { state = true }
             }
-            .updating($sidebarMove) { value, state, _ in
-                if case .second(true, let drag?) = value { state = drag.translation }
-            }
-            .updating($groupsFinger) { value, state, _ in
-                if case .second(true, let drag?) = value { state = drag.location }
+            .onChanged { value in
+                guard case .second(true, let drag?) = value else { return }
+                if !groupsCarried { groupsCarried = true }
+                motion.groupsMove = drag.translation
+                track(carryTarget(groups: true, move: drag.translation, finger: drag.location, in: area))
             }
             .onEnded { value in
-                guard case .second(true, let drag?) = value else { return }
-                endSidebarMove(drag, in: area)
+                if case .second(true, let drag?) = value { endSidebarMove(drag, in: area) }
+                dropGroups()
             }
+    }
+
+    /// Lets go of the groups: they glide from under the finger to where they've settled.
+    private func dropGroups() {
+        carryTarget = nil
+        withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.8)) {
+            motion.groupsMove = .zero
+            groupsCarried = false
+        }
     }
 
     private var groupsScrub: some Gesture {
         DragGesture(minimumDistance: 6, coordinateSpace: .named("groupsList"))
             .onChanged { drag in
-                guard !groupsHeld, sidebarMove == .zero else { scrubY = nil; return }
+                guard !groupsHeld, !groupsCarried, !railHeld, !railCarried else { scrubY = nil; return }
                 scrubY = drag.location.y
                 let nearest = groupFrames.min { abs($0.value.midY - drag.location.y) < abs($1.value.midY - drag.location.y) }?.key
                 if let nearest, nearest != selectedSection { focus(nearest) }
             }
-            .onEnded { _ in scrubY = nil }
+            .onEnded { drag in
+                scrubY = nil
+                // A quick sideways flick pushes the groups aside (owner, 22 Oct 2026): a panel of
+                // their own folds into its dock on that side; stuck on, they slide in to a tab.
+                let dx = drag.predictedEndTranslation.width
+                guard abs(dx) > 220, abs(drag.translation.width) > abs(drag.translation.height) * 1.5 else { return }
+                if groupsFree {
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) {
+                        dockOnTrailing = dx > 0
+                        showsSidebar = false
+                    }
+                } else {
+                    slideGroups(out: false)
+                }
+            }
     }
 
     /// How much a group's button grows while a finger runs down the list: most under the finger.
     private func scrubGrowth(_ section: SettingsSection) -> CGFloat {
         guard let scrubY, let frame = groupFrames[section], !reduceMotion else { return 1 }
         return 1 + 0.1 * max(0, 1 - abs(frame.midY - scrubY) / 80)
-    }
-
-    private func sidebarMoveGesture(in area: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 4, coordinateSpace: .global)
-            .updating($sidebarMove) { drag, state, _ in state = drag.translation }
-            .updating($groupsFinger) { drag, state, _ in state = drag.location }
-            .onEnded { drag in endSidebarMove(drag, in: area) }
     }
 
     private func endSidebarMove(_ drag: DragGesture.Value, in area: CGSize) {
@@ -1147,16 +1155,9 @@ struct ContentView: View {
                     .accessibilityLabel("Show groups")
                     .accessibilityAddTraits(.isButton)
             } else {
+                // No bar on top (owner, 22 Oct 2026): hold anywhere, then drag, to slide it in or
+                // pull it off; a finger run straight down the icons glides through the groups.
                 VStack(spacing: 4) {
-                    Capsule()
-                        .fill(.primary.opacity(railDrag == .zero ? 0.35 : 0.6))
-                        .frame(width: 28, height: 5)
-                        .frame(maxWidth: .infinity, minHeight: 18)
-                        .contentShape(.rect)
-                        // Only the bar drags it, so a finger running down the icons glides
-                        // through the groups instead.
-                        .gesture(railGesture(outward: outward, area: area))
-                        .accessibilityLabel("Move groups")
                     ForEach(SettingsSection.allCases) { section in
                         groupButton(section, iconsOnly: true)
                             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("groupsList")) } action: { groupFrames[section] = $0 }
@@ -1167,15 +1168,22 @@ struct ContentView: View {
                 .padding(Space.small)
                 .fixedSize()
                 .background {
-                    GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .rect(cornerRadius: 32, style: .continuous))
+                    GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .capsule)
                 }
-                .appGlass(.rect(cornerRadius: 32, style: .continuous), panel: true)
+                // A pill, like every other bar (owner, 22 Oct 2026).
+                .appGlass(.capsule, panel: true)
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { railSize = $0 }
-                .shadow(color: .black.opacity(railDrag == .zero ? 0.08 : 0.2), radius: railDrag == .zero ? 10 : 20, y: 8)
+                .shadow(color: .black.opacity(railCarried || railHeld ? 0.2 : 0.08), radius: railCarried || railHeld ? 20 : 10, y: 8)
+                .simultaneousGesture(railHoldAndDrag(outward: outward, area: area))
+                .accessibilityAction(named: "Move groups") { detachGroups() }
             }
         }
-        .scaleEffect(railDrag == .zero ? 1 : 1.03)
-        .offset(x: railDrag.width, y: railDrag.height)
+        .scaleEffect(railCarried || railHeld ? 1.03 : 1)
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: railCarried || railHeld)
+        .sensoryFeedback(.impact(weight: .medium), trigger: railHeld) { _, held in held }
+        .modifier(LiveOffset(motion: motion, path: \.railMove))
+        // Rides along with the widget while it's dragged.
+        .modifier(LiveOffset(motion: motion, path: groupsAttachment == .widget ? \.cardDrag : \.none))
         .position(x: x, y: y)
         .transition(.scale(scale: 0.6).combined(with: .opacity))
         .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.8), value: groupsTucked)
@@ -1185,24 +1193,50 @@ struct ContentView: View {
         .accessibilityAction(named: "Unstick") { detachGroups() }
     }
 
-    /// Drag the stuck-on groups: towards what they're stuck to slides them in, away slides them
-    /// out, and well away (or up and down a long way) pulls them off.
+    /// Drag the stuck-on groups' tab: towards what they're stuck to slides them in, away slides
+    /// them out, and well away (or up and down a long way) pulls them off.
     private func railGesture(outward: CGFloat, area: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 8, coordinateSpace: .global)
-            .updating($railDrag) { drag, state, _ in
-                // Stiff along the edge, so it feels stuck on until it's pulled hard.
-                state = CGSize(width: drag.translation.width, height: drag.translation.height * 0.35)
+            .onChanged { drag in railFollow(drag.translation) }
+            .onEnded { drag in railLetGo(drag.translation, at: drag.location, outward: outward, area: area) }
+    }
+
+    /// The same for the open rail, after holding it for a moment.
+    private func railHoldAndDrag(outward: CGFloat, area: CGSize) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.22)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .updating($railHeld) { value, state, _ in
+                if case .second(true, _) = value { state = true }
             }
-            .onEnded { drag in
-                let out = drag.translation.width * outward
-                if out > 150 || abs(drag.translation.height) > 220 {
-                    detachGroups(at: drag.location, in: area)
-                } else if out > 24 {
-                    slideGroups(out: true)
-                } else if out < -24 {
-                    slideGroups(out: false)
-                }
+            .onChanged { value in
+                guard case .second(true, let drag?) = value else { return }
+                railFollow(drag.translation)
             }
+            .onEnded { value in
+                guard case .second(true, let drag?) = value else { return }
+                railLetGo(drag.translation, at: drag.location, outward: outward, area: area)
+            }
+    }
+
+    /// Stiff along the edge, so it feels stuck on until it's pulled hard.
+    private func railFollow(_ translation: CGSize) {
+        if !railCarried { railCarried = true }
+        motion.railMove = CGSize(width: translation.width, height: translation.height * 0.35)
+    }
+
+    private func railLetGo(_ translation: CGSize, at point: CGPoint, outward: CGFloat, area: CGSize) {
+        let out = translation.width * outward
+        if out > 150 || abs(translation.height) > 220 {
+            detachGroups(at: point, in: area)
+        } else if out > 24 {
+            slideGroups(out: true)
+        } else if out < -24 {
+            slideGroups(out: false)
+        }
+        withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.8)) {
+            motion.railMove = .zero
+            railCarried = false
+        }
     }
 
     private func slideGroups(out: Bool) {
@@ -1266,14 +1300,6 @@ struct ContentView: View {
         .transition(.opacity.combined(with: .scale(scale: 0.6)))
         .accessibilityLabel("Show groups")
         .accessibilityHint("Drag to move the dock")
-    }
-
-    /// How far the preview leans while a swipe is under way: it follows the finger at first,
-    /// then stiffens, so a swipe feels like pulling on something.
-    private func rubberBand(_ x: CGFloat) -> CGFloat {
-        guard !reduceMotion else { return 0 }
-        let limit: CGFloat = 36
-        return limit * (1 - exp(-abs(x) / 120)) * (x < 0 ? -1 : 1)
     }
 
     @ToolbarContentBuilder
@@ -1378,42 +1404,58 @@ struct ContentView: View {
             // Measured against the window, not the widget: the widget moves with the finger, so
             // measuring from it fed its own movement back in and made the drag jitter.
             .simultaneously(with: DragGesture(minimumDistance: 8, coordinateSpace: .global))
-            .updating($clockPinch) { value, state, _ in
-                if let pinch = value.first { state = pinch.magnification }
-            }
-            .updating($cardDrag) { value, state, _ in
-                if value.first == nil, let drag = value.second { state = drag.translation }
-            }
+            // The live distance and pinch go to `motion`, which only the widget itself reads, so
+            // the rest of the screen redraws just when the landing slot changes.
             .onChanged { value in
                 if value.first == nil, value.second != nil, !draggingCard {
                     withAnimation(.snappy) { draggingCard = true }
                 }
-                markActive(.widget)
-                if value.first == nil, let drag = value.second {
+                if activePanel != .widget { markActive(.widget) }
+                if let pinch = value.first {
+                    motion.clockPinch = pinch.magnification
+                } else if let drag = value.second {
+                    motion.cardDrag = drag.translation
                     func lean(_ speed: CGFloat) -> CGFloat { max(-1, min(1, speed / 2400)) }
-                    cardLean = CGSize(width: lean(drag.velocity.width), height: lean(drag.velocity.height))
+                    motion.cardLean = CGSize(width: lean(drag.velocity.width), height: lean(drag.velocity.height))
+                    let landing = grid.nearest(to: CGPoint(x: home.midX + drag.translation.width,
+                                                           y: home.midY + drag.translation.height), span: span)
+                    let key = landing.column * 100 + landing.row
+                    if key != landingKey { landingKey = key }
                 }
             }
             .onEnded { value in
                 swipesPausedUntil = .now.addingTimeInterval(0.4)
-                cardLean = .zero
+                motion.cardLean = .zero
+                landingKey = -1
                 if let pinch = value.first {
                     let sizes = PreviewSize.allCases
-                    guard let index = sizes.firstIndex(of: previewSize) else { return }
+                    let index = sizes.firstIndex(of: previewSize) ?? 0
                     let m = pinch.magnification
                     let step = m > 1.15 ? (m > 1.9 ? 2 : 1) : m < 0.87 ? (m < 0.55 ? -2 : -1) : 0
                     let next = min(sizes.count - 1, max(0, index + step))
-                    withAnimation(Self.cardSettle) { previewSize = sizes[next]; draggingCard = false }
+                    withAnimation(Self.cardSettle) {
+                        previewSize = sizes[next]
+                        motion.clockPinch = 1
+                        motion.cardDrag = .zero
+                        draggingCard = false
+                    }
                 } else if let drag = value.second {
                     let end = CGPoint(x: home.midX + drag.translation.width, y: home.midY + drag.translation.height)
                     let target = grid.nearest(to: end, span: span)
+                    // The distance springs back to zero with the same spring that moves the widget
+                    // to its new slot, so the two cancel out and it glides on from under the finger.
                     withAnimation(reduceMotion ? nil : Self.cardSettle) {
                         widgetColumn = target.column
                         widgetRow = target.row
+                        motion.cardDrag = .zero
                         draggingCard = false
                     }
                 } else {
-                    withAnimation(Self.cardSettle) { draggingCard = false }
+                    withAnimation(Self.cardSettle) {
+                        motion.clockPinch = 1
+                        motion.cardDrag = .zero
+                        draggingCard = false
+                    }
                 }
             }
     }
@@ -1463,13 +1505,7 @@ struct ContentView: View {
     /// while it's moved and leans a little into the movement, like something soft being pulled
     /// through water, then settles back (owner idea, 2026-10-21: a gentle, fabric-like push and pull).
     private func cardFace(card: CGSize, scale: CGFloat) -> some View {
-        let lean: CGSize = reduceMotion ? .zero : cardLean
-        let strength = CGFloat(tweakLean)
-        let turn: Double = Double(lean.width * strength) * 7, tip: Double = Double(-lean.height * strength) * 7
-        let stretchX: CGFloat = 1 + (abs(lean.width) * 0.035 - abs(lean.height) * 0.015) * strength
-        let stretchY: CGFloat = 1 + (abs(lean.height) * 0.035 - abs(lean.width) * 0.015) * strength
         let lift: CGFloat = draggingCard && !reduceMotion ? 1.04 : 1
-        let pinch: CGFloat = reduceMotion ? 1 : min(1.6, max(0.6, clockPinch))
         let face = TimelineView(.everyMinute) { context in
             ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
                       simulatesClear: !homeScreen.showsKeptColours)
@@ -1496,15 +1532,11 @@ struct ContentView: View {
             .scaleEffect(lift)
             .shadow(color: .black.opacity(draggingCard ? 0.28 : 0), radius: 28, y: 14)
             // The lean: a soft tilt towards where it's going and a slight stretch along the way.
-            .rotation3DEffect(.degrees(turn), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
-            .rotation3DEffect(.degrees(tip), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
-            .scaleEffect(x: stretchX, y: stretchY)
-            .animation(.interactiveSpring(response: 0.32, dampingFraction: 0.62), value: lean)
+            .modifier(LiveLean(motion: motion, strength: CGFloat(tweakLean), still: reduceMotion))
             .scaleEffect(x: resizeStretch.width, y: resizeStretch.height, anchor: resizeCorner.opposite)
             .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: resizeStretch)
             // Grows and shrinks with the fingers while pinching, then settles on the nearest size.
-            .scaleEffect(pinch)
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { widgetRect = $0 }
+            .modifier(LivePinch(motion: motion, still: reduceMotion))
         // With Reduce Motion there's no wiggle, just an outline.
         .overlay {
             if editingWidget && reduceMotion {
@@ -1943,13 +1975,13 @@ struct ContentView: View {
     /// the groups list (or hides the settings), a swipe left shows the settings (or hides the list).
     private var panelSwipe: some Gesture {
         DragGesture(minimumDistance: 24)
-            .updating($panelDrag) { drag, state, _ in
+            .onChanged { drag in
                 // Leans only for sideways drags, so scrolling up and down doesn't wobble, and not
                 // while the widget itself is being moved or pinched.
-                if !draggingCard, !editingWidget, clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
-            }
-            .onChanged { drag in
-                guard !draggingCard, !editingWidget, clockPinch == 1, !reduceMotion, Date.now > swipesPausedUntil else { return }
+                if !draggingCard, !editingWidget, motion.clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) {
+                    motion.panelPull = drag.translation.width
+                }
+                guard !draggingCard, !editingWidget, motion.clockPinch == 1, !reduceMotion, Date.now > swipesPausedUntil else { return }
                 let dx = drag.translation.width, dy = drag.translation.height
                 // Up and down pull the next or previous backdrop in, following the finger.
                 guard pulledBackdrop != nil || abs(dy) > abs(dx) * 1.5 else { return }
@@ -1958,11 +1990,12 @@ struct ContentView: View {
                 backdropPull = elastic(dy / pullLength)
             }
             .onEnded { drag in
+                if motion.panelPull != 0 { withAnimation(.bouncy) { motion.panelPull = 0 } }
                 if pulledBackdrop != nil {
                     finishBackdropPull(predicted: drag.predictedEndTranslation.height / pullLength)
                     return
                 }
-                guard !draggingCard, !editingWidget, clockPinch == 1, Date.now > swipesPausedUntil else { return }
+                guard !draggingCard, !editingWidget, motion.clockPinch == 1, Date.now > swipesPausedUntil else { return }
                 let dx = drag.translation.width, dy = drag.translation.height
                 // Up and down flick through the backdrops (not Your Photo, which opens a picker).
                 if abs(dy) > 60, abs(dy) > abs(dx) * 1.5 {
@@ -2020,8 +2053,8 @@ struct ContentView: View {
                 ? grid.nearest(to: CGPoint(x: stageRect.midX - layerRect.minX, y: stageRect.midY - layerRect.minY), span: span)
                 : grid.clamped(column: widgetColumn, row: widgetRow, span: span)
             let home = grid.frame(column: slot.column, row: slot.row, span: span)
-            let centre = CGPoint(x: home.midX + cardDrag.width, y: home.midY + cardDrag.height)
-            let landing = grid.nearest(to: centre, span: span)
+            let centre = CGPoint(x: home.midX, y: home.midY)
+            let landing = landingKey >= 0 ? (column: landingKey / 100, row: landingKey % 100) : slot
             // The floating controls are split around the widget (owner direction, 2026-10-21):
             // the Home Screen style above, size and backdrop below, so the widget sits centred
             // between them. Where one side hasn't room, they all go to the side that has more.
@@ -2069,7 +2102,7 @@ struct ContentView: View {
                         }
                         // Hold it and it lifts with a gentle wiggle; then pinch or drag it. No
                         // corner handles or glass corners any more (owner, 22 Oct 2026).
-                        .onLongPressGesture(minimumDuration: 0.45) {
+                        .onLongPressGesture(minimumDuration: 0.3) {
                             if interface == .panels, !editingWidget { setEditingWidget(true) }
                         } onPressingChanged: { pressing in
                             guard !pressing, ignoresNextCardTap else { return }
@@ -2080,7 +2113,10 @@ struct ContentView: View {
                         }
                         .gesture(cardGesture(grid: grid, home: home, span: span))
                         .sensoryFeedback(.impact(weight: .light), trigger: draggingCard)
-                        .sensoryFeedback(.selection, trigger: landing.column * 100 + landing.row)
+                        .sensoryFeedback(.selection, trigger: landingKey) { _, key in key >= 0 }
+                        // Measured where it rests, not while it's dragged, so a drag doesn't write
+                        // new state on every frame (owner: "it just feels slow", 22 Oct 2026).
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !draggingCard { widgetRect = $0 } }
                         .accessibilityHint("Drag to move it on the Home Screen grid. Pinch to change the widget size.")
                         .accessibilityAction(named: "Move left") { moveWidget(-1, 0, grid: grid, slot: slot) }
                         .accessibilityAction(named: "Move right") { moveWidget(1, 0, grid: grid, slot: slot) }
@@ -2091,20 +2127,21 @@ struct ContentView: View {
                         .overlay(alignment: .top) {
                             if controlsFollowWidget && (controlsSplit || controlsAbove) {
                                 AnyView(floatingControls(top: true, all: !controlsSplit, above: true))
-                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { controlsAboveRect = $0 }
+                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !draggingCard { controlsAboveRect = $0 } }
                                     .onDisappear { controlsAboveRect = .zero }
                             }
                         }
                         .overlay(alignment: .bottom) {
                             if controlsFollowWidget && (controlsSplit || !controlsAbove) {
                                 AnyView(floatingControls(top: controlsSplit ? false : true, all: !controlsSplit, above: false))
-                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { controlsBelowRect = $0 }
+                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !draggingCard { controlsBelowRect = $0 } }
                                     .onDisappear { controlsBelowRect = .zero }
                             }
                         }
                         .animation(.smooth, value: controlsSplit)
                         .animation(.smooth, value: controlsAbove)
                 .position(x: centre.x, y: centre.y)
+                .modifier(LiveOffset(motion: motion, path: \.cardDrag))
                 // The resize handle sits beside the widget rather than on it, so the
                 // widget's own drag doesn't take its touches.
                 if editingWidget && !draggingCard {
@@ -2117,8 +2154,8 @@ struct ContentView: View {
             }
             .frame(width: space.size.width, height: space.size.height)
             // Heading under a panel moves that panel out of the way.
-            .onChange(of: landing.column * 100 + landing.row) {
-                if draggingCard { makeRoom(for: grid.frame(column: landing.column, row: landing.row, span: span)) }
+            .onChange(of: landingKey) {
+                if draggingCard, landingKey >= 0 { makeRoom(for: grid.frame(column: landing.column, row: landing.row, span: span)) }
             }
             .onChange(of: previewSize) { makeRoom(for: home) }
         }
@@ -2136,6 +2173,19 @@ struct ContentView: View {
         widgetGrid
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { layerRect = $0 }
             .padding(Space.medium)
+    }
+
+    /// Once a newly opened panel has settled, moves the widget back to the middle of the free
+    /// space if the panel covers it.
+    private func clearWidgetFromPanels() {
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            let card = widgetRect.insetBy(dx: 12, dy: 12)
+            let covered = (showsInspector && card.intersects(inspectorRect))
+                || (showsSidebar && groupsFree && card.intersects(sidebarRect))
+            guard covered, !draggingCard else { return }
+            withAnimation(Self.cardSettle) { widgetColumn = -1; widgetRow = -1 }
+        }
     }
 
     /// Tucks away any panel the widget would land under (`target` is in the grid's space).
@@ -2385,12 +2435,13 @@ struct ContentView: View {
         }
     }
 
-    /// A capsule of glass for a preview control (glass is for the controls layer, HIG: Materials).
-    private func roundedBubble(cornerRadius: CGFloat, @ViewBuilder content: () -> some View) -> some View {
+    /// A pill of glass for a preview control (glass is for the controls layer, HIG: Materials).
+    /// Every bar is a pill, its selected piece a pill inside it (owner, 22 Oct 2026).
+    private func roundedBubble(@ViewBuilder content: () -> some View) -> some View {
         content()
             .padding(tweakBubble)
-            .background { bubbleBacking(.rect(cornerRadius: cornerRadius, style: .continuous)) }
-            .appGlass(.rect(cornerRadius: cornerRadius, style: .continuous))
+            .background { bubbleBacking(.capsule) }
+            .appGlass(.capsule)
             .environment(\.colorScheme, controlScheme)
     }
 
@@ -2564,8 +2615,7 @@ struct ContentView: View {
     }
 
     private var homeScreenBubble: some View {
-        // Concentric with its taller icon buttons: their 16 plus the bubble's padding.
-        roundedBubble(cornerRadius: 16 + tweakBubble) {
+        roundedBubble {
             HomeStylePicker(selection: $homeScreen)
                 // Its own width, not stretched to match a wider note above it.
                 .fixedSize()

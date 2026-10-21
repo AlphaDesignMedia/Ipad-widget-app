@@ -529,8 +529,9 @@ enum Corner {
     static var inset: CGFloat { CGFloat(Tweak.gap.value) }
     /// The padding between a panel's edge and its cards.
     static var edge: CGFloat { CGFloat(Tweak.panelEdge.value) }
-    /// The cards of settings inside a panel.
-    static var card: CGFloat { max(4, panel - edge) }
+    /// The cards of settings inside a panel: in step with the panel, but never so square that
+    /// they stop looking like the app's other rounded windows (owner, 22 Oct 2026).
+    static var card: CGFloat { max(26, panel - edge) }
     /// Padding inside a card, around its rows.
     static var cardPadding: CGFloat { CGFloat(Tweak.cardPadding.value) }
 }
@@ -592,6 +593,7 @@ struct SettingsCard<Content: View>: View {
                 // Only the title bar, so switches and sliders in the rows always answer taps.
                 .contentShape(.rect)
                 .gesture(titleHold)
+                .simultaneousGesture(titleFlick)
                 .accessibilityAddTraits(.isHeader)
             }
             Group(subviews: content) { rows in
@@ -619,7 +621,7 @@ struct SettingsCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         // Overdone for now, to judge it (owner, 2026-10-21): resting cards fade back and soften.
         // Resting cards fade back a little, never so far that their text is hard to read.
-        .opacity(glassy && !focused && !reduceMotion ? max(0.72, 1 - 0.18 * focusStrength) : 1)
+        // (Resting cards no longer fade, owner 22 Oct 2026: the glass shows which is in use.)
         .background {
             ZStack {
                 if glassy {
@@ -627,7 +629,10 @@ struct SettingsCard<Content: View>: View {
                     // Frost (Design Tweaks) scales how thick the frost is: 0 is clear. Resting
                     // cards keep enough frost for their text to read (owner feedback,
                     // 2026-10-21: black text can't sit on clear glass); the one in use gets more.
-                    GlassAmount.backing(GlassAmount.frosted(focused ? glassAmount - 0.25 : glassAmount + 0.15, by: frost), in: shape)
+                    // Owner, 22 Oct 2026: "the one you're focused on has the frosted background,
+                    // the things around it have transparency": the one in use is well frosted,
+                    // the others close to clear glass, with just enough frost to read.
+                    GlassAmount.backing(GlassAmount.frosted(focused ? glassAmount - 0.2 : glassAmount + 0.4, by: frost), in: shape)
                         .opacity(min(1, frost))
                 } else {
                     shape.fill(.background.secondary)
@@ -636,8 +641,14 @@ struct SettingsCard<Content: View>: View {
         }
         // Jumped to from the groups: a bright rim and a sweep of light across the glass,
         // rather than a wash of colour (owner direction, 2026-10-21).
+        // A glass rim rather than a flat line: bright where the light catches the top corner,
+        // fading round the sides and catching again faintly at the bottom (owner, 22 Oct 2026).
+        // Drawn just inside the edge, so the panel never cuts it off.
         .overlay {
-            shape.strokeBorder(.white.opacity(highlighted ? rim : 0), lineWidth: 1.5)
+            shape.inset(by: 0.75)
+                .stroke(LinearGradient(colors: [.white.opacity(rim), .white.opacity(rim * 0.25), .white.opacity(rim * 0.55)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5)
+                .opacity(highlighted ? 1 : 0)
                 .animation(.easeOut(duration: 0.3), value: highlighted)
         }
         .shimmer(trigger: highlighted, in: shape)
@@ -653,13 +664,15 @@ struct SettingsCard<Content: View>: View {
             let line: CGFloat = 300
             let offset = max(-1, min(1, (frame.midY - line) / 900))
             let amount = glassy && !reduceMotion ? focusStrength : 0
-            // (A 3D tilt was tried and tore the glass edges, 2026-10-21; scale and a little
-            // drift towards the middle give the carousel feel instead.)
+            // A carousel turning (owner, 22 Oct 2026): cards squash towards their far edge as they
+            // leave the middle, as if tipping back on a drum. Done
+            // flat: a real 3D tilt is cut off by the list at each card's edge (tried twice).
+            let away = min(amount, 1.5) * abs(offset)
             return content
-                // Never above full size: a card grown past the panel had its rounded corners and
-                // highlight rim cut off by the panel's edge (owner, 22 Oct 2026).
-                .scaleEffect(1 - 0.05 * min(amount, 1.5) * abs(offset))
-                .offset(y: -14 * amount * offset * abs(offset))
+                // Never above full size, so the panel's edge never cuts off corners or the rim.
+                .scaleEffect(x: 1 - 0.03 * away, y: 1 - 0.09 * away, anchor: offset < 0 ? .bottom : .top)
+            // (No drift together any more: moving a card past its place in the list had its title
+            // and bottom edge cut off. The gap between cards is tighter instead.)
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.78), value: focused)
     }
@@ -669,8 +682,19 @@ struct SettingsCard<Content: View>: View {
     private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
     @Environment(\.panelCarry) private var panelCarry
 
+    /// A quick sideways flick on the title bar pushes the panel aside (see `PanelCarry`).
+    private var titleFlick: some Gesture {
+        DragGesture(minimumDistance: 20, coordinateSpace: .global)
+            .onEnded { drag in
+                let dx = drag.predictedEndTranslation.width
+                guard let panelCarry, abs(dx) > 240,
+                      abs(drag.translation.width) > abs(drag.translation.height) * 1.5 else { return }
+                panelCarry.flicked(dx < 0)
+            }
+    }
+
     private var titleHold: some Gesture {
-        LongPressGesture(minimumDuration: 0.3)
+        LongPressGesture(minimumDuration: 0.22)
             .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
             .onChanged { value in
                 guard let panelCarry, case .second(true, let drag) = value else { return }
@@ -1010,4 +1034,82 @@ struct PanelCarry {
     var moved: (CGSize) -> Void
     /// The final distance, or nil if it was let go without moving.
     var ended: (CGSize?) -> Void
+    /// A quick sideways flick, without holding first: true towards the leading side.
+    var flicked: (Bool) -> Void = { _ in }
+}
+
+/// Where things are while a finger moves them. Kept apart from the main screen's own state so
+/// a drag only redraws the piece that moves, not the whole screen (owner, 22 Oct 2026: "it just
+/// feels slow"). Each value is read only by the small modifiers below.
+@Observable final class LiveMotion {
+    var cardDrag = CGSize.zero
+    var clockPinch: CGFloat = 1
+    var cardLean = CGSize.zero
+    var groupsMove = CGSize.zero
+    var settingsMove = CGSize.zero
+    var railMove = CGSize.zero
+    var panelPull: CGFloat = 0
+    /// No movement, for a view that only sometimes follows one of the others.
+    let none = CGSize.zero
+}
+
+/// Moves a view by one of the live distances.
+struct LiveOffset: ViewModifier {
+    var motion: LiveMotion
+    var path: KeyPath<LiveMotion, CGSize>
+
+    func body(content: Content) -> some View {
+        content.offset(motion[keyPath: path])
+    }
+}
+
+/// The widget's lean while it's dragged: a soft tilt towards where it's going and a slight
+/// stretch along the way.
+struct LiveLean: ViewModifier {
+    var motion: LiveMotion
+    var strength: CGFloat
+    var still: Bool
+
+    func body(content: Content) -> some View {
+        let lean = still ? .zero : motion.cardLean
+        let turn = Double(lean.width * strength) * 7, tip = Double(-lean.height * strength) * 7
+        let stretchX = 1 + (abs(lean.width) * 0.035 - abs(lean.height) * 0.015) * strength
+        let stretchY = 1 + (abs(lean.height) * 0.035 - abs(lean.width) * 0.015) * strength
+        content
+            .rotation3DEffect(.degrees(turn), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+            .rotation3DEffect(.degrees(tip), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
+            .scaleEffect(x: stretchX, y: stretchY)
+            .animation(.interactiveSpring(response: 0.32, dampingFraction: 0.62), value: lean)
+    }
+}
+
+/// The widget grows and shrinks with the fingers while pinching.
+struct LivePinch: ViewModifier {
+    var motion: LiveMotion
+    var still: Bool
+
+    func body(content: Content) -> some View {
+        content.scaleEffect(still ? 1 : min(1.6, max(0.6, motion.clockPinch)))
+    }
+}
+
+/// How far the preview leans while a swipe is under way: it follows the finger at first,
+/// then stiffens, so a swipe feels like pulling on something.
+struct LivePull: ViewModifier {
+    var motion: LiveMotion
+    var still: Bool
+
+    func body(content: Content) -> some View {
+        let x = motion.panelPull, limit: CGFloat = 36
+        content.offset(x: still ? 0 : limit * (1 - exp(-abs(x) / 120)) * (x < 0 ? -1 : 1))
+    }
+}
+
+/// Where a carried panel would settle if let go now. It changes only a few times in a drag, so
+/// the outline showing it costs little.
+struct CarryTarget: Equatable {
+    var groups: Bool
+    var leading: Bool
+    var top: Bool
+    var attach: GroupsAttachment?
 }

@@ -11,21 +11,24 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 - Every gesture should feel like it belongs there. No swipes without a clear purpose.
 
 ## Now — make it feel fast (do first)
-- [ ] **Panels and widget move smoothly.** Dragging redraws the whole screen on every frame. Measure panels at rest, not while moving, and keep the drag inside the panel itself.
-- [ ] **Holding feels instant.** Make the hold before a drag shorter, and give a lift and a tap of feedback the moment it's held.
-- [ ] **Stuck-on groups lose their top bar.** Hold anywhere to move them, like the other panels.
+- [x] **Panels and widget move smoothly.** Dragging redraws the whole screen on every frame. Measure panels at rest, not while moving, and keep the drag inside the panel itself.
+- [x] **Holding feels instant.** Make the hold before a drag shorter, and give a lift and a tap of feedback the moment it's held.
+- [x] **Stuck-on groups lose their top bar.** Hold anywhere to move them, like the other panels.
 - [ ] **Stuck-on groups sit in the right place** beside the widget.
 
 ## Next — window feel and gestures
-- [ ] **Swipe a panel sideways to push it aside.** It slides to the edge and condenses into a slim glass tab with its icons, like Slide Over.
-- [ ] **Pull it back in** by grabbing the tab, so it follows your finger.
+- [x] **Swipe a panel sideways to push it aside.** Flick a settings card's title bar, or flick across the groups. *Still to do: the tab doesn't show the panel's icons yet.*
+- [x] **Pull it back in** by grabbing the tab. *It opens on release; it doesn't follow your finger yet.*
 - [ ] **Quieter extras.** Move "Your Home Screen", the notes and the labels away from the widget. Show them only when needed, but still let them be moved.
 
 ## Then — settings carousel
-- [ ] **A 3D carousel instead of shrinking.** Cards tilt away as they leave the middle.
-- [ ] **Tighter spacing** between cards.
-- [ ] **Glass decides the focus.** The card in the middle is frosted, and the cards around it are clear glass rather than faded.
-- [ ] **A glass outline.** The rim should look like glass, not a flat white line. The bottom edges are still clipped on some cards.
+- [x] **A carousel instead of shrinking.** Cards squash as they leave the middle, as if tipping back. *A real 3D tilt gets cut off by the list, so it's done flat.*
+- [x] **Tighter spacing** between cards.
+- [x] **Glass decides the focus.** The card in the middle is frosted, and the cards around it are clear glass rather than faded.
+- [x] **A glass outline.** A gradient rim drawn just inside the edge. Cards no longer move past their slot, which was cutting off titles and bottom edges.
+
+- [x] **Consistent corners and pills.** Bars are pills, and cards are rounder in step with the panels.
+- [x] **The widget steps out of the way** when a panel opens over it.
 
 ## Later (lower priority)
 - [ ] Tour spotlight highlights the right area every time.

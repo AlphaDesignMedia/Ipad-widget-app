@@ -30,16 +30,16 @@ struct HomeStylePicker: View {
                         if selected {
                             // Bright glass with a light rim, like every other selection in
                             // the app (owner direction, 2026-10-21), rather than a solid tile.
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            Capsule()
                                 .fill(.background.opacity(0.6))
-                                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .overlay(Capsule()
                                     .strokeBorder(.white.opacity(Tweak.rim.value), lineWidth: 1))
                                 .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
                                 .matchedGeometryEffect(id: "selection", in: selectionSpace)
                         }
                     }
-                    .shimmer(trigger: selected, in: .rect(cornerRadius: 16, style: .continuous))
-                    .contentShape(.rect(cornerRadius: 16))
+                    .shimmer(trigger: selected, in: Capsule())
+                    .contentShape(.capsule)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(style.rawValue)
