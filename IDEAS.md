@@ -132,3 +132,9 @@ To push spacing around yourself, the quickest loop is a **Figma file of the sett
 the panel, a card, a pill and a row, set up with the real sizes. You move things and I copy the
 numbers back into the app. A Figma connector is available here, so I can build that file for
 you. The other option is to send screenshots with scribbles on them, which works well too.
+
+## Owner ideas, 21 Oct 2026 (afternoon)
+- [ ] Stick panels together: drag a panel onto the widget, the preview or the other panel and it attaches; pull it in and out like iPadOS Slide Over.
+- [ ] Make-your-own backdrops: generate gradients and patterns for the widget's own background, and for the view behind it, adapting to Light and Dark.
+- [ ] Try more "make way" options when the widget moves under a panel (shrink to a strip, slide down) alongside Move aside and Tuck away.
+- [x] Panels move aside when the widget is moved under them (option: Tuck away instead).

@@ -343,6 +343,13 @@ extension EnvironmentValues {
     @Entry var headingDesign: Font.Design?
 }
 
+/// What the panels do when the widget is moved under one (owner idea, 2026-10-21).
+enum PanelsMakeWay: String, CaseIterable, Identifiable {
+    case moveAside, hide
+    var id: Self { self }
+    var label: String { self == .moveAside ? "Move aside" : "Tuck away" }
+}
+
 /// Light, Dark, or following the iPad.
 enum AppAppearance: String, CaseIterable, Identifiable {
     case automatic, light, dark

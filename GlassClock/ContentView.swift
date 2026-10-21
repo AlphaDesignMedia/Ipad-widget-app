@@ -140,6 +140,7 @@ struct ContentView: View {
     @AppStorage("groupsTrailing") private var groupsTrailing = false
     @AppStorage("settingsLeading") private var settingsLeading = false
     @AppStorage("groupsBelow") private var groupsBelow = false
+    @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.45, dampingFraction: 0.82))) private var settingsMove = CGSize.zero
     @GestureState private var settingsHeld = false
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.4, dampingFraction: 0.8))) private var sidebarMove = CGSize.zero
@@ -1644,9 +1645,28 @@ struct ContentView: View {
     private func makeRoom(for target: CGRect) {
         guard interface == .panels, layerRect != .zero else { return }
         let onScreen = target.offsetBy(dx: layerRect.minX, dy: layerRect.minY).insetBy(dx: 8, dy: 8)
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
-            if showsSidebar, onScreen.intersects(sidebarRect) { showsSidebar = false }
-            if showsInspector, onScreen.intersects(inspectorRect) { showsInspector = false }
+        // The same panel on the other side of the window.
+        let mirrored = { (rect: CGRect) in
+            CGRect(x: layerRect.minX + layerRect.maxX - rect.maxX, y: rect.minY, width: rect.width, height: rect.height)
+        }
+        let leftOfMiddle = { (rect: CGRect) in rect.midX < layerRect.midX }
+        withAnimation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.82)) {
+            // Moves aside to the other side when the widget isn't there (owner idea,
+            // 2026-10-21), or tucks away when there's no room either side.
+            if showsSidebar, onScreen.intersects(sidebarRect) {
+                if panelsMakeWay == .moveAside, !onScreen.intersects(mirrored(sidebarRect)) {
+                    groupsTrailing = leftOfMiddle(sidebarRect)
+                } else {
+                    showsSidebar = false
+                }
+            }
+            if showsInspector, onScreen.intersects(inspectorRect) {
+                if panelsMakeWay == .moveAside, !onScreen.intersects(mirrored(inspectorRect)) {
+                    settingsLeading = !leftOfMiddle(inspectorRect)
+                } else {
+                    showsInspector = false
+                }
+            }
         }
     }
 
@@ -2234,6 +2254,10 @@ struct ContentView: View {
             }
             Picker("Appearance", selection: $appAppearance) {
                 ForEach(AppAppearance.allCases) { Text($0.label).tag($0) }
+            }
+            groupLabel("Panels")
+            Picker("When the widget is moved under a panel", selection: $panelsMakeWay) {
+                ForEach(PanelsMakeWay.allCases) { Text($0.label).tag($0) }
             }
             groupLabel("Readability")
             Toggle("Reduce glass", isOn: $reducesGlass)
