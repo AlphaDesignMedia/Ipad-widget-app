@@ -25,6 +25,41 @@ Also done (~1 a.m.), owner loved the focus/jump and gestures — "lean further i
 - Tap the clock (Panels) jumps to Fonts. Swipe up/down on the preview flicks through backdrops.
 - Owner: hold off on the photo backdrop work for now.
 
+## NEW TOP PRIORITY (owner, ~1:10 a.m.) — the widget on the real Home Screen
+
+Do this BEFORE item 1 below. The owner reports, on the iPad (iPadOS 27, they use Tinted/Clear):
+
+A. **Default/Dark vs Clear/Tinted look like two different clock styles.** In full-colour mode
+   `ClockFace` draws `LightLayer` + the full text style (glow, inner colour, shadow, dark edge);
+   in accented mode it switches to the transparency-only glass recipe (`textStyle(accented: true)`,
+   no light layer). The owner wants ONE look across all four. Direction: design a single glass
+   recipe that reads the same in both — e.g. build the full-colour glass from the same layers as
+   the accented one (frosted body + rim + soft inner glow), with the person's colour applied as
+   a tint on top in full-colour mode (and via the kept-colour swatch in accented mode when
+   "keep colours" is on). Make the in-app Light/Dark/Clear/Tinted preview show the same thing.
+   Put a side-by-side of all four in Screenshots/overnight (StyleGallery can render pages).
+B. **"Keep colours" has regressed to plain system glass** — kept parts show as solid shapes on
+   the regular system glass, not the person's colours. No widget code changed since commit
+   e96863c (only app UI changed tonight), so first check: (1) the keep settings actually reach
+   the widget after Apply (free-team builds share settings through the keychain — see
+   Config/FreeTeam.entitlements and how ClockStyle.load() reads them); (2) the timeline isn't
+   being rejected (simulator: `xcrun simctl spawn booted log show --predicate 'process == "chronod"'`
+   for "too large timeline archive" / "Watchdog provision violated") with the owner's current
+   style; (3) the many reinstalls tonight — a reinstall may leave the Home Screen widget on an
+   old archive until its next reload. Read DESIGN_SYSTEM.md §"Keeping colours" first: it lists
+   what already failed on iPadOS 27 (ImageRenderer images = blank widget; masked swatches get
+   recoloured; only swatches CLIPPED to a vector outline keep colour). Don't reintroduce those.
+   The simulator is iPadOS 26.5 and does NOT show kept colours on Clear; Tinted is the better
+   simulator check. You cannot see the iPad: install it, and in the Morning summary give the
+   owner a 3-step Home Screen test (which style to set, what they should see).
+C. **Glass effect styles (plan + try one).** The owner loved a look where the glass edge bends
+   the clock and text around it (a lens/refraction rim). Explore new card/text "glass styles":
+   a lensing rim (offset/scaled copy of the digits visible through a thick rim), a prism edge
+   with a faint colour split, and — in the app preview only, since widgets can't animate —
+   a highlight that moves with the iPad's tilt (CoreMotion, respect Reduce Motion). Widgets
+   can't sample the wallpaper or run glassEffect, so widget versions must be drawn. Add the
+   best one as a new option and write the others up as a short plan in the Morning summary.
+
 ## Tonight's work (in order)
 
 1. **Panels as the fun, interactive mode** (the big one — "really cook on this").
