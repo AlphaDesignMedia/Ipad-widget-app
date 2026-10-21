@@ -45,6 +45,9 @@ _Last updated 21 Oct 2026._
 | Pinch to change text size (with a bubble) | ✅ | |
 | Drag the widget around a Home Screen grid | ✅ | |
 | Lean further into gestures generally | 🟡 | Ongoing. |
+| **Guiding principle:** "anything you feel you could do, you can do". Small, lovely interactions | 🟡 | Your direction, 21 Oct. Use it to judge every new feature. |
+| Smooth, non-jittery pinch and drag of the widget | 🟡 | Fixed 21 Oct. Check the feel on the iPad. |
+| Move the widget anywhere on the full screen, like a real Home Screen, not only inside the preview area | ⬜ | Bigger change. The full-screen preview would become the Home Screen. |
 | Use the available space well, with nice padding | 🟡 | Part of the spacing pass. |
 | Resizing feels a bit buggy | ⬜ | Low priority. |
 | Remove icons that don't do anything | ✅ | |
@@ -64,6 +67,7 @@ _Last updated 21 Oct 2026._
 | Idea | Status | Notes |
 |---|---|---|
 | Onboarding as annotations over the real app, not pop-ups | 🟡 | Tour exists, with a button to replay it. Could be richer. |
+| **Beginner mode**: gentle hints that tell you what to try, switch off any time to learn it yourself (like Procreate) | ⬜ | Goes with the proper onboarding. |
 | Reduce glass setting, following iPadOS | ✅ | |
 | Accessibility simplifications | ⬜ | You said "later". |
 

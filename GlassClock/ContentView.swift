@@ -74,12 +74,16 @@ struct ContentView: View {
     @State private var focusRequest = 0
     /// The group that's briefly lit up after a jump.
     @State private var highlighted: SettingsSection?
-    @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var clockPinch: CGFloat = 1
+    @GestureState(resetTransaction: Transaction(animation: ContentView.cardSettle)) private var clockPinch: CGFloat = 1
     /// Where the widget sits on the preview's Home Screen grid (-1: the middle), remembered.
     @AppStorage("widgetColumn") private var widgetColumn = -1
     @AppStorage("widgetRow") private var widgetRow = -1
-    /// How far the widget has been dragged from its slot, while it's being moved.
-    @GestureState private var cardDrag: CGSize = .zero
+    /// How far the widget has been dragged from its slot, while it's being moved. It springs back
+    /// to zero with the same spring that moves the widget to its new slot, so the two cancel out
+    /// and the widget glides on from under the finger instead of jumping back first.
+    @GestureState(resetTransaction: Transaction(animation: ContentView.cardSettle)) private var cardDrag: CGSize = .zero
+    /// The spring the widget settles with after a drag or pinch.
+    static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.82)
     @State private var draggingCard = false
     /// Panel swipes are ignored for a moment after a widget drag, so moving the widget
     /// doesn't also open or close a panel.
@@ -563,7 +567,9 @@ struct ContentView: View {
     /// separate drag would steal it.
     private func cardGesture(grid: HomeGrid, home: CGRect, span: (columns: Int, rows: Int)) -> some Gesture {
         MagnifyGesture()
-            .simultaneously(with: DragGesture(minimumDistance: 8))
+            // Measured against the window, not the widget: the widget moves with the finger, so
+            // measuring from it fed its own movement back in and made the drag jitter.
+            .simultaneously(with: DragGesture(minimumDistance: 8, coordinateSpace: .global))
             .updating($clockPinch) { value, state, _ in
                 if let pinch = value.first { state = pinch.magnification }
             }
@@ -583,17 +589,17 @@ struct ContentView: View {
                     let m = pinch.magnification
                     let step = m > 1.15 ? (m > 1.9 ? 2 : 1) : m < 0.87 ? (m < 0.55 ? -2 : -1) : 0
                     let next = min(sizes.count - 1, max(0, index + step))
-                    withAnimation(.bouncy) { previewSize = sizes[next]; draggingCard = false }
+                    withAnimation(Self.cardSettle) { previewSize = sizes[next]; draggingCard = false }
                 } else if let drag = value.second {
                     let end = CGPoint(x: home.midX + drag.translation.width, y: home.midY + drag.translation.height)
                     let target = grid.nearest(to: end, span: span)
-                    withAnimation(reduceMotion ? nil : .bouncy(duration: 0.4)) {
+                    withAnimation(reduceMotion ? nil : Self.cardSettle) {
                         widgetColumn = target.column
                         widgetRow = target.row
                         draggingCard = false
                     }
                 } else {
-                    draggingCard = false
+                    withAnimation(Self.cardSettle) { draggingCard = false }
                 }
             }
     }
@@ -751,11 +757,11 @@ struct ContentView: View {
         DragGesture(minimumDistance: 24)
             .updating($panelDrag) { drag, state, _ in
                 // Leans only for sideways drags, so scrolling up and down doesn't wobble, and not
-                // while the widget itself is being moved.
-                if !draggingCard, abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
+                // while the widget itself is being moved or pinched.
+                if !draggingCard, clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
             }
             .onEnded { drag in
-                guard !draggingCard, Date.now > swipesPausedUntil else { return }
+                guard !draggingCard, clockPinch == 1, Date.now > swipesPausedUntil else { return }
                 let dx = drag.translation.width, dy = drag.translation.height
                 // Up and down flick through the backdrops (not Your Photo, which opens a picker).
                 if abs(dy) > 60, abs(dy) > abs(dx) * 1.5 {
