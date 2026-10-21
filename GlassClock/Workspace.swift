@@ -432,6 +432,21 @@ enum AppColor {
     }
 }
 
+/// Bordered chips (Lucky Colours, starter styles…) with readable text. In Dark, the tint
+/// coloured text on its own faint tint sank into warm backdrops like Sunset and Dune, so the
+/// text goes white there and the pill keeps the colour (contrast first, 2026-10-21).
+struct ReadableChip: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+
+    func body(content: Content) -> some View {
+        if scheme == .dark { content.foregroundStyle(.primary) } else { content }
+    }
+}
+
+extension View {
+    func readableChip() -> some View { modifier(ReadableChip()) }
+}
+
 /// The app's own glass for panels and controls, in the chosen theme. When Reduce Transparency
 /// is on in iPadOS Settings, or the app's Reduce glass switch is, it's a calm solid surface
 /// instead, so the design doesn't lean on glass (HIG: Accessibility, Materials).

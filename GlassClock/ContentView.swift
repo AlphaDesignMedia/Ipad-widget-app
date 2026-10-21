@@ -2699,11 +2699,13 @@ struct ContentView: View {
                     HStack(spacing: 6) { Image(systemName: "paintpalette"); Text("Lucky Colours") }
                 }
                 .buttonStyle(.bordered)
+                .readableChip()
                 .fixedSize()
                 Button { roll(StylePart.styleParts) } label: {
                     HStack(spacing: 6) { Image(systemName: "textformat"); Text("Lucky Style") }
                 }
                 .buttonStyle(.bordered)
+                .readableChip()
                 .fixedSize()
             }
             .padding(.vertical, 4)
@@ -2722,6 +2724,7 @@ struct ContentView: View {
                         HStack(spacing: 6) { Image(systemName: "plus"); Text("Save Current") }
                     }
                     .buttonStyle(.bordered)
+                    .readableChip()
                     .fixedSize()
                 }
             }
@@ -2732,6 +2735,7 @@ struct ContentView: View {
                 ForEach(ClockStyle.presets, id: \.name) { preset in
                     Button(preset.name) { use(preset.style) }
                         .buttonStyle(.bordered)
+                        .readableChip()
                 }
             }
             .padding(.vertical, 4)
@@ -2985,6 +2989,7 @@ struct ContentView: View {
             HStack(spacing: 6) { Image(systemName: "star.fill"); Text(customPresets[index].name) }
         }
         .buttonStyle(.bordered)
+        .readableChip()
         .tint(.orange)
         .fixedSize()
         .contextMenu {

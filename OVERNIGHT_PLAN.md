@@ -11,17 +11,20 @@ Read first:
 - GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
   GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
-## Evening summary (updated 7:55 p.m.; later runs refresh this)
-**New since 6:45 p.m.**
+## Evening summary (updated 8:50 p.m.; later runs refresh this)
+**New since 7:55 p.m.**
+- **Contrast check on all 14 backdrops.** The bubbles by the widget read well everywhere. The
+  Presets card's chips (Lucky Colours, starter styles…) had faint blue text on warm backdrops;
+  in Dark they now have white text on their coloured pill.
+  Screenshots: Screenshots/afternoon/p6-chips-readable-sunset.png, Screenshots/afternoon/p6-contrast/
+
+**Since 6:45 p.m.**
 - **Make your own backdrop.** A paintbrush button beside Add Photo (or "Make Your Own…" in the
-  backdrop menu): pick two or three colours and a pattern (None, Lines, Waves, Dots, Rings). It
-  shows on the backdrop as you change it, pale in Light and deep in Dark, and is saved as
-  "Your Own". Screenshot: Screenshots/afternoon/p5-make-your-own.png
-- **Suggestions.** After you pick a preset, a small bubble under Light/Dark/Clear/Tinted says
-  "Make it yours: try a font" with a Fonts button. Only one at a time, each with a ✕.
+  backdrop menu): pick two or three colours and a pattern. Saved as "Your Own".
+  Screenshot: Screenshots/afternoon/p5-make-your-own.png
+- **Suggestions.** After you pick a preset, a small bubble says "Make it yours: try a font".
   Screenshot: Screenshots/afternoon/p4-suggest-font.png
-- **Controls in one row (optional).** Design Tweaks → "Widget controls in one row": style, size
-  and backdrop become one bubble with three dots. Swipe sideways or tap a dot.
+- **Controls in one row (optional).** Design Tweaks → "Widget controls in one row".
   Screenshots: Screenshots/afternoon/p0c-one-row-page0.png, p0c-one-row-page2.png
 - **Simpler effects** now also stops the backdrop sliding and bending when you pull it.
 
@@ -30,6 +33,9 @@ sliders and presets, controls split above and below the widget, backdrop kind hi
 panel, panels shrinking while carried (see Progress for details and screenshots).
 
 **Needs your eyes**
+- White text on the Presets chips in Dark: clearer, but less blue. Keep it?
+- The clock and battery at the very top are faint on pale Dune and Glow. Darken a strip behind
+  them, or leave it?
 - Does the Make Your Own panel feel easy? Should Your Own also work for the widget's own background?
 - Is "Make it yours: try a font" the right nudge? The Apply suggestion only shows if
   App → Apply when leaving is off (it's on by default).
@@ -269,3 +275,4 @@ At the end, write a short summary at the top of this file, plain and friendly:
 - 19:45, 21 Oct (hourly run): **P4: suggestions done.** Under the Home Screen picker, in place of the quiet "Your Home Screen" tick, one small bubble at most: after a preset, "Make it yours: try a font" with a Fonts button (opens the Fonts card; goes away once Fonts is opened); when changes haven't reached the widget for 4 seconds, "Your widget hasn't changed yet" with Apply. Each has a ✕. The Home Screen question always comes first. The Apply one only shows when App → Apply when leaving is off (it's on by default, so changes reach the widget anyway). New debug switch `GLASSCLOCK_SUGGEST=font`. Screenshot: Screenshots/afternoon/p4-suggest-font.png. Not tapped (scheduled run). Next: P5 (make your own backdrop), P6; P1–P3 need an attended session.
 - 19:50, 21 Oct (hourly run): **P5: make your own backdrop done.** A paintbrush button beside Add Photo (and "Make Your Own…" in the backdrop menu) opens a small panel: two or three colours (+ / −), a pattern (None, Lines, Waves, Dots, Rings), and Light and Dark previews. Changes show on the backdrop straight away; it's saved as "Your Own" and joins the swipe-through list once made. Only the app's backdrop, not the widget. In one-row mode it turns to the backdrop page first. Fixed before committing: the Done button was white on white in the Glass look (now the app colour). New debug switch `GLASSCLOCK_MAKE_BACKDROP=1`. Screenshot: Screenshots/afternoon/p5-make-your-own.png. Colour pickers not tapped (scheduled run). Next: P6 polish; P1–P3 need an attended session.
 - 19:55, 21 Oct (hourly run): **P6 partly done (Simpler effects check).** Went through every effect in code: wiggle, lean, light sweeps, the settings cards' carousel, panel slides, the new one-row pager and the carried stand-ins all already respect Simpler effects. One gap fixed: pulling the backdrop up or down still slid and bent it; now it just fades to the next one. Not done in P6: Classic top/bottom padding and the bubble contrast check on every backdrop (needs screenshots on each; the `GLASSCLOCK_BACKDROP` switch can do it). P1–P3 still need an attended session.
+- 20:50, 21 Oct (hourly run): **P6: contrast check on every backdrop done.** Screenshotted the app on all 14 backdrops (Screenshots/afternoon/p6-contrast/). The bubbles above and below the widget read clearly on all of them, including Midnight and the patterns. Fixed: the blue text on the Presets card's chips (Lucky Colours, starter styles, Save Current, your styles) sank into warm backdrops like Sunset and Dune; in Dark the text is now white and the pill keeps its colour. Screenshot: Screenshots/afternoon/p6-chips-readable-sunset.png. Left for the owner: the white clock and battery at the very top are faint on pale Dune and Glow (that's the system's bar; could darken a strip behind it, or switch to dark text on pale backdrops). Still open in P6: Classic top/bottom padding, short group names. P1–P3 need an attended session.

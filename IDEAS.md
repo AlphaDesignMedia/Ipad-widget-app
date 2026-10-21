@@ -31,7 +31,7 @@ _Last updated 21 Oct 2026._
 | Change the app's overall font slightly | ⬜ | Ask which feel you want (rounded, condensed, serif headings). |
 | Section titles tucked inside their boxes; a more spacious layout | ✅ | 21 Oct. Keep refining with references. |
 | Light/Dark/Clear/Tinted options with tiny icons | ✅ | Our own drawing. A proper logo may come later. |
-| **Contrast always comes first**: glass is a fun effect, never unreadable | 🟡 | Contrast wash behind the glass, lighter tints in Dark. Keep checking. |
+| **Contrast always comes first**: glass is a fun effect, never unreadable | 🟡 | Contrast wash behind the glass, lighter tints in Dark. 21 Oct: checked the bubbles on all 14 backdrops (fine); preset chips now white text in Dark. Open: white status bar on pale Dune/Glow. |
 | Style and size controls float with the widget as you move it | ✅ | 21 Oct, Panels only. Bigger style icons too. |
 | Glass that bends the clock and text around its edges, or moves with motion | ⬜ | You liked a glimpse of this. Shimmer was ruled out (it would freeze the widget). |
 | **Background generator**: one or two sliders make a unique abstract glass backdrop, plus Lucky | ⬜ | Your idea from 21 Oct. Doable with shaders. A good next big feature. |
