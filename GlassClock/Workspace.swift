@@ -207,17 +207,18 @@ struct FlowLayout: Layout {
     }
 }
 
-/// The app's look (owner idea, 2026-10-21): Glass is the standard Liquid Glass; Crystal leans
-/// further into glass, more see-through, with a gentle tint behind big panels so text stays
-/// readable; Colour tints the glass with the app colour.
+/// The app's look. Glass leans all the way into glass: clear, see-through panels, with every
+/// row of text on its own frosted backing so it stays readable (owner direction, 2026-10-21:
+/// "super glassy… but really focus on contrast"). Frosted is the standard, more opaque Liquid
+/// Glass; Colour tints it with the app colour.
 enum AppTheme: String, CaseIterable, Identifiable {
-    case glass, crystal, colour
+    case glass, frosted, colour
     var id: Self { self }
 
     var label: String {
         switch self {
         case .glass: "Glass"
-        case .crystal: "Crystal"
+        case .frosted: "Frosted"
         case .colour: "Colour"
         }
     }
@@ -283,17 +284,58 @@ struct AppGlass<S: Shape>: ViewModifier {
     private var glass: Glass {
         if let tint { return .regular.tint(tint) }
         switch theme {
-        case .glass: return .regular
-        // A see-through dark tint wasn't enough: blue buttons vanished over a bright backdrop
-        // (simulator, 2026-10-21). The panel's own background colour at 70% keeps
-        // the glass light but the text readable in Light and Dark.
-        case .crystal: return panel ? .clear.tint(Color(uiColor: .systemBackground).opacity(0.7)) : .clear
+        // Clear all the way; readability comes from the frosted rows inside panels
+        // (`SettingsRowBackground`) rather than from tinting the glass.
+        case .glass: return .clear
+        case .frosted: return .regular
         case .colour: return .regular.tint(AppColor.resolve(appColor).opacity(panel ? 0.22 : 0.3))
         }
     }
 }
 
+/// Behind each row of settings. In the Glass theme the panel itself is clear, so each row gets
+/// a frosted backing that blurs the backdrop behind it and keeps text at full contrast.
+struct SettingsRowBackground: View {
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var theme = AppTheme.glass
+    var highlighted = false
+
+    var body: some View {
+        ZStack {
+            if theme == .glass && !systemReducesTransparency && !reducesGlass {
+                Rectangle().fill(.regularMaterial)
+            } else {
+                Rectangle().fill(.background.secondary)
+            }
+            if highlighted { Color.accentColor.opacity(0.14) }
+        }
+    }
+}
+
+/// Text that sits straight on a panel (section titles, notes) gets a small frosted backing in
+/// the Glass theme, where the panel itself is clear: white titles over a bright backdrop were
+/// hard to read in Dark (simulator, 2026-10-21).
+struct PanelLabelBacking: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var theme = AppTheme.glass
+
+    func body(content: Content) -> some View {
+        if theme == .glass && !systemReducesTransparency && !reducesGlass {
+            content
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.regularMaterial, in: .rect(cornerRadius: 12))
+        } else {
+            content
+        }
+    }
+}
+
 extension View {
+    func panelLabelBacking() -> some View { modifier(PanelLabelBacking()) }
+
     func appGlass<S: Shape>(_ shape: S, interactive: Bool = false, tint: Color? = nil, panel: Bool = false) -> some View {
         modifier(AppGlass(shape: shape, interactive: interactive, tint: tint, panel: panel))
     }

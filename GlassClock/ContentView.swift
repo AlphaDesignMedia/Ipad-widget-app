@@ -67,7 +67,8 @@ struct ContentView: View {
     @State private var selectedSection: SettingsSection? = .presets
     @State private var showsInspector = true
     @State private var showsSidebar = true
-    @State private var isWide = true
+    /// The window's width, for working out whether the sidebar fits beside the preview.
+    @State private var windowWidth: CGFloat = 1200
     /// Counts jumps to a settings group, so jumping to the same group twice still scrolls.
     @State private var focusRequest = 0
     /// The group that's briefly lit up after a jump.
@@ -225,19 +226,21 @@ struct ContentView: View {
         NavigationStack {
             GeometryReader { geometry in
                 let besideRoom = geometry.size.width - stageWidth - Space.medium * 3
-                    - (isWide && showsSidebar ? groupsWidth + Space.medium : 0)
+                    - (sidebarAlongside ? groupsWidth + Space.medium : 0)
                 let settingsWidth = min(440, max(320, besideRoom))
                 ZStack {
                     ZStack {
                         backdropView
                             .ignoresSafeArea()
                         previewStage
-                            .padding(.leading, isWide && showsSidebar ? groupsWidth + Space.medium : 0)
+                            .padding(.leading, sidebarAlongside ? groupsWidth + Space.medium : 0)
                             .padding(.trailing, showsInspector ? settingsWidth + Space.medium : 0)
                             .offset(x: rubberBand(panelDrag))
                     }
                     .contentShape(Rectangle())
                     .simultaneousGesture(panelSwipe)
+                    // Double-tap the preview to clear both panels away, and again to bring them back.
+                    .onTapGesture(count: 2, perform: toggleBothPanels)
 
                     HStack(alignment: .top, spacing: Space.medium) {
                         if showsSidebar {
@@ -263,7 +266,7 @@ struct ContentView: View {
                 }
                 .overlay(alignment: .leading) {
                     if !showsSidebar {
-                        edgeHandle("Show groups") { withAnimation(.snappy) { showsSidebar = true } }
+                        edgeHandle("Show groups") { withAnimation(.snappy) { groupsCollapsed = true; showsSidebar = true } }
                     }
                 }
                 .overlay(alignment: .trailing) {
@@ -278,24 +281,51 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarItems }
         }
-        // The groups sit alongside when there's room for them, the real-size preview and the
-        // settings together, and tuck away otherwise, so the preview isn't squeezed.
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-            isWide = width >= stageWidth + groupsWidth + 340 + Space.medium * 4
-        }
-        .onChange(of: previewSize) {
-            // A bigger widget may no longer leave room for the sidebar, and the reverse.
-            withAnimation(.snappy) { showsSidebar = isWide }
-        }
-        .onChange(of: isWide, initial: true) {
-            withAnimation(.snappy) { showsSidebar = isWide }
-        }
+        // The groups sit alongside in full when there's room beside the real-size preview and
+        // the settings, fold to their icons when only that fits, and tuck away otherwise.
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
+        .onChange(of: windowWidth, initial: true) { fitSidebar() }
+        .onChange(of: previewSize) { fitSidebar() }
     }
 
     /// The room the preview stage needs to show the widget at its real size, with its padding
     /// and the controls around it.
     private var stageWidth: CGFloat { max(previewSize.size.width, 420) + Space.large * 2 }
     private var stageHeight: CGFloat { previewSize.size.height + 220 }
+
+    private func sidebarFits(collapsed: Bool) -> Bool {
+        windowWidth >= stageWidth + (collapsed ? 68 : 230) + 340 + Space.medium * 4
+    }
+
+    /// Whether the sidebar is out and sits beside the preview (rather than over it).
+    private var sidebarAlongside: Bool { showsSidebar && sidebarFits(collapsed: groupsCollapsed) }
+
+    private func fitSidebar() {
+        withAnimation(reduceMotion ? nil : .snappy) {
+            if sidebarFits(collapsed: groupsCollapsed) {
+                showsSidebar = true
+            } else if sidebarFits(collapsed: true) {
+                groupsCollapsed = true
+                showsSidebar = true
+            } else {
+                showsSidebar = false
+            }
+        }
+    }
+
+    /// Clears both panels away for a full view of the clock, or brings them both back.
+    private func toggleBothPanels() {
+        withAnimation(reduceMotion ? nil : .snappy) {
+            if showsSidebar || showsInspector {
+                showsSidebar = false
+                showsInspector = false
+            } else {
+                if !sidebarFits(collapsed: groupsCollapsed) { groupsCollapsed = true }
+                showsSidebar = true
+                showsInspector = true
+            }
+        }
+    }
 
     /// The groups sidebar, full or folded down to its icons.
     @AppStorage("groupsCollapsed") private var groupsCollapsed = false
@@ -380,9 +410,7 @@ struct ContentView: View {
                 ForEach(SettingsSection.allCases) { section in
                     Section {
                         sectionContent(section)
-                            .listRowBackground(highlighted == section
-                                               ? AnyView(Color.accentColor.opacity(0.14))
-                                               : AnyView(Rectangle().fill(.background.secondary)))
+                            .listRowBackground(SettingsRowBackground(highlighted: highlighted == section))
                     } header: {
                         Label(section.title, systemImage: section.icon)
                             .font(.headline)
@@ -390,11 +418,12 @@ struct ContentView: View {
                             .padding(.vertical, 4)
                             .padding(.horizontal, highlighted == section ? 10 : 0)
                             .background(highlighted == section ? Color.accentColor.opacity(0.14) : .clear, in: .capsule)
+                            .panelLabelBacking()
                             .textCase(nil)
                             .accessibilityAddTraits(.isHeader)
                             .id(section)
                     } footer: {
-                        if let footer = section.footer { Text(footer) }
+                        if let footer = section.footer { Text(footer).panelLabelBacking() }
                     }
                 }
             }
@@ -694,12 +723,26 @@ struct ContentView: View {
                 }
                 guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
                 withAnimation(.snappy) {
-                    // A swipe right pulls the groups in from the left, or pushes the settings away;
-                    // a swipe left does the opposite.
+                    // A swipe right pulls the groups in from the left (their icons first, then the
+                    // full list), or pushes the settings away. A swipe left pulls the settings in,
+                    // or folds the groups to their icons, then tucks them away.
                     if dx > 0 {
-                        if !showsSidebar { showsSidebar = true } else { showsInspector = false }
+                        if !showsSidebar {
+                            groupsCollapsed = true
+                            showsSidebar = true
+                        } else if groupsCollapsed {
+                            groupsCollapsed = false
+                        } else {
+                            showsInspector = false
+                        }
                     } else {
-                        if !showsInspector { showsInspector = true } else { showsSidebar = false }
+                        if !showsInspector {
+                            showsInspector = true
+                        } else if showsSidebar && !groupsCollapsed {
+                            groupsCollapsed = true
+                        } else {
+                            showsSidebar = false
+                        }
                     }
                 }
             }
@@ -735,8 +778,10 @@ struct ContentView: View {
                             // the nearest widget size.
                             .scaleEffect(reduceMotion ? 1 : min(1.6, max(0.6, clockPinch)))
                             .contentShape(.rect)
+                            // Double-tap clears the panels away (as on the rest of the preview);
+                            // a single tap in Panels goes straight to the fonts.
+                            .onTapGesture(count: 2) { if interface == .panels { toggleBothPanels() } }
                             .onTapGesture {
-                                // In Panels, tapping the clock goes straight to its fonts.
                                 if interface == .panels { focus(.fonts) }
                             }
                             .gesture(clockPinchGesture)
@@ -966,10 +1011,12 @@ struct ContentView: View {
             ForEach(SettingsSection.classic) { section in
                 Section {
                     sectionContent(section, simple: true)
+                        .listRowBackground(SettingsRowBackground())
                 } header: {
                     Label(section.title, systemImage: section.icon)
                         .font(.headline)
                         .foregroundStyle(.primary)
+                        .panelLabelBacking()
                         .textCase(nil)
                         .accessibilityAddTraits(.isHeader)
                 }
@@ -998,6 +1045,7 @@ struct ContentView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .listRowBackground(SettingsRowBackground())
             }
         }
         .listSectionSpacing(Space.large)
@@ -1011,10 +1059,11 @@ struct ContentView: View {
     private func sectionContent(_ section: SettingsSection, simple: Bool = false) -> some View {
         switch section {
         case .presets:
-            // Wraps into rows, so it reads well in the narrower inspector too.
+            // In clear parts, each wrapping into rows so it reads well in narrow panels too. An
+            // explicit icon and text in the buttons: a Label measured wrongly in the wrapping
+            // layout and lost its text.
+            groupLabel("Surprise me")
             FlowLayout(spacing: 10) {
-                // An explicit icon and text: a Label here measured wrongly in the wrapping
-                // layout and lost its text.
                 Button { roll(Set(StylePart.allCases)) } label: {
                     HStack(spacing: 6) { Image(systemName: "dice"); Text("I'm Feeling Lucky") }
                 }
@@ -1030,6 +1079,11 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
                 .fixedSize()
+            }
+            .padding(.vertical, 4)
+
+            groupLabel("Your styles")
+            FlowLayout(spacing: 10) {
                 ForEach(customPresets.indices, id: \.self) { index in
                     customPresetButton(index)
                 }
@@ -1044,12 +1098,18 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .fixedSize()
                 }
+            }
+            .padding(.vertical, 4)
+
+            groupLabel("Starter styles")
+            FlowLayout(spacing: 10) {
                 ForEach(ClockStyle.presets, id: \.name) { preset in
                     Button(preset.name) { use(preset.style) }
                         .buttonStyle(.bordered)
                 }
             }
             .padding(.vertical, 4)
+
             lockChips
 
         case .layout:
@@ -1221,9 +1281,10 @@ struct ContentView: View {
     /// Lock chips: a locked part keeps its settings when a preset or Lucky is used.
     private var lockChips: some View {
         VStack(alignment: .leading, spacing: Space.small) {
-            Text("Keep when using presets or Lucky")
+            Text("Locks: keep these when using styles or Lucky")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .textCase(.uppercase)
             FlowLayout(spacing: Space.small) {
                 ForEach(StylePart.allCases) { part in
                     let locked = lockedParts.contains(part)

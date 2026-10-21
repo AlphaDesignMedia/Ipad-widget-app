@@ -364,6 +364,14 @@ iPadOS doesn't tell apps the Home Screen style, and a widget can't reliably tell
 - **Spacing:** both settings lists have `listSectionSpacing(24)` and 32 pt bottom content margin.
 - **App look:** Theme Glass / Crystal (`.clear` glass; panels get the system background at 70% so text stays readable: 22% black and 50% weren't enough over bright backdrops) / Colour (glass tinted with the app colour); App colour (tint); Appearance Automatic/Light/Dark (`preferredColorScheme`). Reduce glass overrides the theme.
 
+### 6.3g Glass theme, panel gestures, Presets parts (2026-10-21)
+
+- **Themes are now Glass / Frosted / Colour.** Glass (default) is `.clear` glass for panels and controls, with every settings row on `.regularMaterial` (`SettingsRowBackground`) and section titles and notes on a small material backing (`panelLabelBacking()`), so text keeps full contrast in Light and Dark. Frosted is the previous `.regular` look.
+- **Double-tap the preview** (or the clock card) in Panels to hide both panels; again to bring both back.
+- **Swipe right** brings the groups in as icons, then the full list, then pushes the settings away; **swipe left** brings the settings in, then folds the groups to icons, then tucks them away. The edge tab brings the icons back.
+- The sidebar fits itself: full when there's room beside the real-size preview and the settings, icons when only that fits, hidden otherwise.
+- **Presets** is split into Surprise me (the three Lucky buttons), Your styles (saved + Save Current), Starter styles, and Locks.
+
 ### 6.4 Settings controls
 
 Use **standard** SwiftUI controls inside a `Form`: `Slider`, `Toggle`, `Picker(.segmented)` and plain `Button`s for the swatches. They get Liquid Glass when someone touches them, plus full accessibility behaviour, for free. **Don't** add `glassEffect` to them.
