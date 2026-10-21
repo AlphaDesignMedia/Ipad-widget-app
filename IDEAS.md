@@ -27,7 +27,7 @@ _Last updated 21 Oct 2026._
 | Expand the fonts a little and think more about theming | ⬜ | |
 | Your favourite font, AM/PM style and effect as defaults | ✅ | |
 | App themes (Glass, Frosted, Colour), app colour, Light/Dark | ✅ | |
-| **Glass transitions** like unlocking the iPad or pulling down Notification Centre (blur and refraction sweeping across) | ⬜ | Your idea, 21 Oct. Lean into glass. Ask you to confirm a reference first. |
+| **Glass transitions** like unlocking the iPad or pulling down Notification Centre (blur and refraction sweeping across) | 🟡 | First version on backdrop changes, 21 Oct: the old backdrop lifts off with a glass edge. Check the feel on the iPad. Your idea, 21 Oct. Lean into glass. Ask you to confirm a reference first. |
 | Change the app's overall font slightly | ⬜ | Ask which feel you want (rounded, condensed, serif headings). |
 | Section titles tucked inside their boxes; a more spacious layout | ✅ | 21 Oct. Keep refining with references. |
 | Light/Dark/Clear/Tinted options with tiny icons | ✅ | Our own drawing. A proper logo may come later. |

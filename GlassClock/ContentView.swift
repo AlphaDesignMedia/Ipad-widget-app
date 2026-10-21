@@ -938,9 +938,14 @@ struct ContentView: View {
         ZStack {
             backdropFill
                 .id(backdrop)
-                .transition(reduceMotion ? .opacity : .push(from: backdropTravel))
+                // Each newer backdrop sits lower than the one before, so the leaving backdrop
+                // (which keeps its last value while it animates away) stays on top and lifts off
+                // like a sheet, rather than sliding unseen underneath.
+                .zIndex(-ProcessInfo.processInfo.systemUptime)
+                .transition(reduceMotion ? AnyTransition.opacity
+                            : AnyTransition(GlassSheetTransition(upward: backdropTravel == .bottom)))
         }
-        .animation(.smooth(duration: 0.55), value: backdrop)
+        .animation(.smooth(duration: 0.7), value: backdrop)
         .clipped()
     }
 
