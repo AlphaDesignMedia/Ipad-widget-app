@@ -90,6 +90,10 @@ struct ContentView: View {
     @State private var editingWidget = false
     /// The size the widget had when the corner handle was picked up.
     @State private var resizeStart: PreviewSize?
+    /// How much the card gives with the finger between sizes while a corner is pulled, and
+    /// which corner (the opposite one stays put).
+    @State private var resizeStretch = CGSize(width: 1, height: 1)
+    @State private var resizeCorner = WidgetCorner.bottomTrailing
     /// Where things are on screen, for the widget's grid over the whole window in Panels: the
     /// free space between the panels (where the widget starts out), the grid itself, and each
     /// panel, which tucks away when the widget is dropped under it (owner idea, 2026-10-21).
@@ -107,7 +111,9 @@ struct ContentView: View {
     @AppStorage("dockOnTrailing") private var dockOnTrailing = false
     @AppStorage("dockHeight") private var dockHeight = 0.35
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.4, dampingFraction: 0.75))) private var dockDrag = CGSize.zero
-    @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var sidebarDrag: CGFloat = 0
+    /// Where the groups panel has been moved to, and how far it's being dragged.
+    @State private var sidebarOffset = CGSize.zero
+    @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.4, dampingFraction: 0.8))) private var sidebarMove = CGSize.zero
     /// Panel swipes are ignored for a moment after a widget drag, so moving the widget
     /// doesn't also open or close a panel.
     @State private var swipesPausedUntil = Date.distantPast
@@ -296,8 +302,11 @@ struct ContentView: View {
                             groupsPanel
                                 .dynamicTypeSize(settingsTextSize)
                                 .frame(width: groupsWidth)
-                                .offset(x: min(0, sidebarDrag))
-                                .simultaneousGesture(sidebarSwipe)
+                                .scaleEffect(sidebarMove == .zero ? 1 : 1.02)
+                                .shadow(color: .black.opacity(sidebarMove == .zero ? 0 : 0.18), radius: 20, y: 10)
+                                .offset(x: sidebarOffset.width + sidebarMove.width,
+                                        y: sidebarOffset.height + sidebarMove.height)
+                                .simultaneousGesture(sidebarMoveGesture(in: geometry.size))
                                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sidebarRect = $0 }
                                 .transition(panelTransition(.leading))
                         }
@@ -308,7 +317,10 @@ struct ContentView: View {
                                 .simultaneousGesture(settingsPinchGesture)
                                 .sensoryFeedback(.selection, trigger: settingsTextSize)
                                 .clipShape(.rect(cornerRadius: Corner.panel))
-                                .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
+                                // In the Glass theme there's no panel behind the cards: each card
+                                // is its own window of glass, apart from the others by the gap
+                                // between them (owner direction, 2026-10-21).
+                                .modifier(PanelBacking(clear: appTheme == .glass && !reducesGlass))
                                 .overlay(alignment: .top) { textSizeOverlay }
                                 .frame(width: settingsWidth)
                                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { inspectorRect = $0 }
@@ -458,6 +470,8 @@ struct ContentView: View {
             .padding(Space.small + 2)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // It all fits, and a drag moves the panel rather than scrolling it.
+        .scrollDisabled(true)
         .fixedSize(horizontal: false, vertical: true)
         .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
         .animation(.snappy, value: selectedSection)
@@ -550,16 +564,31 @@ struct ContentView: View {
         .accessibilityLabel(label)
     }
 
-    /// Swiping the groups panel to the left tucks it away into its dock.
-    private var sidebarSwipe: some Gesture {
-        DragGesture(minimumDistance: 20)
-            .updating($sidebarDrag) { drag, state, _ in
-                if abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
-            }
+    /// The groups panel can be picked up and moved anywhere. A quick flick sends it to the
+    /// side, where it folds into its dock (owner direction, 2026-10-21).
+    private func sidebarMoveGesture(in area: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 12, coordinateSpace: .global)
+            .updating($sidebarMove) { drag, state, _ in state = drag.translation }
             .onEnded { drag in
-                guard abs(drag.translation.width) > abs(drag.translation.height),
-                      drag.predictedEndTranslation.width < -90 else { return }
-                withAnimation(reduceMotion ? nil : .smooth(duration: 0.4)) { showsSidebar = false }
+                let flick = CGSize(width: drag.predictedEndTranslation.width - drag.translation.width,
+                                   height: drag.predictedEndTranslation.height - drag.translation.height)
+                let end = CGPoint(x: sidebarRect.midX + drag.translation.width,
+                                  y: sidebarRect.midY + drag.translation.height)
+                if hypot(flick.width, flick.height) > 320 {
+                    // Flicked away: fold into the dock on the side it was flicked towards.
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.4)) {
+                        dockOnTrailing = flick.width > 0 ? true : flick.width < 0 ? false : end.x > area.width / 2
+                        dockHeight = min(0.9, max(0.1, end.y / max(area.height, 1)))
+                        showsSidebar = false
+                    }
+                    return
+                }
+                let maxX = max(0, area.width - groupsWidth - Space.medium * 2)
+                let maxY = max(0, area.height - sidebarRect.height - Space.medium)
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    sidebarOffset = CGSize(width: min(maxX, max(0, sidebarOffset.width + drag.translation.width)),
+                                           height: min(maxY, max(0, sidebarOffset.height + drag.translation.height)))
+                }
             }
     }
 
@@ -567,7 +596,7 @@ struct ContentView: View {
     /// anywhere and it settles against the nearer side; tap it, or flick it inwards, to open the
     /// panel again (owner idea, 2026-10-21).
     private func groupsDock(in area: CGSize) -> some View {
-        let half: CGFloat = 26, tall: CGFloat = 88
+        let half: CGFloat = 26, tall: CGFloat = 52
         // On the right it sits just outside the settings panel, when that's open.
         let rightEdge: CGFloat = showsInspector && inspectorRect != .zero ? inspectorRect.minX - Space.small : area.width
         let side: CGFloat = dockOnTrailing ? rightEdge - half - Space.small : half + Space.small
@@ -579,22 +608,19 @@ struct ContentView: View {
                 showsSidebar = true
             }
         }
+        // Styled like a selected button in the panel it stands for: the app colour, white icon.
         return Button(action: open) {
-            VStack(spacing: 6) {
-                Image(systemName: "list.bullet")
-                    .font(.body.weight(.semibold))
-                Capsule()
-                    .fill(.secondary)
-                    .frame(width: 14, height: 3)
-            }
-            .frame(width: half * 2, height: tall)
-            .contentShape(.capsule)
+            Image(systemName: "sidebar.left")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: half * 2, height: half * 2)
+                .background(AppColor.chosen(appColor).gradient, in: .circle)
+                .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+                .contentShape(.circle)
         }
         .buttonStyle(.plain)
-        .tint(iconsOnGlass)
-        .appGlass(.capsule, interactive: true)
-        .scaleEffect(dragged == .zero ? 1 : 1.08)
-        .shadow(color: .black.opacity(dragged == .zero ? 0 : 0.2), radius: 14, y: 6)
+        .scaleEffect(dragged == .zero ? 1 : 1.1)
+        .shadow(color: .black.opacity(dragged == .zero ? 0.15 : 0.28), radius: dragged == .zero ? 8 : 16, y: dragged == .zero ? 3 : 8)
         .position(x: side + dragged.width, y: y + dragged.height)
         .simultaneousGesture(
             DragGesture(minimumDistance: 6, coordinateSpace: .global)
@@ -738,7 +764,7 @@ struct ContentView: View {
         DragGesture(minimumDistance: 2, coordinateSpace: .global)
             .onChanged { value in
                 let start = resizeStart ?? previewSize
-                if resizeStart == nil { resizeStart = start }
+                if resizeStart == nil { resizeStart = start; resizeCorner = corner }
                 let wanted = CGSize(width: start.size.width * scale + corner.x * value.translation.width,
                                     height: start.size.height * scale + corner.y * value.translation.height)
                 let nearest = PreviewSize.allCases.min { a, b in
@@ -746,8 +772,17 @@ struct ContentView: View {
                         < hypot(b.size.width * scale - wanted.width, b.size.height * scale - wanted.height)
                 } ?? start
                 if nearest != previewSize { withAnimation(Self.cardSettle) { previewSize = nearest } }
+                // Between sizes the card gives a little with the finger, softly, so pulling
+                // feels continuous rather than jumping from size to size.
+                let now = CGSize(width: nearest.size.width * scale, height: nearest.size.height * scale)
+                func give(_ wanted: CGFloat, _ actual: CGFloat) -> CGFloat {
+                    let ratio = wanted / max(actual, 1)
+                    return 1 + max(-0.12, min(0.12, (ratio - 1) * 0.3))
+                }
+                resizeStretch = CGSize(width: give(wanted.width, now.width), height: give(wanted.height, now.height))
             }
             .onEnded { _ in
+                withAnimation(Self.cardSettle) { resizeStretch = CGSize(width: 1, height: 1) }
                 resizeStart = nil
                 swipesPausedUntil = .now.addingTimeInterval(0.4)
             }
@@ -792,6 +827,8 @@ struct ContentView: View {
             .rotation3DEffect(.degrees(tip), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
             .scaleEffect(x: stretchX, y: stretchY)
             .animation(.interactiveSpring(response: 0.32, dampingFraction: 0.62), value: lean)
+            .scaleEffect(x: resizeStretch.width, y: resizeStretch.height, anchor: resizeCorner.opposite)
+            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: resizeStretch)
             // Grows and shrinks with the fingers while pinching, then settles on the nearest size.
             .scaleEffect(pinch)
         // With Reduce Motion there's no wiggle, just an outline.
@@ -809,10 +846,18 @@ struct ContentView: View {
     private func cornerHighlights(scale: CGFloat) -> some View {
         ZStack {
             ForEach(WidgetCorner.allCases) { corner in
-                CornerArc(corner: corner, radius: 28 * scale)
-                    .stroke(.white.opacity(0.95), style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
-                    .shadow(color: .black.opacity(0.18), radius: 3)
-                    .padding(-3)
+                // A thin piece of glass along the corner with a soft bright line in it, rather
+                // than solid white (owner feedback, 2026-10-21).
+                Color.clear
+                    .glassEffect(.clear, in: CornerArc(corner: corner, radius: 28 * scale)
+                        .stroke(style: StrokeStyle(lineWidth: 8, lineCap: .round)))
+                    .overlay {
+                        CornerArc(corner: corner, radius: 28 * scale)
+                            .stroke(.white.opacity(0.75), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .blur(radius: 0.6)
+                    }
+                    .shadow(color: .black.opacity(0.12), radius: 4)
+                    .padding(-4)
             }
         }
         .allowsHitTesting(false)
@@ -1050,8 +1095,9 @@ struct ContentView: View {
             let home = grid.frame(column: slot.column, row: slot.row, span: span)
             let centre = CGPoint(x: home.midX + cardDrag.width, y: home.midY + cardDrag.height)
             let landing = grid.nearest(to: centre, span: span)
-            // The floating controls go on whichever side of the widget has more room.
-            let controlsAbove = home.minY > space.size.height - home.maxY
+            // The floating controls sit above the widget (owner preference, 2026-10-21), unless
+            // there isn't room there and there's more below.
+            let controlsAbove = home.minY > 170 || home.minY > space.size.height - home.maxY
             ZStack(alignment: .topLeading) {
                 // While it wiggles, tapping anywhere else finishes, as on the Home Screen.
                 if editingWidget {
@@ -1337,6 +1383,7 @@ struct ContentView: View {
     private func roundedBubble(cornerRadius: CGFloat, @ViewBuilder content: () -> some View) -> some View {
         content()
             .padding(Space.small)
+            .background { bubbleBacking(.rect(cornerRadius: cornerRadius, style: .continuous)) }
             .appGlass(.rect(cornerRadius: cornerRadius, style: .continuous))
     }
 
@@ -1344,7 +1391,18 @@ struct ContentView: View {
         content()
             .padding(.horizontal, Space.small)
             .padding(.vertical, Space.small)
+            .background { bubbleBacking(.capsule) }
             .appGlass(.capsule)
+    }
+
+    /// In the Glass theme, the bubbles over the preview get the same frost as the settings
+    /// cards, so every piece of glass in the app reads the same on any backdrop (owner
+    /// feedback, 2026-10-21: consistency).
+    @ViewBuilder
+    private func bubbleBacking(_ shape: some Shape) -> some View {
+        if appTheme == .glass && !reducesGlass {
+            GlassAmount.backing(glassAmount, in: shape)
+        }
     }
 
     /// Under the Home Screen picker: a question until the person says which style they use,
@@ -1361,6 +1419,9 @@ struct ContentView: View {
                             Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold))
                         }
                         .font(.subheadline.weight(.semibold))
+                        // Black or white to suit the backdrop, never the app's blue on a blue
+                        // backdrop (owner feedback, 2026-10-21).
+                        .foregroundStyle(.primary)
                         .padding(.horizontal, Space.small)
                         .padding(.vertical, 6)
                     }
@@ -1905,6 +1966,15 @@ enum WidgetCorner: CaseIterable, Identifiable {
     /// -1 for the leading or top side, 1 for the trailing or bottom side.
     var x: CGFloat { self == .topLeading || self == .bottomLeading ? -1 : 1 }
     var y: CGFloat { self == .topLeading || self == .topTrailing ? -1 : 1 }
+    /// The point across from this corner, which stays put while this one is pulled.
+    var opposite: UnitPoint {
+        switch self {
+        case .topLeading: .bottomTrailing
+        case .topTrailing: .bottomLeading
+        case .bottomLeading: .topTrailing
+        case .bottomTrailing: .topLeading
+        }
+    }
     var name: String {
         switch self {
         case .topLeading: "top left"
@@ -1934,5 +2004,18 @@ struct CornerArc: Shape {
                                      y: corner.y < 0 ? rect.maxY + rect.minY : 0)
             .scaledBy(x: corner.x < 0 ? -1 : 1, y: corner.y < 0 ? -1 : 1)
         return path.applying(flip)
+    }
+}
+
+/// A settings panel's glass, or nothing at all when its cards are glass of their own.
+struct PanelBacking: ViewModifier {
+    var clear: Bool
+
+    func body(content: Content) -> some View {
+        if clear {
+            content
+        } else {
+            content.appGlass(.rect(cornerRadius: Corner.panel), panel: true)
+        }
     }
 }

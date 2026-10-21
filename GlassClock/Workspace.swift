@@ -448,8 +448,10 @@ private struct GlassBacking<S: Shape>: View {
     var body: some View {
         ZStack {
             shape.fill(colorScheme == .dark ? Color.black : .white)
-                .opacity(0.22 + 0.2 * (1 - amount))
-            shape.fill(.ultraThinMaterial)
+                .opacity(0.16 + 0.26 * (1 - amount))
+            // Thins out towards the Clear end too, so Clear is properly see-through
+            // (owner feedback, 2026-10-21), while still keeping a little frost behind text.
+            shape.fill(.ultraThinMaterial).opacity(1 - 0.4 * amount)
             shape.fill(.regularMaterial).opacity(1 - amount)
         }
     }

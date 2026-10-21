@@ -64,6 +64,13 @@ _Last updated 21 Oct 2026._
 | Softer, smoother wiggle and soft highlights on all four corners while editing; resize from any corner | ✅ | 21 Oct. Tell me if the lean or wiggle should be stronger or softer. |
 | **Full Screen button**: hide both panels in one tap | ✅ | 21 Oct, top left in Panels. |
 | **Groups panel dock**: swipe the left panel away; it becomes a small glass dock you can drag to either side; tap or flick it inwards to open | ✅ | 21 Oct. |
+| Left panel movable in any state; flick it away to fold into the dock; dock styled as a pressed button | ✅ | 21 Oct. |
+| Right panel clear in the Glass theme: each card its own glass window | ✅ | 21 Oct. |
+| Glassy corner highlights; the card gives softly with the finger while resizing | ✅ | 21 Oct. |
+| Style and size controls sit above the widget; bubbles share the cards' frost | ✅ | 21 Oct. |
+| **Arrange the panels yourself**: swap sides, stack both on one side (top and bottom halves), drag panels to snap into place | ⬜ | Your idea, 21 Oct. Next big interaction piece. |
+| **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
+| Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |
 | More backdrops in the spirit of Apple's wallpapers | ⬜ | Your request, 21 Oct. Next up. |
 | See-through app window, so the widget floats over your real Home Screen | 💤 | Not possible: iPadOS doesn't let apps show or read the Home Screen wallpaper. Closest: pick a screenshot or photo of your wallpaper as the backdrop (Your Photo). |
 | Soften the glass edge on the backdrop pull (still reads as a stripe) | ⬜ | 21 Oct. |
