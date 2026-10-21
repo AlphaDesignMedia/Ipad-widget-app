@@ -53,7 +53,9 @@ struct GuidedTour: View {
     var finish: () -> Void
     var keepSimple: () -> Void
     @State private var step = GuideStep.welcome
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
 
     var body: some View {
         GeometryReader { geometry in

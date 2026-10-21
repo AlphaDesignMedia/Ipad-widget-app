@@ -219,7 +219,7 @@ enum InterfaceStyle: String, CaseIterable, Identifiable {
 /// how the app behaves. The Classic interface shows them as collapsible sections; Panels lists
 /// them in the sidebar.
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case presets, layout, fonts, colour, effects, card, homeScreens, widget
+    case presets, layout, fonts, colour, effects, card, homeScreens, widget, accessibility
     var id: Self { self }
 
     /// The groups Classic shows; Panels has them all.
@@ -233,8 +233,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .colour: "Colour"
         case .effects: "Effects"
         case .card: "Card"
-        case .homeScreens: "Clear and Tinted Home Screens"
-        case .widget: "App and Widget"
+        case .homeScreens: "Home Screens"
+        case .widget: "App"
+        case .accessibility: "Accessibility"
         }
     }
 
@@ -248,6 +249,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .card: "rectangle.on.rectangle"
         case .homeScreens: "circle.lefthalf.filled"
         case .widget: "square.grid.2x2"
+        case .accessibility: "accessibility"
         }
     }
 
@@ -262,7 +264,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .homeScreens:
             "iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless."
         case .widget:
-            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. Theme sets the app's look: Glass, Crystal (more see-through) or Colour (tinted with the app colour). Appearance follows your iPad unless you pick Light or Dark. Reduce glass swaps the app's glass panels for solid ones; it's also automatic when Reduce Transparency is on in Settings. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock."
+            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. Theme sets the app's look: Glass, Crystal (more see-through) or Colour (tinted with the app colour). Appearance follows your iPad unless you pick Light or Dark. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock."
+        case .accessibility:
+            "Simpler effects turns off the wiggle, lean, light sweeps and carousel motion. Reduce glass swaps the glass for solid panels; it's also on when Reduce Transparency is on in the iPad's Settings."
         case .layout, .fonts, .colour:
             nil
         }
@@ -341,6 +345,11 @@ extension EnvironmentValues {
     /// pairs serif headings with plain body text, which reads better at small sizes (owner
     /// feedback, 2026-10-21).
     @Entry var headingDesign: Font.Design?
+}
+
+/// What the groups are stuck onto, if anything.
+enum GroupsAttachment: String {
+    case none, widget, settings
 }
 
 /// What the panels do when the widget is moved under one (owner idea, 2026-10-21).
@@ -529,7 +538,7 @@ struct SettingsCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         // Overdone for now, to judge it (owner, 2026-10-21): resting cards fade back and soften.
         // Resting cards fade back a little, never so far that their text is hard to read.
-        .opacity(glassy && !focused ? max(0.72, 1 - 0.18 * focusStrength) : 1)
+        .opacity(glassy && !focused && !reduceMotion ? max(0.72, 1 - 0.18 * focusStrength) : 1)
         .background {
             ZStack {
                 if glassy {
@@ -572,7 +581,9 @@ struct SettingsCard<Content: View>: View {
         .animation(.spring(response: 0.45, dampingFraction: 0.78), value: focused)
     }
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
 
     private var tint: Color { AppColor.chosen(appColor) }
 
@@ -808,7 +819,9 @@ struct HomeGrid {
 struct Shimmer<S: Shape>: ViewModifier {
     var trigger: Bool
     var shape: S
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
     @Environment(\.colorScheme) private var colorScheme
     /// How bright the sweep is (Design Tweaks).
     @AppStorage(Tweak.shimmer.key) private var strength = Tweak.shimmer.standard

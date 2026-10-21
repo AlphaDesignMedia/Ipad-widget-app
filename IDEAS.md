@@ -134,7 +134,9 @@ numbers back into the app. A Figma connector is available here, so I can build t
 you. The other option is to send screenshots with scribbles on them, which works well too.
 
 ## Owner ideas, 21 Oct 2026 (afternoon)
-- [ ] Stick panels together: drag a panel onto the widget, the preview or the other panel and it attaches; pull it in and out like iPadOS Slide Over.
+- [x] Stick the groups onto the widget or the settings; slide in to a tab and out again, pull well away to unstick. (Settings sticking to things: not yet.)
 - [ ] Make-your-own backdrops: generate gradients and patterns for the widget's own background, and for the view behind it, adapting to Light and Dark.
 - [ ] Try more "make way" options when the widget moves under a panel (shrink to a strip, slide down) alongside Move aside and Tuck away.
 - [x] Panels move aside when the widget is moved under them (option: Tuck away instead).
+- [ ] Suggestions like the Home Screen question, elsewhere: small prompts that point people at the setting they probably want next.
+- [x] Accessibility group (Simpler effects, Reduce glass, clock-font text, panel text size); shorter group names (App, Home Screens).

@@ -144,6 +144,13 @@ struct ContentView: View {
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.45, dampingFraction: 0.82))) private var settingsMove = CGSize.zero
     @GestureState private var settingsHeld = false
     @GestureState private var groupsHeld = false
+    /// The groups stuck onto the widget or the settings panel, rather than a panel of their own
+    /// (owner idea, 2026-10-21), and whether they're slid in to a small tab.
+    @AppStorage("groupsAttachment") private var groupsAttachment = GroupsAttachment.none
+    @AppStorage("groupsTucked") private var groupsTucked = false
+    @GestureState private var railDrag = CGSize.zero
+    @State private var railSize = CGSize(width: 64, height: 400)
+    @State private var panelsOrigin = CGPoint.zero
     /// Running a finger down the groups: where it is, and where each group's button is.
     @State private var scrubY: CGFloat?
     @State private var groupFrames: [SettingsSection: CGRect] = [:]
@@ -159,7 +166,10 @@ struct ContentView: View {
     @State private var showsTextSizeBubble = false
     @State private var hideTextSizeBubble: Task<Void, Never>?
     @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var panelDrag: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    /// Simpler effects (Accessibility settings): no wiggle, lean, sweep or carousel.
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
     @AppStorage("hasSeenTour") private var hasSeenTour = false
     @State private var showsTour = false
     @State private var backdropPhoto = BackdropPhoto.load()
@@ -384,8 +394,12 @@ struct ContentView: View {
                     .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82), value: panelLayoutKey)
                     .zIndex(1)
                 }
+                .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { panelsOrigin = $0 }
                 .overlay {
                     if !showsSidebar { groupsDock(in: geometry.size) }
+                }
+                .overlay(alignment: .topLeading) {
+                    if showsSidebar && !groupsFree { attachedGroups(in: geometry.size) }
                 }
                 // Design Tweaks floats over everything at the top, so the app stays in view
                 // while the sliders move.
@@ -441,7 +455,13 @@ struct ContentView: View {
     }
 
     /// Whether the sidebar is out and sits beside the preview (rather than over it).
-    private var sidebarAlongside: Bool { showsSidebar && sidebarFits(collapsed: groupsCollapsed) }
+    private var sidebarAlongside: Bool { showsSidebar && groupsFree && sidebarFits(collapsed: groupsCollapsed) }
+
+    /// The groups are a panel of their own: not stuck to anything, or stuck to the settings
+    /// while those are put away.
+    private var groupsFree: Bool {
+        groupsAttachment == .none || (groupsAttachment == .settings && !showsInspector)
+    }
 
     private func fitSidebar() {
         withAnimation(reduceMotion ? nil : .snappy) {
@@ -500,7 +520,8 @@ struct ContentView: View {
         let iconsOnly = groupsCollapsed || asStrip
         return ScrollView {
             if asStrip {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 48), spacing: 4)], spacing: 4) {
+                // Every group on one row, however many there are.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 34), spacing: 2), count: SettingsSection.allCases.count), spacing: 4) {
                     ForEach(SettingsSection.allCases) { section in groupButton(section, iconsOnly: true) }
                 }
                 .padding(.horizontal, Space.small + 2)
@@ -570,7 +591,7 @@ struct ContentView: View {
                     Spacer(minLength: 0)
                 }
             }
-            .padding(.horizontal, iconsOnly ? 10 : 16)
+            .padding(.horizontal, iconsOnly ? 8 : 16)
             .padding(.vertical, 12)
             // The group in use is a brighter piece of glass with a light rim, with a sweep of
             // light when it's picked, matching the focus on the cards (owner direction,
@@ -711,7 +732,7 @@ struct ContentView: View {
     /// settings taking the rest).
     @ViewBuilder
     private func panelColumn(leading: Bool, area: CGSize, settingsWidth: CGFloat) -> some View {
-        let groupsHere = showsSidebar && groupsTrailing != leading
+        let groupsHere = showsSidebar && groupsFree && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if groupsHere || settingsHere {
             VStack(spacing: Space.medium) {
@@ -757,8 +778,11 @@ struct ContentView: View {
             // list itself still scrolls as normal.
             .overlay(alignment: .top) { panelGrabber(area: area) }
             // Or hold anywhere on the panel for a moment, then drag: a quick swipe still scrolls.
-            .simultaneousGesture(settingsHoldAndDrag(area: area))
-            .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in markActive(.settings) })
+            // (Holding anywhere on the panel to move it stopped segmented controls inside from
+            // answering taps, 2026-10-21: usability first, so it moves by its bar only.)
+            // Scrolling marks it as the panel in use. (A touch-down gesture did too, but it
+            // stopped segmented controls inside from answering taps, 2026-10-21.)
+            .onScrollPhaseChange { _, phase in if phase != .idle { markActive(.settings) } }
             .modifier(PanelFocus(active: activePanel == nil || activePanel == .settings, strength: tweakFocus))
             .sensoryFeedback(.impact(weight: .medium), trigger: settingsHeld) { _, held in held }
             .frame(width: width)
@@ -827,6 +851,11 @@ struct ContentView: View {
         guard carryingGroups || settingsMove != .zero else { return nil }
         let base = carryingGroups ? sidebarRect : inspectorRect
         let move = carryingGroups ? sidebarMove : settingsMove
+        // Over the widget or the settings: where it would stick on.
+        if carryingGroups, let target = attachmentTarget(at: CGPoint(x: base.midX + move.width, y: base.midY + move.height)) {
+            let frame = railFrame(for: target, size: railSize)
+            if frame != .zero { return frame.offsetBy(dx: -panelsOrigin.x, dy: -panelsOrigin.y) }
+        }
         let leading = base.midX + move.width < area.width / 2
         let otherHere = carryingGroups ? (showsInspector && settingsLeading == leading) : (showsSidebar && groupsTrailing != leading)
         let width = otherHere || !carryingGroups ? settingsWidth : groupsWidth
@@ -907,7 +936,134 @@ struct ContentView: View {
             }
             return
         }
+        // Dropped onto the widget or the settings: it sticks to them.
+        if let target = attachmentTarget(at: end) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8)) {
+                groupsAttachment = target
+                groupsTucked = false
+            }
+            return
+        }
         placePanel(groups: true, at: end, in: area)
+    }
+
+    /// What the groups would stick to if let go at `point` (in the window).
+    private func attachmentTarget(at point: CGPoint) -> GroupsAttachment? {
+        guard interface == .panels else { return nil }
+        if widgetRect.insetBy(dx: -24, dy: -24).contains(point) { return .widget }
+        if showsInspector, inspectorRect.contains(point) { return .settings }
+        return nil
+    }
+
+    /// Where the stuck-on groups sit, in the window: beside the side of the widget or settings
+    /// that faces the middle, or the side with more room.
+    private func railFrame(for target: GroupsAttachment, size: CGSize) -> CGRect {
+        let anchor = target == .widget ? widgetRect : inspectorRect
+        guard anchor != .zero else { return .zero }
+        let onLeft = anchor.midX > windowWidth / 2
+        let gap: CGFloat = 10
+        let x = onLeft ? anchor.minX - gap - size.width : anchor.maxX + gap
+        let y = target == .widget ? anchor.midY - size.height / 2 : anchor.minY + 24
+        return CGRect(x: x, y: y, width: size.width, height: size.height)
+    }
+
+    /// The groups stuck to the widget or the settings: a column of icons that rides along with
+    /// them. Push it in and it slides away to a small tab against the edge; pull the tab and it
+    /// slides back out, like Slide Over. Pull it well away and it comes off as its own panel.
+    private func attachedGroups(in area: CGSize) -> some View {
+        let anchor = groupsAttachment == .widget ? widgetRect : inspectorRect
+        let onLeft = anchor.midX > windowWidth / 2
+        let tab = CGSize(width: 14, height: 86)
+        let size = groupsTucked ? tab : railSize
+        let frame = railFrame(for: groupsAttachment, size: size)
+        // In the panels' space, kept on screen.
+        let x = min(area.width - size.width / 2 - 4, max(size.width / 2 + 4, frame.midX - panelsOrigin.x))
+        let y = min(area.height - size.height / 2 - 4, max(size.height / 2 + 4, frame.midY - panelsOrigin.y))
+        // Outward is away from what it's stuck to.
+        let outward: CGFloat = onLeft ? -1 : 1
+        return Group {
+            if groupsTucked {
+                Capsule()
+                    .fill(.primary.opacity(0.45))
+                    .frame(width: 5, height: 44)
+                    .frame(width: tab.width + 16, height: tab.height)
+                    .background { bubbleBacking(.capsule) }
+                    .appGlass(.capsule)
+                    .contentShape(.capsule)
+                    .onTapGesture { slideGroups(out: true) }
+                    .gesture(railGesture(outward: outward, area: area))
+                    .accessibilityLabel("Show groups")
+                    .accessibilityAddTraits(.isButton)
+            } else {
+                VStack(spacing: 4) {
+                    Capsule()
+                        .fill(.primary.opacity(railDrag == .zero ? 0.35 : 0.6))
+                        .frame(width: 28, height: 5)
+                        .frame(maxWidth: .infinity, minHeight: 18)
+                        .contentShape(.rect)
+                        // Only the bar drags it, so a finger running down the icons glides
+                        // through the groups instead.
+                        .gesture(railGesture(outward: outward, area: area))
+                        .accessibilityLabel("Move groups")
+                    ForEach(SettingsSection.allCases) { section in
+                        groupButton(section, iconsOnly: true)
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("groupsList")) } action: { groupFrames[section] = $0 }
+                    }
+                }
+                .coordinateSpace(name: "groupsList")
+                .simultaneousGesture(groupsScrub)
+                .padding(Space.small)
+                .fixedSize()
+                .background {
+                    GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .rect(cornerRadius: 32, style: .continuous))
+                }
+                .appGlass(.rect(cornerRadius: 32, style: .continuous), panel: true)
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { railSize = $0 }
+                .shadow(color: .black.opacity(railDrag == .zero ? 0.08 : 0.2), radius: railDrag == .zero ? 10 : 20, y: 8)
+            }
+        }
+        .scaleEffect(railDrag == .zero ? 1 : 1.03)
+        .offset(x: railDrag.width, y: railDrag.height)
+        .position(x: x, y: y)
+        .transition(.scale(scale: 0.6).combined(with: .opacity))
+        .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.8), value: groupsTucked)
+        .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.8), value: anchor)
+        .sensoryFeedback(.impact(weight: .light), trigger: groupsTucked)
+        .accessibilityAction(named: groupsTucked ? "Slide out" : "Slide in") { slideGroups(out: groupsTucked) }
+        .accessibilityAction(named: "Unstick") { detachGroups() }
+    }
+
+    /// Drag the stuck-on groups: towards what they're stuck to slides them in, away slides them
+    /// out, and well away (or up and down a long way) pulls them off.
+    private func railGesture(outward: CGFloat, area: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .global)
+            .updating($railDrag) { drag, state, _ in
+                // Stiff along the edge, so it feels stuck on until it's pulled hard.
+                state = CGSize(width: drag.translation.width, height: drag.translation.height * 0.35)
+            }
+            .onEnded { drag in
+                let out = drag.translation.width * outward
+                if out > 150 || abs(drag.translation.height) > 220 {
+                    detachGroups(at: drag.location, in: area)
+                } else if out > 24 {
+                    slideGroups(out: true)
+                } else if out < -24 {
+                    slideGroups(out: false)
+                }
+            }
+    }
+
+    private func slideGroups(out: Bool) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.8)) { groupsTucked = !out }
+    }
+
+    /// Takes the groups off what they're stuck to, back to a panel of their own.
+    private func detachGroups(at point: CGPoint? = nil, in area: CGSize? = nil) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+            groupsAttachment = .none
+            groupsTucked = false
+            if let point, let area { placePanel(groups: true, at: point, in: area) }
+        }
     }
 
     /// The groups panel when it's closed: a small glass dock on the side of the window. Drag it
@@ -1006,6 +1162,7 @@ struct ContentView: View {
             groupsTrailing = groupsRight
             settingsLeading = settingsLeft
             groupsBelow = false
+            groupsAttachment = .none
             showsSidebar = true
             showsInspector = true
         }
@@ -1659,6 +1816,9 @@ struct ContentView: View {
                                             .tint(AppColor.chosen(appColor))
                                             .transition(.scale.combined(with: .opacity))
                                     }
+                                    // The Home Screen question rides along too, so the
+                                    // widget never covers it (owner feedback, 2026-10-21).
+                                    myHomeScreenNote
                                     homeScreenBubble
                                     sizeBubble
                                     // The backdrop picker rides along too (owner, 2026-10-21).
@@ -1747,8 +1907,10 @@ struct ContentView: View {
                 Spacer(minLength: 0)
                 // In Panels the style and size controls float with the widget instead (below).
                 if !controlsFollowWidget { homeScreenBubble }
-                myHomeScreenNote
-                    .modifier(StageChrome(shown: showsChrome))
+                if !controlsFollowWidget {
+                    myHomeScreenNote
+                        .modifier(StageChrome(shown: showsChrome))
+                }
                 // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets). In
                 // Panels the label is a tag on the widget itself (`previewTag`).
                 if !controlsFollowWidget {
@@ -2302,6 +2464,16 @@ struct ContentView: View {
             Toggle("Keep AM/PM and date colours", isOn: $style.keepsDetailColours)
             Toggle("Keep card colours", isOn: $style.keepsCardColours)
 
+        case .accessibility:
+            // Usability before flair (owner direction, 2026-10-21): each effect can be turned
+            // down to something plain and standard.
+            Toggle("Simpler effects", isOn: $simpleMotion)
+            Toggle("Reduce glass", isOn: $reducesGlass)
+            // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's
+            // style. Off keeps the standard system text, for anyone who finds that easier to read.
+            Toggle("App text matches the clock font", isOn: $matchesClockFont)
+            Stepper("Panel text size: \(textSizeStep + 1) of \(textSizes.count)", value: $textSizeStep, in: 0...(textSizes.count - 1))
+
         case .widget:
             groupLabel("App look")
             Picker("Theme", selection: $appTheme) {
@@ -2326,11 +2498,6 @@ struct ContentView: View {
             Picker("When the widget is moved under a panel", selection: $panelsMakeWay) {
                 ForEach(PanelsMakeWay.allCases) { Text($0.label).tag($0) }
             }
-            groupLabel("Readability")
-            Toggle("Reduce glass", isOn: $reducesGlass)
-            // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's
-            // style. Off keeps the standard system text, for anyone who finds that easier to read.
-            Toggle("App text matches the clock font", isOn: $matchesClockFont)
             groupLabel("Widget")
             Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
             // Borderless, so each button answers only its own taps now the group is one card.
@@ -2595,11 +2762,14 @@ enum ActivePanel { case groups, settings, widget }
 struct PanelFocus: ViewModifier {
     var active: Bool
     var strength: Double
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    /// Simpler effects (Accessibility settings): no wiggle, lean, sweep or carousel.
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
 
     func body(content: Content) -> some View {
         content
-            .opacity(active ? 1 : max(0.75, 1 - 0.15 * strength))
+            .opacity(active || reduceMotion ? 1 : max(0.75, 1 - 0.15 * strength))
             .scaleEffect(active || reduceMotion ? 1 : 1 - 0.012 * strength)
     }
 }
