@@ -38,8 +38,18 @@ struct ContentView: View {
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
     /// Swaps the app's glass panels for solid ones (also follows Reduce Transparency).
     @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var appTheme = AppTheme.glass
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    @AppStorage("appAppearance") private var appAppearance = AppAppearance.automatic
     @Environment(\.scenePhase) private var scenePhase
     @State private var customPresets = StyleLibrary.loadPresets()
+    /// Parts of the style that presets and Lucky leave alone. Clear and Tinted starts locked,
+    /// since it's easy to undo by accident (owner feedback, 2026-10-21).
+    @AppStorage("lockedParts") private var lockedPartList = StylePart.homeScreens.rawValue
+    private var lockedParts: Set<StylePart> {
+        get { Set(lockedPartList.split(separator: ",").compactMap { StylePart(rawValue: String($0)) }) }
+        nonmutating set { lockedPartList = newValue.map(\.rawValue).sorted().joined(separator: ",") }
+    }
     /// The saved preset being named: nil for a new one. Shown when `namingPreset` is true.
     @State private var presetIndex: Int?
     @State private var presetName = ""
@@ -67,6 +77,9 @@ struct ContentView: View {
     /// settings to change it.
     @AppStorage("settingsTextSize") private var textSizeStep = 1
     @State private var pinchingTextStep: Int?
+    /// The text-size bubble, shown while pinching and briefly after.
+    @State private var showsTextSizeBubble = false
+    @State private var hideTextSizeBubble: Task<Void, Never>?
     @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var panelDrag: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("hasSeenTour") private var hasSeenTour = false
@@ -94,6 +107,9 @@ struct ContentView: View {
             case .panels: panelsInterface.transition(interfaceTransition)
             }
         }
+        .tint(AppColor.resolve(appColor))
+        .preferredColorScheme(appAppearance.colorScheme)
+        .animation(.smooth, value: appTheme)
         .photosPicker(isPresented: $choosingPhoto, selection: $photoItem, matching: .images)
         .onChange(of: photoItem) {
             Task {
@@ -195,7 +211,8 @@ struct ContentView: View {
             .sensoryFeedback(.selection, trigger: settingsTextSize)
             .scrollContentBackground(.hidden)
             .clipShape(.rect(cornerRadius: 28))
-            .appGlass(.rect(cornerRadius: 28))
+            .appGlass(.rect(cornerRadius: 28), panel: true)
+            .overlay(alignment: .top) { textSizeOverlay }
     }
 
     /// Two floating glass panels over the full-window backdrop, like Classic's: a short list of
@@ -236,7 +253,8 @@ struct ContentView: View {
                                 .simultaneousGesture(settingsPinchGesture)
                                 .sensoryFeedback(.selection, trigger: settingsTextSize)
                                 .clipShape(.rect(cornerRadius: 28))
-                                .appGlass(.rect(cornerRadius: 28))
+                                .appGlass(.rect(cornerRadius: 28), panel: true)
+                                .overlay(alignment: .top) { textSizeOverlay }
                                 .frame(width: settingsWidth)
                                 .transition(panelTransition(.trailing))
                         }
@@ -345,7 +363,7 @@ struct ContentView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .fixedSize(horizontal: false, vertical: true)
-        .appGlass(.rect(cornerRadius: 28))
+        .appGlass(.rect(cornerRadius: 28), panel: true)
         .animation(.snappy, value: selectedSection)
     }
 
@@ -381,6 +399,8 @@ struct ContentView: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .listSectionSpacing(Space.large)
+            .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
             .task(id: focusRequest) {
                 guard focusRequest > 0, let target = selectedSection else { return }
                 // Lets a panel that's just opening settle before gliding.
@@ -520,11 +540,82 @@ struct ContentView: View {
                 let steps = Int((log(value.magnification) / log(1.3)).rounded())
                 let next = min(textSizes.count - 1, max(0, textSizeStep + steps))
                 if next != pinchingTextStep { withAnimation(.snappy) { pinchingTextStep = next } }
+                revealTextSizeBubble()
             }
             .onEnded { _ in
                 if let pinchingTextStep { textSizeStep = pinchingTextStep }
                 pinchingTextStep = nil
+                revealTextSizeBubble()
             }
+    }
+
+    private let textSizeNames = ["Small", "Medium", "Large", "Extra Large", "Largest"]
+
+    @ViewBuilder
+    private var textSizeOverlay: some View {
+        if showsTextSizeBubble {
+            textSizeBubble
+                .padding(.top, Space.medium)
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85)).combined(with: .move(edge: .top)))
+        }
+    }
+
+    /// Shows the text-size bubble, and hides it again a moment after the last change.
+    private func revealTextSizeBubble() {
+        withAnimation(.snappy) { showsTextSizeBubble = true }
+        hideTextSizeBubble?.cancel()
+        hideTextSizeBubble = Task {
+            try? await Task.sleep(for: .seconds(1.6))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.35)) { showsTextSizeBubble = false }
+        }
+    }
+
+    /// Like the volume indicator: appears while pinching the settings, showing the text size,
+    /// with − and + for fine-tuning while it's up.
+    private var textSizeBubble: some View {
+        let current = min(textSizes.count - 1, max(0, pinchingTextStep ?? textSizeStep))
+        return VStack(spacing: Space.small) {
+            HStack(spacing: Space.small) {
+                Button {
+                    textSizeStep = max(0, textSizeStep - 1)
+                    revealTextSizeBubble()
+                } label: {
+                    Image(systemName: "textformat.size.smaller").frame(width: 32, height: 32)
+                }
+                .disabled(current == 0)
+                .accessibilityLabel("Smaller text")
+                HStack(spacing: 5) {
+                    ForEach(textSizes.indices, id: \.self) { index in
+                        Capsule()
+                            .fill(index <= current ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary.opacity(0.35)))
+                            .frame(width: 22, height: 6)
+                    }
+                }
+                Button {
+                    textSizeStep = min(textSizes.count - 1, textSizeStep + 1)
+                    revealTextSizeBubble()
+                } label: {
+                    Image(systemName: "textformat.size.larger").frame(width: 32, height: 32)
+                }
+                .disabled(current == textSizes.count - 1)
+                .accessibilityLabel("Larger text")
+            }
+            .buttonStyle(.plain)
+            .font(.body.weight(.semibold))
+            Text(textSizeNames[current])
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+        }
+        .padding(.horizontal, Space.medium)
+        .padding(.vertical, Space.small + 2)
+        .appGlass(.capsule)
+        // Its own fixed text size, so it doesn't grow while the settings do.
+        .dynamicTypeSize(.large)
+        .animation(.snappy, value: current)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Settings text size: \(textSizeNames[current])")
     }
 
     /// Brings the tour back, for a refresher or to show someone.
@@ -909,6 +1000,8 @@ struct ContentView: View {
                 .buttonStyle(.plain)
             }
         }
+        .listSectionSpacing(Space.large)
+        .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
     }
 
     /// The controls for one settings group, shared by both interfaces. Bigger groups are split
@@ -920,14 +1013,22 @@ struct ContentView: View {
         case .presets:
             // Wraps into rows, so it reads well in the narrower inspector too.
             FlowLayout(spacing: 10) {
-                Button {
-                    withAnimation(.smooth) { style = .lucky(from: style) }
-                } label: {
-                    // An explicit icon and text: a Label here measured wrongly in the wrapping
-                    // layout and lost its text.
+                // An explicit icon and text: a Label here measured wrongly in the wrapping
+                // layout and lost its text.
+                Button { roll(Set(StylePart.allCases)) } label: {
                     HStack(spacing: 6) { Image(systemName: "dice"); Text("I'm Feeling Lucky") }
                 }
                 .buttonStyle(.borderedProminent)
+                .fixedSize()
+                Button { roll(StylePart.colourParts) } label: {
+                    HStack(spacing: 6) { Image(systemName: "paintpalette"); Text("Lucky Colours") }
+                }
+                .buttonStyle(.bordered)
+                .fixedSize()
+                Button { roll(StylePart.styleParts) } label: {
+                    HStack(spacing: 6) { Image(systemName: "textformat"); Text("Lucky Style") }
+                }
+                .buttonStyle(.bordered)
                 .fixedSize()
                 ForEach(customPresets.indices, id: \.self) { index in
                     customPresetButton(index)
@@ -944,11 +1045,12 @@ struct ContentView: View {
                     .fixedSize()
                 }
                 ForEach(ClockStyle.presets, id: \.name) { preset in
-                    Button(preset.name) { style = preset.style }
+                    Button(preset.name) { use(preset.style) }
                         .buttonStyle(.bordered)
                 }
             }
             .padding(.vertical, 4)
+            lockChips
 
         case .layout:
             Picker("Time format", selection: $style.timeFormat) {
@@ -1066,8 +1168,25 @@ struct ContentView: View {
             Toggle("Keep card colours", isOn: $style.keepsCardColours)
 
         case .widget:
-            Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
+            groupLabel("App look")
+            Picker("Theme", selection: $appTheme) {
+                ForEach(AppTheme.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .disabled(reducesGlass)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("App colour")
+                swatchRow(selection: Binding(
+                    get: { ClockColor(rawValue: appColor) ?? .auto },
+                    set: { appColor = $0.rawValue }
+                ))
+            }
+            Picker("Appearance", selection: $appAppearance) {
+                ForEach(AppAppearance.allCases) { Text($0.label).tag($0) }
+            }
             Toggle("Reduce glass", isOn: $reducesGlass)
+            groupLabel("Widget")
+            Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
             Button("Show the tour") { showsTour = true }
             Button("Reset to defaults", role: .destructive) {
                 style = ClockStyle()
@@ -1085,9 +1204,58 @@ struct ContentView: View {
             .listRowSeparator(.hidden, edges: .top)
     }
 
+    /// Rolls the dice on `parts`, leaving locked parts alone.
+    private func roll(_ parts: Set<StylePart>) {
+        withAnimation(reduceMotion ? nil : .smooth) {
+            style = style.taking(parts.subtracting(lockedParts), from: .lucky(from: style))
+        }
+    }
+
+    /// Applies a preset, leaving locked parts alone.
+    private func use(_ preset: ClockStyle) {
+        withAnimation(reduceMotion ? nil : .smooth) {
+            style = style.taking(Set(StylePart.allCases).subtracting(lockedParts), from: preset)
+        }
+    }
+
+    /// Lock chips: a locked part keeps its settings when a preset or Lucky is used.
+    private var lockChips: some View {
+        VStack(alignment: .leading, spacing: Space.small) {
+            Text("Keep when using presets or Lucky")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            FlowLayout(spacing: Space.small) {
+                ForEach(StylePart.allCases) { part in
+                    let locked = lockedParts.contains(part)
+                    Button {
+                        withAnimation(.snappy) {
+                            if locked { lockedParts.remove(part) } else { lockedParts.insert(part) }
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: locked ? "lock.fill" : "lock.open")
+                                .contentTransition(.symbolEffect(.replace))
+                            Text(part.label)
+                        }
+                        .font(.subheadline.weight(locked ? .semibold : .regular))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(locked ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                    .background(locked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary), in: .capsule)
+                    .fixedSize()
+                    .accessibilityLabel("\(part.label), \(locked ? "locked" : "unlocked")")
+                    .accessibilityHint("Locked parts keep their settings when you use a preset or Lucky")
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
     private func customPresetButton(_ index: Int) -> some View {
         Button {
-            style = customPresets[index].style
+            use(customPresets[index].style)
         } label: {
             HStack(spacing: 6) { Image(systemName: "star.fill"); Text(customPresets[index].name) }
         }

@@ -131,7 +131,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .effects: "Effects"
         case .card: "Card"
         case .homeScreens: "Clear and Tinted Home Screens"
-        case .widget: "Widget"
+        case .widget: "App and Widget"
         }
     }
 
@@ -159,7 +159,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .homeScreens:
             "iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless."
         case .widget:
-            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. Reduce glass swaps the app's glass panels for solid ones; it's also automatic when Reduce Transparency is on in Settings. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock."
+            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. Theme sets the app's look: Glass, Crystal (more see-through) or Colour (tinted with the app colour). Appearance follows your iPad unless you pick Light or Dark. Reduce glass swaps the app's glass panels for solid ones; it's also automatic when Reduce Transparency is on in Settings. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock."
         case .layout, .fonts, .colour:
             nil
         }
@@ -207,15 +207,65 @@ struct FlowLayout: Layout {
     }
 }
 
-/// The app's own glass for panels and controls: Liquid Glass normally. When Reduce Transparency
+/// The app's look (owner idea, 2026-10-21): Glass is the standard Liquid Glass; Crystal leans
+/// further into glass, more see-through, with a gentle tint behind big panels so text stays
+/// readable; Colour tints the glass with the app colour.
+enum AppTheme: String, CaseIterable, Identifiable {
+    case glass, crystal, colour
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .glass: "Glass"
+        case .crystal: "Crystal"
+        case .colour: "Colour"
+        }
+    }
+}
+
+/// Light, Dark, or following the iPad.
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case automatic, light, dark
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .automatic: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
+
+/// The app colour, for buttons, highlights and the Colour theme. Automatic is the system blue.
+enum AppColor {
+    static func resolve(_ raw: String) -> Color {
+        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? .accentColor
+    }
+}
+
+/// The app's own glass for panels and controls, in the chosen theme. When Reduce Transparency
 /// is on in iPadOS Settings, or the app's Reduce glass switch is, it's a calm solid surface
 /// instead, so the design doesn't lean on glass (HIG: Accessibility, Materials).
 struct AppGlass<S: Shape>: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var theme = AppTheme.glass
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     var shape: S
     var interactive = false
     var tint: Color?
+    /// A big panel of settings rather than a small control: Crystal keeps a gentle tint behind
+    /// these so their text stays readable.
+    var panel = false
 
     func body(content: Content) -> some View {
         if systemReducesTransparency || reducesGlass {
@@ -226,14 +276,26 @@ struct AppGlass<S: Shape>: ViewModifier {
                         .overlay { shape.stroke(.separator, lineWidth: 1) }
                 }
         } else {
-            content.glassEffect((tint.map { Glass.regular.tint($0) } ?? .regular).interactive(interactive), in: shape)
+            content.glassEffect(glass.interactive(interactive), in: shape)
+        }
+    }
+
+    private var glass: Glass {
+        if let tint { return .regular.tint(tint) }
+        switch theme {
+        case .glass: return .regular
+        // A see-through dark tint wasn't enough: blue buttons vanished over a bright backdrop
+        // (simulator, 2026-10-21). The panel's own background colour at 70% keeps
+        // the glass light but the text readable in Light and Dark.
+        case .crystal: return panel ? .clear.tint(Color(uiColor: .systemBackground).opacity(0.7)) : .clear
+        case .colour: return .regular.tint(AppColor.resolve(appColor).opacity(panel ? 0.22 : 0.3))
         }
     }
 }
 
 extension View {
-    func appGlass<S: Shape>(_ shape: S, interactive: Bool = false, tint: Color? = nil) -> some View {
-        modifier(AppGlass(shape: shape, interactive: interactive, tint: tint))
+    func appGlass<S: Shape>(_ shape: S, interactive: Bool = false, tint: Color? = nil, panel: Bool = false) -> some View {
+        modifier(AppGlass(shape: shape, interactive: interactive, tint: tint, panel: panel))
     }
 }
 

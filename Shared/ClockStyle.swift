@@ -373,6 +373,13 @@ struct ClockStyle: Codable, Equatable {
         return style
     }
 
+    /// This style with the given parts taken from `other` and everything else kept.
+    func taking(_ parts: Set<StylePart>, from other: ClockStyle) -> ClockStyle {
+        var result = self
+        for part in parts { part.copy(from: other, into: &result) }
+        return result
+    }
+
     /// A copy with some settings changed.
     func with(_ change: (inout ClockStyle) -> Void) -> ClockStyle {
         var copy = self
@@ -466,5 +473,89 @@ struct ClockStyle: Codable, Equatable {
         formatter.locale = .current
         formatter.setLocalizedDateFormatFromTemplate("EEEdMMM")
         return formatter.string(from: date)
+    }
+}
+
+/// The parts of a style, so Lucky can roll the dice on some, and the person can lock others so
+/// presets and Lucky leave them alone (owner idea, 2026-10-21).
+enum StylePart: String, CaseIterable, Identifiable {
+    case font, colours, effects, layout, card, homeScreens
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .font: "Font"
+        case .colours: "Colours"
+        case .effects: "Effects"
+        case .layout: "Layout"
+        case .card: "Card"
+        case .homeScreens: "Clear and Tinted"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .font: "textformat"
+        case .colours: "paintpalette"
+        case .effects: "sun.max"
+        case .layout: "rectangle.3.group"
+        case .card: "rectangle.on.rectangle"
+        case .homeScreens: "circle.lefthalf.filled"
+        }
+    }
+
+    /// What Lucky Colours rolls, and what Lucky Style rolls. Time format is never rolled.
+    static let colourParts: Set<StylePart> = [.colours]
+    static let styleParts: Set<StylePart> = [.font, .effects, .layout, .card]
+
+    func copy(from source: ClockStyle, into target: inout ClockStyle) {
+        switch self {
+        case .font:
+            target.font = source.font
+            target.fontWeight = source.fontWeight
+            target.fontWidth = source.fontWidth
+            target.roundness = source.roundness
+            target.detailFont = source.detailFont
+            target.spacing = source.spacing
+            target.height = source.height
+            target.softness = source.softness
+            target.adaptsToSize = source.adaptsToSize
+            target.detailSize = source.detailSize
+            target.detailTracking = source.detailTracking
+        case .colours:
+            target.color = source.color
+            target.gradientColor = source.gradientColor
+            target.textFill = source.textFill
+            target.textOpacity = source.textOpacity
+            target.glowColor = source.glowColor
+            target.shadowColor = source.shadowColor
+            target.backgroundColor = source.backgroundColor
+            // Re-colours the inner glow without switching it on or off.
+            if target.innerColor != nil, let inner = source.innerColor { target.innerColor = inner }
+        case .effects:
+            target.glow = source.glow
+            target.glowSize = source.glowSize
+            target.glowStrength = source.glowStrength
+            target.shadow = source.shadow
+            target.shadowSize = source.shadowSize
+            target.shadowStrength = source.shadowStrength
+            target.shadowDistance = source.shadowDistance
+            target.shadowAngle = source.shadowAngle
+            target.innerColor = source.innerColor
+            target.innerStrength = source.innerStrength
+        case .layout:
+            target.showDate = source.showDate
+            target.dateAbove = source.dateAbove
+            target.ampm = source.ampm
+            target.detailGap = source.detailGap
+            target.fillsCard = source.fillsCard
+        case .card:
+            target.background = source.background
+            target.cardOpacity = source.cardOpacity
+        case .homeScreens:
+            target.keepsTimeColours = source.keepsTimeColours
+            target.keepsDetailColours = source.keepsDetailColours
+            target.keepsCardColours = source.keepsCardColours
+        }
     }
 }
