@@ -221,8 +221,8 @@ struct ContentView: View {
             .simultaneousGesture(settingsPinchGesture)
             .sensoryFeedback(.selection, trigger: settingsTextSize)
             .scrollContentBackground(.hidden)
-            .clipShape(.rect(cornerRadius: 28))
-            .appGlass(.rect(cornerRadius: 28), panel: true)
+            .clipShape(.rect(cornerRadius: Corner.panel))
+            .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
             .overlay(alignment: .top) { textSizeOverlay }
     }
 
@@ -265,8 +265,8 @@ struct ContentView: View {
                                 .dynamicTypeSize(settingsTextSize)
                                 .simultaneousGesture(settingsPinchGesture)
                                 .sensoryFeedback(.selection, trigger: settingsTextSize)
-                                .clipShape(.rect(cornerRadius: 28))
-                                .appGlass(.rect(cornerRadius: 28), panel: true)
+                                .clipShape(.rect(cornerRadius: Corner.panel))
+                                .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
                                 .overlay(alignment: .top) { textSizeOverlay }
                                 .frame(width: settingsWidth)
                                 .transition(panelTransition(.trailing))
@@ -409,7 +409,7 @@ struct ContentView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .fixedSize(horizontal: false, vertical: true)
-        .appGlass(.rect(cornerRadius: 28), panel: true)
+        .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
         .animation(.snappy, value: selectedSection)
     }
 
@@ -425,8 +425,8 @@ struct ContentView: View {
                 }
                 ForEach(SettingsSection.allCases) { section in
                     Section {
-                        sectionContent(section)
-                            .listRowBackground(SettingsRowBackground(highlighted: highlighted == section))
+                        SettingsCard(highlighted: highlighted == section) { sectionContent(section) }
+                            .settingsCardRow()
                     } header: {
                         Label(section.title, systemImage: section.icon)
                             .font(.headline)
@@ -445,6 +445,7 @@ struct ContentView: View {
             }
             .scrollContentBackground(.hidden)
             .listSectionSpacing(Space.large)
+            .contentMargins(.horizontal, Corner.inset, for: .scrollContent)
             .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
             .task(id: focusRequest) {
                 guard focusRequest > 0, let target = selectedSection else { return }
@@ -1093,8 +1094,8 @@ struct ContentView: View {
         Form {
             ForEach(SettingsSection.classic) { section in
                 Section {
-                    sectionContent(section, simple: true)
-                        .listRowBackground(SettingsRowBackground())
+                    SettingsCard { sectionContent(section, simple: true) }
+                        .settingsCardRow()
                 } header: {
                     Label(section.title, systemImage: section.icon)
                         .font(.headline)
@@ -1128,10 +1129,11 @@ struct ContentView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .listRowBackground(SettingsRowBackground())
+                .wrappedInSettingsCard()
             }
         }
         .listSectionSpacing(Space.large)
+        .contentMargins(.horizontal, Corner.inset, for: .scrollContent)
         .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
     }
 
@@ -1333,10 +1335,13 @@ struct ContentView: View {
             Toggle("Reduce glass", isOn: $reducesGlass)
             groupLabel("Widget")
             Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
+            // Borderless, so each button answers only its own taps now the group is one card.
             Button("Show the tour") { showsTour = true }
+                .buttonStyle(.borderless)
             Button("Reset to defaults", role: .destructive) {
                 style = ClockStyle()
             }
+            .buttonStyle(.borderless)
         }
     }
 

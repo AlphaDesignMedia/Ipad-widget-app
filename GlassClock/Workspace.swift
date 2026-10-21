@@ -284,8 +284,8 @@ struct AppGlass<S: Shape>: ViewModifier {
     private var glass: Glass {
         if let tint { return .regular.tint(tint) }
         switch theme {
-        // Clear all the way; readability comes from the frosted rows inside panels
-        // (`SettingsRowBackground`) rather than from tinting the glass.
+        // Clear all the way; readability comes from the frosted cards inside panels
+        // (`SettingsCard`) rather than from tinting the glass.
         case .glass: return .clear
         case .frosted: return .regular
         case .colour: return .regular.tint(AppColor.resolve(appColor).opacity(panel ? 0.22 : 0.3))
@@ -293,23 +293,67 @@ struct AppGlass<S: Shape>: ViewModifier {
     }
 }
 
-/// Behind each row of settings. In the Glass theme the panel itself is clear, so each row gets
-/// a frosted backing that blurs the backdrop behind it and keeps text at full contrast.
-struct SettingsRowBackground: View {
+/// Corner rounding, kept concentric (owner feedback 2026-10-21): a box inside a panel is
+/// rounded by the panel's radius minus the gap between them, so their curves run parallel.
+enum Corner {
+    /// The floating panels.
+    static let panel: CGFloat = 34
+    /// The gap between a panel's edge and the cards inside it.
+    static let inset: CGFloat = 12
+    /// The cards of settings inside a panel.
+    static let card: CGFloat = panel - inset
+    /// Padding inside a card, around its rows.
+    static let cardPadding: CGFloat = 16
+}
+
+/// One group of settings as a card on its panel, its rows split by thin lines. In the Glass
+/// theme the card is its own layer of glass on top of the panel's glass (owner request,
+/// 2026-10-21), with the Glass amount slider setting how much frost sits behind the text.
+struct SettingsCard<Content: View>: View {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var theme = AppTheme.glass
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     var highlighted = false
+    @ViewBuilder var content: Content
 
     var body: some View {
-        ZStack {
-            if theme == .glass && !systemReducesTransparency && !reducesGlass {
-                GlassAmount.backing(glassAmount, in: Rectangle())
-            } else {
-                Rectangle().fill(.background.secondary)
+        let shape = RoundedRectangle(cornerRadius: Corner.card, style: .continuous)
+        let glassy = theme == .glass && !systemReducesTransparency && !reducesGlass
+        VStack(alignment: .leading, spacing: 0) {
+            Group(subviews: content) { rows in
+                ForEach(rows) { row in
+                    row.padding(.vertical, 11)
+                    if row.id != rows.last?.id { Divider() }
+                }
             }
-            if highlighted { Color.accentColor.opacity(0.14) }
+        }
+        .padding(.horizontal, Corner.cardPadding)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            ZStack {
+                if glassy {
+                    GlassAmount.backing(glassAmount, in: shape)
+                } else {
+                    shape.fill(.background.secondary)
+                }
+                if highlighted { shape.fill(Color.accentColor.opacity(0.14)) }
+            }
+        }
+        .modifier(CardGlass(on: glassy, shape: shape))
+    }
+}
+
+private struct CardGlass<S: Shape>: ViewModifier {
+    var on: Bool
+    var shape: S
+
+    func body(content: Content) -> some View {
+        if on {
+            content.glassEffect(.clear, in: shape)
+        } else {
+            content
         }
     }
 }
@@ -330,6 +374,7 @@ struct PanelLabelBacking: ViewModifier {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
                 .background { GlassAmount.backing(glassAmount, in: Capsule()) }
+                .glassEffect(.clear, in: Capsule())
         } else {
             content
         }
@@ -354,6 +399,18 @@ enum GlassAmount {
 
 extension View {
     func panelLabelBacking() -> some View { modifier(PanelLabelBacking()) }
+
+    /// A settings card as a whole Form row: no system background, separators or insets, so
+    /// the card draws its own.
+    func settingsCardRow() -> some View {
+        listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+    }
+
+    func wrappedInSettingsCard() -> some View {
+        SettingsCard { self }.settingsCardRow()
+    }
 
     func appGlass<S: Shape>(_ shape: S, interactive: Bool = false, tint: Color? = nil, panel: Bool = false) -> some View {
         modifier(AppGlass(shape: shape, interactive: interactive, tint: tint, panel: panel))
