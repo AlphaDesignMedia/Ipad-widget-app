@@ -477,8 +477,14 @@ struct HomeGrid {
     init(area: CGSize, scale: CGFloat) {
         step = (Self.slot + Self.gap) * scale
         gap = Self.gap * scale
-        columns = max(1, Int((area.width + gap) / step))
-        rows = max(1, Int((area.height + gap) / step))
+        // Classic can lay the preview out at zero size for a moment, which made the step zero
+        // and these counts infinite, crashing the app on opening Classic (owner, 2026-10-21).
+        func count(_ length: CGFloat) -> Int {
+            let value = (length + Self.gap * scale) / step
+            return value.isFinite ? max(1, min(Int(value), 50)) : 1
+        }
+        columns = count(area.width)
+        rows = count(area.height)
         let width = CGFloat(columns) * step - gap, height = CGFloat(rows) * step - gap
         origin = CGPoint(x: (area.width - width) / 2, y: (area.height - height) / 2)
     }
