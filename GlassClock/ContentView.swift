@@ -2221,13 +2221,15 @@ struct ContentView: View {
             // current one, growing to full size, like the next card on a carousel.
             if let pulledBackdrop {
                 backdropFill(pulledBackdrop)
-                    .modifier(CarouselSlide(progress: 1 - min(1, abs(backdropPull)),
+                    // Simpler effects: no slide, the new backdrop just shows through as it's pulled.
+                    .modifier(CarouselSlide(progress: reduceMotion ? 0 : 1 - min(1, abs(backdropPull)),
                                             edge: backdropPull <= 0 ? 1 : -1))
                     // Underneath everything, including the current backdrop's low zIndex below.
                     .zIndex(-1e12)
             }
             backdropFill(backdrop)
-                .modifier(GlassSheetEffect(progress: abs(backdropPull), upward: backdropPull <= 0))
+                .modifier(GlassSheetEffect(progress: reduceMotion ? 0 : abs(backdropPull), upward: backdropPull <= 0))
+                .opacity(reduceMotion ? 1 - min(1, abs(backdropPull)) * 0.8 : 1)
                 .id(backdrop)
                 // Each newer backdrop sits lower than the one before, so the leaving backdrop
                 // (which keeps its last value while it animates away) stays on top and lifts off
