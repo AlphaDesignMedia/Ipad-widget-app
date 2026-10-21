@@ -185,6 +185,10 @@ enum StressTest {
     static var homeTaps: Int? {
         ProcessInfo.processInfo.environment["GLASSCLOCK_STRESS_HOME"].flatMap(Int.init)
     }
+    /// GLASSCLOCK_STRESS_IDLE=1: the same run without changing anything, for a baseline.
+    static var idle: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_STRESS_IDLE"] != nil }
+    /// GLASSCLOCK_STRESS_PLAIN=1: changes the style without an animation.
+    static var plain: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_STRESS_PLAIN"] != nil }
 }
 
 /// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.
@@ -219,5 +223,7 @@ extension ClockStyle {
 }
 enum StressTest {
     static var homeTaps: Int? { nil }
+    static var idle: Bool { false }
+    static var plain: Bool { false }
 }
 #endif

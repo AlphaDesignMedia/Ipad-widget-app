@@ -57,6 +57,12 @@ struct ContentView: View {
     @State private var namingPreset = false
     @State private var previewSize = PreviewSize.medium
     @State private var homeScreen = HomeScreenStyle.light
+    /// `homeScreen` once the picker has been still for a moment. The widget and the picker
+    /// change at once; the app around them (the bubbles' Light or Dark, and the whole app in
+    /// the Home Screen look) follows this instead. Flipping all of that on every tap made
+    /// quick tapping through Light, Dark, Clear and Tinted stutter and freeze on the iPad
+    /// (owner report, 2026-10-21); now it flips once, when the tapping stops.
+    @State private var settledHomeScreen = HomeScreenStyle.light
     /// The Home Screen style the person actually uses; the preview opens on it.
     @AppStorage("myHomeScreen") private var myHomeScreen = MyHomeScreen.unknown
     /// The iPad's own appearance (the views below override theirs for the preview).
@@ -241,7 +247,13 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            if let mine { homeScreen = mine }
+            if let mine { homeScreen = mine; settledHomeScreen = mine }
+        }
+        .task(id: homeScreen) {
+            guard settledHomeScreen != homeScreen else { return }
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            withAnimation(.smooth) { settledHomeScreen = homeScreen }
         }
         .onChange(of: myHomeScreen) {
             if let mine { withAnimation(.snappy) { homeScreen = mine } }
@@ -262,7 +274,11 @@ struct ContentView: View {
                     let meter = HitchMeter()
                     meter.start()
                     for tap in 0..<taps {
-                        withAnimation(.snappy) { homeScreen = HomeScreenStyle.allCases[tap % 4] }
+                        if StressTest.plain {
+                            homeScreen = HomeScreenStyle.allCases[tap % 4]
+                        } else if !StressTest.idle {
+                            withAnimation(.snappy) { homeScreen = HomeScreenStyle.allCases[tap % 4] }
+                        }
                         try? await Task.sleep(for: .milliseconds(180))
                     }
                     try? await Task.sleep(for: .seconds(1))
@@ -1349,6 +1365,10 @@ struct ContentView: View {
                 .frame(width: card.width * scale, height: card.height * scale)
                 .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28 * scale), homeScreen: homeScreen))
                 .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
+                // Switches style at once rather than blending: animating the glass tint and the
+                // colour mask between styles was the costliest part of a tap on the Home Screen
+                // picker (2026-10-21). Size changes still animate.
+                .transaction(value: homeScreen) { $0.animation = nil }
         }
         .overlay { if editingWidget { cornerHighlights(scale: scale) } }
         // A small glass tag on the bottom edge, so the preview isn't mistaken for the real
@@ -1393,7 +1413,7 @@ struct ContentView: View {
             .padding(.vertical, 4)
             .background { bubbleBacking(.capsule) }
             .appGlass(.capsule)
-            .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
+            .environment(\.colorScheme, controlScheme)
             .allowsHitTesting(false)
             .transition(.opacity)
     }
@@ -1570,12 +1590,11 @@ struct ContentView: View {
         }
         .tint(AppColor.resolve(appColor))
         .preferredColorScheme(appColorScheme)
-        .environment(\.homeLook, appTheme == .home ? homeScreen : nil)
+        .environment(\.homeLook, appTheme == .home ? settledHomeScreen : nil)
         .fontDesign(bodyDesign)
         .environment(\.headingDesign, matchesClockFont ? style.font.appDesign(roundness: style.roundness) : nil)
         .animation(.smooth, value: style.font)
         .animation(.smooth, value: appTheme)
-        .animation(.smooth, value: homeScreen)
     }
 
     /// The app's body text when it matches the clock font: a serif clock font keeps body text
@@ -1590,7 +1609,7 @@ struct ContentView: View {
     /// and Tinted Home Screens are dark; Clear follows Appearance).
     private var appColorScheme: ColorScheme? {
         guard appTheme == .home else { return appAppearance.colorScheme }
-        switch homeScreen {
+        switch settledHomeScreen {
         case .light: return .light
         case .dark, .tinted: return .dark
         case .clear: return appAppearance.colorScheme
@@ -1880,7 +1899,6 @@ struct ContentView: View {
         widgetGrid
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { layerRect = $0 }
             .padding(Space.medium)
-            .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
     }
 
     /// Tucks away any panel the widget would land under (`target` is in the grid's space).
@@ -1933,6 +1951,7 @@ struct ContentView: View {
                         .font(.footnote.weight(.semibold))
                         .textCase(.uppercase)
                         .foregroundStyle(.secondary)
+                        .environment(\.colorScheme, controlScheme)
                         .modifier(StageChrome(shown: showsChrome))
                 }
 
@@ -1974,14 +1993,12 @@ struct ContentView: View {
                         .padding(.horizontal, Space.medium)
                         .padding(.vertical, Space.small)
                         .appGlass(.capsule)
+                        .environment(\.colorScheme, controlScheme)
                         .padding(.top, Space.small)
                         .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)))
                         .accessibilityHidden(true)
                 }
             }
-            // The labels and pickers follow the backdrop, so they stay readable when the iPad
-            // is in dark mode but the Light preview is on.
-            .environment(\.colorScheme, homeScreen == .light ? .light : .dark)
     }
 
     /// What's behind the card, sliding in when it changes: up for a swipe up or a pick from the
@@ -2110,6 +2127,7 @@ struct ContentView: View {
             .padding(Space.small)
             .background { bubbleBacking(.rect(cornerRadius: cornerRadius, style: .continuous)) }
             .appGlass(.rect(cornerRadius: cornerRadius, style: .continuous))
+            .environment(\.colorScheme, controlScheme)
     }
 
     private func bubble(@ViewBuilder content: () -> some View) -> some View {
@@ -2118,7 +2136,15 @@ struct ContentView: View {
             .padding(.vertical, Space.small)
             .background { bubbleBacking(.capsule) }
             .appGlass(.capsule)
+            .environment(\.colorScheme, controlScheme)
     }
+
+    /// The labels and pickers over the preview follow the backdrop, so they stay readable when
+    /// the iPad is in dark mode but the Light preview is on. Set on each bubble and label
+    /// rather than on the whole preview: flipping it over the whole widget layer rebuilt the
+    /// clock, the grid and every piece of glass on each tap of Light, Dark, Clear or Tinted,
+    /// which stuttered and froze on the iPad (owner report, 2026-10-21).
+    private var controlScheme: ColorScheme { settledHomeScreen == .light ? .light : .dark }
 
     /// In the Glass theme, the bubbles over the preview get the same frost as the settings
     /// cards, so every piece of glass in the app reads the same on any backdrop (owner
@@ -2168,6 +2194,7 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                        .environment(\.colorScheme, controlScheme)
                 }
             } else {
                 bubble {
