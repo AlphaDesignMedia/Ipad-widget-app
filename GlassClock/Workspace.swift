@@ -35,7 +35,7 @@ enum WorkspaceLayout: String, CaseIterable, Identifiable {
 /// What's behind the preview card. Apps can't see the Home Screen wallpaper, so the closest
 /// thing is a photo the person picks, such as a screenshot of their own Home Screen.
 enum PreviewBackdrop: String, CaseIterable, Identifiable {
-    case plain, aurora, sunset, ocean, graphite, bloom, dune, lagoon, midnight, glow, photo
+    case plain, aurora, sunset, ocean, graphite, bloom, dune, lagoon, midnight, glow, lines, waves, dots, rings, photo
     var id: Self { self }
 
     var label: String {
@@ -50,6 +50,10 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
         case .lagoon: "Lagoon"
         case .midnight: "Midnight"
         case .glow: "Glow"
+        case .lines: "Lines"
+        case .waves: "Waves"
+        case .dots: "Dots"
+        case .rings: "Rings"
         case .photo: "Your Photo"
         }
     }
@@ -62,8 +66,16 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
         case .ocean: [Color(red: 0.02, green: 0.1, blue: 0.35), .blue, .teal]
         case .graphite: [Color(white: 0.12), Color(white: 0.3), Color(white: 0.18)]
         case .bloom, .dune, .lagoon, .midnight, .glow: mesh ?? []
+        case .lines: [Color(red: 0.36, green: 0.44, blue: 0.86), Color(red: 0.62, green: 0.40, blue: 0.86)]
+        case .waves: [Color(red: 0.10, green: 0.56, blue: 0.70), Color(red: 0.18, green: 0.32, blue: 0.66)]
+        case .dots: [Color(red: 0.94, green: 0.56, blue: 0.48), Color(red: 0.80, green: 0.36, blue: 0.56)]
+        case .rings: [Color(red: 0.30, green: 0.66, blue: 0.52), Color(red: 0.16, green: 0.40, blue: 0.56)]
         }
     }
+
+    /// The simple drawn patterns (owner request, 2026-10-21: lines and patterns as ideas
+    /// for backdrops). They follow Light and Dark, see `PatternBackdrop`.
+    var isPattern: Bool { [.lines, .waves, .dots, .rings].contains(self) }
 
     /// Soft, blended mesh backdrops in the spirit of the iPad's own wallpapers (owner request,
     /// 2026-10-21): nine colours on a 3×3 grid, top-left to bottom-right.
@@ -86,6 +98,67 @@ enum PreviewBackdrop: String, CaseIterable, Identifiable {
                      c(1.00, 0.62, 0.30), c(0.96, 0.40, 0.30), c(0.86, 0.24, 0.36),
                      c(0.94, 0.36, 0.28), c(0.78, 0.20, 0.34), c(0.52, 0.12, 0.36)]
         default: nil
+        }
+    }
+}
+
+/// A drawn backdrop: a soft gradient with fine lines, waves, dots or rings over it. Pale with
+/// darker marks in Light, deep with lighter marks in Dark.
+struct PatternBackdrop: View {
+    var kind: PreviewBackdrop
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let dark = colorScheme == .dark
+        let base = kind.colors
+        ZStack {
+            LinearGradient(colors: base, startPoint: .topLeading, endPoint: .bottomTrailing)
+            // Light: washed towards white; Dark: towards black.
+            (dark ? Color.black : Color.white).opacity(dark ? 0.45 : 0.55)
+            Canvas { context, size in
+                let ink = GraphicsContext.Shading.color(dark ? .white.opacity(0.16) : base[0].opacity(0.35))
+                switch kind {
+                case .lines:
+                    var path = Path()
+                    let gap: CGFloat = 26
+                    var x = -size.height
+                    while x < size.width {
+                        path.move(to: CGPoint(x: x, y: size.height))
+                        path.addLine(to: CGPoint(x: x + size.height, y: 0))
+                        x += gap
+                    }
+                    context.stroke(path, with: ink, lineWidth: 1.2)
+                case .waves:
+                    let gap: CGFloat = 34
+                    var y: CGFloat = 0
+                    var row = 0.0
+                    while y < size.height + gap {
+                        var path = Path()
+                        path.move(to: CGPoint(x: 0, y: y))
+                        for x in stride(from: 0, through: size.width, by: 8) {
+                            path.addLine(to: CGPoint(x: x, y: y + 12 * sin(x / 90 + row * 0.5)))
+                        }
+                        context.stroke(path, with: ink, lineWidth: 1.4)
+                        y += gap
+                        row += 1
+                    }
+                case .dots:
+                    let gap: CGFloat = 24
+                    for x in stride(from: gap / 2, through: size.width, by: gap) {
+                        for y in stride(from: gap / 2, through: size.height, by: gap) {
+                            context.fill(Path(ellipseIn: CGRect(x: x - 2, y: y - 2, width: 4, height: 4)), with: ink)
+                        }
+                    }
+                default:
+                    let centre = CGPoint(x: size.width * 0.15, y: size.height * 0.85)
+                    let reach = hypot(size.width, size.height)
+                    for radius in stride(from: CGFloat(40), through: reach, by: 38) {
+                        context.stroke(Path(ellipseIn: CGRect(x: centre.x - radius, y: centre.y - radius,
+                                                              width: radius * 2, height: radius * 2)),
+                                       with: ink, lineWidth: 1.4)
+                    }
+                }
+            }
         }
     }
 }
@@ -264,6 +337,10 @@ enum AppTheme: String, CaseIterable, Identifiable {
 /// The Home Screen style the app's own glass follows, when the app look is My Home Screen.
 extension EnvironmentValues {
     @Entry var homeLook: HomeScreenStyle?
+    /// The design of headings when the app's text matches the clock font. A serif clock font
+    /// pairs serif headings with plain body text, which reads better at small sizes (owner
+    /// feedback, 2026-10-21).
+    @Entry var headingDesign: Font.Design?
 }
 
 /// Light, Dark, or following the iPad.
@@ -401,6 +478,8 @@ struct SettingsCard<Content: View>: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Corner.card, style: .continuous)
         let glassy = theme.isGlassy && !systemReducesTransparency && !reducesGlass
+        // Like a small window (owner idea, 2026-10-21): a title bar across the top and a
+        // quieter strip along the bottom, each a shade apart from the rows between.
         VStack(alignment: .leading, spacing: 0) {
             if let title {
                 Label {
@@ -408,9 +487,14 @@ struct SettingsCard<Content: View>: View {
                 } icon: {
                     if let icon { Image(systemName: icon).foregroundStyle(.tint) }
                 }
-                .font(.title3.weight(.semibold))
+                .font(.title3.weight(.bold))
+                .headingFont()
+                .padding(.horizontal, Corner.cardPadding)
                 .padding(.top, 16)
-                .padding(.bottom, 6)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(windowBand)
+                .overlay(alignment: .bottom) { Divider().opacity(0.6) }
                 .accessibilityAddTraits(.isHeader)
             }
             Group(subviews: content) { rows in
@@ -419,17 +503,22 @@ struct SettingsCard<Content: View>: View {
                     if row.id != rows.last?.id { Divider() }
                 }
             }
+            .padding(.horizontal, Corner.cardPadding)
+            .padding(.top, title == nil ? 4 : 6)
+            .padding(.bottom, footer == nil ? 10 : 6)
             if let footer {
                 Text(footer)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .padding(.bottom, 14)
+                    .padding(.horizontal, Corner.cardPadding)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(windowBand)
+                    .overlay(alignment: .top) { Divider().opacity(0.6) }
             }
         }
         // The same app colour for every button and selection, in Light and Dark alike.
         .tint(tint)
-        .padding(.horizontal, Corner.cardPadding)
-        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Overdone for now, to judge it (owner, 2026-10-21): resting cards fade back and soften.
         // Resting cards fade back a little, never so far that their text is hard to read.
@@ -479,6 +568,24 @@ struct SettingsCard<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var tint: Color { AppColor.chosen(appColor) }
+
+    /// The title bar and bottom strip: a faint wash, lighter in Dark and darker in Light.
+    private var windowBand: Color {
+        colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.035)
+    }
+}
+
+/// Headings in the heading design (serif when the clock font is serif, see `headingDesign`).
+private struct HeadingFont: ViewModifier {
+    @Environment(\.headingDesign) private var design
+
+    func body(content: Content) -> some View {
+        if let design { content.fontDesign(design) } else { content }
+    }
+}
+
+extension View {
+    func headingFont() -> some View { modifier(HeadingFont()) }
 }
 
 private struct CardGlass<S: Shape>: ViewModifier {
@@ -695,32 +802,36 @@ struct Shimmer<S: Shape>: ViewModifier {
     var trigger: Bool
     var shape: S
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     /// How bright the sweep is (Design Tweaks).
     @AppStorage(Tweak.shimmer.key) private var strength = Tweak.shimmer.standard
 
+    /// A wide, soft wash of light (in Dark) or shade (in Light) that glides once across the
+    /// whole shape (owner feedback, 2026-10-21: the narrow tilted band looked clipped at the
+    /// edges). It fades in and out at the ends, so no edge of it is ever seen.
     func body(content: Content) -> some View {
         content.overlay {
             if !reduceMotion && strength > 0 {
-                GeometryReader { proxy in
-                    Color.clear
-                        .keyframeAnimator(initialValue: -0.6, trigger: trigger) { view, x in
-                            view.overlay {
-                                LinearGradient(colors: [.white.opacity(0), .white.opacity(0.9 * strength), .white.opacity(0)],
-                                               startPoint: .leading, endPoint: .trailing)
-                                    .frame(width: max(60, proxy.size.width * 0.35))
-                                    .rotationEffect(.degrees(18))
-                                    .offset(x: x * proxy.size.width)
-                                    .blendMode(.plusLighter)
-                            }
-                        } keyframes: { _ in
-                            LinearKeyframe(-0.6, duration: 0.05)
-                            CubicKeyframe(1.3, duration: 0.85)
+                let wash: Color = colorScheme == .dark ? .white : .black
+                Color.clear
+                    .keyframeAnimator(initialValue: 0.0, trigger: trigger) { view, x in
+                        view.overlay {
+                            LinearGradient(stops: [
+                                .init(color: wash.opacity(0), location: 0),
+                                .init(color: wash.opacity((colorScheme == .dark ? 0.32 : 0.12) * strength), location: 0.5),
+                                .init(color: wash.opacity(0), location: 1),
+                            ], startPoint: UnitPoint(x: x * 2.2 - 1.6, y: 0.2), endPoint: UnitPoint(x: x * 2.2 - 0.6, y: 0.8))
+                            // Strongest mid-sweep, nothing at either end.
+                            .opacity(sin(.pi * x))
                         }
-                }
-                .clipShape(shape)
-                // Only when it turns on, not again as it fades.
-                .opacity(trigger ? 1 : 0)
-                .allowsHitTesting(false)
+                    } keyframes: { _ in
+                        LinearKeyframe(0, duration: 0.01)
+                        CubicKeyframe(1, duration: 1.1)
+                    }
+                    .clipShape(shape)
+                    // Only when it turns on, not again as it fades.
+                    .opacity(trigger ? 1 : 0)
+                    .allowsHitTesting(false)
             }
         }
     }

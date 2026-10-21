@@ -114,6 +114,8 @@ struct ContentView: View {
     @AppStorage(Tweak.wiggle.key) private var tweakWiggle = Tweak.wiggle.standard
     @AppStorage(Tweak.lean.key) private var tweakLean = Tweak.lean.standard
     @State private var showsTweaks = false
+    /// The Classic/Panels switch stands out at first, then settles back (owner idea, 2026-10-21).
+    @State private var switchSettled = false
     @Namespace private var groupSelection
     @AppStorage(Tweak.frost.key) private var tweakFrost = Tweak.frost.standard
     @AppStorage(Tweak.focus.key) private var tweakFocus = Tweak.focus.standard
@@ -273,7 +275,9 @@ struct ContentView: View {
                             settingsPanel
                                 .frame(width: min(480, max(340, besideRoom)))
                         }
-                        .padding([.horizontal, .bottom], Space.medium)
+                        .padding(.horizontal, Space.medium)
+                        .padding(.top, Space.small)
+                        .padding(.bottom, Space.large)
                     case .previewOnly:
                         previewStage()
                     default:
@@ -282,7 +286,9 @@ struct ContentView: View {
                                 .frame(height: min(stageHeight, max(300, size.height - 280)))
                             settingsPanel
                         }
-                        .padding([.horizontal, .bottom], Space.medium)
+                        .padding(.horizontal, Space.medium)
+                        .padding(.top, Space.small)
+                        .padding(.bottom, Space.large)
                     }
                 }
                 .animation(reduceMotion ? nil : .smooth(duration: 0.4), value: arrangement)
@@ -364,7 +370,10 @@ struct ContentView: View {
                         Spacer(minLength: 0)
                         panelColumn(leading: false, area: geometry.size, settingsWidth: settingsWidth)
                     }
-                    .padding([.horizontal, .bottom], Space.medium)
+                    // More room below than at the sides (owner feedback, 2026-10-21).
+                    .padding(.horizontal, Space.medium)
+                    .padding(.top, Space.small)
+                    .padding(.bottom, Space.large)
                     // Kept to the top, so one panel stays put when the other tucks away.
                     .frame(maxHeight: .infinity, alignment: .top)
                     .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82), value: panelLayoutKey)
@@ -964,6 +973,18 @@ struct ContentView: View {
         }
         .pickerStyle(.segmented)
         .frame(width: 220)
+        .opacity(switchSettled ? 0.6 : 1)
+        // Lined up over the widget's controls rather than the middle of the window.
+        .offset(x: interface == .panels && stageRect != .zero
+                // Kept clear of the buttons on either side.
+                ? max(min(0, 330 - windowWidth / 2), min(max(0, windowWidth / 2 - 490), stageRect.midX - windowWidth / 2)) : 0)
+        .animation(.smooth(duration: 0.5), value: stageRect.midX)
+        .animation(.easeInOut(duration: 0.8), value: switchSettled)
+        .task(id: interface) {
+            switchSettled = false
+            try? await Task.sleep(for: .seconds(5))
+            switchSettled = true
+        }
         .accessibilityHint("Classic keeps things simple; Panels has every setting")
     }
 
@@ -1160,6 +1181,20 @@ struct ContentView: View {
         .transition(.opacity)
     }
 
+    /// The settings for the part of the widget that was tapped (owner idea, 2026-10-21): the
+    /// card's edge goes to the card, the date or AM/PM line to the layout, the time to the fonts.
+    private func section(at location: CGPoint) -> SettingsSection {
+        guard widgetRect.width > 0 else { return .fonts }
+        let x = (location.x - widgetRect.minX) / widgetRect.width
+        let y = (location.y - widgetRect.minY) / widgetRect.height
+        let edge = 0.1
+        if x < edge || x > 1 - edge || y < edge || y > 1 - edge { return .card }
+        let detailsBelow = (style.showDate && !style.dateAbove) || style.ampm == .below
+        if detailsBelow && y > 0.7 { return .layout }
+        if style.showDate && style.dateAbove && y < 0.3 { return .layout }
+        return .fonts
+    }
+
     /// Brings a panel forward while it's used; after a few quiet seconds everything evens out.
     private func markActive(_ panel: ActivePanel) {
         if activePanel != panel { withAnimation(.smooth(duration: 0.35)) { activePanel = panel } }
@@ -1296,10 +1331,19 @@ struct ContentView: View {
         .tint(AppColor.resolve(appColor))
         .preferredColorScheme(appColorScheme)
         .environment(\.homeLook, appTheme == .home ? homeScreen : nil)
-        .fontDesign(matchesClockFont ? style.font.appDesign(roundness: style.roundness) : nil)
+        .fontDesign(bodyDesign)
+        .environment(\.headingDesign, matchesClockFont ? style.font.appDesign(roundness: style.roundness) : nil)
         .animation(.smooth, value: style.font)
         .animation(.smooth, value: appTheme)
         .animation(.smooth, value: homeScreen)
+    }
+
+    /// The app's body text when it matches the clock font: a serif clock font keeps body text
+    /// plain and puts the serif in the headings only.
+    private var bodyDesign: Font.Design? {
+        guard matchesClockFont else { return nil }
+        let design = style.font.appDesign(roundness: style.roundness)
+        return design == .serif ? nil : design
     }
 
     /// The app's Light or Dark: from Appearance, or from the Home Screen being matched (Dark
@@ -1340,7 +1384,11 @@ struct ContentView: View {
         let applied = style == appliedStyle
         return Button(action: apply) {
             HStack(spacing: 6) {
-                Image(systemName: applied ? "checkmark.circle.fill" : "arrow.down.circle")
+                if applied {
+                    Image(systemName: "checkmark.circle.fill")
+                } else {
+                    styleGlyph
+                }
                 Text(applied ? "Applied" : "Apply to Widget")
             }
             .padding(.horizontal, 4)
@@ -1348,6 +1396,19 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
         .disabled(applied)
         .sensoryFeedback(.success, trigger: appliedStyle)
+    }
+
+    /// A tiny "9" in the clock's own font and colour, so the button shows the style it will
+    /// send (owner idea, 2026-10-21).
+    private var styleGlyph: some View {
+        Text("9")
+            .font(Font(style.font.font(size: 15, weight: style.fontWeight, width: style.fontWidth, roundness: style.roundness)))
+            .foregroundStyle(style.color == .auto ? AnyShapeStyle(.white) : AnyShapeStyle(style.color.color))
+            .frame(width: 22, height: 22)
+            .background(.black.opacity(0.25), in: .circle)
+            .overlay { Circle().strokeBorder(.white.opacity(0.5), lineWidth: 1) }
+            .contentTransition(.opacity)
+            .animation(.smooth, value: style)
     }
 
     /// Sends the edited style to the widget.
@@ -1486,10 +1547,13 @@ struct ContentView: View {
                         // a single tap in Panels goes straight to the fonts, or finishes
                         // editing while it wiggles.
                         .onTapGesture(count: 2) { if interface == .panels, !editingWidget { toggleBothPanels() } }
-                        .onTapGesture {
+                        .onTapGesture(coordinateSpace: .global) { location in
                             if ignoresNextCardTap { ignoresNextCardTap = false }
                             else if editingWidget { setEditingWidget(false) }
-                            else if interface == .panels { focus(.fonts) }
+                            else if interface == .panels {
+                                markActive(.settings)
+                                focus(section(at: location))
+                            }
                         }
                         .onLongPressGesture(minimumDuration: 0.45) {
                             if interface == .panels, !editingWidget { setEditingWidget(true) }
@@ -1756,6 +1820,8 @@ struct ContentView: View {
                     .scaledToFill()
             }
             .clipped()
+        case _ where backdrop.isPattern:
+            PatternBackdrop(kind: backdrop)
         default:
             if let mesh = backdrop.mesh {
                 // The middle points sit off-centre, so the colours flow rather than form a grid.
@@ -1914,6 +1980,8 @@ struct ContentView: View {
                 Image(uiImage: backdropPhoto).resizable().scaledToFill()
             } else if backdrop == .plain {
                 homeScreen == .dark ? Color.black : Color.white
+            } else if backdrop.isPattern {
+                PatternBackdrop(kind: backdrop)
             } else {
                 LinearGradient(colors: backdrop.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
             }
@@ -2167,6 +2235,7 @@ struct ContentView: View {
             Picker("Appearance", selection: $appAppearance) {
                 ForEach(AppAppearance.allCases) { Text($0.label).tag($0) }
             }
+            groupLabel("Readability")
             Toggle("Reduce glass", isOn: $reducesGlass)
             // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's
             // style. Off keeps the standard system text, for anyone who finds that easier to read.
@@ -2195,6 +2264,7 @@ struct ContentView: View {
     private func groupLabel(_ title: String) -> some View {
         Text(title)
             .font(.footnote.weight(.semibold))
+            .headingFont()
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
             .padding(.top, 4)
