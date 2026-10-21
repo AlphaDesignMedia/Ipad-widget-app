@@ -160,6 +160,8 @@ struct ContentView: View {
     @GestureState(resetTransaction: Transaction(animation: .spring(response: 0.45, dampingFraction: 0.82))) private var settingsMove = CGSize.zero
     @GestureState private var settingsHeld = false
     @GestureState private var groupsHeld = false
+    /// Where the finger carrying the groups is, in the window.
+    @GestureState private var groupsFinger: CGPoint?
     /// The groups stuck onto the widget or the settings panel, rather than a panel of their own
     /// (owner idea, 2026-10-21), and whether they're slid in to a small tab.
     @AppStorage("groupsAttachment") private var groupsAttachment = GroupsAttachment.none
@@ -965,7 +967,7 @@ struct ContentView: View {
         let base = carryingGroups ? sidebarRect : inspectorRect
         let move = carryingGroups ? sidebarMove : settingsMove
         // Over the widget or the settings: where it would stick on.
-        if carryingGroups, let target = attachmentTarget(at: CGPoint(x: base.midX + move.width, y: base.midY + move.height)) {
+        if carryingGroups, let finger = groupsFinger, let target = attachmentTarget(at: finger) {
             let frame = railFrame(for: target, size: railSize)
             if frame != .zero { return frame.offsetBy(dx: -panelsOrigin.x, dy: -panelsOrigin.y) }
         }
@@ -1006,6 +1008,9 @@ struct ContentView: View {
             .updating($sidebarMove) { value, state, _ in
                 if case .second(true, let drag?) = value { state = drag.translation }
             }
+            .updating($groupsFinger) { value, state, _ in
+                if case .second(true, let drag?) = value { state = drag.location }
+            }
             .onEnded { value in
                 guard case .second(true, let drag?) = value else { return }
                 endSidebarMove(drag, in: area)
@@ -1032,6 +1037,7 @@ struct ContentView: View {
     private func sidebarMoveGesture(in area: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 4, coordinateSpace: .global)
             .updating($sidebarMove) { drag, state, _ in state = drag.translation }
+            .updating($groupsFinger) { drag, state, _ in state = drag.location }
             .onEnded { drag in endSidebarMove(drag, in: area) }
     }
 
@@ -1040,6 +1046,9 @@ struct ContentView: View {
                            height: drag.predictedEndTranslation.height - drag.translation.height)
         let end = CGPoint(x: sidebarRect.midX + drag.translation.width,
                           y: sidebarRect.midY + drag.translation.height)
+        // Sticking goes by where the finger is, not the panel's middle: the groups are tall, so
+        // their middle missed the widget when the finger was right on it (hand test, 2026-10-21).
+        let finger = drag.location
         if hypot(flick.width, flick.height) > 600 {
             // Flicked away: fold into the dock on the side it was flicked towards.
             withAnimation(reduceMotion ? nil : .smooth(duration: 0.4)) {
@@ -1050,7 +1059,7 @@ struct ContentView: View {
             return
         }
         // Dropped onto the widget or the settings: it sticks to them.
-        if let target = attachmentTarget(at: end) {
+        if let target = attachmentTarget(at: finger) {
             withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8)) {
                 groupsAttachment = target
                 groupsTucked = false

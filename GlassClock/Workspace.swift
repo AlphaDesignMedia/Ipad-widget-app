@@ -301,7 +301,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .homeScreens:
             "iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless."
         case .widget:
-            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. Theme sets the app's look: Glass, Crystal (more see-through) or Colour (tinted with the app colour). Appearance follows your iPad unless you pick Light or Dark. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock."
+            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. App look sets the app's style: Glass, Frosted, Colour (tinted with the app colour), or Home, which follows your Home Screen. Appearance follows your iPad unless you pick Light or Dark. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Glass Clock."
         case .accessibility:
             "Simpler effects turns off the wiggle, lean, light sweeps and carousel motion. Reduce glass swaps the glass for solid panels; it's also on when Reduce Transparency is on in the iPad's Settings."
         case .layout, .fonts, .colour:
@@ -367,7 +367,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .glass: "Glass"
         case .frosted: "Frosted"
         case .colour: "Colour"
-        case .home: "Home Screen"
+        // Short, so it fits the four-way switch without being cut off (tap check, 2026-10-21).
+        case .home: "Home"
         }
     }
 
