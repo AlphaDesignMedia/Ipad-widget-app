@@ -52,8 +52,8 @@ _Last updated 21 Oct 2026._
 | Drag the widget around a Home Screen grid | ✅ | |
 | Lean further into gestures generally | 🟡 | Ongoing. |
 | **Guiding principle:** "anything you feel you could do, you can do". Small, lovely interactions | 🟡 | Your direction, 21 Oct. Use it to judge every new feature. |
-| Smooth, non-jittery pinch and drag of the widget | 🟡 | Fixed 21 Oct. Check the feel on the iPad. |
-| Move the widget anywhere on the full screen, like a real Home Screen, not only inside the preview area | ⬜ | Bigger change. The full-screen preview would become the Home Screen. |
+| Smooth, non-jittery pinch and drag of the widget | 🟡 | Fixed 21 Oct. Now leans softly into the drag (a gentle, fabric-like push and pull) and springs back. Check the feel. |
+| Move the widget anywhere on the full screen, like a real Home Screen, not only inside the preview area | ✅ | 21 Oct, Panels. The grid covers the whole window; putting the widget under a panel tucks that panel away. Opens neatly between the panels each time. |
 | Use the available space well, with nice padding | 🟡 | Part of the spacing pass. |
 | Resizing feels a bit buggy | ⬜ | Low priority. |
 | Remove icons that don't do anything | ✅ | |
@@ -61,6 +61,12 @@ _Last updated 21 Oct 2026._
 | **Home Screen-style edit mode**: long-press makes the widget wiggle, then drag it or pull a corner handle to resize | ✅ | 21 Oct, Panels. Hold the widget, drag the round corner handle to resize, tap Done or anywhere else to finish. |
 | **Pull to change backdrop**: the next backdrop follows your finger with a bending-glass edge and an elastic snap; let go early to cancel | 🟡 | In progress, 21 Oct. Feel matters more than look. |
 | Better font pairings, researched from real clock and watch designs | ⬜ | Research and suggestions to come. |
+| Softer, smoother wiggle and soft highlights on all four corners while editing; resize from any corner | ✅ | 21 Oct. Tell me if the lean or wiggle should be stronger or softer. |
+| **Full Screen button**: hide both panels in one tap | ✅ | 21 Oct, top left in Panels. |
+| **Groups panel dock**: swipe the left panel away; it becomes a small glass dock you can drag to either side; tap or flick it inwards to open | ✅ | 21 Oct. |
+| More backdrops in the spirit of Apple's wallpapers | ⬜ | Your request, 21 Oct. Next up. |
+| See-through app window, so the widget floats over your real Home Screen | 💤 | Not possible: iPadOS doesn't let apps show or read the Home Screen wallpaper. Closest: pick a screenshot or photo of your wallpaper as the backdrop (Your Photo). |
+| Soften the glass edge on the backdrop pull (still reads as a stripe) | ⬜ | 21 Oct. |
 
 ## Home Screen accuracy
 
