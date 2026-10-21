@@ -2292,29 +2292,59 @@ struct ContentView: View {
         }
     }
 
+    /// The backdrop as two small buttons: a short menu grouped by kind, and Add Photo on its own
+    /// (owner feedback, 2026-10-21: one long list was too much).
     private var backdropBubble: some View {
         bubble {
-            Menu {
-                Picker("Backdrop", selection: $backdrop) {
-                    ForEach(PreviewBackdrop.allCases) { Text($0.label).tag($0) }
+            HStack(spacing: Space.small) {
+                Menu {
+                    ForEach(BackdropKind.allCases) { kind in
+                        Section(kind.title) {
+                            ForEach(kind.backdrops) { option in backdropChoice(option) }
+                        }
+                    }
+                    if backdropPhoto != nil {
+                        Section("Photo") { backdropChoice(.photo) }
+                    }
+                } label: {
+                    HStack(spacing: Space.small) {
+                        backdropThumbnail
+                        Text(backdrop.label)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, Space.small)
                 }
-                if backdrop == .photo {
-                    Button("Choose Another Photo…", systemImage: "photo.on.rectangle") { choosingPhoto = true }
+                .fixedSize()
+                .accessibilityLabel("Backdrop: \(backdrop.label)")
+
+                Divider().frame(height: 22)
+
+                Button { choosingPhoto = true } label: {
+                    Image(systemName: backdropPhoto == nil ? "photo.badge.plus" : "photo.on.rectangle")
+                        .font(.body.weight(.medium))
+                        .frame(width: 36, height: 36)
+                        .contentShape(.rect)
                 }
-            } label: {
-                HStack(spacing: Space.small) {
-                    backdropThumbnail
-                    Text(backdrop.label)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, Space.small)
+                .buttonStyle(.plain)
+                .accessibilityLabel(backdropPhoto == nil ? "Add Photo" : "Choose Another Photo")
             }
-            .fixedSize()
-            .accessibilityLabel("Backdrop: \(backdrop.label)")
+        }
+    }
+
+    /// One backdrop in the menu, ticked when it's the current one.
+    private func backdropChoice(_ option: PreviewBackdrop) -> some View {
+        Button {
+            backdrop = option
+        } label: {
+            if backdrop == option {
+                Label(option.label, systemImage: "checkmark")
+            } else {
+                Text(option.label)
+            }
         }
     }
 

@@ -32,6 +32,29 @@ enum WorkspaceLayout: String, CaseIterable, Identifiable {
     }
 }
 
+/// The backdrops in small families, so the list reads as a few short groups rather than one
+/// long menu (owner feedback, 2026-10-21).
+enum BackdropKind: String, CaseIterable, Identifiable {
+    case gradients, mesh, patterns
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .gradients: "Gradients"
+        case .mesh: "Mesh"
+        case .patterns: "Patterns"
+        }
+    }
+
+    var backdrops: [PreviewBackdrop] {
+        switch self {
+        case .gradients: [.plain, .aurora, .sunset, .ocean, .graphite]
+        case .mesh: [.bloom, .dune, .lagoon, .midnight, .glow]
+        case .patterns: [.lines, .waves, .dots, .rings]
+        }
+    }
+}
+
 /// What's behind the preview card. Apps can't see the Home Screen wallpaper, so the closest
 /// thing is a photo the person picks, such as a screenshot of their own Home Screen.
 enum PreviewBackdrop: String, CaseIterable, Identifiable {

@@ -11,7 +11,7 @@ Read first:
 - GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
   GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
-## Evening summary (updated 4:30 p.m.; later runs refresh this)
+## Evening summary (updated 4:35 p.m.; later runs refresh this)
 **Done**
 - **The stutter and freezes on Light / Dark / Clear / Tinted are fixed.** The app was redrawing
   the whole widget area and every piece of glass on each tap. Now the widget changes at once and
@@ -25,9 +25,13 @@ Read first:
   and backdrop sit below.
 - **Apply to Widget** now shows a tiny widget with "12" in your clock's font. The old "9" was
   easy to mistake for a count.
+- **The stuck-on groups line up with the whole widget group** (widget plus the bubbles above
+  and below), not just the widget.
+- **Backdrop is two small buttons:** a short menu grouped into Gradients, Mesh and Patterns, and
+  a separate Add Photo button.
 - Screenshots are in Screenshots/afternoon/: p0-after-40-taps-tinted.png,
   p0-home-look-after-41-taps-light.png, p0b-panels-tweaks.png, p0b-classic.png,
-  p0c-split.png
+  p0c-split.png, p0c-rail-whole-group.png, p0c-backdrop-buttons.png
 
 **Needs your eyes**
 - Does the short pause before the bubbles turn dark (about a third of a second) feel right, or
@@ -38,7 +42,7 @@ Read first:
 **3 things to try on the iPad**
 1. Tap quickly through Light, Dark, Clear and Tinted, in the Glass look and in My Home Screen.
 2. Switch to Classic and back a few times.
-3. Open Design Tweaks (the sliders button) and tap Airy.
+3. Tap the backdrop name under the widget: is the grouped menu easier? Try the photo button beside it.
 
 ## Afternoon plan, 21 Oct (owner away until 10 p.m.): do these FIRST, in order
 Everything before this section is done or superseded. The owner's newest direction:
@@ -257,3 +261,4 @@ At the end, write a short summary at the top of this file, plain and friendly:
 - 16:25, 21 Oct: **P0b done (breathing room), plus a crash fix.** New Design Tweaks sliders: Panel edge padding, Title bar height, Footer padding, Bubble padding, Chip padding, and Compact / Comfortable / Airy buttons that set all spacing at once. Defaults a little roomier (bubbles 10 pt, title bar 18 pt, footer 14 pt, chips 12 pt); reference values in DESIGN_SYSTEM.md (5.3, Breathing room). Corners stay concentric. **Crash found and fixed:** opening Classic could crash (the preview card got a zero scale for a moment, giving its glass a NaN size); the scale is now floored like the grid's. Classic opened cleanly 3 times after. Screenshots: Screenshots/afternoon/p0b-panels-tweaks.png, p0b-classic.png. Left: a closer per-card audit at the largest panel text size.
 - 16:30, 21 Oct: **P0c partly done.** Controls are split around the widget: Home Screen question and Light/Dark/Clear/Tinted above, size and backdrop below (below ones clear the Preview tag); when one side has no room, everything goes to the side with more. The Apply to Widget icon is now a tiny widget shape with "12" in the clock's font and colour (the "9" in a circle read as a count). Screenshot: Screenshots/afternoon/p0c-split.png. Still to do in P0c: swipe left/right on the backdrop through kinds, backdrop menu as 1–3 small buttons, optional swipeable single-row bubble with page dots, align the stuck-on groups' rail to the whole widget group.
 - 16:30, 21 Oct (hourly run): **P0c: stuck-on groups now line up with the whole widget group** (widget plus the controls above and below), not just the card; dropping the groups onto the controls also sticks them. Screenshot: Screenshots/afternoon/p0c-rail-whole-group.png. Still to do in P0c: swipe left/right on the backdrop through kinds, backdrop menu as 1–3 small buttons, optional swipeable single-row bubble.
+- 16:35, 21 Oct (hourly run): **P0c: backdrop is now two small buttons**: a short menu grouped into Gradients, Mesh, Patterns (and Photo once you've added one), and a separate Add Photo button beside it. Screenshot: Screenshots/afternoon/p0c-backdrop-buttons.png. The open menu wasn't checked: the simulator tap tool refuses unattended runs. Still to do in P0c: swipe left/right on the backdrop through kinds (BackdropKind is ready for it), optional swipeable single-row bubble. Then P1 (tap audit) needs an attended session, since taps can't be made in scheduled runs.
