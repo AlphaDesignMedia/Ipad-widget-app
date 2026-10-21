@@ -11,6 +11,18 @@ Read first:
 - GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
   GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
+## Owner's latest direction (21 Oct, about 10:55 a.m.): read this first
+Items 1 and most of 2 are done (see Progress). The owner now wants the focus on **interactions,
+animation and subtle UI polish**, softer and smoother than Apple rather than copying it. Do these
+before items 3–6:
+- A. Soften the glass edge on the backdrop pull: it still reads as a hard bright stripe. Make it a
+  gentle lens with a soft rim, and keep the elastic pull feel.
+- B. A few more backdrops in the spirit of Apple's wallpapers (soft gradients and mesh-like
+  shapes, in Light and Dark), added to `PreviewBackdrop`.
+- C. Polish the new Panels interactions from the owner's test: the wiggle, the drag lean, the
+  corner highlights and resize, panels tucking away, and the groups dock. Smooth any jumps.
+- Note: iPadOS can't make the app window see-through over the Home Screen; don't attempt it.
+
 House rules the owner has set:
 - **Contrast always comes first.** Glass is a fun effect, never a reason for text to be unreadable.
   - In the Glass theme, icons and labels on glass are black or white, depending on what's behind
