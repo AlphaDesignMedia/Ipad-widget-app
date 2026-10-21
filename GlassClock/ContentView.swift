@@ -231,8 +231,10 @@ struct ContentView: View {
         static let extraLarge: CGFloat = 32
     }
 
+    // AnyView boundaries here and below keep the full view type shallow enough to be worked
+    // out at launch: it overflowed the stack on the iPad and in the simulator (2026-10-21).
     var body: some View {
-        themedInterface
+        AnyView(themedInterface)
         .photosPicker(isPresented: $choosingPhoto, selection: $photoItem, matching: .images)
         .onChange(of: photoItem) {
             Task {
@@ -730,12 +732,12 @@ struct ContentView: View {
                 }
                 ForEach(SettingsSection.allCases) { section in
                     Section {
-                        SettingsCard(title: section.title, icon: section.icon,
-                                     highlighted: highlighted == section,
-                                     focused: focusedSection == nil || focusedSection == section,
-                                     footer: section.footer) {
+                        AnyView(SettingsCard(title: section.title, icon: section.icon,
+                                             highlighted: highlighted == section,
+                                             focused: focusedSection == nil || focusedSection == section,
+                                             footer: section.footer) {
                             sectionContent(section)
-                        }
+                        })
                         // The card crossing a line a third of the way down is the one in use.
                         .onGeometryChange(for: Bool.self) { proxy in
                             let frame = proxy.frame(in: .named("settingsList"))
@@ -1072,10 +1074,13 @@ struct ContentView: View {
         let span = [controlsAboveRect, controlsBelowRect]
             .filter { $0 != .zero && controlsFollowWidget }
             .reduce(widgetRect) { $0.union($1) }
-        // Side to side, the card or the Home Screen picker (about 240 pt), whichever is wider,
-        // centred on the card: the controls' measured width also took in hidden pages and
-        // notes, which pushed the groups over the panels (tap check, 2026-10-21).
-        let half = max(widgetRect.width / 2, 120) + 8
+        // Side to side, the card or the widest control, centred on the card (the controls'
+        // measured position lagged behind and pushed the groups over the panels; their widths
+        // are fine, tap check 2026-10-21).
+        let widest = [controlsAboveRect, controlsBelowRect]
+            .filter { $0 != .zero && controlsFollowWidget }
+            .map(\.width).max() ?? 0
+        let half = max(widgetRect.width, min(widest, 560)) / 2 + 8
         return CGRect(x: widgetRect.midX - half, y: span.minY, width: half * 2, height: span.height)
     }
 
@@ -1518,7 +1523,7 @@ struct ContentView: View {
                 if editingWidget {
                     Button("Done") { setEditingWidget(false) }
                         .font(.headline)
-                        .buttonStyle(.borderedProminent)
+                        .prominentButton()
                         .buttonBorderShape(.capsule)
                         .tint(AppColor.chosen(appColor))
                         .transition(.scale.combined(with: .opacity))
@@ -1869,7 +1874,7 @@ struct ContentView: View {
             }
             .padding(.horizontal, 4)
         }
-        .buttonStyle(.borderedProminent)
+        .prominentButton()
         .disabled(applied)
         .sensoryFeedback(.success, trigger: appliedStyle)
     }
@@ -2032,7 +2037,7 @@ struct ContentView: View {
                         .animation(.snappy, value: landing.column)
                         .animation(.snappy, value: landing.row)
                 }
-                cardFace(card: card, scale: scale)
+                AnyView(cardFace(card: card, scale: scale))
                         .contentShape(.rect)
                         // Double-tap clears the panels away (as on the rest of the preview);
                         // a single tap in Panels goes straight to the fonts, or finishes
@@ -2073,14 +2078,14 @@ struct ContentView: View {
                         // moved, so they're always next to it (owner request, 2026-10-21).
                         .overlay(alignment: .top) {
                             if controlsFollowWidget && (controlsSplit || controlsAbove) {
-                                floatingControls(top: true, all: !controlsSplit, above: true)
+                                AnyView(floatingControls(top: true, all: !controlsSplit, above: true))
                                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { controlsAboveRect = $0 }
                                     .onDisappear { controlsAboveRect = .zero }
                             }
                         }
                         .overlay(alignment: .bottom) {
                             if controlsFollowWidget && (controlsSplit || !controlsAbove) {
-                                floatingControls(top: controlsSplit ? false : true, all: !controlsSplit, above: false)
+                                AnyView(floatingControls(top: controlsSplit ? false : true, all: !controlsSplit, above: false))
                                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { controlsBelowRect = $0 }
                                     .onDisappear { controlsBelowRect = .zero }
                             }
@@ -2435,7 +2440,7 @@ struct ContentView: View {
                                 .frame(width: 190, alignment: .leading)
                                 .fixedSize(horizontal: false, vertical: true)
                             Button("Show Mine") { withAnimation(.snappy) { homeScreen = mine } }
-                                .buttonStyle(.borderedProminent)
+                                .prominentButton()
                                 .controlSize(.small)
                                 // The app colour with white text: over the widget the inherited
                                 // tint was white, so the label vanished (tap check, 2026-10-21).
@@ -2514,7 +2519,7 @@ struct ContentView: View {
                         apply()
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
                 .tint(AppColor.chosen(appColor))
                 .controlSize(.small)
                 Button {
@@ -2696,7 +2701,7 @@ struct ContentView: View {
         Form {
             ForEach(SettingsSection.classic) { section in
                 Section {
-                    SettingsCard(title: section.title, icon: section.icon) { sectionContent(section, simple: true) }
+                    AnyView(SettingsCard(title: section.title, icon: section.icon) { sectionContent(section, simple: true) })
                         .settingsCardRow()
                 }
             }
@@ -2747,7 +2752,7 @@ struct ContentView: View {
                 Button { roll(Set(StylePart.allCases)) } label: {
                     HStack(spacing: 6) { Image(systemName: "dice"); Text("I'm Feeling Lucky") }
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
                 .fixedSize()
                 Button { roll(StylePart.colourParts) } label: {
                     HStack(spacing: 6) { Image(systemName: "paintpalette"); Text("Lucky Colours") }

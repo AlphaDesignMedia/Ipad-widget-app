@@ -62,7 +62,7 @@ struct OnboardingView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent)
+            .prominentButton()
             .buttonBorderShape(.capsule)
         }
         .padding(24)

@@ -432,6 +432,24 @@ enum AppColor {
     }
 }
 
+/// The app's main buttons: the app colour with white text, always. With Automatic, the
+/// inherited tint could be the Glass theme's black or white, which made some buttons white on
+/// white (Show Mine, Copy Values; tap check, 2026-10-21).
+struct ProminentButton: ViewModifier {
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+
+    func body(content: Content) -> some View {
+        content
+            .buttonStyle(.borderedProminent)
+            .tint(AppColor.chosen(appColor))
+            .foregroundStyle(.white)
+    }
+}
+
+extension View {
+    func prominentButton() -> some View { modifier(ProminentButton()) }
+}
+
 /// Bordered chips (Lucky Colours, starter styles…) with readable text. In Dark, the tint
 /// coloured text on its own faint tint sank into warm backdrops like Sunset and Dune, so the
 /// text goes white there and the pill keeps the colour (contrast first, 2026-10-21).

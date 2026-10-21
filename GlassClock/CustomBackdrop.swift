@@ -71,7 +71,7 @@ struct CustomBackdropEditor: View {
                 Text("Make Your Own").font(.headline)
                 Spacer()
                 Button("Done", action: done)
-                    .buttonStyle(.borderedProminent)
+                    .prominentButton()
                     .buttonBorderShape(.capsule)
                     .tint(tint)
             }

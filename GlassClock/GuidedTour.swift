@@ -107,7 +107,7 @@ struct GuidedTour: View {
                 Button(action: next) {
                     Text("Show Me").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 4)
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
                 .buttonBorderShape(.capsule)
                 HStack {
                     Button("Skip", action: finish)
@@ -125,7 +125,7 @@ struct GuidedTour: View {
                             .font(.headline)
                             .padding(.horizontal, 10)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .prominentButton()
                     .buttonBorderShape(.capsule)
                 }
             }

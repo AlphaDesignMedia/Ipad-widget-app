@@ -224,7 +224,7 @@ struct DesignTweaksPanel: View {
                         .joined(separator: ", ") + ", Carrying a panel \(carry.label), One row \(oneRow ? "on" : "off")"
                     copied = true
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
             }
             .sensoryFeedback(.success, trigger: copied)
         }
