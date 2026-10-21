@@ -11,52 +11,38 @@ Read first:
 - GlassClock/ContentView.swift, GlassClock/Workspace.swift, GlassClock/GlassSheetTransition.swift,
   GlassClock/HomeStylePicker.swift, Shared/ClockFace.swift, Shared/ClockStyle.swift, Shared/ClockFonts.swift
 
-## Evening summary (updated 6:45 p.m.; later runs refresh this)
-**Done**
-- **The stutter and freezes on Light / Dark / Clear / Tinted are fixed.** The app was redrawing
-  the whole widget area and every piece of glass on each tap. Now the widget changes at once and
-  the rest of the app catches up a moment after you stop tapping. In a test of 40 quick taps, it
-  went from about 1 in 4 frames on time to nearly all of them.
-- **A real crash is fixed:** switching to Classic could close the app.
-- **More breathing room**, plus new sliders in Design Tweaks: Panel edge padding, Title bar
-  height, Footer padding, Bubble padding and Chip padding. There are also Compact, Comfortable
-  and Airy buttons that set all of them at once.
-- **The controls are split around the widget:** Light/Dark/Clear/Tinted sit above it, and size
-  and backdrop sit below.
-- **Apply to Widget** now shows a tiny widget with "12" in your clock's font. The old "9" was
-  easy to mistake for a count.
-- **The stuck-on groups line up with the whole widget group** (widget plus the bubbles above
-  and below), not just the widget.
-- **Backdrop is two small buttons:** a short menu grouped into Gradients, Mesh and Patterns, and
-  a separate Add Photo button.
-- **Swiping the backdrop shows which kind you're in:** a small card says GRADIENTS, MESH or
-  PATTERNS above the name, with a dot for each backdrop in that kind.
-- **Pinching a panel only changes that panel's text size.** Settings and groups keep their
-  own sizes; Accessibility has a plain − / + for each (Settings text, Groups text).
-- **Panels shrink while you carry them** by their bar: to a small title card ("Layout") or a
-  round puck, and spring back where you drop them. Pick which in Design Tweaks → Carrying a
-  panel (or Full size for the old way).
-- Screenshots are in Screenshots/afternoon/: p0e-carried-title-card.png, p0e-carried-puck.png,
-  p0d-separate-text-sizes.png, p0c-kind-hint.png, p0-after-40-taps-tinted.png,
-  p0-home-look-after-41-taps-light.png, p0b-panels-tweaks.png, p0b-classic.png,
-  p0c-split.png, p0c-rail-whole-group.png, p0c-backdrop-buttons.png
+## Evening summary (updated 7:55 p.m.; later runs refresh this)
+**New since 6:45 p.m.**
+- **Make your own backdrop.** A paintbrush button beside Add Photo (or "Make Your Own…" in the
+  backdrop menu): pick two or three colours and a pattern (None, Lines, Waves, Dots, Rings). It
+  shows on the backdrop as you change it, pale in Light and deep in Dark, and is saved as
+  "Your Own". Screenshot: Screenshots/afternoon/p5-make-your-own.png
+- **Suggestions.** After you pick a preset, a small bubble under Light/Dark/Clear/Tinted says
+  "Make it yours: try a font" with a Fonts button. Only one at a time, each with a ✕.
+  Screenshot: Screenshots/afternoon/p4-suggest-font.png
+- **Controls in one row (optional).** Design Tweaks → "Widget controls in one row": style, size
+  and backdrop become one bubble with three dots. Swipe sideways or tap a dot.
+  Screenshots: Screenshots/afternoon/p0c-one-row-page0.png, p0c-one-row-page2.png
+- **Simpler effects** now also stops the backdrop sliding and bending when you pull it.
+
+**Earlier today:** smoother Light/Dark/Clear/Tinted switching, a Classic crash fix, spacing
+sliders and presets, controls split above and below the widget, backdrop kind hint, pinch per
+panel, panels shrinking while carried (see Progress for details and screenshots).
 
 **Needs your eyes**
-- Does the short pause before the bubbles turn dark (about a third of a second) feel right, or
-  should it be quicker?
-- The widget now switches style instantly instead of fading. Is that OK?
-- Spacing: try Compact and Airy in Design Tweaks, then send back Copy Values.
-- Swiping sideways through backdrop kinds wasn't added: sideways swipes already bring the
-  panels in and out. Would a two-finger sideways swipe be OK for kinds, or skip it?
-
-- Title card or puck while carrying a panel: which do you prefer?
-- Not done yet: the optional one-row swipeable bubble (P0c) and the tap audit (P1), which needs
-  someone at the simulator since scheduled runs can't tap.
+- Does the Make Your Own panel feel easy? Should Your Own also work for the widget's own background?
+- Is "Make it yours: try a font" the right nudge? The Apply suggestion only shows if
+  App → Apply when leaving is off (it's on by default).
+- One row or the stacked bubbles: which do you prefer?
+- Earlier questions still open: the 1/3-second pause before bubbles turn dark, instant widget
+  style switching, Title card vs Puck, a two-finger swipe for backdrop kinds.
+- Not done: the tap audit (P1), stuck-on groups test (P2) and settings sticking (P3) need
+  someone at the simulator; scheduled runs can't tap.
 
 **3 things to try on the iPad**
-1. Tap quickly through Light, Dark, Clear and Tinted, in the Glass look and in My Home Screen.
-2. Drag the settings by their bar: try Title card, then Puck (Design Tweaks → Carrying a panel).
-3. Pinch the settings, then the groups: each should change size on its own.
+1. Tap the paintbrush by the backdrop, change a colour, then try each pattern.
+2. Tap a starter style (e.g. Neon), then tap Fonts in the bubble that appears.
+3. Design Tweaks → turn on "Widget controls in one row", then swipe the bubble sideways.
 
 ## Afternoon plan, 21 Oct (owner away until 10 p.m.): do these FIRST, in order
 Everything before this section is done or superseded. The owner's newest direction:
