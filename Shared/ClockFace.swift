@@ -126,6 +126,10 @@ struct ClockArtwork {
 
     init(date: Date, style: ClockStyle, size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
+        if style.face == .analog {
+            (time, detail, unit) = Self.analog(at: date, style: style, size: size)
+            return
+        }
         // Small widgets get slightly heavier, wider, looser digits (see `adaptsToSize`): fully in
         // the small and medium sizes, fading out by the large ones.
         let compact = style.adaptsToSize ? 1 - min(1, max(0, (min(size.width, size.height) - 140) / 200)) : 0
@@ -270,6 +274,62 @@ struct ClockArtwork {
         detail = result.detail
         unit = digitHeight * result.scale / 100
 
+    }
+
+    /// An analog face: twelve hour marks and two hands, as one outline, so it takes the
+    /// same fills, glass edges, glow and shadow as the digits. The Weight slider sets how bold
+    /// the marks and hands are; with the date on, it sits in small capitals below the centre.
+    private static func analog(at date: Date, style: ClockStyle, size: CGSize)
+        -> (time: Path, detail: Path, unit: CGFloat) {
+        let r = 0.46 * min(size.width, size.height)
+        let centre = CGPoint(x: size.width / 2, y: size.height / 2)
+        let bold = 0.6 + 0.8 * style.fontWeight
+        let calendar = Calendar.current
+        let hour = Double(calendar.component(.hour, from: date) % 12)
+        let minute = Double(calendar.component(.minute, from: date))
+
+        /// A bar along the angle (0 is 12 o'clock, clockwise), from `from` to `to` (fractions of
+        /// the radius), with rounded ends.
+        func bar(angle: Double, from: CGFloat, to: CGFloat, width: CGFloat) -> CGPath {
+            let rect = CGRect(x: -width / 2, y: -to * r, width: width, height: (to - from) * r)
+            var t = CGAffineTransform(translationX: centre.x, y: centre.y).rotated(by: angle)
+            return CGPath(roundedRect: rect, cornerWidth: width / 2, cornerHeight: width / 2, transform: &t)
+        }
+
+        let marks = CGMutablePath()
+        for i in 0..<12 {
+            let quarter = i % 3 == 0
+            marks.addPath(bar(angle: Double(i) * .pi / 6, from: quarter ? 0.66 : 0.74, to: 0.86,
+                              width: r * (quarter ? 0.075 : 0.05) * bold))
+        }
+        // A thin ring round the dial, like the rim of a watch glass.
+        let ring = CGMutablePath()
+        ring.addEllipse(in: CGRect(x: centre.x - r, y: centre.y - r, width: 2 * r, height: 2 * r))
+        marks.addPath(ring.copy(strokingWithWidth: r * 0.035 * bold, lineCap: .round, lineJoin: .round, miterLimit: 1))
+        // Bold enough that glass hands, which are partly see-through, still read at a glance.
+        let hands = CGMutablePath()
+        hands.addPath(bar(angle: (hour + minute / 60) * .pi / 6, from: -0.1, to: 0.5, width: r * 0.12 * bold))
+        hands.addPath(bar(angle: minute * .pi / 30, from: -0.12, to: 0.78, width: r * 0.08 * bold))
+        let cap = r * 0.1 * bold
+        hands.addEllipse(in: CGRect(x: centre.x - cap, y: centre.y - cap, width: cap * 2, height: cap * 2))
+
+        // Joined into one outline, so overlapping hands don't show seams through glass.
+        let time = Path(marks.union(hands))
+        var detail = Path()
+
+        if style.showDate {
+            let font = style.resolvedDetailFont?.font(size: 100, weight: 0.6)
+                ?? style.font.font(size: 100, weight: 0.6, width: 0.5, roundness: style.roundness)
+            let capitals = style.resolvedDetailFont?.usesCapitals ?? true
+            let text = style.dateText(date)
+            let glyphs = GlyphLine(capitals ? text.uppercased() : text, font: font, tracking: capitals ? 0.12 : 0.02)
+            let cap = max(7, r * 0.09)
+            let k = cap / CTFontGetCapHeight(font)
+            var t = CGAffineTransform(translationX: centre.x - glyphs.bounds.midX * k, y: centre.y + r * 0.36 + cap)
+                .scaledBy(x: k, y: k)
+            if let placed = glyphs.path.copy(using: &t) { detail = Path(placed) }
+        }
+        return (time, detail, r / 55)
     }
 
     var combined: Path {

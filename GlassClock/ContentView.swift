@@ -1220,21 +1220,28 @@ struct ContentView: View {
             lockChips
 
         case .layout:
-            Picker("Time format", selection: $style.timeFormat) {
-                ForEach(TimeFormat.allCases) { Text($0.label).tag($0) }
+            facePicker
+            // Digital-only settings are hidden for the analog face, which has no digits.
+            if style.face == .digital {
+                Picker("Time format", selection: $style.timeFormat) {
+                    ForEach(TimeFormat.allCases) { Text($0.label).tag($0) }
+                }
+                Picker("AM/PM", selection: $style.ampm) {
+                    ForEach(AMPMPlacement.allCases) { Text($0.label).tag($0) }
+                }
+                .disabled(!style.uses12Hour)
             }
-            Picker("AM/PM", selection: $style.ampm) {
-                ForEach(AMPMPlacement.allCases) { Text($0.label).tag($0) }
-            }
-            .disabled(!style.uses12Hour)
             Toggle("Show date", isOn: $style.showDate)
-            if style.showDate {
-                Toggle("Date above the time", isOn: $style.dateAbove)
+            if style.face == .digital {
+                if style.showDate {
+                    Toggle("Date above the time", isOn: $style.dateAbove)
+                }
+                slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
+                Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
             }
-            slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
-            Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
 
         case .fonts where simple:
+            facePicker
             Picker("Font", selection: $style.font) {
                 ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
             }
@@ -1365,6 +1372,14 @@ struct ContentView: View {
             }
             .buttonStyle(.borderless)
         }
+    }
+
+    /// Digital or analog. Everything else (fonts aside) styles both the same way.
+    private var facePicker: some View {
+        Picker("Clock", selection: $style.face) {
+            ForEach(ClockFaceKind.allCases) { Text($0.label).tag($0) }
+        }
+        .pickerStyle(.segmented)
     }
 
     /// A small label that starts a group of settings inside a section.

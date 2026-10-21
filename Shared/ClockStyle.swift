@@ -70,6 +70,20 @@ enum CardBackground: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Digits, or a dial with hands. Both are drawn as outlines, so every fill, light and
+/// Home Screen option works the same on either.
+enum ClockFaceKind: String, Codable, CaseIterable, Identifiable {
+    case digital, analog
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .digital: "Digital"
+        case .analog: "Analog"
+        }
+    }
+}
+
 enum TextFill: String, Codable, CaseIterable, Identifiable {
     case solid, gradient, glass
     var id: Self { self }
@@ -147,6 +161,9 @@ enum AMPMPlacement: String, Codable, CaseIterable, Identifiable {
 /// Everything the user can customise. Font weight, width and roundness are 0–1 positions
 /// along the chosen font's own variable axes (0.5 is regular weight and normal width).
 struct ClockStyle: Codable, Equatable {
+    /// Digital or analog. Like the time format, it's the person's own choice, so presets and
+    /// Lucky leave it alone.
+    var face: ClockFaceKind = .digital
     var font: ClockFont = .robotoFlex
     var fontWeight: Double = 0.85
     var fontWidth: Double = 0.3
@@ -226,6 +243,7 @@ struct ClockStyle: Codable, Equatable {
         func value<T: Decodable>(_ key: CodingKeys, _ fallback: T) throws -> T {
             try c.decodeIfPresent(T.self, forKey: key) ?? fallback
         }
+        face = try value(.face, d.face)
         font = try value(.font, d.font)
         fontWeight = try value(.fontWeight, d.fontWeight)
         fontWidth = try value(.fontWidth, d.fontWidth)
