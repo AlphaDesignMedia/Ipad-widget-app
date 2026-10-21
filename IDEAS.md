@@ -74,6 +74,10 @@ _Last updated 21 Oct 2026._
 | **Design tweaks panel**: live sliders on the iPad for corners, gaps, frost, focus strength, wiggle and lean, so you can tune the feel yourself and send me the numbers | ✅ | 21 Oct. Sliders button at the top left; Copy Values, then paste them to me. |
 | Hold anywhere on the settings panel, then drag, to move it; widget re-centres when panels move; backdrop picker follows the widget; carousel-style cards with no blur; roomier card padding | ✅ | 21 Oct. |
 | **Guided tour / beginner mode**: annotated first-run guide to every gesture, easy to skip, with a "Keep it simple" option that goes straight to Classic | ✅ | 21 Oct. Spotlight glides over the real app: widget, settings, groups, backdrop swipe, toolbar. Replay with the ? button. New users now start in Panels. |
+| Your Design Tweaks picks are the defaults (corners 41, gaps 22, frost 1.85, focus 1.35, wiggle 1.65, lean 1.10) | ✅ | 21 Oct. |
+| Readable frost everywhere: resting cards and the groups panel keep enough frost for text | ✅ | 21 Oct. |
+| Focus effect across the UI: the panel in use comes forward, the other steps back; selected group is bright glass with a rim and a sweep of light; jumped-to cards get a rim and shimmer; the widget shines on Apply | ✅ | 21 Oct. |
+| **Match my Home Screen**: the app's own glass follows your Home Screen style (Light, Dark, Clear, Tinted with your tint), so the whole app feels like your Home Screen and the preview is exact | ⬜ | Your direction, 21 Oct. Next. |
 | **Quick actions / view options**: a mini icon list like the left panel, with a text size slider, a preview scale slider, the Clear and Tinted options, and your own quick actions added like styles | ⬜ | Your idea, 21 Oct. |
 | Grab, move and pinch stay the quick default; the wiggle mode is the familiar, traditional way | ✅ | Your direction, 21 Oct. |
 | More backdrops in the spirit of Apple's wallpapers | ⬜ | Your request, 21 Oct. Next up. |

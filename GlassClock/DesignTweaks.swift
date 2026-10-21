@@ -23,12 +23,13 @@ enum Tweak: String, CaseIterable, Identifiable {
 
     var standard: Double {
         switch self {
-        case .panel: 36
-        case .gap: 16
-        case .frost: 1
-        case .focus: 1
-        case .wiggle: 0.7
-        case .lean: 1
+        // The owner's picks from Design Tweaks, 21 Oct 2026.
+        case .panel: 41
+        case .gap: 22
+        case .frost: 1.85
+        case .focus: 1.35
+        case .wiggle: 1.65
+        case .lean: 1.1
         }
     }
 

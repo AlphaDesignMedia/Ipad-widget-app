@@ -389,15 +389,23 @@ struct SettingsCard<Content: View>: View {
             ZStack {
                 if glassy {
                     // Resting cards lean towards clear; the one in use gets the full frost.
-                    // Frost (Design Tweaks) scales how thick the frost is: 0 is clear.
-                    GlassAmount.backing(1 - (1 - (focused ? max(0, glassAmount - 0.25) : 1)) * frost, in: shape)
+                    // Frost (Design Tweaks) scales how thick the frost is: 0 is clear. Resting
+                    // cards keep enough frost for their text to read (owner feedback,
+                    // 2026-10-21: black text can't sit on clear glass); the one in use gets more.
+                    GlassAmount.backing(GlassAmount.frosted(focused ? glassAmount - 0.25 : glassAmount + 0.15, by: frost), in: shape)
                         .opacity(min(1, frost))
                 } else {
                     shape.fill(.background.secondary)
                 }
-                if highlighted { shape.fill(Color.accentColor.opacity(0.14)) }
             }
         }
+        // Jumped to from the groups: a bright rim and a sweep of light across the glass,
+        // rather than a wash of colour (owner direction, 2026-10-21).
+        .overlay {
+            shape.strokeBorder(.white.opacity(highlighted ? 0.85 : 0), lineWidth: 1.5)
+                .animation(.easeOut(duration: 0.3), value: highlighted)
+        }
+        .shimmer(trigger: highlighted, in: shape)
         .modifier(CardGlass(on: glassy, shape: shape))
         .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
         // Like a carousel: cards grow as they near the middle of the list and shrink away
@@ -457,6 +465,11 @@ struct PanelLabelBacking: ViewModifier {
 /// before, 1 is the clearest that still keeps text readable, a very thin frost over the glass.
 enum GlassAmount {
     static let standard = 0.5
+
+    /// A Glass amount made frostier by `frost` (Design Tweaks): 1 leaves it, 2 doubles the frost.
+    static func frosted(_ amount: Double, by frost: Double) -> Double {
+        min(1, max(0, 1 - (1 - min(1, max(0, amount))) * frost))
+    }
 
     /// The frosted backing behind text: a thin frost always, plus a thicker one that fades out
     /// as the amount goes up.
@@ -611,5 +624,46 @@ struct HomeGrid {
         (0..<rows).flatMap { row in
             (0..<columns).map { column in frame(column: column, row: row, span: (1, 1)) }
         }
+    }
+}
+
+/// A single sweep of light across a piece of glass each time `trigger` changes, like light
+/// catching it as it moves: used to mark what's just been picked or jumped to.
+struct Shimmer<S: Shape>: ViewModifier {
+    var trigger: Bool
+    var shape: S
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if !reduceMotion {
+                GeometryReader { proxy in
+                    Color.clear
+                        .keyframeAnimator(initialValue: -0.6, trigger: trigger) { view, x in
+                            view.overlay {
+                                LinearGradient(colors: [.white.opacity(0), .white.opacity(0.55), .white.opacity(0)],
+                                               startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: max(60, proxy.size.width * 0.35))
+                                    .rotationEffect(.degrees(18))
+                                    .offset(x: x * proxy.size.width)
+                                    .blendMode(.plusLighter)
+                            }
+                        } keyframes: { _ in
+                            LinearKeyframe(-0.6, duration: 0.05)
+                            CubicKeyframe(1.3, duration: 0.85)
+                        }
+                }
+                .clipShape(shape)
+                // Only when it turns on, not again as it fades.
+                .opacity(trigger ? 1 : 0)
+                .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+extension View {
+    func shimmer<S: Shape>(trigger: Bool, in shape: S) -> some View {
+        modifier(Shimmer(trigger: trigger, shape: shape))
     }
 }

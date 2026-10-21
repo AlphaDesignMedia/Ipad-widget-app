@@ -114,6 +114,14 @@ struct ContentView: View {
     @AppStorage(Tweak.wiggle.key) private var tweakWiggle = Tweak.wiggle.standard
     @AppStorage(Tweak.lean.key) private var tweakLean = Tweak.lean.standard
     @State private var showsTweaks = false
+    @Namespace private var groupSelection
+    @AppStorage(Tweak.frost.key) private var tweakFrost = Tweak.frost.standard
+    @AppStorage(Tweak.focus.key) private var tweakFocus = Tweak.focus.standard
+    /// Which panel is being used: it comes forward and the other steps back a little, like the
+    /// cards in the settings (owner direction, 2026-10-21: the focus effect everywhere).
+    @State private var activePanel: ActivePanel?
+    @State private var activePanelReset: Task<Void, Never>?
+    @State private var appliedShine = false
     /// Where the widget is on screen, for the guided tour.
     @State private var widgetRect = CGRect.zero
     /// The groups panel's dock, while the panel is closed: which side it's on and how far down
@@ -509,6 +517,13 @@ struct ContentView: View {
         // It all fits, and a drag moves the panel rather than scrolling it.
         .scrollDisabled(true)
         .fixedSize(horizontal: false, vertical: true)
+        // Frosted like the cards, so its labels read on any backdrop (owner feedback,
+        // 2026-10-21: clear glass looked lovely but wasn't readable).
+        .background {
+            if appTheme == .glass && !reducesGlass {
+                GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .rect(cornerRadius: Corner.panel))
+            }
+        }
         .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
         .animation(.snappy, value: selectedSection)
     }
@@ -521,12 +536,12 @@ struct ContentView: View {
             HStack(spacing: 12) {
                 Image(systemName: section.icon)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+                    .foregroundStyle(.tint)
                     .frame(width: 24)
                 if !iconsOnly {
                     Text(section == .homeScreens ? "Home Screens" : section.title)
                         .font(.body.weight(selected ? .semibold : .regular))
-                        .foregroundStyle(selected ? .white : .primary)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                     Spacer(minLength: 0)
@@ -534,7 +549,19 @@ struct ContentView: View {
             }
             .padding(.horizontal, iconsOnly ? 10 : 14)
             .padding(.vertical, 11)
-            .background(selected ? AppColor.chosen(appColor) : .clear, in: .capsule)
+            // The group in use is a brighter piece of glass with a light rim, with a sweep of
+            // light when it's picked, matching the focus on the cards (owner direction,
+            // 2026-10-21) rather than a fill of colour.
+            .background {
+                if selected {
+                    Capsule().fill(.white.opacity(0.55))
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.9), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                        .matchedGeometryEffect(id: "group selection", in: groupSelection)
+                }
+            }
+            .shimmer(trigger: selected, in: Capsule())
+            .scaleEffect(selected ? 1.04 : 1)
             .contentShape(.capsule)
         }
         .buttonStyle(.plain)
@@ -681,6 +708,8 @@ struct ContentView: View {
             .offset(sidebarMove)
             .zIndex(sidebarMove == .zero ? 0 : 1)
             .simultaneousGesture(sidebarMoveGesture(in: area))
+            .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in markActive(.groups) })
+            .modifier(PanelFocus(active: activePanel == nil || activePanel == .groups, strength: tweakFocus))
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sidebarRect = $0 }
             .transition(panelTransition(leading ? .leading : .trailing))
     }
@@ -700,6 +729,8 @@ struct ContentView: View {
             .overlay(alignment: .top) { panelGrabber(area: area) }
             // Or hold anywhere on the panel for a moment, then drag: a quick swipe still scrolls.
             .simultaneousGesture(settingsHoldAndDrag(area: area))
+            .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in markActive(.settings) })
+            .modifier(PanelFocus(active: activePanel == nil || activePanel == .settings, strength: tweakFocus))
             .sensoryFeedback(.impact(weight: .medium), trigger: settingsHeld) { _, held in held }
             .frame(width: width)
             // Lifts when it's picked up, like a widget on the Home Screen.
@@ -970,6 +1001,7 @@ struct ContentView: View {
                 if value.first == nil, value.second != nil, !draggingCard {
                     withAnimation(.snappy) { draggingCard = true }
                 }
+                markActive(.widget)
                 if value.first == nil, let drag = value.second {
                     func lean(_ speed: CGFloat) -> CGFloat { max(-1, min(1, speed / 2400)) }
                     cardLean = CGSize(width: lean(drag.velocity.width), height: lean(drag.velocity.height))
@@ -1060,6 +1092,7 @@ struct ContentView: View {
                 .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
         }
         .overlay { if editingWidget { cornerHighlights(scale: scale) } }
+        .shimmer(trigger: appliedShine, in: .rect(cornerRadius: 28 * scale))
         return face
             // Lifts while it's being moved, like a widget on the Home Screen.
             .scaleEffect(lift)
@@ -1105,6 +1138,17 @@ struct ContentView: View {
         }
         .allowsHitTesting(false)
         .transition(.opacity)
+    }
+
+    /// Brings a panel forward while it's used; after a few quiet seconds everything evens out.
+    private func markActive(_ panel: ActivePanel) {
+        if activePanel != panel { withAnimation(.smooth(duration: 0.35)) { activePanel = panel } }
+        activePanelReset?.cancel()
+        activePanelReset = Task {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            withAnimation(.smooth(duration: 0.6)) { activePanel = nil }
+        }
     }
 
     private func setEditingWidget(_ on: Bool) {
@@ -1263,6 +1307,12 @@ struct ContentView: View {
         style.save()
         WidgetCenter.shared.reloadAllTimelines()
         withAnimation(.snappy) { appliedStyle = style }
+        // Light sweeps across the widget as it's sent to the Home Screen.
+        appliedShine = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.2))
+            appliedShine = false
+        }
     }
 
     private func savePreset() {
@@ -2302,5 +2352,21 @@ private struct StageChrome: ViewModifier {
             .opacity(shown ? 1 : 0)
             .allowsHitTesting(shown)
             .accessibilityHidden(!shown)
+    }
+}
+
+enum ActivePanel { case groups, settings, widget }
+
+/// A panel in use stays as it is; one that isn't steps back a little, never so far that its
+/// text is hard to read.
+struct PanelFocus: ViewModifier {
+    var active: Bool
+    var strength: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(active ? 1 : max(0.75, 1 - 0.15 * strength))
+            .scaleEffect(active || reduceMotion ? 1 : 1 - 0.012 * strength)
     }
 }
