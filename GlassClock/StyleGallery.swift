@@ -202,6 +202,9 @@ enum StressTest {
     static var oneRowPage: Int? {
         ProcessInfo.processInfo.environment["GLASSCLOCK_ONE_ROW"].flatMap(Int.init)
     }
+    /// GLASSCLOCK_SUGGEST=font or apply: uses a preset at launch (and sets My Home Screen) so the
+    /// suggestion under the Home Screen picker can be screenshotted.
+    static var suggestion: String? { ProcessInfo.processInfo.environment["GLASSCLOCK_SUGGEST"] }
 }
 
 /// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.
@@ -241,5 +244,6 @@ enum StressTest {
     static var backdrop: PreviewBackdrop? { nil }
     static var carried: Bool { false }
     static var oneRowPage: Int? { nil }
+    static var suggestion: String? { nil }
 }
 #endif

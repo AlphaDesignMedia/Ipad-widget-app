@@ -183,6 +183,12 @@ struct ContentView: View {
     /// Which bubble shows when the widget's controls are one row: 0 style, 1 size, 2 backdrop.
     @State private var controlsPage = 0
     @State private var controlsPageForward = true
+    /// Set when a preset is used, so a "Try a font" suggestion can follow it.
+    @State private var suggestsFont = false
+    /// True once the style has been left alone for a few seconds, so the Apply suggestion
+    /// doesn't flicker in while someone is still changing things.
+    @State private var changesSettled = false
+    @State private var dismissedApplyHint = false
     @State private var pinchingTextStep: Int?
     @State private var pinchingGroupsStep: Int?
     /// The text-size bubble, shown on the panel being pinched while pinching and briefly after.
@@ -288,6 +294,12 @@ struct ContentView: View {
             if let page = StressTest.oneRowPage {
                 oneRowControls = true
                 controlsPage = min(2, max(0, page))
+            }
+            if let hint = StressTest.suggestion {
+                myHomeScreen = .automatic
+                if let mine { homeScreen = mine }
+                use(ClockStyle.presets[1].style)
+                if hint != "font" { suggestsFont = false }
             }
             if let target = StressTest.backdrop {
                 Task {
@@ -1835,7 +1847,10 @@ struct ContentView: View {
     private func apply() {
         style.save()
         WidgetCenter.shared.reloadAllTimelines()
-        withAnimation(.snappy) { appliedStyle = style }
+        withAnimation(.snappy) {
+            appliedStyle = style
+            dismissedApplyHint = false
+        }
         // Light sweeps across the widget as it's sent to the Home Screen.
         appliedShine = true
         Task {
@@ -2377,6 +2392,8 @@ struct ContentView: View {
                         .multilineTextAlignment(.center)
                         .environment(\.colorScheme, controlScheme)
                 }
+            } else if let suggestion {
+                suggestionBubble(suggestion)
             } else {
                 bubble {
                     myHomeScreenMenu {
@@ -2392,6 +2409,66 @@ struct ContentView: View {
         .transition(.opacity.combined(with: .scale(scale: 0.95)))
         .animation(.snappy, value: homeScreen)
         .animation(.snappy, value: myHomeScreen)
+        .animation(.snappy, value: suggestion)
+        // The Apply suggestion waits until changes have stopped for a few seconds.
+        .task(id: style) {
+            changesSettled = false
+            try? await Task.sleep(for: .seconds(4))
+            if !Task.isCancelled { changesSettled = true }
+        }
+        .onChange(of: selectedSection) { _, section in
+            if section == .fonts { suggestsFont = false }
+        }
+    }
+
+    /// A likely next step, shown under the Home Screen picker when nothing else is there:
+    /// "Try a font" after a preset, or Apply when changes haven't reached the widget yet
+    /// (owner idea, 2026-10-21). At most one at a time, and each can be dismissed.
+    private enum Suggestion: Equatable {
+        case tryFont, apply
+    }
+
+    private var suggestion: Suggestion? {
+        if suggestsFont { return .tryFont }
+        if style != appliedStyle && changesSettled && !dismissedApplyHint && !applyWhenLeaving { return .apply }
+        return nil
+    }
+
+    private func suggestionBubble(_ suggestion: Suggestion) -> some View {
+        bubble {
+            HStack(spacing: Space.small) {
+                Image(systemName: suggestion == .tryFont ? "textformat" : "sparkles")
+                    .foregroundStyle(.primary)
+                Text(suggestion == .tryFont ? "Make it yours: try a font" : "Your widget hasn't changed yet")
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                Button(suggestion == .tryFont ? "Fonts" : "Apply") {
+                    if suggestion == .tryFont {
+                        suggestsFont = false
+                        focus(.fonts)
+                    } else {
+                        apply()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppColor.chosen(appColor))
+                .controlSize(.small)
+                Button {
+                    withAnimation(.snappy) {
+                        if suggestion == .tryFont { suggestsFont = false } else { dismissedApplyHint = true }
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .contentShape(.circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss suggestion")
+            }
+            .padding(.leading, Space.small)
+        }
     }
 
     private func myHomeScreenMenu(@ViewBuilder label: () -> some View) -> some View {
@@ -2799,6 +2876,7 @@ struct ContentView: View {
     private func use(_ preset: ClockStyle) {
         withAnimation(reduceMotion ? nil : .smooth) {
             style = style.taking(Set(StylePart.allCases).subtracting(lockedParts), from: preset)
+            if !lockedParts.contains(.font) { suggestsFont = true }
         }
     }
 
