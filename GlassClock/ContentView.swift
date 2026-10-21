@@ -304,6 +304,9 @@ struct ContentView: View {
 
     /// The room the preview stage needs to show the widget at its real size, with its padding
     /// and the controls around it.
+    /// In Panels, where the widget can be moved around, its style and size controls float with it.
+    private var controlsFollowWidget: Bool { interface == .panels }
+
     private var stageWidth: CGFloat { max(previewSize.size.width, 420) + Space.large * 2 }
     private var stageHeight: CGFloat { previewSize.size.height + 220 }
 
@@ -796,7 +799,8 @@ struct ContentView: View {
     private var previewStage: some View {
             VStack(spacing: Space.large) {
                 Spacer(minLength: 0)
-                homeScreenBubble
+                // In Panels the style and size controls float with the widget instead (below).
+                if !controlsFollowWidget { homeScreenBubble }
                 myHomeScreenNote
                 // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets).
                 Text("Preview")
@@ -817,6 +821,8 @@ struct ContentView: View {
                     let home = grid.frame(column: slot.column, row: slot.row, span: span)
                     let centre = CGPoint(x: home.midX + cardDrag.width, y: home.midY + cardDrag.height)
                     let landing = grid.nearest(to: centre, span: span)
+                    // The floating controls go on whichever side of the widget has more room.
+                    let controlsAbove = home.minY > space.size.height - home.maxY
                     ZStack(alignment: .topLeading) {
                         // While dragging: the empty slots, and where the widget will land.
                         if draggingCard {
@@ -864,6 +870,23 @@ struct ContentView: View {
                                 .accessibilityAction(named: "Move right") { moveWidget(1, 0, grid: grid, slot: slot) }
                                 .accessibilityAction(named: "Move up") { moveWidget(0, -1, grid: grid, slot: slot) }
                                 .accessibilityAction(named: "Move down") { moveWidget(0, 1, grid: grid, slot: slot) }
+                                // The style and size controls ride along with the widget as it's
+                                // moved, so they're always next to it (owner request, 2026-10-21).
+                                .overlay(alignment: controlsAbove ? .top : .bottom) {
+                                    if controlsFollowWidget {
+                                        VStack(spacing: Space.small) {
+                                            homeScreenBubble
+                                            sizeBubble
+                                        }
+                                        .fixedSize()
+                                        // A zero-height frame on the card's edge, with the
+                                        // controls hanging off it away from the card.
+                                        .frame(height: 0, alignment: controlsAbove ? .bottom : .top)
+                                        .offset(y: controlsAbove ? -Space.medium : Space.medium)
+                                        .opacity(draggingCard ? 0.7 : 1)
+                                        .animation(.smooth, value: controlsAbove)
+                                    }
+                                }
                         }
                         .position(x: centre.x, y: centre.y)
                     }
@@ -879,17 +902,17 @@ struct ContentView: View {
                 // Side by side when they fit, otherwise one above the other.
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: Space.medium) {
-                        sizeBubble
+                        if !controlsFollowWidget { sizeBubble }
                         backdropBubble
                     }
                     VStack(spacing: Space.medium) {
-                        sizeBubble
+                        if !controlsFollowWidget { sizeBubble }
                         backdropBubble
                     }
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, Space.large)
+            .padding(.horizontal, controlsFollowWidget ? Space.small : Space.large)
             .padding(.top, Space.medium)
             .padding(.bottom, Space.large)
             .overlay(alignment: .top) {
@@ -952,6 +975,12 @@ struct ContentView: View {
     }
 
     /// A capsule of glass for a preview control (glass is for the controls layer, HIG: Materials).
+    private func roundedBubble(cornerRadius: CGFloat, @ViewBuilder content: () -> some View) -> some View {
+        content()
+            .padding(Space.small)
+            .appGlass(.rect(cornerRadius: cornerRadius, style: .continuous))
+    }
+
     private func bubble(@ViewBuilder content: () -> some View) -> some View {
         content()
             .padding(.horizontal, Space.small)
@@ -1024,7 +1053,8 @@ struct ContentView: View {
     }
 
     private var homeScreenBubble: some View {
-        bubble {
+        // Rounded to fit its taller icon buttons: 16 inside plus the 8 padding.
+        roundedBubble(cornerRadius: 24) {
             HomeStylePicker(selection: $homeScreen)
                 .frame(maxWidth: 440)
         }

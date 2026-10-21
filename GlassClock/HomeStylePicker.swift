@@ -14,26 +14,27 @@ struct HomeStylePicker: View {
                 Button {
                     withAnimation(.snappy) { selection = style }
                 } label: {
-                    HStack(spacing: 6) {
-                        HomeStyleIcon(style: style)
+                    // A big icon over its name, like the Home Screen's Customise menu.
+                    VStack(spacing: 5) {
+                        HomeStyleIcon(style: style, size: 34)
                         Text(style.rawValue)
-                            .font(.subheadline.weight(selected ? .semibold : .regular))
+                            .font(.footnote.weight(selected ? .semibold : .regular))
                             .lineLimit(1)
                             .fixedSize()
                     }
                     .foregroundStyle(.primary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
                     .background {
                         if selected {
-                            Capsule()
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(Color(uiColor: .systemBackground))
                                 .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
                                 .matchedGeometryEffect(id: "selection", in: selectionSpace)
                         }
                     }
-                    .contentShape(.capsule)
+                    .contentShape(.rect(cornerRadius: 16))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(style.rawValue)
