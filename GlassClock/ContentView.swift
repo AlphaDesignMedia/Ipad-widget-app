@@ -139,6 +139,8 @@ struct ContentView: View {
     @AppStorage("matchesClockFont") private var matchesClockFont = true
     /// Where the widget is on screen, for the guided tour.
     @State private var widgetRect = CGRect.zero
+    /// False for a moment while Panels opens, so the widget appears in its place.
+    @State private var widgetSettled = true
     /// Where the controls above and below the widget are, in the window, so the stuck-on groups
     /// line up with the whole widget group rather than just the card.
     @State private var controlsAboveRect = CGRect.zero
@@ -447,6 +449,9 @@ struct ContentView: View {
                     .onTapGesture(count: 2, perform: toggleBothPanels)
 
                     AnyView(widgetLayer)
+                        // Fades in once it has found its place, rather than showing for a moment
+                        // under a panel while the layout settles (tap check, 2026-10-21).
+                        .opacity(widgetSettled ? 1 : 0)
                         // Over the panels while it's being moved or edited, under them otherwise.
                         .zIndex(draggingCard || editingWidget ? 2 : 0)
 
@@ -524,7 +529,14 @@ struct ContentView: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { windowHeight = $0 }
         // Opens set up neatly, with the widget in the free space between the panels; it can be
         // moved anywhere from there (owner direction, 2026-10-21).
-        .onAppear { widgetColumn = -1; widgetRow = -1 }
+        .onAppear {
+            widgetColumn = -1; widgetRow = -1
+            widgetSettled = false
+            Task {
+                try? await Task.sleep(for: .milliseconds(450))
+                withAnimation(.easeOut(duration: 0.3)) { widgetSettled = true }
+            }
+        }
         // When the panels are rearranged, the widget settles back in the middle of the space
         // left for it (owner direction, 2026-10-21).
         .onChange(of: panelLayoutKey) {
@@ -1057,9 +1069,14 @@ struct ContentView: View {
     /// The widget together with the controls riding above and below it, in the window.
     private var widgetGroupRect: CGRect {
         guard widgetRect != .zero else { return .zero }
-        return [controlsAboveRect, controlsBelowRect]
+        let span = [controlsAboveRect, controlsBelowRect]
             .filter { $0 != .zero && controlsFollowWidget }
             .reduce(widgetRect) { $0.union($1) }
+        // Side to side, the card or the Home Screen picker (about 240 pt), whichever is wider,
+        // centred on the card: the controls' measured width also took in hidden pages and
+        // notes, which pushed the groups over the panels (tap check, 2026-10-21).
+        let half = max(widgetRect.width / 2, 120) + 8
+        return CGRect(x: widgetRect.midX - half, y: span.minY, width: half * 2, height: span.height)
     }
 
     /// Where the stuck-on groups sit, in the window: beside the side of the widget or settings
@@ -1067,22 +1084,33 @@ struct ContentView: View {
     private func railFrame(for target: GroupsAttachment, size: CGSize) -> CGRect {
         let anchor = target == .widget ? widgetGroupRect : inspectorRect
         guard anchor != .zero else { return .zero }
-        let onLeft = anchor.midX > windowWidth / 2
         let gap: CGFloat = 10
-        let x = onLeft ? anchor.minX - gap - size.width : anchor.maxX + gap
         let y = target == .widget ? anchor.midY - size.height / 2 : anchor.minY + 24
-        return CGRect(x: x, y: y, width: size.width, height: size.height)
+        let left = CGRect(x: anchor.minX - gap - size.width, y: y, width: size.width, height: size.height)
+        let right = CGRect(x: anchor.maxX + gap, y: y, width: size.width, height: size.height)
+        let preferred = railOnLeft(of: anchor) ? left : right
+        let other = preferred == left ? right : left
+        // Never over an open panel or off the window (tap check, 2026-10-21: the rail slid over
+        // the settings when a wide note made the widget group wider); the other side, if it's free.
+        let blocked = { (rect: CGRect) in
+            (target == .widget && showsInspector && rect.intersects(inspectorRect))
+                || rect.minX < 0 || rect.maxX > windowWidth
+        }
+        return blocked(preferred) && !blocked(other) ? other : preferred
     }
+
+    /// The side of what it's stuck to that faces the middle of the window.
+    private func railOnLeft(of anchor: CGRect) -> Bool { anchor.midX > windowWidth / 2 }
 
     /// The groups stuck to the widget or the settings: a column of icons that rides along with
     /// them. Push it in and it slides away to a small tab against the edge; pull the tab and it
     /// slides back out, like Slide Over. Pull it well away and it comes off as its own panel.
     private func attachedGroups(in area: CGSize) -> some View {
         let anchor = groupsAttachment == .widget ? widgetGroupRect : inspectorRect
-        let onLeft = anchor.midX > windowWidth / 2
         let tab = CGSize(width: 14, height: 86)
         let size = groupsTucked ? tab : railSize
         let frame = railFrame(for: groupsAttachment, size: size)
+        let onLeft = frame.midX < anchor.midX
         // In the panels' space, kept on screen.
         let x = min(area.width - size.width / 2 - 4, max(size.width / 2 + 4, frame.midX - panelsOrigin.x))
         let y = min(area.height - size.height / 2 - 4, max(size.height / 2 + 4, frame.midY - panelsOrigin.y))
@@ -2403,9 +2431,16 @@ struct ContentView: View {
                             Image(systemName: "info.circle.fill").foregroundStyle(.tint)
                             Text("Previewing \(homeScreen.rawValue). Your Home Screen is \(mine.rawValue).")
                                 .font(.subheadline)
+                                // Wrapped to a compact width, so the widget group stays narrow.
+                                .frame(width: 190, alignment: .leading)
+                                .fixedSize(horizontal: false, vertical: true)
                             Button("Show Mine") { withAnimation(.snappy) { homeScreen = mine } }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.small)
+                                // The app colour with white text: over the widget the inherited
+                                // tint was white, so the label vanished (tap check, 2026-10-21).
+                                .tint(AppColor.chosen(appColor))
+                                .foregroundStyle(.white)
                         }
                         .padding(.leading, Space.small)
                     }
@@ -2413,6 +2448,12 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                        .frame(width: 260)
+                        .fixedSize(horizontal: false, vertical: true)
+                        // On a frosted pill, so the small grey text reads on any backdrop.
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background { bubbleBacking(.capsule) }
                         .environment(\.colorScheme, controlScheme)
                 }
             } else if let suggestion {
@@ -2509,7 +2550,8 @@ struct ContentView: View {
         // Concentric with its taller icon buttons: their 16 plus the bubble's padding.
         roundedBubble(cornerRadius: 16 + tweakBubble) {
             HomeStylePicker(selection: $homeScreen)
-                .frame(maxWidth: 440)
+                // Its own width, not stretched to match a wider note above it.
+                .fixedSize()
         }
     }
 
