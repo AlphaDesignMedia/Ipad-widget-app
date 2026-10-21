@@ -18,7 +18,7 @@ struct GlassSheetTransition: Transition {
 
 /// Slides a view away by `progress` of its height, with a strip of clear glass along its
 /// trailing edge that refracts both the view and what's revealed behind it.
-private struct GlassSheetEffect: ViewModifier, Animatable {
+struct GlassSheetEffect: ViewModifier, Animatable {
     var progress: Double
     var upward: Bool
 
@@ -27,7 +27,7 @@ private struct GlassSheetEffect: ViewModifier, Animatable {
         set { progress = newValue }
     }
 
-    private let edgeHeight: CGFloat = 44
+    private let edgeHeight: CGFloat = 64
 
     func body(content: Content) -> some View {
         GeometryReader { geometry in

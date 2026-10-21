@@ -104,6 +104,13 @@ struct ContentView: View {
     @State private var choosingPhoto = false
     /// Which way the next backdrop slides in: up from the bottom, or down from the top.
     @State private var backdropTravel = Edge.bottom
+    /// Pulling the next backdrop in with a finger: how far, -1…1 (negative is upwards), and
+    /// which backdrop is coming (owner feedback, 2026-10-21: it should feel intentional, follow
+    /// the finger, stretch a little, and cancel if let go early).
+    @State private var backdropPull: CGFloat = 0
+    @State private var pulledBackdrop: PreviewBackdrop?
+    /// How far a finger travels to pull a backdrop all the way in.
+    private let pullLength: CGFloat = 520
     /// The backdrop's name, shown briefly after it changes.
     @State private var backdropToast: String?
 
@@ -134,6 +141,7 @@ struct ContentView: View {
                 backdrop = .photo
             }
         }
+        .sensoryFeedback(.impact(weight: .light), trigger: abs(backdropPull) > 0.4)
         .onChange(of: backdrop) {
             if backdrop == .photo && backdropPhoto == nil { choosingPhoto = true }
             showBackdropName()
@@ -404,7 +412,7 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, groupsCollapsed ? 10 : 14)
                         .padding(.vertical, 11)
-                        .background(selected ? Color.accentColor : .clear, in: .capsule)
+                        .background(selected ? AppColor.chosen(appColor) : .clear, in: .capsule)
                         .contentShape(.capsule)
                     }
                     .buttonStyle(.plain)
@@ -474,7 +482,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .appGlass(.capsule, interactive: true,
-                              tint: selectedSection == section ? .accentColor.opacity(0.35) : nil)
+                              tint: selectedSection == section ? AppColor.chosen(appColor).opacity(0.35) : nil)
                 }
             }
             .padding(.vertical, 4)
@@ -520,10 +528,16 @@ struct ContentView: View {
         if interface == .classic {
             ToolbarItem(placement: .topBarLeading) { layoutMenu }
         }
-        ToolbarItem(placement: .topBarLeading) { tourButton }
+        ToolbarItem(placement: .topBarLeading) { tourButton.tint(iconsOnGlass) }
         ToolbarItem(placement: .principal) { interfaceSwitch }
-        ToolbarItem(placement: .primaryAction) { refreshButton }
+        ToolbarItem(placement: .primaryAction) { refreshButton.tint(iconsOnGlass) }
         ToolbarItem(placement: .primaryAction) { applyButton }
+    }
+
+    /// Icons on the clear glass toolbar: black or white to suit the backdrop in the Glass theme
+    /// (see `AppGlass`), so they never blend into a backdrop of the same colour.
+    private var iconsOnGlass: Color? {
+        appTheme == .glass && !reducesGlass ? .primary : nil
     }
 
     /// Classic (simple) or Panels (everything), always one tap away in the middle of the top bar.
@@ -754,7 +768,20 @@ struct ContentView: View {
                 // while the widget itself is being moved or pinched.
                 if !draggingCard, clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) { state = drag.translation.width }
             }
+            .onChanged { drag in
+                guard !draggingCard, clockPinch == 1, !reduceMotion, Date.now > swipesPausedUntil else { return }
+                let dx = drag.translation.width, dy = drag.translation.height
+                // Up and down pull the next or previous backdrop in, following the finger.
+                guard pulledBackdrop != nil || abs(dy) > abs(dx) * 1.5 else { return }
+                let next = neighbourBackdrop(upward: dy < 0)
+                if pulledBackdrop != next { pulledBackdrop = next }
+                backdropPull = elastic(dy / pullLength)
+            }
             .onEnded { drag in
+                if pulledBackdrop != nil {
+                    finishBackdropPull(predicted: drag.predictedEndTranslation.height / pullLength)
+                    return
+                }
                 guard !draggingCard, clockPinch == 1, Date.now > swipesPausedUntil else { return }
                 let dx = drag.translation.width, dy = drag.translation.height
                 // Up and down flick through the backdrops (not Your Photo, which opens a picker).
@@ -936,7 +963,14 @@ struct ContentView: View {
     /// menu, down for a swipe down. With Reduce Motion it fades instead.
     private var backdropView: some View {
         ZStack {
-            backdropFill
+            // While a new backdrop is being pulled in, it waits underneath, settling from
+            // slightly zoomed as the old one lifts away.
+            if let pulledBackdrop {
+                backdropFill(pulledBackdrop)
+                    .scaleEffect(1.06 - 0.06 * min(1, abs(backdropPull)))
+            }
+            backdropFill(backdrop)
+                .modifier(GlassSheetEffect(progress: abs(backdropPull), upward: backdropPull <= 0))
                 .id(backdrop)
                 // Each newer backdrop sits lower than the one before, so the leaving backdrop
                 // (which keeps its last value while it animates away) stays on top and lifts off
@@ -947,6 +981,46 @@ struct ContentView: View {
         }
         .animation(.smooth(duration: 0.7), value: backdrop)
         .clipped()
+    }
+
+    /// The backdrop after (upwards) or before this one, skipping Your Photo until there is one.
+    private func neighbourBackdrop(upward: Bool) -> PreviewBackdrop {
+        let options = PreviewBackdrop.allCases.filter { $0 != .photo || backdropPhoto != nil }
+        let index = options.firstIndex(of: backdrop) ?? 0
+        return options[(index + (upward ? 1 : options.count - 1)) % options.count]
+    }
+
+    /// Follows the finger one to one, then stretches: past most of the way it gets harder to pull.
+    private func elastic(_ value: CGFloat) -> CGFloat {
+        let a = abs(value), knee: CGFloat = 0.8
+        let stretched = a < knee ? a : knee + (1 - knee) * (1 - exp(-(a - knee) * 3))
+        return value < 0 ? -stretched : stretched
+    }
+
+    /// Let go: a pull that's far enough, or flicked, carries on and the new backdrop settles in;
+    /// anything less springs back.
+    private func finishBackdropPull(predicted: CGFloat) {
+        guard let target = pulledBackdrop else { return }
+        let commits = abs(predicted) > 0.4 && (predicted < 0) == (backdropPull < 0)
+        if commits {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                backdropPull = backdropPull < 0 ? -1 : 1
+            } completion: {
+                var swap = Transaction()
+                swap.disablesAnimations = true
+                withTransaction(swap) {
+                    backdrop = target
+                    backdropPull = 0
+                    pulledBackdrop = nil
+                }
+            }
+        } else {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.68)) {
+                backdropPull = 0
+            } completion: {
+                pulledBackdrop = nil
+            }
+        }
     }
 
     /// Briefly shows the new backdrop's name over the preview.
@@ -963,7 +1037,7 @@ struct ContentView: View {
     /// Plain is white or black, so the card looks as it will on a plain Home Screen; Clear and
     /// Tinted need a wallpaper for their white content to show up.
     @ViewBuilder
-    private var backdropFill: some View {
+    private func backdropFill(_ backdrop: PreviewBackdrop) -> some View {
         switch backdrop {
         case .plain where homeScreen.accent == nil:
             homeScreen == .dark ? Color.black : Color.white
@@ -1432,7 +1506,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(locked ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-                    .background(locked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary), in: .capsule)
+                    .background(locked ? AnyShapeStyle(AppColor.chosen(appColor)) : AnyShapeStyle(.quaternary), in: .capsule)
                     .fixedSize()
                     .accessibilityLabel("\(part.label), \(locked ? "locked" : "unlocked")")
                     .accessibilityHint("Locked parts keep their settings when you use a preset or Lucky")

@@ -251,6 +251,13 @@ enum AppColor {
     static func resolve(_ raw: String) -> Color {
         ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? .accentColor
     }
+
+    /// The app colour spelled out (blue for Automatic), for selected and primary things.
+    /// `accentColor` would pick up the black-and-white tint the Glass theme gives icons on
+    /// glass, and selected items should look the same everywhere (owner, 2026-10-21).
+    static func chosen(_ raw: String) -> Color {
+        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? .blue
+    }
 }
 
 /// The app's own glass for panels and controls, in the chosen theme. When Reduce Transparency
@@ -277,7 +284,14 @@ struct AppGlass<S: Shape>: ViewModifier {
                         .overlay { shape.stroke(.separator, lineWidth: 1) }
                 }
         } else {
-            content.glassEffect(glass.interactive(interactive), in: shape)
+            content
+                // Contrast first (owner feedback, 2026-10-21): on clear glass a blue icon can
+                // vanish against a blue backdrop. Liquid Glass keeps content readable by flipping
+                // it between black and white to suit what's behind, which the primary colour
+                // does, so in the Glass theme icons and labels on glass use it. Selected items
+                // keep their colour on a solid fill, and the settings cards set their own tint.
+                .tint(theme == .glass && tint == nil ? Color.primary : nil)
+                .glassEffect(glass.interactive(interactive), in: shape)
         }
     }
 
@@ -353,8 +367,8 @@ struct SettingsCard<Content: View>: View {
                     .padding(.bottom, 14)
             }
         }
-        // Tinted text (buttons, values) is lightened in Dark so it stays readable on the glass.
-        .tint(colorScheme == .dark ? tint.mix(with: .white, by: 0.35) : tint)
+        // The same app colour for every button and selection, in Light and Dark alike.
+        .tint(tint)
         .padding(.horizontal, Corner.cardPadding)
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -371,7 +385,7 @@ struct SettingsCard<Content: View>: View {
         .modifier(CardGlass(on: glassy, shape: shape))
     }
 
-    private var tint: Color { AppColor.resolve(appColor) }
+    private var tint: Color { AppColor.chosen(appColor) }
 }
 
 private struct CardGlass<S: Shape>: ViewModifier {
