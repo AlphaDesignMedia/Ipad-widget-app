@@ -175,9 +175,13 @@ struct ContentView: View {
     /// How big the settings' text and rows are, as a step through `textSizes`. Pinch the
     /// settings to change it.
     @AppStorage("settingsTextSize") private var textSizeStep = 1
+    /// The same for the groups. Each panel keeps its own size, so pinching one leaves the other
+    /// alone (owner direction, 2026-10-21).
+    @AppStorage("groupsTextSize") private var groupsTextStep = 1
     @State private var pinchingTextStep: Int?
-    /// The text-size bubble, shown while pinching and briefly after.
-    @State private var showsTextSizeBubble = false
+    @State private var pinchingGroupsStep: Int?
+    /// The text-size bubble, shown on the panel being pinched while pinching and briefly after.
+    @State private var textSizeBubblePanel: TextPanel?
     @State private var hideTextSizeBubble: Task<Void, Never>?
     @GestureState(resetTransaction: Transaction(animation: .bouncy)) private var panelDrag: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -366,12 +370,12 @@ struct ContentView: View {
     private var settingsPanel: some View {
         settings
             .dynamicTypeSize(settingsTextSize)
-            .simultaneousGesture(settingsPinchGesture)
+            .simultaneousGesture(textPinchGesture(.settings))
             .sensoryFeedback(.selection, trigger: settingsTextSize)
             .scrollContentBackground(.hidden)
             .clipShape(.rect(cornerRadius: Corner.panel))
             .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
-            .overlay(alignment: .top) { textSizeOverlay }
+            .overlay(alignment: .top) { textSizeOverlay(.settings) }
     }
 
     /// Two floating glass panels over the full-window backdrop, like Classic's: a short list of
@@ -792,7 +796,9 @@ struct ContentView: View {
 
     private func groupsColumnPanel(leading: Bool, area: CGSize, width: CGFloat, strip: Bool) -> some View {
         groupsPanel(asStrip: strip)
-            .dynamicTypeSize(settingsTextSize)
+            .dynamicTypeSize(groupsTextSize)
+            .simultaneousGesture(textPinchGesture(.groups))
+            .sensoryFeedback(.selection, trigger: groupsTextSize)
             .frame(width: width)
             .scaleEffect(sidebarMove == .zero && !groupsHeld ? 1 : 1.025)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: groupsHeld)
@@ -804,6 +810,7 @@ struct ContentView: View {
             .overlay(alignment: .top) { groupsGrabber(area: area) }
             .simultaneousGesture(groupsHoldAndDrag(area: area))
             .sensoryFeedback(.impact(weight: .medium), trigger: groupsHeld) { _, held in held }
+            .overlay(alignment: .top) { textSizeOverlay(.groups) }
             .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in markActive(.groups) })
             .modifier(PanelFocus(active: activePanel == nil || activePanel == .groups, strength: tweakFocus))
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { sidebarRect = $0 }
@@ -813,13 +820,13 @@ struct ContentView: View {
     private func settingsColumnPanel(leading: Bool, area: CGSize, width: CGFloat) -> some View {
         settingsList
             .dynamicTypeSize(settingsTextSize)
-            .simultaneousGesture(settingsPinchGesture)
+            .simultaneousGesture(textPinchGesture(.settings))
             .sensoryFeedback(.selection, trigger: settingsTextSize)
             .clipShape(.rect(cornerRadius: Corner.panel))
             // In the Glass theme there's no panel behind the cards: each card is its own window
             // of glass, apart from the others by the gap between them (owner direction, 2026-10-21).
             .modifier(PanelBacking(clear: appTheme.isGlassy && !reducesGlass))
-            .overlay(alignment: .top) { textSizeOverlay }
+            .overlay(alignment: .top) { textSizeOverlay(.settings) }
             // A grabber along the top to pick the settings up and put them somewhere else; the
             // list itself still scrolls as normal.
             .overlay(alignment: .top) { panelGrabber(area: area) }
@@ -1530,59 +1537,81 @@ struct ContentView: View {
 
     private let textSizes: [DynamicTypeSize] = [.medium, .large, .xLarge, .xxLarge, .xxxLarge]
 
-    /// The settings' text size, following the fingers while a pinch is under way.
-    private var settingsTextSize: DynamicTypeSize {
-        textSizes[min(textSizes.count - 1, max(0, pinchingTextStep ?? textSizeStep))]
+    /// The panels whose text can be pinched bigger or smaller.
+    private enum TextPanel { case settings, groups }
+
+    private func textStep(_ panel: TextPanel) -> Int {
+        panel == .settings ? textSizeStep : groupsTextStep
     }
 
-    /// Pinching the settings makes their text and rows bigger or smaller, a step at a time.
+    private func setTextStep(_ panel: TextPanel, _ step: Int) {
+        let step = min(textSizes.count - 1, max(0, step))
+        if panel == .settings { textSizeStep = step } else { groupsTextStep = step }
+    }
+
+    private func setPinchingStep(_ panel: TextPanel, _ step: Int?) {
+        if panel == .settings { pinchingTextStep = step } else { pinchingGroupsStep = step }
+    }
+
+    /// A panel's text size step, following the fingers while a pinch is under way.
+    private func currentTextStep(_ panel: TextPanel) -> Int {
+        let pinching = panel == .settings ? pinchingTextStep : pinchingGroupsStep
+        return min(textSizes.count - 1, max(0, pinching ?? textStep(panel)))
+    }
+
+    private var settingsTextSize: DynamicTypeSize { textSizes[currentTextStep(.settings)] }
+    private var groupsTextSize: DynamicTypeSize { textSizes[currentTextStep(.groups)] }
+
+    /// Pinching a panel makes its text and rows bigger or smaller, a step at a time.
     /// (An experiment, owner feedback 2026-10-21.)
-    private var settingsPinchGesture: some Gesture {
+    private func textPinchGesture(_ panel: TextPanel) -> some Gesture {
         MagnifyGesture()
             .onChanged { value in
                 let steps = Int((log(value.magnification) / log(1.3)).rounded())
-                let next = min(textSizes.count - 1, max(0, textSizeStep + steps))
-                if next != pinchingTextStep { withAnimation(.snappy) { pinchingTextStep = next } }
-                revealTextSizeBubble()
+                let next = min(textSizes.count - 1, max(0, textStep(panel) + steps))
+                let pinching = panel == .settings ? pinchingTextStep : pinchingGroupsStep
+                if next != pinching { withAnimation(.snappy) { setPinchingStep(panel, next) } }
+                revealTextSizeBubble(panel)
             }
             .onEnded { _ in
-                if let pinchingTextStep { textSizeStep = pinchingTextStep }
-                pinchingTextStep = nil
-                revealTextSizeBubble()
+                setTextStep(panel, currentTextStep(panel))
+                setPinchingStep(panel, nil)
+                revealTextSizeBubble(panel)
             }
     }
 
     private let textSizeNames = ["Small", "Medium", "Large", "Extra Large", "Largest"]
 
     @ViewBuilder
-    private var textSizeOverlay: some View {
-        if showsTextSizeBubble {
-            textSizeBubble
+    private func textSizeOverlay(_ panel: TextPanel) -> some View {
+        if textSizeBubblePanel == panel {
+            textSizeBubble(panel)
+                .fixedSize()
                 .padding(.top, Space.medium)
                 .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85)).combined(with: .move(edge: .top)))
         }
     }
 
-    /// Shows the text-size bubble, and hides it again a moment after the last change.
-    private func revealTextSizeBubble() {
-        withAnimation(.snappy) { showsTextSizeBubble = true }
+    /// Shows the text-size bubble on a panel, and hides it again a moment after the last change.
+    private func revealTextSizeBubble(_ panel: TextPanel) {
+        withAnimation(.snappy) { textSizeBubblePanel = panel }
         hideTextSizeBubble?.cancel()
         hideTextSizeBubble = Task {
             try? await Task.sleep(for: .seconds(1.6))
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.35)) { showsTextSizeBubble = false }
+            withAnimation(.easeOut(duration: 0.35)) { textSizeBubblePanel = nil }
         }
     }
 
-    /// Like the volume indicator: appears while pinching the settings, showing the text size,
+    /// Like the volume indicator: appears while pinching a panel, showing its text size,
     /// with − and + for fine-tuning while it's up.
-    private var textSizeBubble: some View {
-        let current = min(textSizes.count - 1, max(0, pinchingTextStep ?? textSizeStep))
+    private func textSizeBubble(_ panel: TextPanel) -> some View {
+        let current = currentTextStep(panel)
         return VStack(spacing: Space.small) {
             HStack(spacing: Space.small) {
                 Button {
-                    textSizeStep = max(0, textSizeStep - 1)
-                    revealTextSizeBubble()
+                    setTextStep(panel, textStep(panel) - 1)
+                    revealTextSizeBubble(panel)
                 } label: {
                     Image(systemName: "textformat.size.smaller").frame(width: 32, height: 32)
                 }
@@ -1596,8 +1625,8 @@ struct ContentView: View {
                     }
                 }
                 Button {
-                    textSizeStep = min(textSizes.count - 1, textSizeStep + 1)
-                    revealTextSizeBubble()
+                    setTextStep(panel, textStep(panel) + 1)
+                    revealTextSizeBubble(panel)
                 } label: {
                     Image(systemName: "textformat.size.larger").frame(width: 32, height: 32)
                 }
@@ -1618,7 +1647,7 @@ struct ContentView: View {
         .dynamicTypeSize(.large)
         .animation(.snappy, value: current)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Settings text size: \(textSizeNames[current])")
+        .accessibilityLabel("\(panel == .settings ? "Settings" : "Groups") text size: \(textSizeNames[current])")
     }
 
     /// Where the guided tour points, step by step.
@@ -2630,7 +2659,9 @@ struct ContentView: View {
             // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's
             // style. Off keeps the standard system text, for anyone who finds that easier to read.
             Toggle("App text matches the clock font", isOn: $matchesClockFont)
-            Stepper("Panel text size: \(textSizeStep + 1) of \(textSizes.count)", value: $textSizeStep, in: 0...(textSizes.count - 1))
+            // Pinching a panel changes its own size; these do the same with a plain tap.
+            Stepper("Settings text: \(textSizeNames[textSizeStep])", value: $textSizeStep, in: 0...(textSizes.count - 1))
+            Stepper("Groups text: \(textSizeNames[groupsTextStep])", value: $groupsTextStep, in: 0...(textSizes.count - 1))
 
         case .widget:
             groupLabel("App look")

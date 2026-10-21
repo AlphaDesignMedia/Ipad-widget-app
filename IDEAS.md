@@ -140,7 +140,8 @@ you. The other option is to send screenshots with scribbles on them, which works
 - [x] Panels move aside when the widget is moved under them (option: Tuck away instead).
 - [ ] Suggestions like the Home Screen question, elsewhere: small prompts that point people at the setting they probably want next.
 - [x] Accessibility group (Simpler effects, Reduce glass, clock-font text, panel text size); shorter group names (App, Home Screens).
-- [ ] Pinch to resize text per panel only (in afternoon plan), and more direct-touch interactions like it.
+- [x] Pinch to resize text per panel only: done 21 Oct (settings and groups keep their own size; both also in Accessibility as plain steppers).
+- [ ] More direct-touch ideas, not built yet: pinch a settings card to fold it, two-finger swipe on the groups to hide them, pinch the backdrop to zoom a photo.
 - [ ] Graceful window resizing (Stage Manager, windowed vs full screen): panels and grid adapt without struggling.
 - [x] Smooth Light/Dark/Clear/Tinted switching: the widget changes at once, the app around it follows when tapping stops (fixes the stutter and freezes).
 - [x] Breathing room: spacing sliders (panel edge, title bar, footer, bubble, chip) and Compact / Comfortable / Airy presets in Design Tweaks.
