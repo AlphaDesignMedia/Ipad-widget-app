@@ -74,6 +74,12 @@ small, bite-sized groups; repeating an option in two places is fine.
   pinch a settings card to collapse/expand it, two-finger swipe on the groups to hide them,
   pinch the backdrop to zoom a photo. Keep the ones that feel natural; note the rest in IDEAS.md.
   Nothing may stop a plain tap from working.
+- P0e. **Panels shrink while carried (owner, 1:45 p.m.).** When a panel is picked up by its bar,
+  it should shrink into something small and easy to move: e.g. the settings become a compact
+  card showing just the card you're on (or its title and icon), the groups become their small
+  puck; it springs back to full size where it's dropped. Experiment with 2 versions (shrink to a
+  title card vs. shrink to a puck), switchable in Design Tweaks, and keep the drop outlines and
+  sticking working. Respect Simpler effects (just fade/scale a little).
 - P1. **Tap audit (most important after P0).** In the simulator, tap every segmented control, toggle,
   picker, slider and button in every settings group, in Panels and Classic, in Glass/Frosted/
   Colour/Home Screen looks. Wait 2 s before each screenshot (the screen redraws late). Earlier
