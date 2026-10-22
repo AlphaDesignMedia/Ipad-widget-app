@@ -4,6 +4,14 @@ This is the one place to look. Older notes (OVERNIGHT_PLAN.md, IDEAS.md) are his
 Ticks show what's done. Scheduled runs work top to bottom and tick things off here.
 
 ## The rebuild (decided 22 Oct) — start here
+
+## Latest run (22 Oct, 9 a.m.)
+- Done: the rebuilt app builds and runs (step 1), and the stage is in (step 2): the widget sits on a Home Screen grid, you drag it to a slot and pinch it to change size. Neither is ticked until it's been tried on the iPad, which wasn't plugged in this time.
+- Try on the iPad (open it with `Scripts/run-on-ipad.sh --rebuild`):
+  1. Drag the widget around: it should lift, show the empty slots, and glide into the dashed one when you let go. Is it as smooth as the old app, or smoother?
+  2. Pinch it bigger and smaller: it should step through Small, Medium, Large and Extra Large.
+  3. Close and reopen the app: the widget should be where you left it, at the same size.
+
 **Why.** In one day the main screen grew from 914 lines to 3,483 lines, all in one file (`ContentView.swift`), with 113 pieces of state. Every change anywhere redraws that whole screen, which is where the lag comes from. Many features also have two or three versions behind switches, so every fix has to work in all of them, which is where most of the bugs come from. Patching this won't get the smoothness back, so we rebuild the app's screens and keep the parts that work.
 
 **What it is (v1):** a glass clock widget you design on your iPad or iPhone and see at real size on a Home Screen before it goes on yours. Anything that doesn't serve that sentence waits for v1.1.
@@ -67,7 +75,9 @@ Classic is free, and Pro (about £2, paid once) unlocks the full studio. Every P
 ### Build order (each step ends with an iPad check)
 1. [ ] **Foundation.** App model and `Theme.swift`, with the Simulator on iPadOS 27 and the same model as your iPad.
    *Written 22 Oct, not yet built: `GlassClock/Rebuild/` (AppModel, Theme, StageBackdrop, WidgetCard, RebuildRoot). Open it with `Scripts/run-on-ipad.sh --rebuild`: the backdrop, the widget at real size and Apply. Tick this once it builds and runs on the iPad.* Move the widget, clock and backdrop code across unchanged.
+   *22 Oct (scheduled run): builds and runs in the Simulator with `--rebuild`. Not ticked yet: the iPad was paired but not connected, so it couldn't be installed. Still for you: the Simulator is on iPadOS 26.5 (install iPadOS 27 in Xcode → Settings → Components).*
 2. [ ] **The stage.** Backdrop, Home Screen grid and the widget at real size. Drag it to a slot and pinch to resize. Must feel as good as today.
+   *First version written 22 Oct (`GlassClock/Rebuild/Stage.swift`): the widget sits on a Home Screen grid, drags to a slot (empty slots and a dashed landing outline show while carried, with a tap of feedback on each new slot) and pinches through the sizes. Its spot is remembered. The drag lives in the widget's own small view, so only the widget redraws while a finger moves. VoiceOver can move it and change its size. Checked in the Simulator for placement and sizes (Screenshots/oct22/rebuild-stage-*.png); drag and pinch need the iPad. Try: `Scripts/run-on-ipad.sh --rebuild`, drag the widget around, pinch it up and down.*
 3. [ ] **Settings cards.** Every group's controls as cards in one scrolling list. Apply to Widget.
 4. [ ] **Classic.** Stage plus the simple settings.
 5. [ ] **Panels.** Settings and groups panels on either side: hold to move, flick aside, edge tab to bring back, double-tap to clear.

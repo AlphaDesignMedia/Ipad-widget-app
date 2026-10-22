@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The rebuilt app (PLAN.md, "The rebuild"). Step 1: the backdrop, the widget at real size and
-/// Apply, running on the shared model. Debug builds open it with `-rebuild YES`
+/// The rebuilt app (PLAN.md, "The rebuild"). Steps 1 and 2: the backdrop, the widget at real
+/// size on a Home Screen grid (drag it to a slot, pinch to resize) and Apply, on the shared model. Debug builds open it with `-rebuild YES`
 /// (`Scripts/run-on-ipad.sh --rebuild`); until step 8 the old app stays the default.
 struct RebuildRoot: View {
     @State private var model: AppModel
@@ -15,7 +15,8 @@ struct RebuildRoot: View {
         StageBackdrop(backdrop: model.backdrop, homeScreen: model.homeScreen)
             .ignoresSafeArea()
             .overlay {
-                WidgetCard(style: model.style, size: model.previewSize, homeScreen: model.homeScreen)
+                Stage()
+                    .padding(Theme.Space.medium)
             }
             .overlay(alignment: .topTrailing) {
                 Button(model.isApplied ? "Applied" : "Apply to Widget", action: model.apply)
