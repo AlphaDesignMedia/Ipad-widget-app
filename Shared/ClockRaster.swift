@@ -95,27 +95,62 @@ enum ClockRaster {
         } }
     }
 
-    /// The card, filling the whole widget. The system rounds the corners.
+    /// The card, filling the whole widget when stretched with `cardInsets`. The system rounds
+    /// the corners.
     static func card(style: ClockStyle, size: CGSize, dark: Bool) -> UIImage {
         // Tiny, stretched to fit: it's stored with every minute of the timeline, and a 0.5×
         // glass card was the biggest part of a rejected archive (observed 2026-10-20). So a kept
         // glass card is its colour wash only, without the thin rim.
-        let scale: CGFloat = 8 / max(size.width, size.height)
-        return cached(key(style, scale: scale, dark: dark, "card|\(size)")) { render(size: size, scale: scale) { ctx in
-            let rect = CGRect(origin: .zero, size: size)
-            let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect, area: rect)
-            switch style.background {
-            case .solid:
-                painter.fill(CGPath(rect: rect, transform: nil), style.solidFill.opacity(style.cardOpacity))
-            case .glass:
-                // Stronger than `GlassCardBackground`'s 5–25% wash: here it sits on top of the
-                // system's own glass, where that wash was too faint to see (user test, 2026-10-20).
-                guard style.cardOpacity > 0 else { return }
-                painter.fill(CGPath(rect: rect, transform: nil),
-                             (style.cardTint ?? .white).opacity(style.cardTint == nil ? 0.15 : 0.3 + 0.45 * style.cardOpacity))
+        guard style.background == .glass else {
+            let scale: CGFloat = 8 / max(size.width, size.height)
+            return cached(key(style, scale: scale, dark: dark, "card|\(size)")) { render(size: size, scale: scale) { ctx in
+                let rect = CGRect(origin: .zero, size: size)
+                Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect, area: rect)
+                    .fill(CGPath(rect: rect, transform: nil), style.solidFill.opacity(style.cardOpacity))
+            } }
+        }
+        // The wash sits on top of the system's own Liquid Glass, so it fades out towards the
+        // edges, where that glass bends the wallpaper and catches the light. Edge to edge at
+        // 30–75% it hid both and looked like paint beside Apple's widgets, and with no colour
+        // chosen even an 8% white middle read as a lighter patch (Clear Home Screen,
+        // 2026-10-22), so then there's no wash: Apple's glass is the card. It's still stronger
+        // than `GlassCardBackground`'s 5–25%, which was too faint to see on top of the system's
+        // glass (user test, 2026-10-20). Drawn once at 2 points a pixel, and only its middle
+        // stretches, so the fade keeps its width at any size.
+        let side = 2 * glassEdge + 2
+        let scale: CGFloat = 0.5
+        return cached(key(style, scale: scale, dark: dark, "glass card")) { render(size: CGSize(width: side, height: side), scale: scale) { ctx in
+            guard style.cardOpacity > 0, let tint = style.cardTint else { return }
+            let rect = CGRect(x: 0, y: 0, width: side, height: side)
+            let color = Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect, area: rect).cg(tint)
+            let strength = 0.15 + 0.3 * style.cardOpacity
+            let corner: CGFloat = 24   // about the widget's own corner radius
+            let pixel = 1 / scale
+            ctx.setShouldAntialias(false)
+            for row in 0..<Int(side * scale) {
+                for column in 0..<Int(side * scale) {
+                    // How far inside the card's rounded edge the middle of this pixel is.
+                    let x = (CGFloat(column) + 0.5) * pixel, y = (CGFloat(row) + 0.5) * pixel
+                    let dx = min(x, side - x), dy = min(y, side - y)
+                    let depth = dx < corner && dy < corner ? corner - hypot(corner - dx, corner - dy) : min(dx, dy)
+                    // Clear for the outer 4 points, easing in to full strength 28 points in.
+                    let t = min(1, max(0, (depth - 4) / 24))
+                    ctx.setFillColor(color.copy(alpha: color.alpha * strength * t * t * (3 - 2 * t)) ?? color)
+                    ctx.fill(CGRect(x: CGFloat(column) * pixel, y: CGFloat(row) * pixel, width: pixel, height: pixel))
+                }
             }
         } }
     }
+
+    /// How much of each side of `card` keeps its size when it's stretched: a glass card's
+    /// fading edge.
+    static func cardInsets(_ style: ClockStyle) -> EdgeInsets {
+        let edge = style.background == .glass ? glassEdge : 0
+        return EdgeInsets(top: edge, leading: edge, bottom: edge, trailing: edge)
+    }
+
+    /// Room for a glass card's fading edge, rounded corners included.
+    private static let glassEdge: CGFloat = 32
 
     private static func render(size: CGSize, scale: CGFloat, draw: (CGContext) -> Void) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
