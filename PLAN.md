@@ -5,7 +5,15 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## The rebuild (decided 22 Oct) — start here
 
-## Latest run (22 Oct, 1:20 p.m.)
+## Latest run (22 Oct, 2:10 p.m.)
+- Nothing new built: every item in "Now", "Next" and "Then" is already ticked. Rebuild steps 1 to 6 are written and wait for you to try them on the iPad. The one open smoothness item waits for your answer in SMOOTHNESS.md (which "slide out, slide in" moment you meant).
+- Nothing installed on the iPad, as you asked.
+- Try on the iPad when you choose to put this afternoon's build on it:
+  1. Drag the widget quickly across the screen and let go: it should glide into its slot and stop, staying clear (not dark) the whole way.
+  2. Hold a settings card's title and carry the panel to the other side: it should land where you let go, and the widget should step aside at once.
+  3. Flick a settings title bar towards the edge: the tucked sliver should stay clear glass, not black.
+
+## Earlier run (22 Oct, 1:20 p.m.)
 - Done: step 6 (widget controls) is written. Under the widget there's now one glass card for the Home Screen look, the widget size and the backdrop. It tucks into a "Preview" tag after 5 seconds; tap the tag to get it back. Swipe across the empty backdrop to change it. Not ticked until it's tried on the iPad.
 - Your live session's iPhone changes (iPhone opens in Classic) were saved by auto-save during this run; I didn't touch them.
 - Try on the iPad (`Scripts/run-on-ipad.sh --rebuild`):
