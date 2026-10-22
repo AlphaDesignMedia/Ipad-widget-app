@@ -1,6 +1,7 @@
 #!/bin/zsh
 # Builds Glass Clock, installs it on the plugged-in iPad and relaunches it.
-#   --meter  shows the frame meter (frames per second and hitches) along the bottom
+#   --meter    shows the frame meter (frames per second and hitches) along the bottom
+#   --rebuild  opens the rebuilt app instead of the old one (PLAN.md, "The rebuild")
 # Uses the free Personal Team, which can't use App Groups, so the build swaps the
 # App Group entitlements for Config/FreeTeam.entitlements, which shares settings through the keychain.
 set -euo pipefail
@@ -22,7 +23,10 @@ xcodebuild -project GlassClock.xcodeproj -scheme GlassClock -configuration Debug
 xcrun devicectl device install app --device "$DEVICE" \
   "$BUILD_DIR/Build/Products/Debug-iphoneos/GlassClock.app" >/dev/null
 ARGS=()
-[[ "${1:-}" == --meter ]] && ARGS=(-frameMeter YES)
+for option in "$@"; do
+  [[ "$option" == --meter ]] && ARGS+=(-frameMeter YES)
+  [[ "$option" == --rebuild ]] && ARGS+=(-rebuild YES)
+done
 xcrun devicectl device process launch --device "$DEVICE" --terminate-existing \
   com.aarondennel.glassclock "${ARGS[@]}" >/dev/null
 echo "Running on iPad."

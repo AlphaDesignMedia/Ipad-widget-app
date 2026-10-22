@@ -5,7 +5,8 @@
 # widget updates are checked on the iPad (see PLAN.md).
 #   Scripts/run-in-simulator.sh          build, install and launch
 #   Scripts/run-in-simulator.sh --fresh  same, from a clean install (no saved settings)
-#   Scripts/run-in-simulator.sh --meter  with the frame meter along the bottom (both work together)
+#   Scripts/run-in-simulator.sh --meter  with the frame meter along the bottom
+#   Scripts/run-in-simulator.sh --rebuild  the rebuilt app instead of the old one (all three combine)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -43,7 +44,8 @@ xcodebuild -project GlassClock.xcodeproj -scheme GlassClock -configuration Debug
 ARGS=()
 for option in "$@"; do
   [[ "$option" == --fresh ]] && { xcrun simctl uninstall "$UDID" "$BUNDLE" 2>/dev/null || true; }
-  [[ "$option" == --meter ]] && ARGS=(-frameMeter YES)
+  [[ "$option" == --meter ]] && ARGS+=(-frameMeter YES)
+  [[ "$option" == --rebuild ]] && ARGS+=(-rebuild YES)
 done
 xcrun simctl install "$UDID" "$BUILD_DIR/Build/Products/Debug-iphonesimulator/GlassClock.app"
 xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE" "${ARGS[@]}" >/dev/null

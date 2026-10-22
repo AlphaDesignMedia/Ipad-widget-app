@@ -51,7 +51,8 @@ The Simulator's stutter is mostly the Mac (it shares the Mac's chip with everyth
 - Every step ends on the iPad: smooth at 120 fps with no hitches, nothing broken, then commit.
 
 ### Build order (each step ends with an iPad check)
-1. [ ] **Foundation.** App model and `Theme.swift`, with the Simulator on iPadOS 27 and the same model as your iPad. Move the widget, clock and backdrop code across unchanged.
+1. [ ] **Foundation.** App model and `Theme.swift`, with the Simulator on iPadOS 27 and the same model as your iPad.
+   *Written 22 Oct, not yet built: `GlassClock/Rebuild/` (AppModel, Theme, StageBackdrop, WidgetCard, RebuildRoot). Open it with `Scripts/run-on-ipad.sh --rebuild`: the backdrop, the widget at real size and Apply. Tick this once it builds and runs on the iPad.* Move the widget, clock and backdrop code across unchanged.
 2. [ ] **The stage.** Backdrop, Home Screen grid and the widget at real size. Drag it to a slot and pinch to resize. Must feel as good as today.
 3. [ ] **Settings cards.** Every group's controls as cards in one scrolling list. Apply to Widget.
 4. [ ] **Classic.** Stage plus the simple settings.

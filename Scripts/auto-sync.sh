@@ -33,7 +33,9 @@ if [[ -n "$DRIVE" ]]; then
 fi
 
 if echo "$CHANGED" | grep -qvE '\.md$|^References/|^\.claude/'; then
-  if Scripts/run-on-ipad.sh >>"$LOG" 2>&1; then MSG="$MSG Installed on iPad."
+  # On the rebuild branch the iPad opens the rebuilt app.
+  OPEN=(); [[ "$(git branch --show-current)" == rebuild ]] && OPEN=(--rebuild)
+  if Scripts/run-on-ipad.sh "${OPEN[@]}" >>"$LOG" 2>&1; then MSG="$MSG Installed on iPad."
   elif grep -q "No connected iPad" "$LOG"; then MSG="$MSG iPad not connected, so not installed."
   else MSG="$MSG iPad install failed (see $LOG)."; fi
 fi
