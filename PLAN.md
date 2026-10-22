@@ -12,6 +12,12 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 **The look (owner, 22 Oct):** making it look really nice matters more than anything. Lean into Liquid Glass and good gestures. The window touches (title bars, bands, panels behaving like windows) went too far: fewer of them, more glass. The focus effect on the card in use should be a lot nicer and more thought out. That's the job of step 7.
 
+**Principles (owner, 22 Oct):**
+- **The app is about what it does:** design a clock and see it truly before it goes on your Home Screen. The UI serves that and gets out of the way.
+- **Beautiful and easy to understand, for everyone.** Accessibility is part of the design from the start (VoiceOver, Dynamic Type, Reduce Motion, contrast), not a later pass.
+- **Small, cheap animations that explain things.** For example, tapping the Preview tag lifts out the extra controls, and things float gently above the backdrop. They should look lovely and cost almost nothing.
+- **Give yourself credit:** the core idea and feel already work. The job now is refining, not starting again.
+
 **What you decided:**
 - Rebuild the app's screens on a fresh branch. The widget, clock faces, fonts and backdrops stay as they are. The current app stays untouched until the new one is better.
 - Keep both Classic and Panels, built from the same pieces.
@@ -94,6 +100,8 @@ Put a ✔ or ✘ in "Your call" (or change my pick). Anything cut goes to IDEAS.
 | Pinch a panel to change its text size | Later (steppers in Accessibility stay) | |
 | One-row widget controls (swipe between pages) | Cut | |
 | Controls tuck away after 5 s | Keep | |
+| Tap the Preview tag to bring out the extra controls | Keep: a favourite | ✔ |
+| App icon: a glass card showing the time (`Scripts/make-app-icon.py`) | Keep for now; final version in Icon Composer with light, dark and tinted variants | |
 | Suggestion bubbles under the picker | Cut | |
 | App text matches the clock font | Keep | |
 | Guided tour | Keep: it shows off the gestures. Built last, once the design is settled (after step 7) | ✔ |

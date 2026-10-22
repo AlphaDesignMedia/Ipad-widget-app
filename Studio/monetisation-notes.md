@@ -2,6 +2,16 @@
 
 **Launch free and clean.** Don't add payment to v1.0. It adds review risk and delay.
 
+## The stance (owner, 22 Oct 2026)
+Free, and ethical about making money:
+- Every feature is free: nothing locked, no ads, no tracking, no data collected.
+- **Pay what you want:** a tip jar with a few amounts (for example £0.99, £2.99, £4.99), plus a heartfelt line about who made it.
+- Ask once, at a happy moment (after the first Apply to Widget), and keep it in Settings after that. Never nag, never block, and no fake "free trial".
+- Tipping can give a small thank-you that isn't a feature, such as a thank-you note or an extra app icon. Nothing that makes the free app feel worse.
+- The family-of-widgets idea fits this: one free app, every widget free, one tip jar.
+
+**Decide:** add the tip jar in v1.0, or in v1.1 a few weeks after launch? It needs the paid Apple Developer account and the Paid Apps Agreement either way.
+
 ## Options to explore after launch
 | Option | Idea | Things to check |
 |---|---|---|
