@@ -436,25 +436,22 @@ struct ContentView: View {
                 ZStack {
                     backdropView
                         .ignoresSafeArea()
-                    switch arrangement {
-                    case .sideBySide:
-                        HStack(spacing: Space.medium) {
-                            previewStage()
-                            settingsPanel
-                                .frame(width: min(480, max(340, besideRoom)))
-                        }
-                        // The same gap under the top bar as at the sides, so the panel doesn't
-                        // crowd the toolbar (owner, breathing room, 21 Oct).
-                        .padding(.horizontal, Space.medium)
-                        .padding(.top, Space.medium)
-                        .padding(.bottom, Space.large)
-                    case .previewOnly:
+                    if arrangement == .previewOnly {
                         previewStage()
-                    default:
-                        VStack(spacing: Space.medium) {
+                    } else {
+                        // Beside or below in one layout that changes shape, so the preview and the
+                        // settings glide to their new places. Two separate stacks were two
+                        // different views: a size change that moved the settings below (Extra
+                        // Large) or back beside them faded the whole screen out and in, and taps
+                        // in that moment were lost (simulator, 22 Oct 2026).
+                        let stacked = arrangement != .sideBySide
+                        let arrange = stacked ? AnyLayout(VStackLayout(spacing: Space.medium))
+                                              : AnyLayout(HStackLayout(spacing: Space.medium))
+                        arrange {
                             previewStage()
-                                .frame(height: compact ? size.height * 0.58 : min(stageHeight, max(300, size.height - 280)))
+                                .frame(height: stacked ? (compact ? size.height * 0.58 : min(stageHeight, max(300, size.height - 280))) : nil)
                             settingsPanel
+                                .frame(width: stacked ? nil : min(480, max(340, besideRoom)))
                         }
                         // The same gap under the top bar as at the sides, so the panel doesn't
                         // crowd the toolbar (owner, breathing room, 21 Oct).
