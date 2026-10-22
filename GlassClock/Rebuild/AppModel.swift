@@ -34,6 +34,21 @@ final class AppModel {
     var groupsTrailing: Bool {
         didSet { save(groupsTrailing, as: Key.groupsTrailing) }
     }
+    /// Panels flicked aside, each waiting behind a tab at its edge. Not saved: the app always
+    /// opens with both in view, so nothing seems to be missing.
+    var settingsAside = false
+    var groupsAside = false
+
+    /// The group last picked in the groups panel, and a count that goes up on every pick, so
+    /// picking the same group twice still scrolls back to it.
+    var jumpedTo: SettingsSection?
+    var jumps = 0
+
+    /// Scrolls the settings to a group's card.
+    func jump(to group: SettingsSection) {
+        jumpedTo = group
+        jumps += 1
+    }
 
     /// Where the widget sits on the stage's Home Screen grid; -1 (never placed) means the middle.
     var widgetColumn: Int {

@@ -5,7 +5,8 @@ import SwiftUI
 /// with Apply to Widget, on the shared model. Debug builds open it with `-rebuild YES`
 /// (`Scripts/run-on-ipad.sh --rebuild`); until step 8 the old app stays the default.
 /// The settings sit beside the stage when there's room and below it when there isn't. Classic
-/// (step 4) shows just the basics; Panels shows every group, and step 5 makes it real panels.
+/// (step 4) shows just the basics. Panels (step 5) has every group, as panels you can carry
+/// to either side or put aside, when the window has room; in a narrow window it's stacked.
 struct RebuildRoot: View {
     @State private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -33,7 +34,10 @@ struct RebuildRoot: View {
     /// The stage and the settings, side by side or stacked.
     private var arrangement: some View {
         GeometryReader { space in
-            if space.size.width >= Theme.Size.sideBySide {
+            if space.size.width >= Theme.Size.sideBySide && model.interface == .panels {
+                PanelsLayout(window: space.size)
+                    .transition(.opacity)
+            } else if space.size.width >= Theme.Size.sideBySide {
                 HStack(spacing: Theme.Gap.panels) {
                     if model.settingsLeading { settings.frame(width: Theme.Size.settingsColumn) }
                     Stage()

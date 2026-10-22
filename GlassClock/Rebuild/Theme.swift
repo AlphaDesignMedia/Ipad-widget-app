@@ -71,6 +71,9 @@ enum Theme {
         static let settle = Animation.spring(response: 0.45, dampingFraction: 0.82)
         /// Something picked up: the lift and the shadow.
         static let lift = Animation.spring(response: 0.25, dampingFraction: 0.7)
+        /// How long a panel is held before it lifts: short, so it feels instant, but longer
+        /// than a tap.
+        static let hold: Double = 0.22
         /// How much the widget leans into a drag.
         static let lean: CGFloat = 1.2
     }

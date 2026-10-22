@@ -14,6 +14,8 @@ struct StyleCard<Content: View>: View {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @AppStorage("reduceGlass") private var reducesGlass = false
     @Environment(\.colorScheme) private var colorScheme
+    /// Set in Panels: holding the title picks up the settings panel.
+    @Environment(\.panelLift) private var carry
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.Corner.card, style: .continuous)
@@ -25,7 +27,9 @@ struct StyleCard<Content: View>: View {
                     .labelStyle(TintedIconLabel())
                     .padding(.top, Theme.Padding.titleBar)
                     .padding(.bottom, Theme.Space.small)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityAddTraits(.isHeader)
+                    .modifier(CarryHandle(carry: carry, name: "settings"))
             }
             Group(subviews: content) { rows in
                 ForEach(rows) { row in

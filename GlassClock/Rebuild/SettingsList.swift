@@ -13,22 +13,40 @@ struct SettingsList: View {
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
 
     var body: some View {
+        ScrollViewReader { proxy in
+            list
+                // Picked in the groups panel: that group's card scrolls to the top.
+                .onChange(of: model.jumps) {
+                    guard let group = model.jumpedTo else { return }
+                    withAnimation(reduceMotion ? nil : Theme.Motion.settle) { proxy.scrollTo(group, anchor: .top) }
+                }
+        }
+    }
+
+    private var list: some View {
         ScrollView {
             LazyVStack(spacing: Theme.Gap.cards) {
                 StyleCard(group: .presets, footer: SettingsSection.presets.footer) { PresetRows() }
-                if !simple { StyleCard(group: .layout) { LayoutRows() } }
+                    .id(SettingsSection.presets)
+                if !simple { StyleCard(group: .layout) { LayoutRows() }.id(SettingsSection.layout) }
                 StyleCard(group: .fonts) { FontRows(simple: simple) }
+                    .id(SettingsSection.fonts)
                 StyleCard(group: .colour) { ColourRows(simple: simple) }
+                    .id(SettingsSection.colour)
                 if simple {
                     moreOptions
                 } else {
                     StyleCard(group: .effects, footer: SettingsSection.effects.footer) { EffectRows() }
+                        .id(SettingsSection.effects)
                     StyleCard(group: .card, footer: SettingsSection.card.footer) { CardRows() }
+                        .id(SettingsSection.card)
                     StyleCard(group: .homeScreens, footer: SettingsSection.homeScreens.footer) { HomeScreenRows() }
+                        .id(SettingsSection.homeScreens)
                     StyleCard(group: .accessibility,
                               footer: "Simpler effects turns off the lift, lean and light sweeps. Reduce glass swaps the glass for solid cards; it's also on when Reduce Transparency is on in the iPad's Settings.") {
                         AccessibilityRows()
                     }
+                    .id(SettingsSection.accessibility)
                 }
             }
             .padding(.vertical, Theme.Space.small)
