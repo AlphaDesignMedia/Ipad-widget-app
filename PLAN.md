@@ -5,7 +5,14 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## The rebuild (decided 22 Oct) — start here
 
-## Latest run (22 Oct, 2:10 p.m.)
+## Latest run (22 Oct, 3:10 p.m.)
+- Nothing new built: "Now", "Next" and "Then" are all ticked. Your live session was committing changes at the same moment (3:09 p.m.), so I left the code alone to avoid treading on it. Nothing installed on the iPad.
+- Try on the iPad when you choose to put a new build on it:
+  1. In Panels, swipe the settings panel towards its edge, then push the sliver again: it should fold into a slim rail with the headings. Tap one to open there.
+  2. Swipe across the backdrop's name at the bottom middle: it should step to the next or previous backdrop.
+  3. Look at the chips and locks in the Glass and Home looks: they should be real glass, and a lock that's on should be tinted with the app colour.
+
+## Earlier run (22 Oct, 2:10 p.m.)
 - Nothing new built: every item in "Now", "Next" and "Then" is already ticked. Rebuild steps 1 to 6 are written and wait for you to try them on the iPad. The one open smoothness item waits for your answer in SMOOTHNESS.md (which "slide out, slide in" moment you meant).
 - Nothing installed on the iPad, as you asked.
 - Try on the iPad when you choose to put this afternoon's build on it:
