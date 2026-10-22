@@ -5,7 +5,14 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## The rebuild (decided 22 Oct) — start here
 
-## Latest run (22 Oct, 4:10 p.m.)
+## Latest run (22 Oct, 5:10 p.m.)
+- Nothing new built: "Now", "Next" and "Then" are still all ticked, and your live session committed at 5:04 p.m., so I left the code alone. Nothing installed on the iPad.
+- Try on the iPad when you choose to put a new build on it:
+  1. Flick the settings panel to its edge: it should squash a little against the screen's edge, then spring back (not with Simpler effects).
+  2. Pick a chip in a settings card: the bead should glow twice as it lands, then rest.
+  3. Look at the size switch: the glass around it should have the same gap all round.
+
+## Earlier run (22 Oct, 4:10 p.m.)
 - Nothing new built: "Now", "Next" and "Then" are still all ticked, and your live session was committing at 4:02 p.m., so I left the code alone. Nothing installed on the iPad.
 - Try on the iPad when you choose to put a new build on it:
   1. Look at the chips in a settings card in Light and Dark: the labels should be easy to read on the glass.
