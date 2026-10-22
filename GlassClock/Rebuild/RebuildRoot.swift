@@ -6,8 +6,9 @@ import SwiftUI
 struct RebuildRoot: View {
     @State private var model: AppModel
 
-    init(model: AppModel = AppModel()) {
-        _model = State(initialValue: model)
+    /// The app as it was left, or a fixed sample for Previews.
+    @MainActor init(model: AppModel? = nil) {
+        _model = State(initialValue: model ?? AppModel())
     }
 
     var body: some View {
