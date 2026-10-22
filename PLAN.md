@@ -12,6 +12,8 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
   3. Drag the widget to the far left, then the far right: the groups should move to the roomier side.
 
 ## Handover (22 Oct, 1am) — start here in a new chat
+**Core first (22 Oct, 2am):** the experimental extras are off by default behind App → "Try experiments": groups sticking to the widget, one-row controls, flicking panels aside, and the shrink-to-carry styles. Nothing is deleted. Next: make the core solid: preview, pinch, drag, panels and Classic.
+
 **Your answers (22 Oct):**
 - **Corners:** like the app icon tiles. Rounded rectangles where each inner corner follows the one around it. Not pills everywhere.
 - **Groups strip across the top of the settings:** keep it, but make it the same pill as the side groups. Done; check it.
