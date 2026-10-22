@@ -3511,26 +3511,57 @@ struct ContentView: View {
     }
 
     /// Swatches wrap onto more rows when the window is narrow.
+    /// Colours in three labelled rows, so there's an easy default to pick (owner, 22 Oct 2026):
+    /// the standard set, soft pastels and deep, rich shades, then the wheel for any colour.
     private func swatchRow(selection: Binding<ClockColor>) -> some View {
-        swatchGrid {
-            ForEach(ClockColor.allCases) { option in
-                colorSwatch(option, selection: selection)
+        let chosen = selection.wrappedValue
+        let inPalette = ClockColor.allCases.contains(chosen) || ColourPalette.all.contains { $0.colour == chosen }
+        return VStack(alignment: .leading, spacing: 6) {
+            swatchLabel("Standard")
+            swatchGrid {
+                ForEach(ClockColor.allCases) { option in colorSwatch(option, selection: selection) }
             }
-            // A colour from the wheel shows as its own swatch, then the wheel itself: any colour
-            // at all (owner, 22 Oct 2026).
-            if selection.wrappedValue.isCustom {
-                colorSwatch(selection.wrappedValue, selection: selection)
+            swatchLabel("Pastel")
+            swatchGrid {
+                ForEach(ColourPalette.pastel) { item in colorSwatch(item.colour, name: item.name, selection: selection) }
             }
-            ColorPicker("Any colour", selection: Binding(
-                get: { selection.wrappedValue.color },
-                set: { picked in
-                    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                    UIColor(picked).getRed(&r, green: &g, blue: &b, alpha: &a)
-                    selection.wrappedValue = ClockColor(red: r, green: g, blue: b)
-                }), supportsOpacity: false)
-                .labelsHidden()
-                .frame(width: 44, height: 44)
+            swatchLabel("Deep")
+            swatchGrid {
+                ForEach(ColourPalette.deep) { item in colorSwatch(item.colour, name: item.name, selection: selection) }
+                // A colour from the wheel shows as its own swatch, then the wheel itself.
+                if chosen.isCustom && !inPalette { colorSwatch(chosen, selection: selection) }
+                colourWheel(selection: selection)
+            }
         }
+    }
+
+    private func swatchLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+    }
+
+    /// The system colour picker, dressed as a spectrum with an eyedropper rather than its ring
+    /// around a dot (owner, 22 Oct 2026). The picker sits underneath and takes the tap.
+    private func colourWheel(selection: Binding<ClockColor>) -> some View {
+        ColorPicker("Any colour", selection: Binding(
+            get: { selection.wrappedValue.color },
+            set: { picked in
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                UIColor(picked).getRed(&r, green: &g, blue: &b, alpha: &a)
+                selection.wrappedValue = ClockColor(red: r, green: g, blue: b)
+            }), supportsOpacity: false)
+            .labelsHidden()
+            .frame(width: 44, height: 44)
+            .overlay {
+                Circle()
+                    .fill(AngularGradient(colors: [.red, .orange, .yellow, .green, .mint, .blue, .purple, .pink, .red], center: .center))
+                    .overlay { Image(systemName: "eyedropper.halffull").font(.footnote.weight(.bold)).foregroundStyle(.white).shadow(radius: 1.5) }
+                    .overlay { Circle().strokeBorder(.white.opacity(0.5), lineWidth: 1) }
+                    .frame(width: 34, height: 34)
+                    .allowsHitTesting(false)
+            }
+            .accessibilityLabel("Any colour")
     }
 
     private func swatchGrid(@ViewBuilder content: () -> some View) -> some View {
@@ -3540,7 +3571,7 @@ struct ContentView: View {
         .padding(.vertical, 4)
     }
 
-    private func colorSwatch(_ option: ClockColor, selection: Binding<ClockColor>) -> some View {
+    private func colorSwatch(_ option: ClockColor, name: String? = nil, selection: Binding<ClockColor>) -> some View {
         Button {
             selection.wrappedValue = option
         } label: {
@@ -3562,8 +3593,32 @@ struct ContentView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(option == .auto ? "Automatic colour" : option.name)
+        .accessibilityLabel(option == .auto ? "Automatic colour" : name ?? option.name)
     }
+}
+
+/// The extra colour rows: soft pastels and deep, rich shades.
+enum ColourPalette {
+    struct Item: Identifiable {
+        let name: String
+        let colour: ClockColor
+        var id: String { colour.rawValue }
+        init(_ name: String, _ hex: String) { self.name = name; colour = ClockColor(rawValue: hex) ?? .auto }
+    }
+
+    static let pastel: [Item] = [
+        Item("Blush", "#F6C1CC"), Item("Peach", "#FBD3B0"), Item("Butter", "#F7EBA8"),
+        Item("Pistachio", "#CFE8C0"), Item("Seafoam", "#BDE7DF"), Item("Sky", "#BFDDF5"),
+        Item("Periwinkle", "#C9CFF5"), Item("Lavender", "#DCCCF2"), Item("Rose", "#F2C6E4"),
+    ]
+
+    static let deep: [Item] = [
+        Item("Crimson", "#A8132B"), Item("Rust", "#B5501C"), Item("Gold", "#C9971C"),
+        Item("Olive", "#5F6B1F"), Item("Forest", "#1F6B45"), Item("Teal", "#0F7177"),
+        Item("Navy", "#1C3A8A"), Item("Plum", "#6B2C7A"), Item("Espresso", "#4A3428"),
+    ]
+
+    static let all = pastel + deep
 }
 
 #Preview {
