@@ -1,6 +1,51 @@
 # Monetisation notes (for later, not for v1.0)
 
+## Decided (owner, 22 Oct 2026): free core, cheap Pro, optional tips
+| Free (Classic) | Pro, £1.99–£2.49 once |
+|---|---|
+| Every preset and Feeling Lucky | Every font, colour and effect control |
+| Every widget size | Your own photo and custom backdrops |
+| The truthful preview (Light, Dark, Clear, Tinted) | Saving your own styles |
+| Apply to Widget | Panels, the full studio |
+| Every accessibility feature, always | |
+
+- **Try everything, pay to apply:** free users can try any Pro option in the preview. Only putting it on the Home Screen needs Pro.
+- **One payment:** no subscription, with Family Sharing on. No ads, no tracking, no nagging: offer Pro once, at a natural moment, and keep it in Settings.
+- **Tips stay:** the drinks menu sits beside Pro for anyone who wants to give more.
+- **Break even:** a £2.49 sale leaves about £1.76 after VAT and Apple's 15%, so about 56 sales a year covers the £99 developer account.
+- **Buy Me a Coffee:** no links or buttons for it inside the app. Apple requires in-app purchases for tips; outside links are allowed only in some countries and the rules keep changing. It goes on the website, the support page and social media instead.
+
+(The note below was written before this decision; the decision above replaces "launch free".)
+
 **Launch free and clean.** Don't add payment to v1.0. It adds review risk and delay.
+
+## The stance (owner, 22 Oct 2026)
+Free, and ethical about making money:
+- Every feature is free: nothing locked, no ads, no tracking, no data collected.
+- **Pay what you want:** a tip jar with a few amounts (for example £0.99, £2.99, £4.99), plus a heartfelt line about who made it.
+- Ask once, at a happy moment (after the first Apply to Widget), and keep it in Settings after that. Never nag, never block, and no fake "free trial".
+- Tipping can give a small thank-you that isn't a feature, such as a thank-you note or an extra app icon. Nothing that makes the free app feel worse.
+- The family-of-widgets idea fits this: one free app, every widget free, one tip jar.
+
+## Idea: a drinks menu for tips (owner, 22 Oct 2026)
+The owner bought a coffee for the maker of a free, open-source Mac app they use. If they'd do that, so would plenty of others. So the tips read like a little menu:
+
+| Item | What it is | Rough price (UK) |
+|---|---|---|
+| Glass of water | Leave a review. Costs nothing, means a lot | Free |
+| Coffee | A small tip | £2.99 |
+| Beer | A bigger thank-you | £4.99 |
+| Something fancier (a cocktail?) | The top tier, still not high | £9.99 |
+
+**How it fits Apple's rules and the fairness idea:**
+- In the app, tips have to be **App Store in-app purchases** (consumables), not a Buy Me a Coffee link. Apple's rules on outside payment links vary by country and change; read the current guideline before linking anywhere. The Buy Me a Coffee page can still go on the website and the App Store description's support page.
+- **Fair prices by country come built in:** set the prices in pounds and the App Store shows each person their own currency, with no need to ask where they are. The automatic prices only follow exchange rates, not the cost of living. But each country's price can be set by hand (lower where a coffee costs less), which is exactly the "fair for everyone" idea.
+- **Minimum:** the lowest App Store price is about 29p. Apple keeps 15% (Small Business Program), so the smallest tier should be worth sending.
+- **The glass of water:** asking for a review is fine. Rewarding one isn't allowed, so it's only ever a kind ask, using Apple's own review prompt or a link to the App Store review page.
+- **Decided (owner, 22 Oct 2026): the bundle costs a fiver.** Each widget app is free on its own, with tips. The all-in-one app, with every widget in one place and customised together, is £4.99 once. What you pay for is the convenience of having everything together, never a widget the free apps don't have, so it stays fair.
+  - *How:* Apple's App Bundles only combine paid apps, so the all-in-one is its own app at £4.99, or one free app with a single £4.99 "unlock everything together" purchase. Choose when there are 3 or more widgets.
+
+**Decide:** add the tip jar in v1.0, or in v1.1 a few weeks after launch? It needs the paid Apple Developer account and the Paid Apps Agreement either way.
 
 ## Options to explore after launch
 | Option | Idea | Things to check |

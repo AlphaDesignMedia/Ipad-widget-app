@@ -171,6 +171,8 @@ struct ContentView: View {
     @State private var groupsCarried = false
     /// Where a carried panel would settle, while one is carried.
     @State private var carryTarget: CarryTarget?
+    /// The card the settings were picked up by, while they're carried.
+    @State private var settingsGrab: CarryGrab?
     /// The groups stuck onto the widget or the settings panel, rather than a panel of their own
     /// (owner idea, 2026-10-21), and whether they're slid in to a small tab.
     @AppStorage("groupsAttachment") private var groupsAttachment = GroupsAttachment.none
@@ -191,14 +193,15 @@ struct ContentView: View {
     /// The same for the groups. Each panel keeps its own size, so pinching one leaves the other
     /// alone (owner direction, 2026-10-21).
     @AppStorage("groupsTextSize") private var groupsTextStep = 1
-    @AppStorage(CarryStyle.key) private var carryStyle = CarryStyle.lift
-    @AppStorage(OneRowControls.key) private var oneRowControls = false
-    /// The experimental extras, off by default so the core is what's used (owner, 22 Oct 2026:
-    /// "focus on making the app work before going crazy with the UI"). Nothing is lost: on, they
-    /// come back: groups that stick to the widget, the one-row controls, flicking panels aside,
-    /// and the shrink-to-carry styles.
-    @AppStorage("experiments") private var experiments = false
-    private var oneRow: Bool { oneRowControls && experiments }
+    @AppStorage(CarryStyle.key) private var savedCarryStyle = CarryStyle.lift
+    @AppStorage(OneRowControls.key) private var savedOneRowControls = false
+    /// The Foundation build carries panels at full size and keeps the controls stacked
+    /// (see `Essentials`).
+    private var carryStyle: CarryStyle { Essentials.on ? .lift : savedCarryStyle }
+    private var oneRowControls: Bool {
+        get { savedOneRowControls && !Essentials.on }
+        nonmutating set { savedOneRowControls = newValue }
+    }
     /// Which bubble shows when the widget's controls are one row: 0 style, 1 size, 2 backdrop.
     @State private var controlsPage = 0
     @State private var controlsPageForward = true
@@ -582,7 +585,7 @@ struct ContentView: View {
     /// The groups are a panel of their own: not stuck to anything, or stuck to the settings
     /// while those are put away.
     private var groupsFree: Bool {
-        !experiments || groupsAttachment == .none || (groupsAttachment == .settings && !showsInspector)
+        Essentials.on || groupsAttachment == .none || (groupsAttachment == .settings && !showsInspector)
     }
 
     private func fitSidebar() {
@@ -904,7 +907,7 @@ struct ContentView: View {
             // Measured at rest, before the lift and the carry: measuring after them wrote new
             // state on every frame of a drag, redrawing the whole screen (owner: "feels slow").
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !groupsCarried { sidebarRect = $0 } }
-            .modifier(CarriedShape(carried: groupsCarried || StressTest.carried, style: experiments ? carryStyle : .lift, icon: "list.bullet", title: "Groups", simple: reduceMotion))
+            .modifier(CarriedShape(carried: groupsCarried || StressTest.carried, style: carryStyle, icon: "list.bullet", title: "Groups", simple: reduceMotion))
             .scaleEffect(groupsCarried || groupsHeld ? 1.025 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: groupsHeld || groupsCarried)
             .shadow(color: .black.opacity(groupsCarried || groupsHeld ? 0.18 : 0), radius: 20, y: 10)
@@ -946,9 +949,11 @@ struct ContentView: View {
             .frame(width: width)
             // Measured at rest, before the lift and the carry (see the groups panel).
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !settingsCarried { inspectorRect = $0 } }
-            .modifier(CarriedShape(carried: settingsCarried || StressTest.carried, style: experiments ? carryStyle : .lift,
-                                   icon: selectedSection?.icon ?? "slider.horizontal.3",
-                                   title: selectedSection?.title ?? "Settings", simple: reduceMotion))
+            .modifier(CarriedShape(carried: settingsCarried || StressTest.carried, style: carryStyle,
+                                   icon: settingsGrab?.icon ?? selectedSection?.icon ?? "slider.horizontal.3",
+                                   title: settingsGrab?.title ?? selectedSection?.title ?? "Settings", simple: reduceMotion,
+                                   hold: settingsGrab.map { CGPoint(x: $0.point.x - inspectorRect.minX, y: $0.point.y - inspectorRect.minY) },
+                                   size: inspectorRect.size))
             // Lifts when it's picked up, like a widget on the Home Screen.
             .scaleEffect(settingsCarried ? 1.025 : 1)
             .shadow(color: .black.opacity(settingsCarried ? 0.2 : 0), radius: 22, y: 12)
@@ -956,16 +961,18 @@ struct ContentView: View {
             .modifier(LiveOffset(motion: motion, path: \.settingsMove))
             .zIndex(settingsCarried ? 1 : 0)
             .environment(\.panelCarry, PanelCarry(
+                grabbed: { grab in if settingsGrab == nil { settingsGrab = grab } },
                 moved: { move in
                     if !settingsCarried { settingsCarried = true }
                     motion.settingsMove = move
-                    track(carryTarget(groups: false, move: move, finger: nil, in: area))
+                    track(carryTarget(groups: false, move: move, finger: settingsFinger(move), in: area))
                 },
                 ended: { moved in
                     if let moved {
-                        placePanel(groups: false, at: CGPoint(x: inspectorRect.midX + moved.width,
-                                                              y: inspectorRect.minY + 40 + moved.height), in: area)
+                        placePanel(groups: false, at: settingsFinger(moved)
+                                   ?? CGPoint(x: inspectorRect.midX + moved.width, y: inspectorRect.minY + 40 + moved.height), in: area)
                     }
+                    settingsGrab = nil
                     carryTarget = nil
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                         motion.settingsMove = .zero
@@ -975,6 +982,11 @@ struct ContentView: View {
                 flicked: { towardsLeading in flickSettings(towardsLeading: towardsLeading, in: area) }))
             .sensoryFeedback(.impact(weight: .medium), trigger: settingsCarried) { _, lifted in lifted }
             .transition(panelTransition(leading ? .leading : .trailing))
+    }
+
+    /// Where the finger carrying the settings is now, if it picked them up by a card.
+    private func settingsFinger(_ move: CGSize) -> CGPoint? {
+        settingsGrab.map { CGPoint(x: $0.point.x + move.width, y: $0.point.y + move.height) }
     }
 
     /// Puts a panel down: on the side it's dropped, sharing that side if the other panel is
@@ -995,9 +1007,13 @@ struct ContentView: View {
     private func carryTarget(groups: Bool, move: CGSize, finger: CGPoint?, in area: CGSize) -> CarryTarget {
         let base = groups ? sidebarRect : inspectorRect
         let other = groups ? inspectorRect : sidebarRect
+        // The settings go by the finger when it's known, the same as where they're put down.
+        let byFinger = groups ? nil : finger
+        let x = byFinger?.x ?? base.midX + move.width
+        let y = byFinger?.y ?? base.minY + (groups ? 0 : 40) + move.height
         return CarryTarget(groups: groups,
-                           leading: base.midX + move.width < area.width / 2,
-                           top: base.minY + move.height < other.midY,
+                           leading: x < area.width / 2,
+                           top: y < other.midY,
                            attach: groups ? finger.flatMap { attachmentTarget(at: $0) } : nil)
     }
 
@@ -1032,7 +1048,7 @@ struct ContentView: View {
     /// own edge it slides away to a tab, towards the other side it moves across (owner, 22 Oct
     /// 2026: "swipe it and it should feel like I'm pushing it aside").
     private func flickSettings(towardsLeading: Bool, in area: CGSize) {
-        guard experiments else { return }
+        guard !Essentials.on else { return }
         withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) {
             if towardsLeading == settingsLeading {
                 showsInspector = false
@@ -1083,7 +1099,7 @@ struct ContentView: View {
                 // A quick sideways flick pushes the groups aside (owner, 22 Oct 2026): a panel of
                 // their own folds into its dock on that side; stuck on, they slide in to a tab.
                 let dx = drag.predictedEndTranslation.width
-                guard experiments, abs(dx) > 220, abs(drag.translation.width) > abs(drag.translation.height) * 1.5 else { return }
+                guard !Essentials.on, abs(dx) > 220, abs(drag.translation.width) > abs(drag.translation.height) * 1.5 else { return }
                 if groupsFree {
                     withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) {
                         dockOnTrailing = dx > 0
@@ -1131,7 +1147,7 @@ struct ContentView: View {
 
     /// What the groups would stick to if let go at `point` (in the window).
     private func attachmentTarget(at point: CGPoint) -> GroupsAttachment? {
-        guard interface == .panels, experiments else { return nil }
+        guard interface == .panels, !Essentials.on else { return nil }
         if widgetGroupRect.insetBy(dx: -24, dy: -24).contains(point) { return .widget }
         if showsInspector, inspectorRect.contains(point) { return .settings }
         return nil
@@ -1631,7 +1647,7 @@ struct ContentView: View {
                     .strokeBorder(AppColor.chosen(appColor), lineWidth: 3)
             }
         }
-        .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0, degrees: tweakWiggle))
+        .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0 && !Essentials.on, degrees: tweakWiggle))
     }
 
     /// The controls that ride with the widget, hanging off its top or bottom edge.
@@ -1653,13 +1669,13 @@ struct ContentView: View {
                 // The Home Screen question rides along too, so the widget never covers it
                 // (owner feedback, 2026-10-21).
                 myHomeScreenNote
-                if all && oneRow {
+                if all && oneRowControls {
                     controlsPager
                 } else {
                     homeScreenBubble
                 }
             }
-            if (!top || all) && !oneRow {
+            if (!top || all) && !oneRowControls {
                 sizeBubble
                 backdropBubble
             }
@@ -2180,7 +2196,7 @@ struct ContentView: View {
             // the Home Screen style above, size and backdrop below, so the widget sits centred
             // between them. Where one side hasn't room, they all go to the side that has more.
             let roomAbove = home.minY, roomBelow = space.size.height - home.maxY
-            let controlsSplit = !oneRow && roomAbove >= 190 && roomBelow >= 150
+            let controlsSplit = !oneRowControls && roomAbove >= 190 && roomBelow >= 150
             let controlsAbove = roomAbove > 170 || roomAbove > roomBelow
             ZStack(alignment: .topLeading) {
                 // While it wiggles, tapping anywhere else finishes, as on the Home Screen.
@@ -2695,6 +2711,7 @@ struct ContentView: View {
     }
 
     private var suggestion: Suggestion? {
+        if Essentials.on { return nil }
         if suggestsFont { return .tryFont }
         if style != appliedStyle && changesSettled && !dismissedApplyHint && !applyWhenLeaving { return .apply }
         return nil
@@ -2850,7 +2867,7 @@ struct ContentView: View {
             withAnimation(.smooth(duration: 0.55)) { backdrop = .custom }
         }
         // In one row, the editor hangs off the backdrop page, so turn to it first.
-        if oneRow && controlsPage != 2 {
+        if oneRowControls && controlsPage != 2 {
             turnControlsPage(to: 2)
             Task {
                 try? await Task.sleep(for: .milliseconds(350))
@@ -3158,8 +3175,6 @@ struct ContentView: View {
             Picker("When the widget is moved under a panel", selection: $panelsMakeWay) {
                 ForEach(PanelsMakeWay.allCases) { Text($0.label).tag($0) }
             }
-            // Off by default: the extras still being tried out (see `experiments`).
-            Toggle("Try experiments", isOn: $experiments)
             Button("Design Tweaks…") {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = true }
             }

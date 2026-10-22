@@ -5,10 +5,18 @@ struct GlassClockApp: App {
     var body: some Scene {
         WindowGroup {
             #if DEBUG
-            if let page = UserDefaults.standard.string(forKey: "gallery") {
-                StyleGallery(page: page)
-            } else {
-                ContentView()
+            Group {
+                if let page = UserDefaults.standard.string(forKey: "gallery") {
+                    StyleGallery(page: page)
+                } else if UserDefaults.standard.bool(forKey: "rebuild") {
+                    // The rebuilt app, while it's being built (PLAN.md, "The rebuild").
+                    RebuildRoot()
+                } else {
+                    ContentView()
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if UserDefaults.standard.bool(forKey: "frameMeter") { FrameMeter().padding(.bottom, 2) }
             }
             #else
             ContentView()

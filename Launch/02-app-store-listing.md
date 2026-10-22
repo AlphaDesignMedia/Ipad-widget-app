@@ -39,13 +39,14 @@ Requires iPadOS 26 or later.
 *(Before pasting, check each bullet against the current build, in particular the font count and the Clear/Tinted behaviour, which depends on iPadOS version.)*
 
 ## Keywords (100 characters max, comma-separated, no spaces after commas)
+*Updated draft, and how the name, subtitle and keywords work together: see `07-finding-and-marketing.md`.*
 clock,widget,glass,liquid glass,time,home screen,customize,font,minimal,digital clock,desk clock,iPad
 
 ## Category
 Primary: Utilities. Secondary (optional): Lifestyle.
 
 ## Price
-Free
+Free, with a one-time Pro unlock (about £2) and optional tips. See `Studio/monetisation-notes.md`.
 
 ## Age rating
 Expect 4+. Answer "None" to every content question.

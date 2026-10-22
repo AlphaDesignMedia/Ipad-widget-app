@@ -9,9 +9,9 @@ LOG="${TMPDIR:-/tmp}/glassclock-auto-sync.log"
 say() { jq -cn --arg m "$1" '{systemMessage: $m}'; exit 0; }
 
 [[ -n "$(git status --porcelain)" ]] || exit 0
-# Only on main: on another branch (such as a prototype being built) the work isn't finished,
-# and committing, pushing or installing it would be premature.
-[[ "$(git branch --show-current)" == main ]] || exit 0
+# Only on main and the rebuild: on another branch (such as a prototype being built) the work
+# isn't finished, and committing, pushing or installing it would be premature.
+[[ "$(git branch --show-current)" == (main|rebuild) ]] || exit 0
 [[ -f .git/MERGE_HEAD ]] && say "Auto-sync skipped: a merge is in progress."
 
 CHANGED=$(git status --porcelain | awk '{print $NF}')
@@ -33,7 +33,9 @@ if [[ -n "$DRIVE" ]]; then
 fi
 
 if echo "$CHANGED" | grep -qvE '\.md$|^References/|^\.claude/'; then
-  if Scripts/run-on-ipad.sh >>"$LOG" 2>&1; then MSG="$MSG Installed on iPad."
+  # On the rebuild branch the iPad opens the rebuilt app.
+  OPEN=(); [[ "$(git branch --show-current)" == rebuild ]] && OPEN=(--rebuild)
+  if Scripts/run-on-ipad.sh "${OPEN[@]}" >>"$LOG" 2>&1; then MSG="$MSG Installed on iPad."
   elif grep -q "No connected iPad" "$LOG"; then MSG="$MSG iPad not connected, so not installed."
   else MSG="$MSG iPad install failed (see $LOG)."; fi
 fi
