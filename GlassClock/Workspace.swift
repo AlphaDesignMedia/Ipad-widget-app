@@ -1044,6 +1044,8 @@ struct PanelCarry {
 @Observable final class LiveMotion {
     var cardDrag = CGSize.zero
     var clockPinch: CGFloat = 1
+    /// Where between the fingers the pinch started, so the widget grows from there.
+    var pinchAnchor = UnitPoint.center
     var cardLean = CGSize.zero
     var groupsMove = CGSize.zero
     var settingsMove = CGSize.zero
@@ -1088,8 +1090,12 @@ struct LivePinch: ViewModifier {
     var motion: LiveMotion
     var still: Bool
 
+    /// Follows the fingers freely, only stiffening past the smallest and largest sizes (owner,
+    /// 22 Oct 2026: "it needs to follow the finger a little bit more freely").
     func body(content: Content) -> some View {
-        content.scaleEffect(still ? 1 : min(1.6, max(0.6, motion.clockPinch)))
+        let m = motion.clockPinch
+        let free = m < 0.3 ? 0.3 - (0.3 - m) * 0.25 : m > 2.6 ? 2.6 + (m - 2.6) * 0.25 : m
+        content.scaleEffect(still ? 1 : free, anchor: motion.pinchAnchor)
     }
 }
 

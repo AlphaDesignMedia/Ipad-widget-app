@@ -84,12 +84,22 @@ struct ContentView: View {
     @State private var focusedSection: SettingsSection?
     /// Live positions while a finger moves something (see `LiveMotion`).
     @State private var motion = LiveMotion()
+    /// The controls around the widget, in Panels, rest out of sight so the widget is what you
+    /// see (owner, 22 Oct 2026: "it's taking away too much from the widget"). They come up when
+    /// the widget or the Preview pill is touched, and tuck away after a few quiet seconds.
+    @AppStorage("quietControls") private var quietControls = true
+    @State private var extrasShown = true
+    @State private var extrasHide: Task<Void, Never>?
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverOn
+    private var extrasVisible: Bool { extrasShown || !quietControls || editingWidget || voiceOverOn }
     /// Where the widget sits on the preview's Home Screen grid (-1: the middle), remembered.
     @AppStorage("widgetColumn") private var widgetColumn = -1
     @AppStorage("widgetRow") private var widgetRow = -1
     /// The slot the widget would land in while it's dragged (column × 100 + row; -1 when not
     /// dragging). Only changes slot to slot, so the rest of the screen redraws rarely.
     @State private var landingKey = -1
+    /// The size a pinch would settle on, while pinching. Changes only size to size.
+    @State private var pinchTargetSize: PreviewSize?
     /// The spring the widget settles with after a drag or pinch.
     static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.82)
     @State private var draggingCard = false
@@ -513,6 +523,11 @@ struct ContentView: View {
             // A panel opened over the widget: the widget steps out to the free space, so it's
             // never hidden (owner, 22 Oct 2026: the widget is what you want to look at).
             .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels() } }
+            // Using a control keeps them up a while longer.
+            .onChange(of: homeScreen) { showExtras() }
+            .onChange(of: previewSize) { showExtras() }
+            .onChange(of: backdrop) { showExtras() }
+            .onChange(of: controlsPage) { showExtras() }
             .onChange(of: showsSidebar) { _, shown in if shown { clearWidgetFromPanels() } }
             .navigationTitle("Glass Clock")
             .navigationBarTitleDisplayMode(.inline)
@@ -527,6 +542,8 @@ struct ContentView: View {
         .onAppear {
             widgetColumn = -1; widgetRow = -1
             widgetSettled = false
+            // Shown for a moment on opening, so it's clear they're there.
+            showExtras(for: 4)
             Task {
                 try? await Task.sleep(for: .milliseconds(450))
                 withAnimation(.easeOut(duration: 0.3)) { widgetSettled = true }
@@ -1092,13 +1109,13 @@ struct ContentView: View {
     private var widgetGroupRect: CGRect {
         guard widgetRect != .zero else { return .zero }
         let span = [controlsAboveRect, controlsBelowRect]
-            .filter { $0 != .zero && controlsFollowWidget }
+            .filter { $0 != .zero && controlsFollowWidget && extrasVisible }
             .reduce(widgetRect) { $0.union($1) }
         // Side to side, the card or the widest control, centred on the card (the controls'
         // measured position lagged behind and pushed the groups over the panels; their widths
         // are fine, tap check 2026-10-21).
         let widest = [controlsAboveRect, controlsBelowRect]
-            .filter { $0 != .zero && controlsFollowWidget }
+            .filter { $0 != .zero && controlsFollowWidget && extrasVisible }
             .map(\.width).max() ?? 0
         let half = max(widgetRect.width, min(widest, 560)) / 2 + 8
         return CGRect(x: widgetRect.midX - half, y: span.minY, width: half * 2, height: span.height)
@@ -1409,10 +1426,16 @@ struct ContentView: View {
             .onChanged { value in
                 if value.first == nil, value.second != nil, !draggingCard {
                     withAnimation(.snappy) { draggingCard = true }
+                    showExtras()
                 }
                 if activePanel != .widget { markActive(.widget) }
                 if let pinch = value.first {
+                    if motion.clockPinch == 1 { motion.pinchAnchor = pinch.startAnchor }
                     motion.clockPinch = pinch.magnification
+                    let target = pinchTarget(for: pinch.magnification)
+                    if target != pinchTargetSize { pinchTargetSize = target }
+                    // Two fingers move it as well as size it.
+                    if let drag = value.second { motion.cardDrag = drag.translation }
                 } else if let drag = value.second {
                     motion.cardDrag = drag.translation
                     func lean(_ speed: CGFloat) -> CGFloat { max(-1, min(1, speed / 2400)) }
@@ -1425,16 +1448,23 @@ struct ContentView: View {
             }
             .onEnded { value in
                 swipesPausedUntil = .now.addingTimeInterval(0.4)
+                showExtras()
                 motion.cardLean = .zero
                 landingKey = -1
                 if let pinch = value.first {
-                    let sizes = PreviewSize.allCases
-                    let index = sizes.firstIndex(of: previewSize) ?? 0
-                    let m = pinch.magnification
-                    let step = m > 1.15 ? (m > 1.9 ? 2 : 1) : m < 0.87 ? (m < 0.55 ? -2 : -1) : 0
-                    let next = min(sizes.count - 1, max(0, index + step))
+                    let next = pinchTarget(for: pinch.magnification)
+                    pinchTargetSize = nil
+                    // Moved while pinching: it settles where the fingers took it, at its new size.
+                    if let drag = value.second {
+                        let end = CGPoint(x: home.midX + drag.translation.width, y: home.midY + drag.translation.height)
+                        let target = grid.nearest(to: end, span: next.span)
+                        withAnimation(Self.cardSettle) {
+                            widgetColumn = target.column
+                            widgetRow = target.row
+                        }
+                    }
                     withAnimation(Self.cardSettle) {
-                        previewSize = sizes[next]
+                        previewSize = next
                         motion.clockPinch = 1
                         motion.cardDrag = .zero
                         draggingCard = false
@@ -1458,6 +1488,14 @@ struct ContentView: View {
                     }
                 }
             }
+    }
+
+    /// The widget size a pinch would settle on: the one nearest in area to how big the fingers
+    /// have made it.
+    private func pinchTarget(for magnification: CGFloat) -> PreviewSize {
+        let area = previewSize.size.width * previewSize.size.height * max(0.01, magnification * magnification)
+        func distance(_ size: PreviewSize) -> CGFloat { abs(log(size.size.width * size.size.height / area)) }
+        return PreviewSize.allCases.min { distance($0) < distance($1) } ?? previewSize
     }
 
     /// A corner handle: the widget snaps to whichever size is closest to where the finger has
@@ -1582,7 +1620,22 @@ struct ContentView: View {
         // from the card. Below, they clear the Preview tag on the card's bottom edge.
         .frame(height: 0, alignment: above ? .bottom : .top)
         .offset(y: above ? -Space.medium : Space.medium + 14)
-        .opacity(draggingCard ? 0.7 : 1)
+        .opacity(extrasVisible ? (draggingCard ? 0.7 : 1) : 0)
+        .scaleEffect(extrasVisible || reduceMotion ? 1 : 0.9, anchor: above ? .bottom : .top)
+        .allowsHitTesting(extrasVisible)
+        .accessibilityHidden(!extrasVisible)
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.4, dampingFraction: 0.85), value: extrasVisible)
+    }
+
+    /// Brings the widget's controls up, and tucks them away again after a few quiet seconds.
+    private func showExtras(for seconds: Double = 5) {
+        if !extrasShown { extrasShown = true }
+        extrasHide?.cancel()
+        extrasHide = Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled, !draggingCard else { return }
+            extrasShown = false
+        }
     }
 
     /// The widget's controls one bubble at a time: swipe sideways to move between style, size
@@ -1638,8 +1691,20 @@ struct ContentView: View {
         withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy) { controlsPage = page }
     }
 
+    /// The Preview pill on the widget's bottom edge. While the controls are tucked away it shows
+    /// a small chevron, and a tap brings them up (or puts them away).
     private var previewTag: some View {
-        Text("Preview")
+        Button {
+            if extrasShown { extrasHide?.cancel(); extrasShown = false } else { showExtras(for: 8) }
+        } label: {
+            HStack(spacing: 4) {
+                Text("Preview")
+                if quietControls && !voiceOverOn {
+                    Image(systemName: extrasShown ? "chevron.down" : "chevron.up")
+                        .font(.system(size: 8, weight: .bold))
+                        .contentTransition(.symbolEffect(.replace))
+                }
+            }
             .font(.caption2.weight(.semibold))
             .textCase(.uppercase)
             .tracking(1.2)
@@ -1649,8 +1714,15 @@ struct ContentView: View {
             .background { bubbleBacking(.capsule) }
             .appGlass(.capsule)
             .environment(\.colorScheme, controlScheme)
-            .allowsHitTesting(false)
-            .transition(.opacity)
+            // A bigger target than it looks.
+            .padding(8)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .padding(-8)
+        .allowsHitTesting(quietControls)
+        .accessibilityLabel(extrasShown ? "Hide widget controls" : "Show widget controls")
+        .transition(.opacity)
     }
 
     /// A soft highlight on each corner while editing, where it can be pulled to resize, like the
@@ -2069,6 +2141,18 @@ struct ContentView: View {
                         .onTapGesture { setEditingWidget(false) }
                 }
                 // While dragging: the empty slots, and where the widget will land.
+                // While pinching: an outline of the size it will settle on, with a tick as it
+                // passes each size, so the clock answers the fingers (owner, 22 Oct 2026).
+                if let target = pinchTargetSize, target != previewSize {
+                    RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
+                        .fill(.white.opacity(0.1))
+                        .strokeBorder(.white.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                        .frame(width: target.size.width * scale, height: target.size.height * scale)
+                        .position(x: centre.x, y: centre.y)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        .animation(.snappy, value: target)
+                        .allowsHitTesting(false)
+                }
                 if draggingCard {
                     ForEach(Array(grid.slotFrames.enumerated()), id: \.offset) { _, frame in
                         RoundedRectangle(cornerRadius: 22 * scale)
@@ -2104,6 +2188,7 @@ struct ContentView: View {
                         // corner handles or glass corners any more (owner, 22 Oct 2026).
                         .onLongPressGesture(minimumDuration: 0.3) {
                             if interface == .panels, !editingWidget { setEditingWidget(true) }
+                            showExtras()
                         } onPressingChanged: { pressing in
                             guard !pressing, ignoresNextCardTap else { return }
                             Task {
@@ -2114,6 +2199,7 @@ struct ContentView: View {
                         .gesture(cardGesture(grid: grid, home: home, span: span))
                         .sensoryFeedback(.impact(weight: .light), trigger: draggingCard)
                         .sensoryFeedback(.selection, trigger: landingKey) { _, key in key >= 0 }
+                        .sensoryFeedback(.impact(weight: .light), trigger: pinchTargetSize) { _, size in size != nil }
                         // Measured where it rests, not while it's dragged, so a drag doesn't write
                         // new state on every frame (owner: "it just feels slow", 22 Oct 2026).
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !draggingCard { widgetRect = $0 } }
@@ -2435,13 +2521,12 @@ struct ContentView: View {
         }
     }
 
-    /// A pill of glass for a preview control (glass is for the controls layer, HIG: Materials).
-    /// Every bar is a pill, its selected piece a pill inside it (owner, 22 Oct 2026).
-    private func roundedBubble(@ViewBuilder content: () -> some View) -> some View {
+    /// A rounded piece of glass for a preview control (glass is for the controls layer, HIG: Materials).
+    private func roundedBubble(cornerRadius: CGFloat, @ViewBuilder content: () -> some View) -> some View {
         content()
             .padding(tweakBubble)
-            .background { bubbleBacking(.capsule) }
-            .appGlass(.capsule)
+            .background { bubbleBacking(.rect(cornerRadius: cornerRadius, style: .continuous)) }
+            .appGlass(.rect(cornerRadius: cornerRadius, style: .continuous))
             .environment(\.colorScheme, controlScheme)
     }
 
@@ -2615,7 +2700,8 @@ struct ContentView: View {
     }
 
     private var homeScreenBubble: some View {
-        roundedBubble {
+        // Concentric with its taller icon buttons: their 16 plus the bubble's padding.
+        roundedBubble(cornerRadius: 16 + tweakBubble) {
             HomeStylePicker(selection: $homeScreen)
                 // Its own width, not stretched to match a wider note above it.
                 .fixedSize()
@@ -2990,6 +3076,8 @@ struct ContentView: View {
             // down to something plain and standard.
             Toggle("Simpler effects", isOn: $simpleMotion)
             Toggle("Reduce glass", isOn: $reducesGlass)
+            // Off keeps the widget's controls showing all the time.
+            Toggle("Tuck widget controls away", isOn: $quietControls)
             // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's
             // style. Off keeps the standard system text, for anyone who finds that easier to read.
             Toggle("App text matches the clock font", isOn: $matchesClockFont)
