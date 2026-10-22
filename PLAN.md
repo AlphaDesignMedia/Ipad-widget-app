@@ -6,6 +6,10 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 ## The rebuild (decided 22 Oct) — start here
 **Why.** In one day the main screen grew from 914 lines to 3,483 lines, all in one file (`ContentView.swift`), with 113 pieces of state. Every change anywhere redraws that whole screen, which is where the lag comes from. Many features also have two or three versions behind switches, so every fix has to work in all of them, which is where most of the bugs come from. Patching this won't get the smoothness back, so we rebuild the app's screens and keep the parts that work.
 
+**What it is (v1):** a glass clock widget you design on your iPad or iPhone and see at real size on a Home Screen before it goes on yours. Anything that doesn't serve that sentence waits for v1.1.
+
+**Sizes and devices:** iPad (all sizes, both orientations, Split View) and iPhone. Panels is the layout when there's room (a full-width iPad). Classic is the layout when there isn't (iPhone, narrow iPad windows). That's why both stay: they're the same pieces in two arrangements, not two apps. The test iPad is an M1 iPad Pro 12.9-inch. Each step also gets a quick look on an iPhone and a small iPad in the Simulator.
+
 **What you decided:**
 - Rebuild the app's screens on a fresh branch. The widget, clock faces, fonts and backdrops stay as they are. The current app stays untouched until the new one is better.
 - Keep both Classic and Panels, built from the same pieces.

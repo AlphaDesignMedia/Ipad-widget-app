@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # The real iPad's model, as the Simulator names it (xcrun simctl list devicetypes).
-SIM_MODEL="${SIM_MODEL:-iPad Pro 13-inch (M5)}"
+SIM_MODEL="${SIM_MODEL:-iPad Pro (12.9-inch) (5th generation)}"  # the M1 12.9-inch
 BUNDLE=com.aarondennel.glassclock
 BUILD_DIR="${TMPDIR:-/tmp}/glassclock-sim-build"
 
