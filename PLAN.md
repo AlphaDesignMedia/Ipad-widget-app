@@ -5,7 +5,15 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## The rebuild (decided 22 Oct) — start here
 
-## Latest run (22 Oct, midday)
+## Latest run (22 Oct, 1:20 p.m.)
+- Done: step 6 (widget controls) is written. Under the widget there's now one glass card for the Home Screen look, the widget size and the backdrop. It tucks into a "Preview" tag after 5 seconds; tap the tag to get it back. Swipe across the empty backdrop to change it. Not ticked until it's tried on the iPad.
+- Your own unsaved changes in ContentView.swift (iPhone opens in Classic) were being edited during this run, so I left them alone and didn't commit them.
+- Try on the iPad (`Scripts/run-on-ipad.sh --rebuild`):
+  1. Wait 5 seconds: the controls should shrink into the "Preview" tag. Tap it: they should come back. Does 5 seconds feel right?
+  2. Tap Dark, then Large, then a few backdrop circles: the widget and backdrop should change at once, and the controls should stay out while you use them.
+  3. Swipe sideways across empty backdrop (not the widget): it should step to the next backdrop and show its name at the top.
+
+## Earlier run (22 Oct, midday)
 - Done: step 5 (Panels) is written. Switch to Panels: the groups are a glass pill of icons on one side and the settings a column of cards on the other. Hold a card's title (or the pill) briefly to pick it up and carry it; flick it to its edge to put it aside; double-tap the widget area to clear both away. Not ticked until it's tried on the iPad.
 - Not installed on the iPad: it was paired but not connected again ("No connected iPad found"). Plug it in and run the command below.
 - Try on the iPad (`Scripts/run-on-ipad.sh --rebuild`, then tap Panels):
@@ -102,6 +110,7 @@ Classic is free, and Pro (about £2, paid once) unlocks the full studio. Every P
 5. [ ] **Panels.** Settings and groups panels on either side: hold to move, flick aside, edge tab to bring back, double-tap to clear.
    *Written 22 Oct (scheduled run), not yet tried on the iPad: `GlassClock/Rebuild/Panels.swift` and `PanelLift.swift`. In Panels on a wide screen, the groups are a glass pill of icons (tap one, or run a finger along them, to scroll the settings to that group) and the settings are a column of cards. Hold a card's title, or anywhere on the pill, for about a fifth of a second: it lifts with a tap of feedback and follows your finger. Let go across the middle and it moves to that side; flick it towards its edge and it goes aside, leaving a tab you tap (or pull) to bring it back. Double-tap the stage to clear both panels, and again to bring them back. Nothing is measured while a panel moves, and only the moving panel redraws. VoiceOver has actions for all of it. Checked in the Simulator for layout (Screenshots/oct22/rebuild-panels.png); the gestures weren't (the Simulator can't be driven on an unattended run).*
 6. [ ] **Widget controls.** Home Screen style, size and backdrop around the widget.
+   *Written 22 Oct (scheduled run), not yet tried on the iPad: `GlassClock/Rebuild/WidgetControls.swift`. One glass card at the foot of the stage with the Home Screen look (Light, Dark, Clear, Tinted), the widget size and a row of backdrop swatches. It tucks into a small "Preview" tag after 5 s untouched (tap the tag to bring it back; it stays out with VoiceOver). Swipe sideways across the empty backdrop to step through backdrops; the name shows for a moment at the top. Your photo and Make your own aren't in the row yet. Checked in the Simulator in Light and Dark, out and tucked (Screenshots/oct22/rebuild-controls-*.png); taps and swipes weren't (unattended run).*
 7. [ ] **Polish pass.** Glass, focus and animation, one at a time, checked on the iPad. Fewer window touches, more glass.
 7b. [ ] **Guided tour.** A short tour of the gestures: drag, pinch, hold to resize, flick a panel aside.
 8. [ ] **Swap.** When the new app beats the old one on the iPad, it becomes main. The old one stays on a branch as a record.
