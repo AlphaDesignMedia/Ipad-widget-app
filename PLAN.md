@@ -7,6 +7,7 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## Latest run (22 Oct, 11 a.m.)
 - Done: step 4 (Classic) is written. A Classic / Panels switch sits at the top. Classic shows just the basics (presets, the font and its weight, the colour) and a "More options in Panels" card at the end of the list; Panels shows every group (step 5 turns it into real panels). Your choice is remembered. Not ticked until it's tried on the iPad.
+- Not installed on the iPad: it was paired but not connected again ("No connected iPad found"). Plug it in and run the command below.
 - Try on the iPad (`Scripts/run-on-ipad.sh --rebuild`):
   1. Tap Classic, then Panels, at the top: the settings should swap smoothly and the widget shouldn't move.
   2. In Classic, scroll to the bottom and tap "More options in Panels": it should switch to Panels.
