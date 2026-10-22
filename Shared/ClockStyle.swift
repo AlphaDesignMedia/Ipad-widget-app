@@ -97,23 +97,69 @@ enum TextFill: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum ClockColor: String, Codable, CaseIterable, Identifiable {
-    case auto, white, black, red, orange, yellow, green, mint, blue, purple
-    var id: Self { self }
+/// A colour for part of the clock: one of the named colours, or any colour at all from the
+/// colour wheel (owner, 22 Oct 2026: "give as many options as the person wants"), saved as
+/// "#RRGGBB". Saved as a plain string either way, so styles saved before still open.
+struct ClockColor: RawRepresentable, Codable, Hashable, Identifiable {
+    let rawValue: String
+    var id: String { rawValue }
+
+    static let auto = ClockColor(named: "auto"), white = ClockColor(named: "white")
+    static let black = ClockColor(named: "black"), red = ClockColor(named: "red")
+    static let orange = ClockColor(named: "orange"), yellow = ClockColor(named: "yellow")
+    static let green = ClockColor(named: "green"), mint = ClockColor(named: "mint")
+    static let blue = ClockColor(named: "blue"), purple = ClockColor(named: "purple")
+    /// The named colours, in the order the swatches show them.
+    static let allCases: [ClockColor] = [.auto, .white, .black, .red, .orange, .yellow, .green, .mint, .blue, .purple]
+
+    private init(named: String) { rawValue = named }
+
+    init?(rawValue: String) {
+        guard Self.allCases.contains(where: { $0.rawValue == rawValue }) || Self.rgb(rawValue) != nil else { return nil }
+        self.rawValue = rawValue
+    }
+
+    /// Any colour, from its red, green and blue (0…1).
+    init(red: Double, green: Double, blue: Double) {
+        func byte(_ v: Double) -> Int { Int((min(1, max(0, v)) * 255).rounded()) }
+        rawValue = String(format: "#%02X%02X%02X", byte(red), byte(green), byte(blue))
+    }
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = ClockColor(rawValue: raw) ?? .auto
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    /// Whether this came from the colour wheel rather than the named swatches.
+    var isCustom: Bool { rawValue.hasPrefix("#") }
+
+    /// A name for VoiceOver.
+    var name: String { isCustom ? "Custom colour" : rawValue.capitalized }
 
     var color: Color {
-        switch self {
-        case .auto: .primary
-        case .white: .white
-        case .black: .black
-        case .red: .red
-        case .orange: .orange
-        case .yellow: .yellow
-        case .green: .green
-        case .mint: .mint
-        case .blue: .blue
-        case .purple: .purple
+        if let rgb = Self.rgb(rawValue) { return Color(red: rgb.0, green: rgb.1, blue: rgb.2) }
+        switch rawValue {
+        case "white": return .white
+        case "black": return .black
+        case "red": return .red
+        case "orange": return .orange
+        case "yellow": return .yellow
+        case "green": return .green
+        case "mint": return .mint
+        case "blue": return .blue
+        case "purple": return .purple
+        default: return .primary
         }
+    }
+
+    private static func rgb(_ raw: String) -> (Double, Double, Double)? {
+        guard raw.hasPrefix("#"), raw.count == 7, let value = Int(raw.dropFirst(), radix: 16) else { return nil }
+        return (Double((value >> 16) & 0xFF) / 255, Double((value >> 8) & 0xFF) / 255, Double(value & 0xFF) / 255)
     }
 }
 

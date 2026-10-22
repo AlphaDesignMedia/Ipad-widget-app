@@ -629,11 +629,22 @@ struct SettingsCard<Content: View>: View {
                     // Frost (Design Tweaks) scales how thick the frost is: 0 is clear. Resting
                     // cards keep enough frost for their text to read (owner feedback,
                     // 2026-10-21: black text can't sit on clear glass); the one in use gets more.
-                    // Owner, 22 Oct 2026: "the one you're focused on has the frosted background,
-                    // the things around it have transparency": the one in use is well frosted,
-                    // the others close to clear glass, with just enough frost to read.
-                    GlassAmount.backing(GlassAmount.frosted(focused ? glassAmount - 0.2 : glassAmount + 0.4, by: frost), in: shape)
+                    // Clear towards the top and bottom of the list, frosted in the middle,
+                    // changing smoothly as the cards scroll (owner, 22 Oct 2026). A clear layer
+                    // always, with just enough frost to read, and a frosted one on top that fades
+                    // in near the middle. Done on the GPU, so scrolling costs nothing extra.
+                    GlassAmount.backing(GlassAmount.frosted(glassAmount + 0.4, by: frost), in: shape)
                         .opacity(min(1, frost))
+                    GlassAmount.backing(GlassAmount.frosted(glassAmount - 0.2, by: frost), in: shape)
+                        .opacity(min(1, frost))
+                        .visualEffect { content, proxy in
+                            let frame = proxy.frame(in: .scrollView)
+                            let height = proxy.bounds(of: .scrollView)?.height ?? 800
+                            // 0 in the middle of the list, 1 at its top or bottom edge.
+                            let away = min(1, abs(frame.midY - height / 2) / max(1, height / 2))
+                            let t = max(0, min(1, (away - 0.3) / 0.6))
+                            return content.opacity(1 - t * t * (3 - 2 * t))
+                        }
                 } else {
                     shape.fill(.background.secondary)
                 }
@@ -659,22 +670,7 @@ struct SettingsCard<Content: View>: View {
         // Like a carousel turning under the finger: cards ease back and drift together a little as
         // they move from the middle of the list, smoothly as they scroll. Done on the GPU, so it
         // costs nothing extra while scrolling.
-        .visualEffect { [glassy, reduceMotion, focusStrength] content, proxy in
-            let frame = proxy.frame(in: .named("settingsList"))
-            let line: CGFloat = 300
-            let offset = max(-1, min(1, (frame.midY - line) / 900))
-            // No squash in the Foundation build (see `Essentials`).
-            let amount = glassy && !reduceMotion && !Essentials.on ? focusStrength : 0
-            // A carousel turning (owner, 22 Oct 2026): cards squash towards their far edge as they
-            // leave the middle, as if tipping back on a drum. Done
-            // flat: a real 3D tilt is cut off by the list at each card's edge (tried twice).
-            let away = min(amount, 1.5) * abs(offset)
-            return content
-                // Never above full size, so the panel's edge never cuts off corners or the rim.
-                .scaleEffect(x: 1 - 0.03 * away, y: 1 - 0.09 * away, anchor: offset < 0 ? .bottom : .top)
-            // (No drift together any more: moving a card past its place in the list had its title
-            // and bottom edge cut off. The gap between cards is tighter instead.)
-        }
+        // (The squash as cards scroll is gone, owner 22 Oct 2026: one effect, the frosted focus.)
         .animation(.spring(response: 0.45, dampingFraction: 0.78), value: focused)
     }
 
@@ -1070,6 +1066,11 @@ struct CarryGrab: Equatable {
     var settingsMove = CGSize.zero
     var railMove = CGSize.zero
     var panelPull: CGFloat = 0
+    /// The settings list's scroll position (0 top … 1 bottom), how much of it shows, and whether
+    /// it's moving, for the glass scroll bar.
+    var scrollFraction: CGFloat = 0
+    var scrollVisible: CGFloat = 1
+    var scrolling = false
     /// No movement, for a view that only sometimes follows one of the others.
     let none = CGSize.zero
 }
@@ -1137,4 +1138,29 @@ struct CarryTarget: Equatable {
     var leading: Bool
     var top: Bool
     var attach: GroupsAttachment?
+}
+
+/// A scroll bar of Liquid Glass for the settings list (owner, 22 Oct 2026), in place of the
+/// system's thin grey one: a small pill of glass that shows while the list moves, then fades.
+/// It reads the live scroll position, so scrolling redraws only the bar.
+struct GlassScrollBar: View {
+    var motion: LiveMotion
+
+    var body: some View {
+        GeometryReader { track in
+            let height = max(44, track.size.height * min(1, motion.scrollVisible))
+            Capsule()
+                .fill(.white.opacity(0.18))
+                .frame(width: motion.scrolling ? 8 : 6, height: height)
+                .appGlass(.capsule)
+                .offset(y: (track.size.height - height) * min(1, max(0, motion.scrollFraction)))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .frame(width: 10)
+        .opacity(motion.scrolling && motion.scrollVisible < 1 ? 1 : 0)
+        .animation(.easeOut(duration: 0.3).delay(motion.scrolling ? 0 : 0.9), value: motion.scrolling)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: motion.scrolling)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
 }

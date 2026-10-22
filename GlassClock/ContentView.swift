@@ -98,8 +98,8 @@ struct ContentView: View {
     /// The slot the widget would land in while it's dragged (column × 100 + row; -1 when not
     /// dragging). Only changes slot to slot, so the rest of the screen redraws rarely.
     @State private var landingKey = -1
-    /// The size a pinch would settle on, while pinching. Changes only size to size.
-    @State private var pinchTargetSize: PreviewSize?
+    /// The size a pinch started from, while pinching.
+    @State private var pinchStartSize: PreviewSize?
     /// The spring the widget settles with after a drag or pinch.
     static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.82)
     @State private var draggingCard = false
@@ -468,6 +468,12 @@ struct ContentView: View {
                     .simultaneousGesture(panelSwipe)
                     // Double-tap the preview to clear both panels away, and again to bring them back.
                     .onTapGesture(count: 2, perform: toggleBothPanels)
+                    // Trying out (owner, 22 Oct 2026): a single tap on empty space brings the
+                    // widget's controls up, or puts them away.
+                    .onTapGesture {
+                        if editingWidget { setEditingWidget(false); return }
+                        if extrasShown { extrasHide?.cancel(); extrasShown = false } else { showExtras(for: 8) }
+                    }
 
                     AnyView(widgetLayer)
                         // Fades in once it has found its place, rather than showing for a moment
@@ -515,6 +521,9 @@ struct ContentView: View {
                     .zIndex(1)
                 }
                 .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { panelsOrigin = $0 }
+                // While the widget is held for editing, a tap anywhere finishes, as on the Home
+                // Screen (owner, 22 Oct 2026: "you should be able to tap away").
+                .simultaneousGesture(TapGesture().onEnded { if editingWidget { setEditingWidget(false) } }, isEnabled: editingWidget)
                 .overlay {
                     if !showsSidebar { AnyView(groupsDock(in: geometry.size)) }
                 }
@@ -920,7 +929,6 @@ struct ContentView: View {
             .sensoryFeedback(.impact(weight: .medium), trigger: groupsHeld) { _, held in held }
             .overlay(alignment: .top) { textSizeOverlay(.groups) }
             .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in markActive(.groups) })
-            .modifier(PanelFocus(active: activePanel == nil || activePanel == .groups, strength: tweakFocus))
             .transition(panelTransition(leading ? .leading : .trailing))
     }
 
@@ -944,8 +952,24 @@ struct ContentView: View {
             // answering taps, 2026-10-21: usability first, so it moves by its bar only.)
             // Scrolling marks it as the panel in use. (A touch-down gesture did too, but it
             // stopped segmented controls inside from answering taps, 2026-10-21.)
-            .onScrollPhaseChange { _, phase in if phase != .idle { markActive(.settings) } }
-            .modifier(PanelFocus(active: activePanel == nil || activePanel == .settings, strength: tweakFocus))
+            .onScrollPhaseChange { _, phase in
+                if phase != .idle { markActive(.settings) }
+                motion.scrolling = phase != .idle
+            }
+            .scrollIndicators(.hidden)
+            .onScrollGeometryChange(for: CGSize.self) { geometry in
+                let room = geometry.contentSize.height - geometry.containerSize.height
+                let fraction = room > 0 ? (geometry.contentOffset.y + geometry.contentInsets.top) / room : 0
+                return CGSize(width: fraction, height: geometry.containerSize.height / max(1, geometry.contentSize.height))
+            } action: { _, value in
+                motion.scrollFraction = value.width
+                motion.scrollVisible = value.height
+            }
+            .overlay(alignment: .trailing) {
+                GlassScrollBar(motion: motion)
+                    .padding(.vertical, Corner.panel / 2)
+                    .padding(.trailing, 3)
+            }
             .frame(width: width)
             // Measured at rest, before the lift and the carry (see the groups panel).
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !settingsCarried { inspectorRect = $0 } }
@@ -1495,10 +1519,15 @@ struct ContentView: View {
                 }
                 if activePanel != .widget { markActive(.widget) }
                 if let pinch = value.first {
-                    if motion.clockPinch == 1 { motion.pinchAnchor = pinch.startAnchor }
-                    motion.clockPinch = pinch.magnification
-                    let target = pinchTarget(for: pinch.magnification)
-                    if target != pinchTargetSize { pinchTargetSize = target }
+                    // Resizes live, the way the corners do (owner, 22 Oct 2026: "exactly what I was
+                    // looking for"): it snaps to the nearest size as the fingers spread or close,
+                    // and gives a little with them in between, growing evenly from its middle.
+                    let start = pinchStartSize ?? previewSize
+                    if pinchStartSize == nil { pinchStartSize = start }
+                    let next = pinchTarget(for: pinch.magnification, from: start)
+                    if next != previewSize { withAnimation(Self.cardSettle) { previewSize = next } }
+                    let ratio = pinch.magnification * sqrt(start.size.width * start.size.height / (next.size.width * next.size.height))
+                    motion.clockPinch = 1 + max(-0.12, min(0.12, (ratio - 1) * 0.3))
                     // Two fingers move it as well as size it.
                     if let drag = value.second { motion.cardDrag = drag.translation }
                 } else if let drag = value.second {
@@ -1516,9 +1545,9 @@ struct ContentView: View {
                 showExtras()
                 motion.cardLean = .zero
                 landingKey = -1
-                if let pinch = value.first {
-                    let next = pinchTarget(for: pinch.magnification)
-                    pinchTargetSize = nil
+                if value.first != nil {
+                    let next = previewSize
+                    pinchStartSize = nil
                     // Moved while pinching: it settles where the fingers took it, at its new size.
                     if let drag = value.second {
                         let end = CGPoint(x: home.midX + drag.translation.width, y: home.midY + drag.translation.height)
@@ -1529,7 +1558,6 @@ struct ContentView: View {
                         }
                     }
                     withAnimation(Self.cardSettle) {
-                        previewSize = next
                         motion.clockPinch = 1
                         motion.cardDrag = .zero
                         draggingCard = false
@@ -1557,8 +1585,8 @@ struct ContentView: View {
 
     /// The widget size a pinch would settle on: the one nearest in area to how big the fingers
     /// have made it.
-    private func pinchTarget(for magnification: CGFloat) -> PreviewSize {
-        let area = previewSize.size.width * previewSize.size.height * max(0.01, magnification * magnification)
+    private func pinchTarget(for magnification: CGFloat, from start: PreviewSize) -> PreviewSize {
+        let area = start.size.width * start.size.height * max(0.01, magnification * magnification)
         func distance(_ size: PreviewSize) -> CGFloat { abs(log(size.size.width * size.size.height / area)) }
         return PreviewSize.allCases.min { distance($0) < distance($1) } ?? previewSize
     }
@@ -1626,7 +1654,7 @@ struct ContentView: View {
         // widget (HIG: Widgets), and it travels with it (owner feedback, 2026-10-21).
         .overlay(alignment: .bottom) {
             if controlsFollowWidget && !editingWidget {
-                previewTag.offset(y: 11)
+                previewTag.offset(y: 14)
             }
         }
         .shimmer(trigger: appliedShine, in: .rect(cornerRadius: 28 * scale))
@@ -1648,6 +1676,9 @@ struct ContentView: View {
             }
         }
         .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0 && !Essentials.on, degrees: tweakWiggle))
+        // Trying out instead of the wiggle (owner, 22 Oct 2026: "similar but different"): while
+        // held for editing it breathes, swelling a touch and settling, slowly.
+        .modifier(Breathe(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && Essentials.on))
     }
 
     /// The controls that ride with the widget, hanging off its top or bottom edge.
@@ -1659,11 +1690,18 @@ struct ContentView: View {
         VStack(spacing: Space.small) {
             if top || all {
                 if editingWidget {
-                    Button("Done") { setEditingWidget(false) }
-                        .font(.headline)
-                        .prominentButton()
-                        .buttonBorderShape(.capsule)
-                        .tint(AppColor.chosen(appColor))
+                    // Clear at a glance (owner, 22 Oct 2026): bigger, with a tick, lifted off the
+                    // backdrop by a shadow so it reads on any colour.
+                    Button { setEditingWidget(false) } label: {
+                        Label("Done", systemImage: "checkmark")
+                            .font(.headline.weight(.semibold))
+                            .padding(.horizontal, 6)
+                    }
+                    .prominentButton()
+                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
+                    .tint(AppColor.chosen(appColor))
+                    .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
                         .transition(.scale.combined(with: .opacity))
                 }
                 // The Home Screen question rides along too, so the widget never covers it
@@ -1762,22 +1800,24 @@ struct ContentView: View {
         Button {
             if extrasShown { extrasHide?.cancel(); extrasShown = false } else { showExtras(for: 8) }
         } label: {
-            HStack(spacing: 4) {
+            // Clearly a button (owner, 22 Oct 2026): full-strength text, a bigger chevron, and
+            // glass that answers the touch.
+            HStack(spacing: 5) {
                 Text("Preview")
                 if quietControls && !voiceOverOn {
                     Image(systemName: extrasShown ? "chevron.down" : "chevron.up")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .contentTransition(.symbolEffect(.replace))
                 }
             }
-            .font(.caption2.weight(.semibold))
+            .font(.caption.weight(.semibold))
             .textCase(.uppercase)
-            .tracking(1.2)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .tracking(1)
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .background { bubbleBacking(.capsule) }
-            .appGlass(.capsule)
+            .appGlass(.capsule, interactive: true)
             .environment(\.colorScheme, controlScheme)
             // A bigger target than it looks.
             .padding(8)
@@ -2206,18 +2246,6 @@ struct ContentView: View {
                         .onTapGesture { setEditingWidget(false) }
                 }
                 // While dragging: the empty slots, and where the widget will land.
-                // While pinching: an outline of the size it will settle on, with a tick as it
-                // passes each size, so the clock answers the fingers (owner, 22 Oct 2026).
-                if let target = pinchTargetSize, target != previewSize {
-                    RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
-                        .fill(.white.opacity(0.1))
-                        .strokeBorder(.white.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                        .frame(width: target.size.width * scale, height: target.size.height * scale)
-                        .position(x: centre.x, y: centre.y)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                        .animation(.snappy, value: target)
-                        .allowsHitTesting(false)
-                }
                 if draggingCard {
                     ForEach(Array(grid.slotFrames.enumerated()), id: \.offset) { _, frame in
                         RoundedRectangle(cornerRadius: 22 * scale)
@@ -2264,7 +2292,6 @@ struct ContentView: View {
                         .gesture(cardGesture(grid: grid, home: home, span: span))
                         .sensoryFeedback(.impact(weight: .light), trigger: draggingCard)
                         .sensoryFeedback(.selection, trigger: landingKey) { _, key in key >= 0 }
-                        .sensoryFeedback(.impact(weight: .light), trigger: pinchTargetSize) { _, size in size != nil }
                         // Measured where it rests, not while it's dragged, so a drag doesn't write
                         // new state on every frame (owner: "it just feels slow", 22 Oct 2026).
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !draggingCard { widgetRect = $0 } }
@@ -3307,6 +3334,20 @@ struct ContentView: View {
             ForEach(ClockColor.allCases) { option in
                 colorSwatch(option, selection: selection)
             }
+            // A colour from the wheel shows as its own swatch, then the wheel itself: any colour
+            // at all (owner, 22 Oct 2026).
+            if selection.wrappedValue.isCustom {
+                colorSwatch(selection.wrappedValue, selection: selection)
+            }
+            ColorPicker("Any colour", selection: Binding(
+                get: { selection.wrappedValue.color },
+                set: { picked in
+                    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                    UIColor(picked).getRed(&r, green: &g, blue: &b, alpha: &a)
+                    selection.wrappedValue = ClockColor(red: r, green: g, blue: b)
+                }), supportsOpacity: false)
+                .labelsHidden()
+                .frame(width: 44, height: 44)
         }
     }
 
@@ -3339,7 +3380,7 @@ struct ContentView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(option == .auto ? "Automatic colour" : option.rawValue.capitalized)
+        .accessibilityLabel(option == .auto ? "Automatic colour" : option.name)
     }
 }
 
@@ -3348,6 +3389,23 @@ struct ContentView: View {
 }
 
 /// The Home Screen's edit-mode wiggle: a small, quick rock back and forth while `active`.
+/// A slow swell and settle, to show the widget is ready to be moved or resized.
+struct Breathe: ViewModifier {
+    var active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.phaseAnimator([1, 1.018]) { view, scale in
+                view.scaleEffect(scale)
+            } animation: { _ in
+                .easeInOut(duration: 1.1)
+            }
+        } else {
+            content
+        }
+    }
+}
+
 struct Wiggle: ViewModifier {
     var active: Bool
     var degrees: Double = 0.7
