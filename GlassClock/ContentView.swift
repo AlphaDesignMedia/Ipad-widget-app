@@ -193,6 +193,14 @@ struct ContentView: View {
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     /// The settings being carried by a card's title bar (see `PanelCarry`).
     @State private var settingsCarried = false
+    /// The groups were showing when the settings folded into the rail, so they come back with them.
+    @State private var railHidGroups = false
+
+    private func reopenFromRail() {
+        showsInspector = true
+        if railHidGroups { showsSidebar = true; railHidGroups = false }
+    }
+
     /// True for a moment after a panel is put down on the other side (see `panelTransition`).
     @State private var panelSwap = false
     /// The settings tucked aside: turned, mostly off the edge, still in view (see `Peek`).
@@ -556,7 +564,8 @@ struct ContentView: View {
                 // Screen (owner, 22 Oct 2026: "you should be able to tap away").
                 .simultaneousGesture(TapGesture().onEnded { if editingWidget { setEditingWidget(false) } }, isEnabled: editingWidget)
                 .overlay {
-                    if !showsSidebar { AnyView(groupsDock(in: geometry.size)) }
+                    // Not while the settings rail is up: the rail already lists every group.
+                    if !showsSidebar && showsInspector { AnyView(groupsDock(in: geometry.size)) }
                 }
                 // Dropped along the bottom: the same pill, lying flat.
                 .overlay(alignment: .bottom) {
@@ -571,8 +580,8 @@ struct ContentView: View {
                 .overlay(alignment: settingsLeading ? .leading : .trailing) {
                     if !showsInspector {
                         SettingsRail(leading: settingsLeading, sections: SettingsSection.allCases,
-                                     open: { withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { showsInspector = true } },
-                                     go: { focus($0) })
+                                     open: { withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { reopenFromRail() } },
+                                     go: { section in withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { reopenFromRail() }; focus(section) })
                             .padding(.horizontal, Space.small)
                             .transition(.move(edge: settingsLeading ? .leading : .trailing).combined(with: .opacity))
                     }
@@ -944,7 +953,9 @@ struct ContentView: View {
     /// Opens the settings and glides them to a group.
     private func focus(_ section: SettingsSection) {
         selectedSection = section
-        withAnimation(.snappy) { showsInspector = true }
+        // The groups and the settings work as one: picking a group always brings the settings
+        // into view at it, even when they're tucked aside (owner, 22 Oct 2026).
+        withAnimation(.snappy) { showsInspector = true; settingsPeeking = false }
         focusRequest += 1
     }
 
@@ -1074,6 +1085,10 @@ struct ContentView: View {
                 withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) {
                     settingsPeeking = false
                     showsInspector = false
+                    // The rail lists the same headings as the groups, so the groups step away
+                    // too: one menu on screen, never two saying the same thing (owner, 22 Oct 2026).
+                    railHidGroups = showsSidebar
+                    showsSidebar = false
                 }
             }))
             // A sideways swipe on the panel itself, towards its edge, tucks it aside (owner,
