@@ -642,26 +642,9 @@ struct SettingsCard<Content: View>: View {
         .background {
             ZStack {
                 if glassy {
-                    // Resting cards lean towards clear; the one in use gets the full frost.
-                    // Frost (Design Tweaks) scales how thick the frost is: 0 is clear. Resting
-                    // cards keep enough frost for their text to read (owner feedback,
-                    // 2026-10-21: black text can't sit on clear glass); the one in use gets more.
-                    // Clear towards the top and bottom of the list, frosted in the middle,
-                    // changing smoothly as the cards scroll (owner, 22 Oct 2026). A clear layer
-                    // always, with just enough frost to read, and a frosted one on top that fades
-                    // in near the middle. Done on the GPU, so scrolling costs nothing extra.
-                    GlassAmount.backing(GlassAmount.frosted(glassAmount + 0.4, by: frost), in: shape)
-                        .opacity(min(1, frost))
-                    GlassAmount.backing(GlassAmount.frosted(glassAmount - 0.2, by: frost), in: shape)
-                        .opacity(min(1, frost))
-                        .visualEffect { content, proxy in
-                            let frame = proxy.frame(in: .scrollView)
-                            let height = proxy.bounds(of: .scrollView)?.height ?? 800
-                            // 0 in the middle of the list, 1 at its top or bottom edge.
-                            let away = min(1, abs(frame.midY - height / 2) / max(1, height / 2))
-                            let t = max(0, min(1, (away - 0.3) / 0.6))
-                            return content.opacity(1 - t * t * (3 - 2 * t))
-                        }
+                    // Clear glass with a dimming wash, no frost (owner, 22 Oct 2026: clear glass
+                    // everywhere, readable through contrast rather than blur).
+                    GlassAmount.backing(glassAmount, in: shape)
                 } else {
                     shape.fill(.background.secondary)
                 }
@@ -801,16 +784,15 @@ private struct GlassBacking<S: Shape>: View {
 
     var body: some View {
         ZStack {
+            // No frost any more (owner, 22 Oct 2026): clear glass with a dimming wash, darker
+            // in Dark and lighter in Light, so text stands off the backdrop. The Glass slider
+            // sets how strong the wash is.
             shape.fill(colorScheme == .dark ? Color.black : .white)
-                .opacity(0.16 + 0.26 * (1 - amount))
+                .opacity((colorScheme == .dark ? 0.2 : 0.26) + 0.3 * (1 - amount))
             // A Tinted Home Screen's glass carries the tint all through.
             if homeLook == .tinted {
                 shape.fill(AppColor.chosen(appColor).opacity(0.32))
             }
-            // Thins out towards the Clear end too, so Clear is properly see-through
-            // (owner feedback, 2026-10-21), while still keeping a little frost behind text.
-            shape.fill(.ultraThinMaterial).opacity(1 - 0.4 * amount)
-            shape.fill(.regularMaterial).opacity(1 - amount)
         }
     }
 }

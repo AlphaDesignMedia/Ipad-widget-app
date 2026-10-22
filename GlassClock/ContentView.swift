@@ -813,8 +813,14 @@ struct ContentView: View {
             // 2026-10-21) rather than a fill of colour.
             .background {
                 if selected {
-                    Capsule().fill(.background.opacity(0.6))
-                        .overlay(Capsule().strokeBorder(.white.opacity(tweakRim), lineWidth: 1))
+                    // A glossy bead rather than an outline (owner, 22 Oct 2026): a soft fill
+                    // lit from above, with an inner highlight and a gentle shadow under it.
+                    Capsule()
+                        .fill(LinearGradient(colors: [.white.opacity(0.34), .white.opacity(0.08)],
+                                             startPoint: .top, endPoint: .bottom)
+                            .shadow(.inner(color: .white.opacity(0.45), radius: 1, y: 1))
+                            .shadow(.inner(color: .black.opacity(0.12), radius: 2, y: -1))
+                            .shadow(.drop(color: .black.opacity(0.22), radius: 4, y: 2)))
                         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
                         .matchedGeometryEffect(id: "group selection", in: groupSelection)
                 }
