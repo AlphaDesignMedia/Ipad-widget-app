@@ -1801,7 +1801,8 @@ struct ContentView: View {
             // The lifted shadow sits only outside the card: a plain shadow showed through the
             // clear glass and turned the whole widget dark while it was carried, and for a
             // moment after it landed (simulator frames, 22 Oct 2026).
-            .background { LiftShadow(radius: 28 * scale, shown: draggingCard) }
+            // Only drawn while carried, so a resting widget costs nothing extra.
+            .background { if draggingCard { LiftShadow(radius: 28 * scale, shown: true).transition(.opacity) } }
             // The lean: a soft tilt towards where it's going and a slight stretch along the way.
             .modifier(LiveLean(motion: motion, strength: CGFloat(tweakLean), still: reduceMotion))
             .scaleEffect(x: resizeStretch.width, y: resizeStretch.height, anchor: resizeCorner.opposite)
