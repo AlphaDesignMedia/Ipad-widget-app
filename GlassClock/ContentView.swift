@@ -91,7 +91,10 @@ struct ContentView: View {
     @State private var extrasShown = true
     @State private var extrasHide: Task<Void, Never>?
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverOn
-    private var extrasVisible: Bool { extrasShown || !quietControls || editingWidget || voiceOverOn }
+    private var extrasVisible: Bool { (extrasShown || !quietControls || editingWidget || voiceOverOn) && !widgetMoving }
+    /// Being dragged or pinched: everything around it steps away, so it's just the widget
+    /// (owner, 22 Oct 2026: "remove all of the extra things when I'm moving it around").
+    private var widgetMoving: Bool { draggingCard || pinchStartSize != nil }
     /// Where the widget sits on the preview's Home Screen grid (-1: the middle), remembered.
     @AppStorage("widgetColumn") private var widgetColumn = -1
     @AppStorage("widgetRow") private var widgetRow = -1
@@ -543,7 +546,7 @@ struct ContentView: View {
             .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels() } }
             // Using a control keeps them up a while longer.
             .onChange(of: homeScreen) { showExtras() }
-            .onChange(of: previewSize) { showExtras() }
+            .onChange(of: previewSize) { if extrasShown { showExtras() } }
             .onChange(of: backdrop) { showExtras() }
             .onChange(of: controlsPage) { showExtras() }
             .onChange(of: showsSidebar) { _, shown in if shown { clearWidgetFromPanels() } }
@@ -1515,7 +1518,6 @@ struct ContentView: View {
             .onChanged { value in
                 if value.first == nil, value.second != nil, !draggingCard {
                     withAnimation(.snappy) { draggingCard = true }
-                    showExtras()
                 }
                 if activePanel != .widget { markActive(.widget) }
                 if let pinch = value.first {
@@ -1542,7 +1544,6 @@ struct ContentView: View {
             }
             .onEnded { value in
                 swipesPausedUntil = .now.addingTimeInterval(0.4)
-                showExtras()
                 motion.cardLean = .zero
                 landingKey = -1
                 if value.first != nil {
@@ -1653,7 +1654,7 @@ struct ContentView: View {
         // A small glass tag on the bottom edge, so the preview isn't mistaken for the real
         // widget (HIG: Widgets), and it travels with it (owner feedback, 2026-10-21).
         .overlay(alignment: .bottom) {
-            if controlsFollowWidget && !editingWidget {
+            if controlsFollowWidget && !editingWidget && !widgetMoving {
                 previewTag.offset(y: 14)
             }
         }
@@ -1723,7 +1724,7 @@ struct ContentView: View {
         // from the card. Below, they clear the Preview tag on the card's bottom edge.
         .frame(height: 0, alignment: above ? .bottom : .top)
         .offset(y: above ? -Space.medium : Space.medium + 14)
-        .opacity(extrasVisible ? (draggingCard ? 0.7 : 1) : 0)
+        .opacity(extrasVisible ? 1 : 0)
         .scaleEffect(extrasVisible || reduceMotion ? 1 : 0.9, anchor: above ? .bottom : .top)
         .allowsHitTesting(extrasVisible)
         .accessibilityHidden(!extrasVisible)
