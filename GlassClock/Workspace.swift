@@ -474,6 +474,7 @@ extension View {
 struct AppGlass<S: Shape>: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @Environment(\.homeLook) private var homeLook
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var theme = AppTheme.home
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
@@ -500,6 +501,10 @@ struct AppGlass<S: Shape>: ViewModifier {
                 // does, so in the Glass theme icons and labels on glass use it. Selected items
                 // keep their colour on a solid fill, and the settings cards set their own tint.
                 .tint(theme.isGlassy && tint == nil ? Color.primary : nil)
+                // Clear glass keeps its text readable with a soft halo in the opposite colour
+                // (owner, 22 Oct 2026: clear glass everywhere, but text must show). Small
+                // controls only: a shadow over a whole panel would cost smoothness.
+                .shadow(color: halo, radius: clearAndSmall ? 3 : 0)
                 .glassEffect(glass.interactive(interactive), in: shape)
         }
     }
@@ -510,12 +515,24 @@ struct AppGlass<S: Shape>: ViewModifier {
             return .clear.tint(AppColor.chosen(appColor).opacity(panel ? 0.3 : 0.38))
         }
         switch theme {
-        // Clear all the way; readability comes from the frosted cards inside panels
-        // (`SettingsCard`) rather than from tinting the glass.
-        case .glass, .home: return .clear
+        // Clear glass with a gentle dimming layer, the way Apple keeps the Clear Home Screen
+        // readable: darker in Dark, lighter in Light, so text stands off the backdrop while
+        // the glass stays see-through (owner, 22 Oct 2026).
+        case .glass, .home: return .clear.tint(dim)
         case .frosted: return .regular
         case .colour: return .regular.tint(AppColor.resolve(appColor).opacity(panel ? 0.22 : 0.3))
         }
+    }
+
+    private var dim: Color {
+        colorScheme == .dark ? .black.opacity(panel ? 0.3 : 0.34) : .white.opacity(panel ? 0.32 : 0.4)
+    }
+
+    private var clearAndSmall: Bool { theme.isGlassy && tint == nil && !panel && homeLook != .tinted }
+
+    private var halo: Color {
+        guard clearAndSmall else { return .clear }
+        return colorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.7)
     }
 }
 
@@ -738,6 +755,7 @@ struct PanelLabelBacking: ViewModifier {
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var theme = AppTheme.home
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         if theme.isGlassy && !systemReducesTransparency && !reducesGlass {
@@ -746,7 +764,7 @@ struct PanelLabelBacking: ViewModifier {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
                 .background { GlassAmount.backing(glassAmount, in: Capsule()) }
-                .glassEffect(.clear, in: Capsule())
+                .glassEffect(.clear.tint(colorScheme == .dark ? .black.opacity(0.3) : .white.opacity(0.35)), in: Capsule())
         } else {
             content
         }
