@@ -493,8 +493,8 @@ struct GlassChipStyle: ButtonStyle {
     }
 }
 
-/// A chip's surface: real Liquid Glass in the Glass and Home looks (owner, 22 Oct 2026: "lean
-/// into the glass a little more"), a solid bead of glass everywhere else and with Reduce glass.
+/// A chip's surface: a solid bead of glass, or the app colour when chosen (as coloured Liquid
+/// Glass in the Glass and Home looks).
 struct ChipSurface: ViewModifier {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.homeLook) private var homeLook
@@ -508,10 +508,11 @@ struct ChipSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         let dark = scheme == .dark
-        if theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
-            content.glassEffect(selected ? .regular.tint(AppColor.chosen(appColor)).interactive()
-                                : .clear.tint(dark ? .black.opacity(0.18) : .white.opacity(0.4)).interactive(),
-                                in: .capsule)
+        if selected && theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
+            // A lock that's on is glass tinted with the app colour. One that's off is the solid
+            // bead below: clear glass on a glass panel lost its contrast (owner, 22 Oct 2026),
+            // and Apple keeps glass off glass.
+            content.glassEffect(.regular.tint(AppColor.chosen(appColor)).interactive(), in: .capsule)
         } else if selected {
             content.background(AppColor.chosen(appColor), in: .capsule)
         } else {
@@ -716,6 +717,10 @@ struct SettingsCard<Content: View>: View {
         // rather than a wash of colour (owner direction, 2026-10-21).
         // (No drawn rim, owner 22 Oct 2026: it looked glitched at the edges. The glass keeps its
         // own edge, and the sweep of light marks a card jumped to.)
+        // The whole card is one Form row, so a tap on its plain text or empty space went to the
+        // row and opened a picker in it (Appearance, in the App card). The card keeps those taps
+        // for itself; switches, pickers and buttons still answer their own.
+        .background { shape.fill(.clear).contentShape(shape).onTapGesture {} }
         .shimmer(trigger: highlighted, in: shape)
         .modifier(CardGlass(on: glassy, shape: shape))
         .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
