@@ -25,7 +25,8 @@ The owner bought a coffee for the maker of a free, open-source Mac app they use.
 - **Fair prices by country come built in:** set the prices in pounds and the App Store shows each person their own currency, with no need to ask where they are. The automatic prices only follow exchange rates, not the cost of living. But each country's price can be set by hand (lower where a coffee costs less), which is exactly the "fair for everyone" idea.
 - **Minimum:** the lowest App Store price is about 29p. Apple keeps 15% (Small Business Program), so the smallest tier should be worth sending.
 - **The glass of water:** asking for a review is fine. Rewarding one isn't allowed, so it's only ever a kind ask, using Apple's own review prompt or a link to the App Store review page.
-- **Not yet decided:** whether a future bundle of widgets is free with tips, or has a small one-off price (£5 was mentioned). Free with tips matches the stance above.
+- **Decided (owner, 22 Oct 2026): the bundle costs a fiver.** Each widget app is free on its own, with tips. The all-in-one app, with every widget in one place and customised together, is £4.99 once. What you pay for is the convenience of having everything together, never a widget the free apps don't have, so it stays fair.
+  - *How:* Apple's App Bundles only combine paid apps, so the all-in-one is its own app at £4.99, or one free app with a single £4.99 "unlock everything together" purchase. Choose when there are 3 or more widgets.
 
 **Decide:** add the tip jar in v1.0, or in v1.1 a few weeks after launch? It needs the paid Apple Developer account and the Paid Apps Agreement either way.
 
