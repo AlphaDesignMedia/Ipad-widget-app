@@ -1583,6 +1583,15 @@ struct ContentView: View {
             // the rest of the screen redraws just when the landing slot changes.
             .onChanged { value in
                 if value.first == nil, value.second != nil, !draggingCard {
+                    // Pins the widget to the slot it's in before anything moves. Until it's been
+                    // placed it follows the space between the panels, so a panel making room
+                    // mid-drag shifted that space and the widget leapt ahead of the finger
+                    // (simulator frames, 22 Oct 2026).
+                    if widgetColumn < 0 {
+                        let here = grid.nearest(to: CGPoint(x: home.midX, y: home.midY), span: span)
+                        widgetColumn = here.column
+                        widgetRow = here.row
+                    }
                     withAnimation(.snappy) { draggingCard = true }
                 }
                 if activePanel != .widget { markActive(.widget) }
@@ -1623,6 +1632,7 @@ struct ContentView: View {
                             widgetColumn = target.column
                             widgetRow = target.row
                         }
+                        makeRoom(for: grid.frame(column: target.column, row: target.row, span: next.span))
                     }
                     withAnimation(Self.cardSettle) {
                         motion.clockPinch = 1
@@ -1640,6 +1650,10 @@ struct ContentView: View {
                         motion.cardDrag = .zero
                         draggingCard = false
                     }
+                    // A quick drag can change slot in the same moment it's let go, before the
+                    // panels heard about it, so they make room here too (simulator, 22 Oct 2026:
+                    // the widget landed under the settings).
+                    makeRoom(for: grid.frame(column: target.column, row: target.row, span: span))
                 } else {
                     withAnimation(Self.cardSettle) {
                         motion.clockPinch = 1
@@ -1728,7 +1742,10 @@ struct ContentView: View {
         return face
             // Lifts while it's being moved, like a widget on the Home Screen.
             .scaleEffect(lift)
-            .shadow(color: .black.opacity(draggingCard ? 0.28 : 0), radius: 28, y: 14)
+            // The lifted shadow sits only outside the card: a plain shadow showed through the
+            // clear glass and turned the whole widget dark while it was carried, and for a
+            // moment after it landed (simulator frames, 22 Oct 2026).
+            .background { LiftShadow(radius: 28 * scale, shown: draggingCard) }
             // The lean: a soft tilt towards where it's going and a slight stretch along the way.
             .modifier(LiveLean(motion: motion, strength: CGFloat(tweakLean), still: reduceMotion))
             .scaleEffect(x: resizeStretch.width, y: resizeStretch.height, anchor: resizeCorner.opposite)
@@ -2364,6 +2381,12 @@ struct ContentView: View {
                         .animation(.smooth, value: controlsSplit)
                         .animation(.smooth, value: controlsAbove)
                 .position(x: centre.x, y: centre.y)
+                // The slot is saved with @AppStorage, whose changes can arrive without the
+                // drop's animation: then the widget jumped to its new slot while the finger's
+                // distance sprang back, so it shot past the slot and pulled back (owner, 22 Oct
+                // 2026; seen frame by frame in the simulator). Animating the position itself with
+                // the same spring keeps the two in step: one glide from the finger into the slot.
+                .animation(reduceMotion ? nil : Self.cardLand, value: centre)
                 .modifier(LiveOffset(motion: motion, path: \.cardDrag))
                 // The resize handle sits beside the widget rather than on it, so the
                 // widget's own drag doesn't take its touches.

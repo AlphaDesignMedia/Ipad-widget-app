@@ -1106,9 +1106,11 @@ struct LiveLean: ViewModifier {
         let turn = Double(lean.width * strength) * 7, tip = Double(-lean.height * strength) * 7
         let stretchX = 1 + (abs(lean.width) * 0.035 - abs(lean.height) * 0.015) * strength
         let stretchY = 1 + (abs(lean.height) * 0.035 - abs(lean.width) * 0.015) * strength
+        // A flat lean rather than a 3D turn: Liquid Glass inside a 3D turn can't see the backdrop
+        // behind it, so the widget went dark the whole time it was carried (simulator frames,
+        // 22 Oct 2026). A slight roll towards where it's heading reads the same and keeps it clear.
         content
-            .rotation3DEffect(.degrees(turn), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
-            .rotation3DEffect(.degrees(tip), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
+            .rotationEffect(.degrees((turn - tip * 0.4) * 0.35))
             .scaleEffect(x: stretchX, y: stretchY)
             // Lively while moving, but it eases back upright without a wobble when let go, so
             // the landing reads as one calm motion (owner, 22 Oct 2026).
@@ -1215,5 +1217,25 @@ struct GlassPicker<T: Hashable>: View {
         .background(Capsule().fill(.primary.opacity(0.08)))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
+    }
+}
+
+/// A soft shadow under a lifted card, cut away inside the card's shape so it never darkens
+/// clear glass from behind.
+struct LiftShadow: View {
+    var radius: CGFloat
+    var shown: Bool
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        shape.fill(.black)
+            .shadow(color: .black.opacity(shown ? 0.3 : 0), radius: 28, y: 14)
+            .mask {
+                Rectangle().padding(-80)
+                    .overlay { shape.blendMode(.destinationOut) }
+                    .compositingGroup()
+            }
+            .opacity(shown ? 1 : 0)
+            .allowsHitTesting(false)
     }
 }
