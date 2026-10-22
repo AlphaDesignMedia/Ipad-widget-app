@@ -114,7 +114,8 @@ struct ContentView: View {
     /// The size a pinch started from, while pinching.
     @State private var pinchStartSize: PreviewSize?
     /// The spring the widget settles with after a drag or pinch.
-    static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.82)
+    /// Barely any bounce: things glide into place rather than pop (owner, 22 Oct 2026).
+    static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.94)
     /// The spring a dropped widget lands with: no overshoot, so it glides into its slot and
     /// stops, rather than passing it and pulling back (owner, 22 Oct 2026).
     static let cardLand = Animation.spring(response: 0.42, dampingFraction: 1)
@@ -1840,8 +1841,15 @@ struct ContentView: View {
     private func cardFace(card: CGSize, scale: CGFloat) -> some View {
         let lift: CGFloat = draggingCard && !reduceMotion ? 1.04 : 1
         let face = TimelineView(.everyMinute) { context in
-            ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
-                      simulatesClear: !homeScreen.showsKeptColours)
+            // The clock fades from one size's layout to the next while the card reshapes around
+            // it, as widgets do on the iPad's Home Screen (owner, 22 Oct 2026), rather than its
+            // text jumping when the size snaps.
+            ZStack {
+                ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
+                          simulatesClear: !homeScreen.showsKeptColours)
+                    .id(previewSize)
+                    .transition(.opacity)
+            }
                 .padding(16 * scale)
                 .frame(width: card.width * scale, height: card.height * scale)
                 .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28 * scale), homeScreen: homeScreen))
@@ -2357,8 +2365,12 @@ struct ContentView: View {
     /// Horizontal swipes across the preview bring the panels in and out: a swipe right shows
     /// the groups list (or hides the settings), a swipe left shows the settings (or hides the list).
     private var panelSwipe: some Gesture {
-        DragGesture(minimumDistance: 24)
+        DragGesture(minimumDistance: 24, coordinateSpace: .global)
             .onChanged { drag in
+                // A drag that starts on the widget moves the widget, never the backdrop: the
+                // next backdrop was sliding in behind a widget being dragged down (simulator,
+                // 22 Oct 2026).
+                guard !startsOnWidget(drag) else { return }
                 // Leans only for sideways drags, so scrolling up and down doesn't wobble, and not
                 // while the widget itself is being moved or pinched.
                 if !draggingCard, !editingWidget, motion.clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) {
@@ -2374,6 +2386,10 @@ struct ContentView: View {
             }
             .onEnded { drag in
                 if motion.panelPull != 0 { withAnimation(.bouncy) { motion.panelPull = 0 } }
+                if startsOnWidget(drag) {
+                    if pulledBackdrop != nil { finishBackdropPull(predicted: 0) }
+                    return
+                }
                 if pulledBackdrop != nil {
                     finishBackdropPull(predicted: drag.predictedEndTranslation.height / pullLength)
                     return
@@ -2393,6 +2409,10 @@ struct ContentView: View {
                 guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
                 swipePanels(right: dx > 0)
             }
+    }
+
+    private func startsOnWidget(_ drag: DragGesture.Value) -> Bool {
+        interface == .panels && widgetRect.insetBy(dx: -12, dy: -12).contains(drag.startLocation)
     }
 
     /// The card with glass bubbles floating around it: the Home Screen style above, widget
@@ -2439,10 +2459,13 @@ struct ContentView: View {
                             .position(x: frame.midX, y: frame.midY)
                     }
                     let target = grid.frame(column: landing.column, row: landing.row, span: span)
-                    RoundedRectangle(cornerRadius: 28 * scale)
-                        .fill(.white.opacity(0.18))
+                    // The widget's own shape, a little larger all round, so it reads as an outline
+                    // of where it'll land and small differences don't show (owner, 22 Oct 2026).
+                    let ring: CGFloat = 8
+                    RoundedRectangle(cornerRadius: 28 * scale + ring, style: .continuous)
+                        .fill(.white.opacity(0.14))
                         .strokeBorder(.white.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                        .frame(width: target.width, height: target.height)
+                        .frame(width: card.width * scale + ring * 2, height: card.height * scale + ring * 2)
                         .position(x: target.midX, y: target.midY)
                         .animation(.snappy, value: landing.column)
                         .animation(.snappy, value: landing.row)
