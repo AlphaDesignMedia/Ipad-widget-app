@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AA0000000000000000000030 /* GlassClockWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* GlassClockWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BB0000000000000000000030 /* GlassDashboardWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000005 /* GlassDashboardWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -17,6 +18,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = AA0000000000000000000011;
 			remoteInfo = GlassClockWidgetExtension;
+		};
+		BB0000000000000000000031 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BB0000000000000000000011;
+			remoteInfo = GlassDashboardWidgetExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -32,11 +40,24 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000000000000000000023 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BB0000000000000000000030 /* GlassDashboardWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		AA0000000000000000000004 /* GlassClock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GlassClock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000005 /* GlassClockWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlassClockWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0000000000000000000004 /* GlassDashboard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GlassDashboard.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0000000000000000000005 /* GlassDashboardWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlassDashboardWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -51,6 +72,21 @@
 			sourceTree = "<group>";
 		};
 		AA0000000000000000000008 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		BB0000000000000000000006 /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App;
+			sourceTree = "<group>";
+		};
+		BB0000000000000000000007 /* Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Widget;
+			sourceTree = "<group>";
+		};
+		BB0000000000000000000008 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Shared;
 			sourceTree = "<group>";
@@ -72,6 +108,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000000000000000000021 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000000000000000000025 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -81,6 +131,7 @@
 				AA0000000000000000000006 /* GlassClock */,
 				AA0000000000000000000007 /* GlassClockWidget */,
 				AA0000000000000000000008 /* Shared */,
+				BB0000000000000000000002 /* GlassDashboard */,
 				AA0000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,8 +141,20 @@
 			children = (
 				AA0000000000000000000004 /* GlassClock.app */,
 				AA0000000000000000000005 /* GlassClockWidgetExtension.appex */,
+				BB0000000000000000000004 /* GlassDashboard.app */,
+				BB0000000000000000000005 /* GlassDashboardWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BB0000000000000000000002 /* GlassDashboard */ = {
+			isa = PBXGroup;
+			children = (
+				BB0000000000000000000006 /* App */,
+				BB0000000000000000000007 /* Widget */,
+				BB0000000000000000000008 /* Shared */,
+			);
+			path = GlassDashboard;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -145,6 +208,54 @@
 			productReference = AA0000000000000000000005 /* GlassClockWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		BB0000000000000000000010 /* GlassDashboard */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB0000000000000000000051 /* Build configuration list for PBXNativeTarget "GlassDashboard" */;
+			buildPhases = (
+				BB0000000000000000000020 /* Sources */,
+				BB0000000000000000000021 /* Frameworks */,
+				BB0000000000000000000022 /* Resources */,
+				BB0000000000000000000023 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BB0000000000000000000032 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BB0000000000000000000006 /* App */,
+				BB0000000000000000000008 /* Shared */,
+			);
+			name = GlassDashboard;
+			packageProductDependencies = (
+			);
+			productName = GlassDashboard;
+			productReference = BB0000000000000000000004 /* GlassDashboard.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BB0000000000000000000011 /* GlassDashboardWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB0000000000000000000052 /* Build configuration list for PBXNativeTarget "GlassDashboardWidgetExtension" */;
+			buildPhases = (
+				BB0000000000000000000024 /* Sources */,
+				BB0000000000000000000025 /* Frameworks */,
+				BB0000000000000000000026 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BB0000000000000000000007 /* Widget */,
+				BB0000000000000000000008 /* Shared */,
+			);
+			name = GlassDashboardWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = GlassDashboardWidgetExtension;
+			productReference = BB0000000000000000000005 /* GlassDashboardWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -160,6 +271,12 @@
 					};
 					AA0000000000000000000011 = {
 						CreatedOnToolsVersion = 26.0;
+					};
+					BB0000000000000000000010 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					BB0000000000000000000011 = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -179,6 +296,8 @@
 			targets = (
 				AA0000000000000000000010 /* GlassClock */,
 				AA0000000000000000000011 /* GlassClockWidgetExtension */,
+				BB0000000000000000000010 /* GlassDashboard */,
+				BB0000000000000000000011 /* GlassDashboardWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -192,6 +311,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AA0000000000000000000026 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000000000000000000022 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000000000000000000026 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -215,6 +348,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000000000000000000020 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000000000000000000024 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -222,6 +369,11 @@
 			isa = PBXTargetDependency;
 			target = AA0000000000000000000011 /* GlassClockWidgetExtension */;
 			targetProxy = AA0000000000000000000031 /* PBXContainerItemProxy */;
+		};
+		BB0000000000000000000032 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BB0000000000000000000011 /* GlassDashboardWidgetExtension */;
+			targetProxy = BB0000000000000000000031 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -384,6 +536,108 @@
 			};
 			name = Release;
 		};
+		BB0000000000000000000042 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Glass Dashboard";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aarondennel.glassdashboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		BB0000000000000000000043 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Glass Dashboard";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aarondennel.glassdashboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		BB0000000000000000000044 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/GlassDashboardWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Glass Dashboard";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aarondennel.glassdashboard.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		BB0000000000000000000045 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/GlassDashboardWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Glass Dashboard";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aarondennel.glassdashboard.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -410,6 +664,24 @@
 			buildConfigurations = (
 				AA0000000000000000000044 /* Debug */,
 				AA0000000000000000000045 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB0000000000000000000051 /* Build configuration list for PBXNativeTarget "GlassDashboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB0000000000000000000042 /* Debug */,
+				BB0000000000000000000043 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB0000000000000000000052 /* Build configuration list for PBXNativeTarget "GlassDashboardWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB0000000000000000000044 /* Debug */,
+				BB0000000000000000000045 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
