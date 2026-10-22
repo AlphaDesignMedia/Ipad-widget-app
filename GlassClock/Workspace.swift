@@ -1205,13 +1205,36 @@ struct CarryTarget: Equatable {
 /// and a soft shadow, rather than an outline (owner, 22 Oct 2026: "go full glass").
 struct GlossyBead<S: Shape>: View {
     var shape: S
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    /// Goes up once as the bead lands on a choice, so it plays its pulse.
+    @State private var landed = false
 
     var body: some View {
         shape.fill(LinearGradient(colors: [.white.opacity(0.34), .white.opacity(0.08)],
                                   startPoint: .top, endPoint: .bottom)
             .shadow(.inner(color: .white.opacity(0.45), radius: 1, y: 1))
             .shadow(.inner(color: .black.opacity(0.12), radius: 2, y: -1))
-            .shadow(.drop(color: .black.opacity(0.22), radius: 4, y: 2)))
+            // Kept tight, so it doesn't spill past the edge of the switch it sits in.
+            .shadow(.drop(color: .black.opacity(0.2), radius: 2, y: 1)))
+            // A quiet glassy pulse as it lands (owner, 22 Oct 2026: "a really subtle attention
+            // animation… something glassy"): the glass brightens from its top edge and glows,
+            // twice, then rests (no swell: it would reach the switch's edge). Once only, never looping.
+            .keyframeAnimator(initialValue: 0.0, trigger: landed) { bead, glow in
+                bead
+                    .overlay {
+                        shape.fill(LinearGradient(colors: [.white.opacity(0.45 * glow), .white.opacity(0.05 * glow)],
+                                                  startPoint: .top, endPoint: .bottom))
+                            .blendMode(.plusLighter)
+                    }
+                    .shadow(color: .white.opacity(0.35 * glow), radius: 6 * glow)
+            } keyframes: { _ in
+                CubicKeyframe(1, duration: 0.32)
+                CubicKeyframe(0.25, duration: 0.38)
+                CubicKeyframe(0.6, duration: 0.34)
+                CubicKeyframe(0, duration: 0.6)
+            }
+            .onAppear { if !(systemReduceMotion || simpleMotion) { landed = true } }
     }
 }
 

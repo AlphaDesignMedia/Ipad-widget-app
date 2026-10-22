@@ -2878,9 +2878,10 @@ struct ContentView: View {
     }
 
     private func bubble(@ViewBuilder content: () -> some View) -> some View {
+        // The same gap all the way round, so a capsule inside (the size switch) runs parallel
+        // to this one at its ends (owner, 22 Oct 2026: the edges didn't quite line up on iPad).
         content()
-            .padding(.horizontal, tweakBubble)
-            .padding(.vertical, tweakBubble * 0.8)
+            .padding(tweakBubble)
             .background { bubbleBacking(.capsule) }
             .appGlass(.capsule)
             .environment(\.colorScheme, controlScheme)
