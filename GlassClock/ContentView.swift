@@ -3513,12 +3513,50 @@ struct ContentView: View {
                     .accessibilityAddTraits(chosen ? .isSelected : [])
                     .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: chosen)
                 }
+                notInTheMood
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 2)
         }
         .scrollClipDisabled()
         .sensoryFeedback(.selection, trigger: backdrop)
+    }
+
+    /// The way out (owner, 22 Oct 2026: "a not in the mood which will reset to default"): the
+    /// default style, every part of it, locks or not, on the Plain backdrop.
+    private var notInTheMood: some View {
+        let plain = style.taking(Set(StylePart.allCases), from: ClockStyle())
+        let chosen = style == plain && backdrop == .plain
+        return Button {
+            withAnimation(reduceMotion ? nil : .smooth) { style = plain }
+            if !reduceMotion { withAnimation(.smooth(duration: 0.55)) { backdrop = .plain } } else { backdrop = .plain }
+        } label: {
+            VStack(spacing: 6) {
+                moodPicture(plain, on: .plain)
+                    .overlay(alignment: .topTrailing) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.caption.weight(.bold))
+                            .padding(6)
+                            .background(.ultraThinMaterial, in: .circle)
+                            .padding(6)
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(chosen ? AnyShapeStyle(.primary.opacity(0.55)) : AnyShapeStyle(.secondary.opacity(0.5)),
+                                          style: StrokeStyle(lineWidth: chosen ? 2.5 : 1, dash: chosen ? [] : [5, 4]))
+                    }
+                    .scaleEffect(chosen ? 1 : 0.96)
+                Text("Not in the mood")
+                    .font(.footnote.weight(chosen ? .semibold : .regular))
+                    .foregroundStyle(chosen ? .primary : .secondary)
+                    .lineLimit(1)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Not in the mood: back to the default style and the Plain backdrop")
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+        .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: chosen)
     }
 
     /// A small picture of a mood: its backdrop with a small widget in that style on it.
