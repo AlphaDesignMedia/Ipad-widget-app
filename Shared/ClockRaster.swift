@@ -200,7 +200,7 @@ struct Painter {
 
     /// Draws a blurred copy of `path`, as a Core Graphics shadow. `blur` is a SwiftUI-style
     /// radius in points. With `knockout` the sharp copy that casts the shadow is erased again,
-    /// leaving only the soft part (for glows and shadows behind see-through text).
+    /// leaving only the soft part outside the path (`softCopy` keeps the inside too).
     func blurredCopy(_ path: CGPath, _ color: Color, blur: CGFloat, offset: CGSize = .zero,
                      evenOdd: Bool = false, knockout: Bool = true) {
         var shift = CGAffineTransform(translationX: offset.width, y: offset.height)
@@ -225,6 +225,40 @@ struct Painter {
             low.castShadow(moved, rule: rule, color: color, blur: blur * 2 * pixelsPerPoint, knockout: knockout)
         }
         soft.draw(in: area)
+    }
+
+    /// Draws a blurred copy of `path` and nothing else, as SwiftUI's `.blur` does to a filled
+    /// shape. A Core Graphics shadow always comes with the sharp shape that casts it, so the
+    /// shape goes beside `area`, in a canvas twice as wide, and casts its shadow back across.
+    /// (Keeping the sharp copy showed the date line twice, crisp where its shadow falls,
+    /// 2026-10-22; erasing it left a blocky hole showing through see-through text, 2026-10-20.)
+    func softCopy(_ path: CGPath, _ color: Color, blur: CGFloat, offset: CGSize = .zero) {
+        var shift = CGAffineTransform(translationX: offset.width + area.width, y: offset.height)
+        guard let beside = path.copy(using: &shift) else { return }
+        // Low resolution for wide blurs, as in `blurredCopy`.
+        let pixelsPerPoint = min(scale, max(0.1, 10 / blur))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = pixelsPerPoint
+        format.preferredRange = .standard
+        let canvas = CGSize(width: area.width * 2, height: area.height)
+        let soft = UIGraphicsImageRenderer(size: canvas, format: format).image { context in
+            let c = context.cgContext
+            c.translateBy(x: -area.minX, y: -area.minY)
+            // Shadows are measured in pixels. Sideways isn't flipped, so negative is left.
+            c.setShadow(offset: CGSize(width: -area.width * pixelsPerPoint, height: 0),
+                        blur: blur * 2 * pixelsPerPoint, color: cg(color))
+            c.addPath(beside)
+            c.setFillColor(cg(.black))
+            c.fillPath()
+        }
+        // The left half holds the blur, where the shape would have been.
+        guard let image = soft.cgImage,
+              let left = image.cropping(to: CGRect(x: 0, y: 0, width: (area.width * pixelsPerPoint).rounded(),
+                                                   height: CGFloat(image.height)))
+        else { return }
+        UIImage(cgImage: left, scale: pixelsPerPoint, orientation: .up)
+            .draw(in: CGRect(x: area.minX, y: area.minY, width: CGFloat(left.width) / pixelsPerPoint,
+                             height: CGFloat(left.height) / pixelsPerPoint))
     }
 
     /// A Core Graphics shadow of `path` with `blur` in pixels, optionally without the path itself.
@@ -267,17 +301,15 @@ struct Painter {
         ctx.restoreGState()
     }
 
-    /// The glow or shadow behind the text, as in `LightLayer`.
+    /// The glow or shadow behind the text, as in `LightLayer`: blurred copies only.
     func light(_ path: CGPath, style: ClockStyle, unit u: CGFloat) {
-        // Not knocked out: the text is drawn on top, and erasing the part under it left a
-        // blocky hole showing through see-through text (user feedback, 2026-10-20).
         if style.shadow {
-            blurredCopy(path, style.resolvedShadowColor.opacity(style.shadowOpacity), blur: style.shadowBlur(unit: u),
-                        offset: style.shadowOffset(unit: u), knockout: false)
+            softCopy(path, style.resolvedShadowColor.opacity(style.shadowOpacity), blur: style.shadowBlur(unit: u),
+                     offset: style.shadowOffset(unit: u))
         }
         if style.glow {
-            blurredCopy(path, style.resolvedGlowColor.opacity(style.glowStrength), blur: u * (2 + 10 * style.glowSize), knockout: false)
-            blurredCopy(path, style.resolvedGlowColor.opacity(0.8 * style.glowStrength), blur: u * (8 + 40 * style.glowSize), knockout: false)
+            softCopy(path, style.resolvedGlowColor.opacity(style.glowStrength), blur: u * (2 + 10 * style.glowSize))
+            softCopy(path, style.resolvedGlowColor.opacity(0.8 * style.glowStrength), blur: u * (8 + 40 * style.glowSize))
         }
     }
 
