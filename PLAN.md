@@ -61,6 +61,9 @@ The Simulator's stutter is mostly the Mac (it shares the Mac's chip with everyth
 - Design values (corners, gaps, frost) live in one `Theme.swift`. Design Tweaks stays only in Debug builds, for tuning, and the values you settle on get written into `Theme.swift`.
 - Every step ends on the iPad: smooth at 120 fps with no hitches, nothing broken, then commit.
 
+### Free and Pro (decided 22 Oct, see Studio/monetisation-notes.md)
+Classic is free, and Pro (about £2, paid once) unlocks the full studio. Every Pro option can be tried in the preview; only applying it needs Pro. The rebuild keeps this in mind from step 1: one `isPro` on the app model, and every Pro control marked as Pro. The purchase itself (StoreKit) comes after step 7, once the paid developer account is set up.
+
 ### Build order (each step ends with an iPad check)
 1. [ ] **Foundation.** App model and `Theme.swift`, with the Simulator on iPadOS 27 and the same model as your iPad.
    *Written 22 Oct, not yet built: `GlassClock/Rebuild/` (AppModel, Theme, StageBackdrop, WidgetCard, RebuildRoot). Open it with `Scripts/run-on-ipad.sh --rebuild`: the backdrop, the widget at real size and Apply. Tick this once it builds and runs on the iPad.* Move the widget, clock and backdrop code across unchanged.

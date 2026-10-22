@@ -1,5 +1,22 @@
 # Monetisation notes (for later, not for v1.0)
 
+## Decided (owner, 22 Oct 2026): free core, cheap Pro, optional tips
+| Free (Classic) | Pro, £1.99–£2.49 once |
+|---|---|
+| Every preset and Feeling Lucky | Every font, colour and effect control |
+| Every widget size | Your own photo and custom backdrops |
+| The truthful preview (Light, Dark, Clear, Tinted) | Saving your own styles |
+| Apply to Widget | Panels, the full studio |
+| Every accessibility feature, always | |
+
+- **Try everything, pay to apply:** free users can try any Pro option in the preview. Only putting it on the Home Screen needs Pro.
+- **One payment:** no subscription, with Family Sharing on. No ads, no tracking, no nagging: offer Pro once, at a natural moment, and keep it in Settings.
+- **Tips stay:** the drinks menu sits beside Pro for anyone who wants to give more.
+- **Break even:** a £2.49 sale leaves about £1.76 after VAT and Apple's 15%, so about 56 sales a year covers the £99 developer account.
+- **Buy Me a Coffee:** no links or buttons for it inside the app. Apple requires in-app purchases for tips; outside links are allowed only in some countries and the rules keep changing. It goes on the website, the support page and social media instead.
+
+(The note below was written before this decision; the decision above replaces "launch free".)
+
 **Launch free and clean.** Don't add payment to v1.0. It adds review risk and delay.
 
 ## The stance (owner, 22 Oct 2026)
