@@ -1,6 +1,6 @@
 # Smoothness while you're out (22 Oct, from 13:20)
 
-Status: in progress. Last entry: 13:56
+Status: done (the slide idea waits for you). Last entry: 13:56
 
 Nothing here goes on your iPad until you choose it. Each item is its own commit, so any one can be tried alone.
 
@@ -30,3 +30,9 @@ Nothing here goes on your iPad until you choose it. Each item is its own commit,
 - Hold a settings card's title and carry the panel to the other side: it should land where you let go and glide into place, with the widget stepping aside at once.
 - Flick a settings title bar towards the edge: the tucked sliver should stay clear glass, not black.
 - Hold the groups pill and move it up, down and across: same glide, no jump.
+
+## A question for you
+"The old widget slides out and the new one slides in": which moment did you mean?
+1. Dragging it to another slot: a faint copy stays in the old spot and slides away as it lands.
+2. Tapping through the sizes or Home Screen styles (left to right): the old look slides out
+   one side and the new one slides in from the other, like turning pages.
