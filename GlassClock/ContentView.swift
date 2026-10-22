@@ -42,6 +42,7 @@ struct ContentView: View {
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     @AppStorage("appAppearance") private var appAppearance = AppAppearance.automatic
+    @AppStorage("railNames") private var railNames = true
     @Environment(\.scenePhase) private var scenePhase
     @State private var customPresets = StyleLibrary.loadPresets()
     /// Parts of the style that presets and Lucky leave alone. Clear and Tinted starts locked,
@@ -3440,6 +3441,7 @@ struct ContentView: View {
             Picker("When the widget is moved under a panel", selection: $panelsMakeWay) {
                 ForEach(PanelsMakeWay.allCases) { Text($0.label).tag($0) }
             }
+            Toggle("Names on the folded rail", isOn: $railNames)
             Button("Design Tweaks…") {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = true }
             }

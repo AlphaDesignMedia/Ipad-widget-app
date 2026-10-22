@@ -493,8 +493,8 @@ struct GlassChipStyle: ButtonStyle {
     }
 }
 
-/// A chip's surface: a solid bead of glass, or the app colour when chosen (as coloured Liquid
-/// Glass in the Glass and Home looks).
+/// A chip's surface: light Liquid Glass in the Glass and Home looks (coloured when chosen), a
+/// solid bead everywhere else and with Reduce glass.
 struct ChipSurface: ViewModifier {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.homeLook) private var homeLook
@@ -509,10 +509,13 @@ struct ChipSurface: ViewModifier {
     func body(content: Content) -> some View {
         let dark = scheme == .dark
         if selected && theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
-            // A lock that's on is glass tinted with the app colour. One that's off is the solid
-            // bead below: clear glass on a glass panel lost its contrast (owner, 22 Oct 2026),
-            // and Apple keeps glass off glass.
+            // A lock that's on is glass tinted with the app colour. One that's off is lighter
+            // glass: clear glass on a glass panel lost its contrast (owner, 22 Oct 2026).
             content.glassEffect(.regular.tint(AppColor.chosen(appColor)).interactive(), in: .capsule)
+        } else if theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
+            // Lighter glass (owner, dashboard 22 Oct 2026): regular glass, which softens what's
+            // behind it, under a strong light or dark wash, so the label keeps its contrast.
+            content.glassEffect(.regular.tint(dark ? .black.opacity(0.28) : .white.opacity(0.6)).interactive(), in: .capsule)
         } else if selected {
             content.background(AppColor.chosen(appColor), in: .capsule)
         } else {
@@ -1317,10 +1320,12 @@ struct SettingsRail: View {
     var sections: [SettingsSection]
     var open: () -> Void
     var go: (SettingsSection) -> Void
+    /// Names down the rail, or icons only (owner, 22 Oct 2026: "try both"; a switch in Panels).
+    @AppStorage("railNames") private var showsNames = true
 
     var body: some View {
         ViewThatFits(in: .vertical) {
-            rail(labelled: true)
+            if showsNames { rail(labelled: true) }
             rail(labelled: false)
         }
         .frame(width: Self.width)
