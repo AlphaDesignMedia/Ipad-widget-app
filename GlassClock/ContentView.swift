@@ -38,7 +38,7 @@ struct ContentView: View {
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
     /// Swaps the app's glass panels for solid ones (also follows Reduce Transparency).
     @AppStorage("reduceGlass") private var reducesGlass = false
-    @AppStorage("appTheme") private var appTheme = AppTheme.glass
+    @AppStorage("appTheme") private var appTheme = AppTheme.home
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     @AppStorage("appAppearance") private var appAppearance = AppAppearance.automatic
@@ -175,6 +175,8 @@ struct ContentView: View {
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     /// The settings being carried by a card's title bar (see `PanelCarry`).
     @State private var settingsCarried = false
+    /// The settings tucked aside: turned, mostly off the edge, still in view (see `Peek`).
+    @State private var settingsPeeking = false
     @GestureState private var groupsHeld = false
     @State private var groupsCarried = false
     /// Where a carried panel would settle, while one is carried.
@@ -719,9 +721,8 @@ struct ContentView: View {
         .simultaneousGesture(groupsScrub, isEnabled: upright)
         .padding(6)
         .fixedSize()
-        .background {
-            GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .capsule)
-        }
+        // Pure Liquid Glass, like the text-size bubble (owner, 22 Oct 2026: "that's the style I
+        // really want"), with no frosted wash underneath.
         .appGlass(.capsule, panel: true)
         .frame(maxWidth: .infinity)
         .animation(.snappy, value: selectedSection)
@@ -947,7 +948,7 @@ struct ContentView: View {
     private func panelInset(leading: Bool, settingsWidth: CGFloat) -> CGFloat {
         let groupsHere = showsSidebar && sidebarAlongside && !groupsAlongBottom && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
-        if settingsHere { return settingsWidth + Space.medium }
+        if settingsHere { return settingsPeeking ? Peek.showing + Space.medium : settingsWidth + Space.medium }
         return groupsHere ? groupsWidth + Space.medium : 0
     }
 
@@ -1035,6 +1036,9 @@ struct ContentView: View {
             .shadow(color: .black.opacity(settingsCarried ? 0.2 : 0), radius: 22, y: 12)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: settingsCarried)
             .modifier(LiveOffset(motion: motion, path: \.settingsMove))
+            .modifier(Peek(on: settingsPeeking, towardsLeading: leading, width: width, simple: reduceMotion) {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { settingsPeeking = false }
+            })
             .zIndex(settingsCarried ? 1 : 0)
             .environment(\.panelCarry, PanelCarry(
                 grabbed: { grab in if settingsGrab == nil { settingsGrab = grab } },
@@ -1127,13 +1131,11 @@ struct ContentView: View {
     /// own edge it slides away to a tab, towards the other side it moves across (owner, 22 Oct
     /// 2026: "swipe it and it should feel like I'm pushing it aside").
     private func flickSettings(towardsLeading: Bool, in area: CGSize) {
-        guard !Essentials.on else { return }
-        withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) {
-            if towardsLeading == settingsLeading {
-                showsInspector = false
-            } else {
-                placePanel(groups: false, at: CGPoint(x: towardsLeading ? 0 : area.width, y: inspectorRect.minY + 40), in: area)
-            }
+        // Towards its edge it tucks aside, turned and still in view like Stage Manager; back the
+        // other way it comes in again (owner, 22 Oct 2026: "push the menu to the side, but not
+        // have it completely disappear").
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) {
+            settingsPeeking = towardsLeading == settingsLeading
         }
     }
 
@@ -1175,17 +1177,14 @@ struct ContentView: View {
             }
             .onEnded { drag in
                 scrubY = nil
-                // A quick sideways flick pushes the groups aside (owner, 22 Oct 2026): a panel of
-                // their own folds into its dock on that side; stuck on, they slide in to a tab.
+                // A sideways swipe across the groups opens them out to their names, or folds them
+                // back to icons (owner, 22 Oct 2026: "the swipe works on the panel itself").
                 let dx = drag.predictedEndTranslation.width
-                guard !Essentials.on, abs(dx) > 220, abs(drag.translation.width) > abs(drag.translation.height) * 1.5 else { return }
-                if groupsFree {
-                    withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) {
-                        dockOnTrailing = dx > 0
-                        showsSidebar = false
-                    }
-                } else {
-                    slideGroups(out: false)
+                guard abs(dx) > 120, abs(drag.translation.width) > abs(drag.translation.height) * 1.5 else { return }
+                guard groupsFree else { slideGroups(out: false); return }
+                let outward = groupsTrailing ? dx > 0 : dx < 0
+                withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) {
+                    groupsCollapsed = outward
                 }
             }
     }
@@ -1337,10 +1336,7 @@ struct ContentView: View {
                 .simultaneousGesture(groupsScrub)
                 .padding(Space.small)
                 .fixedSize()
-                .background {
-                    GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .capsule)
-                }
-                // A pill, like every other bar (owner, 22 Oct 2026).
+                // A pill, like every other bar, in pure glass (owner, 22 Oct 2026).
                 .appGlass(.capsule, panel: true)
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { railSize = $0 }
                 .shadow(color: .black.opacity(railCarried || railHeld ? 0.2 : 0.08), radius: railCarried || railHeld ? 20 : 10, y: 8)
@@ -2683,9 +2679,9 @@ struct ContentView: View {
     /// feedback, 2026-10-21: consistency).
     @ViewBuilder
     private func bubbleBacking(_ shape: some Shape) -> some View {
-        if appTheme.isGlassy && !reducesGlass {
-            GlassAmount.backing(glassAmount, in: shape)
-        }
+        // Nothing: the small pieces are pure Liquid Glass, like the text-size bubble, which
+        // keeps its content readable by itself (owner, 22 Oct 2026).
+        EmptyView()
     }
 
     /// Under the Home Screen picker: a question until the person says which style they use,
@@ -3528,6 +3524,42 @@ struct ScrollEdges: ViewModifier {
         } else {
             content.clipShape(.rect(cornerRadius: Corner.panel))
         }
+    }
+}
+
+/// A panel tucked aside like a window in Stage Manager: turned away, slid mostly off its edge,
+/// a sliver still showing. Tap it or swipe it back to bring it in.
+struct Peek: ViewModifier {
+    /// How much of a tucked panel stays on screen.
+    static let showing: CGFloat = 72
+    var on: Bool
+    var towardsLeading: Bool
+    var width: CGFloat
+    var simple: Bool
+    var wake: () -> Void
+
+    func body(content: Content) -> some View {
+        let away: CGFloat = towardsLeading ? -1 : 1
+        content
+            .allowsHitTesting(!on)
+            .rotation3DEffect(.degrees(on && !simple ? Double(-away) * 24 : 0), axis: (x: 0, y: 1, z: 0),
+                              anchor: towardsLeading ? .trailing : .leading, perspective: 0.45)
+            .scaleEffect(on && !simple ? 0.9 : 1, anchor: towardsLeading ? .trailing : .leading)
+            .offset(x: on ? away * (width - Self.showing) : 0)
+            .opacity(on && simple ? 0.6 : 1)
+            .overlay {
+                if on {
+                    Color.clear
+                        .contentShape(.rect)
+                        .onTapGesture(perform: wake)
+                        .gesture(DragGesture(minimumDistance: 10).onEnded { drag in
+                            if drag.translation.width * away < 0 { wake() }
+                        })
+                        .offset(x: away * (width - Self.showing))
+                        .accessibilityLabel("Bring the settings back")
+                        .accessibilityAddTraits(.isButton)
+                }
+            }
     }
 }
 

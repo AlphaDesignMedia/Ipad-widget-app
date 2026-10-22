@@ -475,7 +475,7 @@ struct AppGlass<S: Shape>: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @Environment(\.homeLook) private var homeLook
     @AppStorage("reduceGlass") private var reducesGlass = false
-    @AppStorage("appTheme") private var theme = AppTheme.glass
+    @AppStorage("appTheme") private var theme = AppTheme.home
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     var shape: S
     var interactive = false
@@ -542,7 +542,7 @@ enum Corner {
 struct SettingsCard<Content: View>: View {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @AppStorage("reduceGlass") private var reducesGlass = false
-    @AppStorage("appTheme") private var theme = AppTheme.glass
+    @AppStorage("appTheme") private var theme = AppTheme.home
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     @Environment(\.colorScheme) private var colorScheme
@@ -736,7 +736,7 @@ private struct CardGlass<S: Shape>: ViewModifier {
 struct PanelLabelBacking: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
     @AppStorage("reduceGlass") private var reducesGlass = false
-    @AppStorage("appTheme") private var theme = AppTheme.glass
+    @AppStorage("appTheme") private var theme = AppTheme.home
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
 
     func body(content: Content) -> some View {
