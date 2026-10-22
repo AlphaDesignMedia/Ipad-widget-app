@@ -19,6 +19,9 @@ struct Stage: View {
             MovableWidget(grid: grid, home: home, scale: scale)
                 .frame(width: space.size.width, height: space.size.height)
         }
+        // Step 6: swipe the backdrop to change it, and the controls at the foot of the stage.
+        .background { BackdropSwipe() }
+        .overlay(alignment: .bottom) { WidgetControls() }
     }
 }
 

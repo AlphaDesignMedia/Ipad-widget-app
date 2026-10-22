@@ -73,7 +73,8 @@ private struct TintedIconLabel: LabelStyle {
     }
 }
 
-private struct ClearGlass<S: Shape>: ViewModifier {
+/// Clear glass in a shape, or nothing when glass is turned down. Shared with the widget controls.
+struct ClearGlass<S: Shape>: ViewModifier {
     var on: Bool
     var shape: S
 
