@@ -1290,6 +1290,7 @@ struct SavesPanelPlaces: ViewModifier {
     var groupsTrailing: Bool
     var groupsTop: Double
     var groupsAlongBottom: Bool
+    var groupsAlongTop: Bool
 
     func body(content: Content) -> some View {
         content
@@ -1297,6 +1298,7 @@ struct SavesPanelPlaces: ViewModifier {
             .onChange(of: groupsTrailing) { _, value in UserDefaults.standard.set(value, forKey: "groupsTrailing") }
             .onChange(of: groupsTop) { _, value in UserDefaults.standard.set(value, forKey: "groupsTop") }
             .onChange(of: groupsAlongBottom) { _, value in UserDefaults.standard.set(value, forKey: "groupsAlongBottom") }
+            .onChange(of: groupsAlongTop) { _, value in UserDefaults.standard.set(value, forKey: "groupsAlongTop") }
     }
 }
 

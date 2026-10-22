@@ -190,6 +190,10 @@ struct ContentView: View {
     /// the bottom").
     @State private var groupsTop = UserDefaults.standard.double(forKey: "groupsTop")
     @State private var groupsAlongBottom = UserDefaults.standard.bool(forKey: "groupsAlongBottom")
+    /// Or lying along the top, just under the top bar (owner idea, 22 Oct 2026).
+    @State private var groupsAlongTop = UserDefaults.standard.bool(forKey: "groupsAlongTop")
+    /// Lying flat along the top or the bottom, rather than standing on a side.
+    private var groupsOnEdge: Bool { groupsAlongBottom || groupsAlongTop }
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     /// The settings being carried by a card's title bar (see `PanelCarry`).
     @State private var settingsCarried = false
@@ -552,7 +556,7 @@ struct ContentView: View {
                     // More room below than at the sides (owner feedback, 2026-10-21), and room for
                     // the groups when they lie along the bottom.
                     .padding(.horizontal, Space.medium)
-                    .padding(.top, Space.small)
+                    .padding(.top, showsSidebar && groupsFree && groupsAlongTop ? 56 + Space.small * 2 : Space.small)
                     .padding(.bottom, showsSidebar && groupsFree && groupsAlongBottom ? 56 + Space.medium * 2 : Space.large)
                     // Kept to the top, so one panel stays put when the other tucks away.
                     .frame(maxHeight: .infinity, alignment: .top)
@@ -575,6 +579,13 @@ struct ContentView: View {
                             .padding(.bottom, Space.medium)
                     }
                 }
+                // Or along the top, under the top bar, so nothing up there is covered.
+                .overlay(alignment: .top) {
+                    if showsSidebar && groupsFree && groupsAlongTop {
+                        AnyView(groupsColumnPanel(leading: true, area: geometry.size, width: geometry.size.width, strip: true))
+                            .padding(.top, Space.small)
+                    }
+                }
                 .overlay(alignment: .topLeading) {
                     if showsSidebar && !groupsFree { AnyView(attachedGroups(in: geometry.size)) }
                 }
@@ -594,7 +605,7 @@ struct ContentView: View {
             // never hidden (owner, 22 Oct 2026: the widget is what you want to look at).
             .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels() } }
             .modifier(SavesPanelPlaces(settingsLeading: settingsLeading, groupsTrailing: groupsTrailing,
-                                       groupsTop: groupsTop, groupsAlongBottom: groupsAlongBottom))
+                                       groupsTop: groupsTop, groupsAlongBottom: groupsAlongBottom, groupsAlongTop: groupsAlongTop))
             // Using a control keeps them up a while longer.
             .onChange(of: homeScreen) { showExtras() }
             .onChange(of: previewSize) { if extrasShown { showExtras() } }
@@ -984,11 +995,11 @@ struct ContentView: View {
 
     /// Which side each panel is on, and which is on top when they share a side.
     private var panelsStacked: Bool { groupsTrailing != settingsLeading }
-    private var panelLayoutKey: String { "\(groupsTrailing)\(settingsLeading)\(groupsBelow)\(groupsAlongBottom)" }
+    private var panelLayoutKey: String { "\(groupsTrailing)\(settingsLeading)\(groupsBelow)\(groupsAlongBottom)\(groupsAlongTop)" }
 
     /// How much room the panels on one side take from the preview.
     private func panelInset(leading: Bool, settingsWidth: CGFloat) -> CGFloat {
-        let groupsHere = showsSidebar && sidebarAlongside && !groupsAlongBottom && groupsTrailing != leading
+        let groupsHere = showsSidebar && sidebarAlongside && !groupsOnEdge && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if settingsHere { return settingsPeeking ? Peek.showing + Space.medium : settingsWidth + Space.medium }
         if !showsInspector && settingsLeading == leading { return SettingsRail.width + Space.small * 2 }
@@ -999,7 +1010,7 @@ struct ContentView: View {
     /// settings taking the rest).
     @ViewBuilder
     private func panelColumn(leading: Bool, area: CGSize, settingsWidth: CGFloat) -> some View {
-        let groupsHere = showsSidebar && groupsFree && !groupsAlongBottom && groupsTrailing != leading
+        let groupsHere = showsSidebar && groupsFree && !groupsOnEdge && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if groupsHere || settingsHere {
             VStack(spacing: Space.medium) {
@@ -1308,11 +1319,13 @@ struct ContentView: View {
         // Near the bottom of the window it lies along the bottom; anywhere else it goes to that
         // side, at the height it was dropped.
         let alongBottom = finger.y - panelsOrigin.y > area.height - 160
-        if alongBottom || groupsAlongBottom {
+        let alongTop = !alongBottom && finger.y - panelsOrigin.y < 90
+        if alongBottom || alongTop || groupsOnEdge {
             withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
                 groupsAlongBottom = alongBottom
+                groupsAlongTop = alongTop
             }
-            if !alongBottom { placePanel(groups: true, at: end, in: area) }
+            if !alongBottom && !alongTop { placePanel(groups: true, at: end, in: area) }
             return
         }
         // Put down where the finger let go, then glides home: the new place is set at once,
