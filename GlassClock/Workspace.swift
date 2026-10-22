@@ -725,6 +725,28 @@ struct SettingsCard<Content: View>: View {
         // for itself; switches, pickers and buttons still answer their own.
         .background { shape.fill(.clear).contentShape(shape).onTapGesture {} }
         .shimmer(trigger: highlighted, in: shape)
+        // The same glassy glow as a choice landing in a menu (owner, 22 Oct 2026: "also the card
+        // I jump to"): the card brightens from its top edge and glows twice as it's reached.
+        .keyframeAnimator(initialValue: 0.0, trigger: highlighted) { card, glow in
+            card
+                .overlay {
+                    shape.fill(LinearGradient(colors: [.white.opacity(0.22 * glow), .white.opacity(0.02 * glow)],
+                                              startPoint: .top, endPoint: .center))
+                        .blendMode(.plusLighter)
+                        .allowsHitTesting(false)
+                }
+                // On a light card a white glow can't show, so it glows in the app colour there.
+                .shadow(color: (colorScheme == .dark ? Color.white : tint).opacity(0.35 * glow), radius: 16 * glow)
+        } keyframes: { _ in
+            if highlighted && !reduceMotion {
+                CubicKeyframe(1, duration: 0.32)
+                CubicKeyframe(0.25, duration: 0.38)
+                CubicKeyframe(0.6, duration: 0.34)
+                CubicKeyframe(0, duration: 0.6)
+            } else {
+                LinearKeyframe(0, duration: 0.01)
+            }
+        }
         .modifier(CardGlass(on: glassy, shape: shape))
         .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
         // Like a carousel: cards grow as they near the middle of the list and shrink away
