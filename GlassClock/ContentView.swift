@@ -1121,16 +1121,20 @@ struct ContentView: View {
         return CGRect(x: widgetRect.midX - half, y: span.minY, width: half * 2, height: span.height)
     }
 
-    /// Where the stuck-on groups sit, in the window: beside the side of the widget or settings
-    /// that faces the middle, or the side with more room.
+    /// Where the stuck-on groups sit, in the window. On the widget: hugging the card, centred on
+    /// it (not on the controls, which come and go, so it never jumps when they do), on the side
+    /// with more open room, so it reads as part of the widget rather than of the settings beside
+    /// it (PLAN, 22 Oct). On the settings: beside the side that faces the middle.
     private func railFrame(for target: GroupsAttachment, size: CGSize) -> CGRect {
         let anchor = target == .widget ? widgetGroupRect : inspectorRect
         guard anchor != .zero else { return .zero }
-        let gap: CGFloat = 10
-        let y = target == .widget ? anchor.midY - size.height / 2 : anchor.minY + 24
+        // The widget group already has a little margin round the card.
+        let gap: CGFloat = target == .widget ? 4 : 10
+        let y = target == .widget ? widgetRect.midY - size.height / 2 : anchor.minY + 24
         let left = CGRect(x: anchor.minX - gap - size.width, y: y, width: size.width, height: size.height)
         let right = CGRect(x: anchor.maxX + gap, y: y, width: size.width, height: size.height)
-        let preferred = railOnLeft(of: anchor) ? left : right
+        let onLeft = target == .widget ? (railRoom(of: anchor) ?? railOnLeft(of: anchor)) : railOnLeft(of: anchor)
+        let preferred = onLeft ? left : right
         let other = preferred == left ? right : left
         // Never over an open panel or off the window (tap check, 2026-10-21: the rail slid over
         // the settings when a wide note made the widget group wider); the other side, if it's free.
@@ -1143,6 +1147,19 @@ struct ContentView: View {
 
     /// The side of what it's stuck to that faces the middle of the window.
     private func railOnLeft(of anchor: CGRect) -> Bool { anchor.midX > windowWidth / 2 }
+
+    /// Whether the left of the widget has clearly more open room than the right, counting an open
+    /// settings panel as a wall; nil when they're about even.
+    private func railRoom(of anchor: CGRect) -> Bool? {
+        var leftWall: CGFloat = 0, rightWall = windowWidth
+        if showsInspector, inspectorRect != .zero {
+            if inspectorRect.midX < anchor.midX { leftWall = max(leftWall, inspectorRect.maxX) }
+            else { rightWall = min(rightWall, inspectorRect.minX) }
+        }
+        let leftRoom = anchor.minX - leftWall, rightRoom = rightWall - anchor.maxX
+        guard abs(leftRoom - rightRoom) > 12 else { return nil }
+        return leftRoom > rightRoom
+    }
 
     /// The groups stuck to the widget or the settings: a column of icons that rides along with
     /// them. Push it in and it slides away to a small tab against the edge; pull the tab and it
