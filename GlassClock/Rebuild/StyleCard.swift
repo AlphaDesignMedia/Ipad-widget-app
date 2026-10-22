@@ -5,7 +5,8 @@ import SwiftUI
 /// glass keeps the text readable over any backdrop. With Reduce Transparency (or the app's
 /// Reduce glass switch) it's a plain solid card instead.
 struct StyleCard<Content: View>: View {
-    var group: SettingsSection
+    /// The group named across the top; none for a card that's a single row, like a button.
+    var group: SettingsSection?
     /// A short note at the bottom of the card.
     var footer: String?
     @ViewBuilder var content: Content
@@ -18,12 +19,14 @@ struct StyleCard<Content: View>: View {
         let shape = RoundedRectangle(cornerRadius: Theme.Corner.card, style: .continuous)
         let glassy = !systemReducesTransparency && !reducesGlass
         VStack(alignment: .leading, spacing: 0) {
-            Label(group.title, systemImage: group.icon)
-                .font(.title3.weight(.bold))
-                .labelStyle(TintedIconLabel())
-                .padding(.top, Theme.Padding.titleBar)
-                .padding(.bottom, Theme.Space.small)
-                .accessibilityAddTraits(.isHeader)
+            if let group {
+                Label(group.title, systemImage: group.icon)
+                    .font(.title3.weight(.bold))
+                    .labelStyle(TintedIconLabel())
+                    .padding(.top, Theme.Padding.titleBar)
+                    .padding(.bottom, Theme.Space.small)
+                    .accessibilityAddTraits(.isHeader)
+            }
             Group(subviews: content) { rows in
                 ForEach(rows) { row in
                     row.padding(.vertical, Theme.Padding.row)
@@ -40,7 +43,7 @@ struct StyleCard<Content: View>: View {
             }
         }
         .padding(.horizontal, Theme.Padding.card)
-        .padding(.bottom, footer == nil ? Theme.Space.small : 0)
+        .padding(.bottom, footer == nil && group != nil ? Theme.Space.small : 0)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             if glassy {

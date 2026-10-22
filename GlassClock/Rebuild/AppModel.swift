@@ -23,6 +23,10 @@ final class AppModel {
     var backdrop: PreviewBackdrop {
         didSet { save(backdrop.rawValue, as: Key.backdrop) }
     }
+    /// Classic (the basics) or Panels (every setting).
+    var interface: InterfaceStyle {
+        didSet { save(interface.rawValue, as: Key.interface) }
+    }
     /// Which side each panel is on.
     var settingsLeading: Bool {
         didSet { save(settingsLeading, as: Key.settingsLeading) }
@@ -48,6 +52,7 @@ final class AppModel {
         static let previewSize = "rebuild.previewSize"
         static let homeScreen = "rebuild.homeScreen"
         static let backdrop = "previewBackdrop"
+        static let interface = "rebuild.interface"
         static let settingsLeading = "settingsLeading"
         static let groupsTrailing = "groupsTrailing"
         static let widgetColumn = "rebuild.widgetColumn"
@@ -63,6 +68,7 @@ final class AppModel {
         previewSize = defaults.string(forKey: Key.previewSize).flatMap(PreviewSize.init(rawValue:)) ?? .medium
         homeScreen = defaults.string(forKey: Key.homeScreen).flatMap(HomeScreenStyle.init(rawValue:)) ?? .light
         backdrop = defaults.string(forKey: Key.backdrop).flatMap(PreviewBackdrop.init(rawValue:)) ?? .plain
+        interface = defaults.string(forKey: Key.interface).flatMap(InterfaceStyle.init(rawValue:)) ?? .classic
         settingsLeading = defaults.bool(forKey: Key.settingsLeading)
         groupsTrailing = defaults.bool(forKey: Key.groupsTrailing)
         // `integer(forKey:)` also reads a number given as text (a launch setting), but gives 0
@@ -72,7 +78,7 @@ final class AppModel {
     }
 
     /// A fixed set-up that saves nothing, for Previews and checks: every run looks the same.
-    init(sample style: ClockStyle, size: PreviewSize = .medium,
+    init(sample style: ClockStyle, size: PreviewSize = .medium, interface: InterfaceStyle = .classic,
          homeScreen: HomeScreenStyle = .light, backdrop: PreviewBackdrop = .lagoon) {
         self.persists = false
         self.defaults = .standard
@@ -81,6 +87,7 @@ final class AppModel {
         previewSize = size
         self.homeScreen = homeScreen
         self.backdrop = backdrop
+        self.interface = interface
         settingsLeading = false
         groupsTrailing = false
         widgetColumn = -1

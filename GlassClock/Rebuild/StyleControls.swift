@@ -32,18 +32,27 @@ struct LayoutRows: View {
     }
 }
 
-/// The time's typeface, then the AM/PM and date line's.
+/// The time's typeface, then the AM/PM and date line's. `simple` keeps just the font and its
+/// weight, for Classic.
 struct FontRows: View {
+    var simple = false
     @Environment(AppModel.self) private var model
 
     var body: some View {
         @Bindable var model = model
         let font = model.style.font
-        GroupLabel("Time")
+        if !simple { GroupLabel("Time") }
         PickerRow(title: "Font", selection: $model.style.font) {
             ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
         }
         SliderRow(title: "Weight", value: $model.style.fontWeight, range: 0...1, low: "Thin", high: "Heavy")
+        if !simple { details }
+    }
+
+    /// Everything past the font and weight.
+    @ViewBuilder private var details: some View {
+        @Bindable var model = model
+        let font = model.style.font
         if font.hasWidth {
             SliderRow(title: "Width", value: $model.style.fontWidth, range: 0...1, low: "Narrow", high: "Wide")
         }
@@ -66,8 +75,10 @@ struct FontRows: View {
     }
 }
 
-/// The colour of the time: glass, a solid colour or a gradient.
+/// The colour of the time: glass, a solid colour or a gradient. `simple` leaves out the
+/// transparency, for Classic.
 struct ColourRows: View {
+    var simple = false
     @Environment(AppModel.self) private var model
 
     var body: some View {
@@ -80,8 +91,10 @@ struct ColourRows: View {
                 SwatchRow(selection: $model.style.gradientColor)
             }
         }
-        SliderRow(title: "Transparency", value: $model.style.textOpacity, range: ClockStyle.textOpacityRange,
-                  low: "Faint", high: "Solid")
+        if !simple {
+            SliderRow(title: "Transparency", value: $model.style.textOpacity, range: ClockStyle.textOpacityRange,
+                      low: "Faint", high: "Solid")
+        }
     }
 }
 

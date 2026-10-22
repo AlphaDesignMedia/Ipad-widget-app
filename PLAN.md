@@ -5,7 +5,14 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## The rebuild (decided 22 Oct) — start here
 
-## Latest run (22 Oct, 10 a.m.)
+## Latest run (22 Oct, 11 a.m.)
+- Done: step 4 (Classic) is written. A Classic / Panels switch sits at the top. Classic shows just the basics (presets, the font and its weight, the colour) and a "More options in Panels" card at the end of the list; Panels shows every group (step 5 turns it into real panels). Your choice is remembered. Not ticked until it's tried on the iPad.
+- Try on the iPad (`Scripts/run-on-ipad.sh --rebuild`):
+  1. Tap Classic, then Panels, at the top: the settings should swap smoothly and the widget shouldn't move.
+  2. In Classic, scroll to the bottom and tap "More options in Panels": it should switch to Panels.
+  3. Change the font in Classic, switch to Panels: the same font should show there, and Apply to Widget should still be lit.
+
+## Earlier run (22 Oct, 10 a.m.)
 - Done: step 3 is written. Every group's settings (Presets, Layout, Fonts, Colour, Effects, Card, Home Screens, Accessibility) are now cards of clear glass in one scrolling list beside the widget, with Apply to Widget held at the bottom. On a narrow screen the list sits under the widget. Steps 1 to 3 stay unticked until they've been tried on the iPad.
 - Not installed on the iPad: it was paired but not connected ("No connected iPad found"). Plug it in and run the command below.
 - Try on the iPad (open it with `Scripts/run-on-ipad.sh --rebuild`):
@@ -82,6 +89,7 @@ Classic is free, and Pro (about £2, paid once) unlocks the full studio. Every P
 3. [ ] **Settings cards.** Every group's controls as cards in one scrolling list. Apply to Widget.
    *Written 22 Oct (scheduled run), not yet tried on the iPad: `GlassClock/Rebuild/SettingsList.swift`, `StyleCard.swift`, `StyleControls.swift`, `PresetRows.swift`. One card per group, one version of each control, saved presets and locks shared with the old app. Apply sits at the bottom of the list: bold while there are changes, quiet glass once applied. Checked in the Simulator in Light and Dark (Screenshots/oct22/rebuild-settings-*.png); the dark wash was made stronger and a soft shadow added so cards read on any backdrop. Taps weren't checked (the Simulator can't be driven on an unattended run). Left for later steps: the App card (app look, app colour, apply when leaving) and the focus effect (step 7).*
 4. [ ] **Classic.** Stage plus the simple settings.
+   *Written 22 Oct (scheduled run), not yet tried on the iPad: a Classic / Panels switch at the top (`RebuildRoot.swift`), Classic's short list with a "More options in Panels" card (`SettingsList.swift`), and simple versions of the Fonts and Colour cards. Checked in the Simulator (Screenshots/oct22/rebuild-classic.png, rebuild-classic-panels.png); taps and the bottom card weren't checked (the Simulator can't be driven on an unattended run). On narrow screens both stay stacked under the widget.*
 5. [ ] **Panels.** Settings and groups panels on either side: hold to move, flick aside, edge tab to bring back, double-tap to clear.
 6. [ ] **Widget controls.** Home Screen style, size and backdrop around the widget.
 7. [ ] **Polish pass.** Glass, focus and animation, one at a time, checked on the iPad. Fewer window touches, more glass.

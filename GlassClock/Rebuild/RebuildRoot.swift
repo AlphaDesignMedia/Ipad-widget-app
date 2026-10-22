@@ -4,10 +4,13 @@ import SwiftUI
 /// size on a Home Screen grid (drag it to a slot, pinch to resize), and the settings as cards
 /// with Apply to Widget, on the shared model. Debug builds open it with `-rebuild YES`
 /// (`Scripts/run-on-ipad.sh --rebuild`); until step 8 the old app stays the default.
-/// For now the settings sit beside the stage when there's room and below it when there isn't;
-/// steps 4 and 5 turn these into Classic and Panels.
+/// The settings sit beside the stage when there's room and below it when there isn't. Classic
+/// (step 4) shows just the basics; Panels shows every group, and step 5 makes it real panels.
 struct RebuildRoot: View {
     @State private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
 
     /// The app as it was left, or a fixed sample for Previews.
     @MainActor init(model: AppModel? = nil) {
@@ -18,27 +21,48 @@ struct RebuildRoot: View {
         StageBackdrop(backdrop: model.backdrop, homeScreen: model.homeScreen)
             .ignoresSafeArea()
             .overlay {
-                GeometryReader { space in
-                    if space.size.width >= Theme.Size.sideBySide {
-                        HStack(spacing: Theme.Gap.panels) {
-                            if model.settingsLeading { settings.frame(width: Theme.Size.settingsColumn) }
-                            Stage()
-                            if !model.settingsLeading { settings.frame(width: Theme.Size.settingsColumn) }
-                        }
-                    } else {
-                        VStack(spacing: Theme.Gap.panels) {
-                            Stage().frame(height: space.size.height * 0.4)
-                            settings
-                        }
-                    }
+                VStack(spacing: Theme.Space.medium) {
+                    interfaceSwitch
+                    arrangement
                 }
                 .padding(Theme.Space.medium)
             }
             .environment(model)
     }
 
+    /// The stage and the settings, side by side or stacked.
+    private var arrangement: some View {
+        GeometryReader { space in
+            if space.size.width >= Theme.Size.sideBySide {
+                HStack(spacing: Theme.Gap.panels) {
+                    if model.settingsLeading { settings.frame(width: Theme.Size.settingsColumn) }
+                    Stage()
+                    if !model.settingsLeading { settings.frame(width: Theme.Size.settingsColumn) }
+                }
+            } else {
+                VStack(spacing: Theme.Gap.panels) {
+                    Stage().frame(height: space.size.height * 0.4)
+                    settings
+                }
+            }
+        }
+    }
+
     private var settings: some View {
-        SettingsList()
+        SettingsList(simple: model.interface == .classic)
+            .id(model.interface)
+            .transition(.opacity)
+    }
+
+    /// Classic (the basics) or Panels (everything), one tap away at the top.
+    private var interfaceSwitch: some View {
+        GlassPicker("Interface", selection: Binding(
+            get: { model.interface },
+            set: { next in withAnimation(reduceMotion ? nil : Theme.Motion.settle) { model.interface = next } }
+        ), options: InterfaceStyle.allCases) { $0.label }
+        .frame(width: 220)
+        .glassEffect(.regular, in: .capsule)
+        .accessibilityHint("Classic keeps things simple; Panels has every setting")
     }
 }
 
@@ -49,7 +73,7 @@ struct RebuildRoot: View {
 }
 
 #Preview("iPad 12.9 portrait", traits: .fixedLayout(width: 1024, height: 1366)) {
-    RebuildRoot(model: AppModel(sample: ClockStyle(), homeScreen: .dark, backdrop: .midnight))
+    RebuildRoot(model: AppModel(sample: ClockStyle(), interface: .panels, homeScreen: .dark, backdrop: .midnight))
 }
 
 #Preview("iPhone", traits: .fixedLayout(width: 393, height: 852)) {
