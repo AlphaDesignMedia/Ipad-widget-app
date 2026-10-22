@@ -7,6 +7,7 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## Latest run (22 Oct, 10 a.m.)
 - Done: step 3 is written. Every group's settings (Presets, Layout, Fonts, Colour, Effects, Card, Home Screens, Accessibility) are now cards of clear glass in one scrolling list beside the widget, with Apply to Widget held at the bottom. On a narrow screen the list sits under the widget. Steps 1 to 3 stay unticked until they've been tried on the iPad.
+- Not installed on the iPad: it was paired but not connected ("No connected iPad found"). Plug it in and run the command below.
 - Try on the iPad (open it with `Scripts/run-on-ipad.sh --rebuild`):
   1. Scroll the settings and change a few things (a font, a colour, I'm Feeling Lucky): the widget should change at once, and the button at the bottom should turn from "Applied" to "Apply to Widget".
   2. Tap Apply to Widget: it should tap back, say "Applied", and your Home Screen widget should update.
