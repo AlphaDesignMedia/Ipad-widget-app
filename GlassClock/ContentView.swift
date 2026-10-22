@@ -3806,6 +3806,20 @@ struct Peek: ViewModifier {
             .scaleEffect(x: on && !simple ? 0.8 : 1, y: on && !simple ? 0.9 : 1,
                          anchor: towardsLeading ? .trailing : .leading)
             .offset(x: on ? away * (width - Self.showing) : 0)
+            // A soft bump against the edge (owner, dashboard 22 Oct 2026): as it arrives, the
+            // panel gives a little against the screen's edge, squashing towards it, then
+            // springs back to rest, like something with weight meeting a wall.
+            .keyframeAnimator(initialValue: 0.0, trigger: on) { panel, bump in
+                panel.scaleEffect(x: 1 - 0.06 * bump, y: 1 + 0.015 * bump, anchor: towardsLeading ? .leading : .trailing)
+            } keyframes: { _ in
+                if on && !simple {
+                    LinearKeyframe(0, duration: 0.24)
+                    CubicKeyframe(1, duration: 0.08)
+                    SpringKeyframe(0, duration: 0.5, spring: .init(response: 0.32, dampingRatio: 0.55))
+                } else {
+                    LinearKeyframe(0, duration: 0.01)
+                }
+            }
             .opacity(on && simple ? 0.6 : 1)
             .overlay {
                 if on {
