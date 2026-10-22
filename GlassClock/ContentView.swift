@@ -3277,14 +3277,8 @@ struct ContentView: View {
             }
             .padding(.vertical, 4)
 
-            groupLabel("Starter styles")
-            FlowLayout(spacing: 10) {
-                ForEach(ClockStyle.presets, id: \.name) { preset in
-                    Button(preset.name) { use(preset.style) }
-                        .readableChip()
-                }
-            }
-            .padding(.vertical, 4)
+            groupLabel("Moods")
+            moodTiles
 
             lockChips
 
@@ -3477,6 +3471,72 @@ struct ContentView: View {
         withAnimation(reduceMotion ? nil : .smooth) {
             style = style.taking(parts.subtracting(lockedParts), from: .lucky(from: style))
         }
+    }
+
+    /// Moods (owner, 22 Oct 2026): each starting style with a backdrop that suits it, picked
+    /// from small pictures of the widget on that backdrop. Simple presets: a tap applies both.
+    private static let moodBackdrops: [String: PreviewBackdrop] = [
+        "Bold glass": .aurora, "Lock Screen": .ocean, "Neon": .midnight, "Minimal": .dune, "Stacked serif": .sunset,
+    ]
+
+    private var moodTiles: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(ClockStyle.presets, id: \.name) { mood in
+                    let scene = Self.moodBackdrops[mood.name] ?? .aurora
+                    // What a tap would give, locks and all, so the picture matches the result
+                    // and the mood in use reads as chosen.
+                    let result = style.taking(Set(StylePart.allCases).subtracting(lockedParts), from: mood.style)
+                    let chosen = style == result && backdrop == scene
+                    Button {
+                        use(mood.style)
+                        if !reduceMotion { withAnimation(.smooth(duration: 0.55)) { backdrop = scene } } else { backdrop = scene }
+                    } label: {
+                        VStack(spacing: 6) {
+                            moodPicture(result, on: scene)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .strokeBorder(.white.opacity(chosen ? 0.9 : 0.25), lineWidth: chosen ? 2.5 : 1)
+                                }
+                                .shadow(color: .black.opacity(chosen ? 0.25 : 0.12), radius: chosen ? 8 : 4, y: chosen ? 4 : 2)
+                                .scaleEffect(chosen ? 1 : 0.96)
+                                .shimmer(trigger: chosen, in: .rect(cornerRadius: 16, style: .continuous))
+                            Text(mood.name)
+                                .font(.footnote.weight(chosen ? .semibold : .regular))
+                                .foregroundStyle(chosen ? .primary : .secondary)
+                                .lineLimit(1)
+                        }
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(mood.name + " mood")
+                    .accessibilityAddTraits(chosen ? .isSelected : [])
+                    .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: chosen)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 2)
+        }
+        .scrollClipDisabled()
+        .sensoryFeedback(.selection, trigger: backdrop)
+    }
+
+    /// A small picture of a mood: its backdrop with a small widget in that style on it.
+    private func moodPicture(_ mood: ClockStyle, on scene: PreviewBackdrop) -> some View {
+        backdropFill(scene)
+            .frame(width: 104, height: 104)
+            .overlay {
+                ClockFace(date: .now, style: mood, simulatedAccent: homeScreen.accent,
+                          simulatesClear: !homeScreen.showsKeptColours)
+                    .padding(14)
+                    .frame(width: 150, height: 150)
+                    .modifier(ClockCard(style: mood, shape: .rect(cornerRadius: 26), homeScreen: homeScreen))
+                    .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
+                    .scaleEffect(0.5)
+                    .frame(width: 75, height: 75)
+                    .allowsHitTesting(false)
+            }
+            .clipShape(.rect(cornerRadius: 16, style: .continuous))
     }
 
     /// Applies a preset, leaving locked parts alone.
