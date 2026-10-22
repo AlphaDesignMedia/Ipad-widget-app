@@ -115,6 +115,9 @@ struct ContentView: View {
     @State private var pinchStartSize: PreviewSize?
     /// The spring the widget settles with after a drag or pinch.
     static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.82)
+    /// The spring a dropped widget lands with: no overshoot, so it glides into its slot and
+    /// stops, rather than passing it and pulling back (owner, 22 Oct 2026).
+    static let cardLand = Animation.spring(response: 0.42, dampingFraction: 1)
     @State private var draggingCard = false
     /// Like editing the Home Screen: a long press makes the widget wiggle, and a handle on its
     /// corner resizes it (owner idea, 2026-10-21).
@@ -1616,7 +1619,7 @@ struct ContentView: View {
                     if let drag = value.second {
                         let end = CGPoint(x: home.midX + drag.translation.width, y: home.midY + drag.translation.height)
                         let target = grid.nearest(to: end, span: next.span)
-                        withAnimation(Self.cardSettle) {
+                        withAnimation(Self.cardLand) {
                             widgetColumn = target.column
                             widgetRow = target.row
                         }
@@ -1631,7 +1634,7 @@ struct ContentView: View {
                     let target = grid.nearest(to: end, span: span)
                     // The distance springs back to zero with the same spring that moves the widget
                     // to its new slot, so the two cancel out and it glides on from under the finger.
-                    withAnimation(reduceMotion ? nil : Self.cardSettle) {
+                    withAnimation(reduceMotion ? nil : Self.cardLand) {
                         widgetColumn = target.column
                         widgetRow = target.row
                         motion.cardDrag = .zero

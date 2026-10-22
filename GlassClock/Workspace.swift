@@ -1110,7 +1110,9 @@ struct LiveLean: ViewModifier {
             .rotation3DEffect(.degrees(turn), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
             .rotation3DEffect(.degrees(tip), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
             .scaleEffect(x: stretchX, y: stretchY)
-            .animation(.interactiveSpring(response: 0.32, dampingFraction: 0.62), value: lean)
+            // Lively while moving, but it eases back upright without a wobble when let go, so
+            // the landing reads as one calm motion (owner, 22 Oct 2026).
+            .animation(lean == .zero ? .smooth(duration: 0.4) : .interactiveSpring(response: 0.32, dampingFraction: 0.62), value: lean)
     }
 }
 
