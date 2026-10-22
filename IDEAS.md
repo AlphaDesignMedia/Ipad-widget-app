@@ -124,6 +124,7 @@ _Last updated 21 Oct 2026._
 
 | Idea | Status | Notes |
 |---|---|---|
+| Dashboard app and widget (owner, 22 Oct 2026) | 💤 | The progress dashboard as its own iPad app plus a Home Screen widget (need-you count, the build on the iPad, the latest update), later covering other projects with a switcher. The widget can't sign in to Claude, so the project would publish a small status file for it to read. Quick win today: Safari › Share › Add to Home Screen. |
 | Claude usage tracker and optimiser | 🛠 started on the dashboard, 22 Oct 2026 | Shows what's used and what's left. Suggests ways to get more done with less: batch small requests, compact sooner, a cheaper model for simple jobs, big work overnight. |
 
 ## Design tools: suggestion
