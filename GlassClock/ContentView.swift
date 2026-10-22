@@ -3461,7 +3461,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(locked ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-                    .background(locked ? AnyShapeStyle(AppColor.chosen(appColor)) : AnyShapeStyle(.quaternary), in: .capsule)
+                    .modifier(ChipSurface(selected: locked))
                     .fixedSize()
                     .accessibilityLabel("\(part.label), \(locked ? "locked" : "unlocked")")
                     .accessibilityHint("Locked parts keep their settings when you use a preset or Lucky")

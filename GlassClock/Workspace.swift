@@ -440,12 +440,25 @@ enum AppColor {
 /// white (Show Mine, Copy Values; tap check, 2026-10-21).
 struct ProminentButton: ViewModifier {
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    @AppStorage("appTheme") private var theme = AppTheme.home
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @Environment(\.homeLook) private var homeLook
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
 
     func body(content: Content) -> some View {
-        content
-            .buttonStyle(.borderedProminent)
-            .tint(AppColor.chosen(appColor))
-            .foregroundStyle(.white)
+        // Coloured glass in the Glass and Home looks (owner, 22 Oct 2026: "even the I'm Feeling
+        // Lucky button, maybe we could make that glass"); solid elsewhere.
+        if theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
+            content
+                .buttonStyle(.glassProminent)
+                .tint(AppColor.chosen(appColor))
+                .foregroundStyle(.white)
+        } else {
+            content
+                .buttonStyle(.borderedProminent)
+                .tint(AppColor.chosen(appColor))
+                .foregroundStyle(.white)
+        }
     }
 }
 
@@ -473,16 +486,43 @@ struct GlassChipStyle: ButtonStyle {
             .foregroundStyle(dark ? Color.white : .black.opacity(0.85))
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background {
+            .modifier(ChipSurface(pressed: configuration.isPressed))
+            .opacity(isEnabled ? 1 : 0.5)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
+/// A chip's surface: real Liquid Glass in the Glass and Home looks (owner, 22 Oct 2026: "lean
+/// into the glass a little more"), a solid bead of glass everywhere else and with Reduce glass.
+struct ChipSurface: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.homeLook) private var homeLook
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var theme = AppTheme.home
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    var pressed = false
+    /// A chosen chip (a lock that's on): glass tinted with the app colour.
+    var selected = false
+
+    func body(content: Content) -> some View {
+        let dark = scheme == .dark
+        if theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
+            content.glassEffect(selected ? .regular.tint(AppColor.chosen(appColor)).interactive()
+                                : .clear.tint(dark ? .black.opacity(0.18) : .white.opacity(0.4)).interactive(),
+                                in: .capsule)
+        } else if selected {
+            content.background(AppColor.chosen(appColor), in: .capsule)
+        } else {
+            content.background {
                 Capsule().fill(LinearGradient(
                     colors: dark ? [.white.opacity(0.26), .white.opacity(0.12)] : [.white.opacity(0.95), .white.opacity(0.75)],
                     startPoint: .top, endPoint: .bottom)
                     .shadow(.inner(color: .white.opacity(dark ? 0.35 : 0.9), radius: 1, y: 1))
                     .shadow(.drop(color: .black.opacity(dark ? 0.3 : 0.14), radius: 3, y: 1.5)))
             }
-            .opacity(isEnabled ? 1 : 0.5)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
+        }
     }
 }
 
