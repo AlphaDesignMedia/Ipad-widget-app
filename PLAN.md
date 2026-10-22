@@ -5,7 +5,14 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## The rebuild (decided 22 Oct) — start here
 
-## Latest run (22 Oct, 3:10 p.m.)
+## Latest run (22 Oct, 4:10 p.m.)
+- Nothing new built: "Now", "Next" and "Then" are still all ticked, and your live session was committing at 4:02 p.m., so I left the code alone. Nothing installed on the iPad.
+- Try on the iPad when you choose to put a new build on it:
+  1. Look at the chips in a settings card in Light and Dark: the labels should be easy to read on the glass.
+  2. In App > Panels, flip the switch for the folded rail: it should show names, then icons only.
+  3. Resize the widget: the clock should fade between sizes and settle without a bounce.
+
+## Earlier run (22 Oct, 3:10 p.m.)
 - Nothing new built: "Now", "Next" and "Then" are all ticked. Your live session was committing changes at the same moment (3:09 p.m.), so I left the code alone to avoid treading on it. Nothing installed on the iPad.
 - Try on the iPad when you choose to put a new build on it:
   1. In Panels, swipe the settings panel towards its edge, then push the sliver again: it should fold into a slim rail with the headings. Tap one to open there.
