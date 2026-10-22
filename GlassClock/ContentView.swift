@@ -570,7 +570,11 @@ struct ContentView: View {
                 }
                 .overlay(alignment: settingsLeading ? .leading : .trailing) {
                     if !showsInspector {
-                        edgeHandle("Show settings") { withAnimation(.snappy) { showsInspector = true } }
+                        SettingsRail(leading: settingsLeading, sections: SettingsSection.allCases,
+                                     open: { withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { showsInspector = true } },
+                                     go: { focus($0) })
+                            .padding(.horizontal, Space.small)
+                            .transition(.move(edge: settingsLeading ? .leading : .trailing).combined(with: .opacity))
                     }
                 }
             }
@@ -975,6 +979,7 @@ struct ContentView: View {
         let groupsHere = showsSidebar && sidebarAlongside && !groupsAlongBottom && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if settingsHere { return settingsPeeking ? Peek.showing + Space.medium : settingsWidth + Space.medium }
+        if !showsInspector && settingsLeading == leading { return SettingsRail.width + Space.small * 2 }
         return groupsHere ? groupsWidth + Space.medium : 0
     }
 
@@ -1062,8 +1067,23 @@ struct ContentView: View {
             .shadow(color: .black.opacity(settingsCarried ? 0.2 : 0), radius: 22, y: 12)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: settingsCarried)
             .modifier(LiveOffset(motion: motion, path: \.settingsMove))
-            .modifier(Peek(on: settingsPeeking, towardsLeading: leading, width: width, simple: reduceMotion) {
+            .modifier(Peek(on: settingsPeeking, towardsLeading: leading, width: width, simple: reduceMotion, wake: {
                 withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { settingsPeeking = false }
+            }, further: {
+                // Pushed again: it folds into the rail of headings at the edge.
+                withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) {
+                    settingsPeeking = false
+                    showsInspector = false
+                }
+            }))
+            // A sideways swipe on the panel itself, towards its edge, tucks it aside (owner,
+            // 22 Oct 2026: "when your finger touches the panel itself and slides"). Up and down
+            // still scroll.
+            .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { drag in
+                let dx = drag.predictedEndTranslation.width
+                guard !settingsCarried, !settingsPeeking, abs(dx) > 140,
+                      abs(drag.translation.width) > abs(drag.translation.height) * 1.6 else { return }
+                if (dx < 0) == leading { flickSettings(towardsLeading: leading, in: area) }
             })
             .zIndex(settingsCarried ? 1 : 0)
             .environment(\.panelCarry, PanelCarry(
@@ -2930,7 +2950,7 @@ struct ContentView: View {
     private var sizeBubble: some View {
         bubble {
             GlassPicker("Widget size", selection: $previewSize, options: PreviewSize.allCases, large: true) { compact && $0 == .extraLarge ? "XL" : $0.rawValue }
-            .frame(maxWidth: 480)
+            .fixedSize()
         }
     }
 
@@ -3607,6 +3627,8 @@ struct Peek: ViewModifier {
     var width: CGFloat
     var simple: Bool
     var wake: () -> Void
+    /// Pushed towards the edge again: folds away into the rail.
+    var further: () -> Void = {}
 
     func body(content: Content) -> some View {
         let away: CGFloat = towardsLeading ? -1 : 1
@@ -3625,7 +3647,7 @@ struct Peek: ViewModifier {
                         .contentShape(.rect)
                         .onTapGesture(perform: wake)
                         .gesture(DragGesture(minimumDistance: 10).onEnded { drag in
-                            if drag.translation.width * away < 0 { wake() }
+                            if drag.translation.width * away < 0 { wake() } else if abs(drag.translation.width) > 30 { further() }
                         })
                         .offset(x: away * (width - Self.showing))
                         .accessibilityLabel("Bring the settings back")

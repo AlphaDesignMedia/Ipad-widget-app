@@ -1197,10 +1197,13 @@ struct GlassPicker<T: Hashable>: View {
                     Text(label(option))
                         .font((large ? Font.body : .subheadline).weight(chosen ? .semibold : .regular))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        // Large switches show every word in full, each option as wide as its
+                        // word (owner, 22 Oct 2026: "Extra L…" read as broken).
+                        .fixedSize(horizontal: large, vertical: false)
+                        .minimumScaleFactor(large ? 1 : 0.8)
                         .foregroundStyle(chosen ? .primary : .secondary)
-                        .padding(.horizontal, large ? 10 : 6)
-                        .frame(maxWidth: .infinity, minHeight: large ? 44 : 32)
+                        .padding(.horizontal, large ? 14 : 6)
+                        .frame(maxWidth: large ? nil : .infinity, minHeight: large ? 44 : 32)
                         .background {
                             if chosen {
                                 GlossyBead(shape: Capsule())
@@ -1254,5 +1257,68 @@ struct SavesPanelPlaces: ViewModifier {
             .onChange(of: groupsTrailing) { _, value in UserDefaults.standard.set(value, forKey: "groupsTrailing") }
             .onChange(of: groupsTop) { _, value in UserDefaults.standard.set(value, forKey: "groupsTop") }
             .onChange(of: groupsAlongBottom) { _, value in UserDefaults.standard.set(value, forKey: "groupsAlongBottom") }
+    }
+}
+
+/// The settings folded away: a slim glass rail down the edge with every group's heading
+/// running along it, so it's clear the panel is there and what's in it (owner, 22 Oct 2026).
+/// Tap a heading to open the settings at it, or swipe the rail inwards to bring them back.
+struct SettingsRail: View {
+    static let width: CGFloat = 44
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var leading: Bool
+    var sections: [SettingsSection]
+    var open: () -> Void
+    var go: (SettingsSection) -> Void
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            rail(labelled: true)
+            rail(labelled: false)
+        }
+        .frame(width: Self.width)
+        .appGlass(.capsule, interactive: true)
+        .contentShape(.capsule)
+        .gesture(DragGesture(minimumDistance: 10).onEnded { drag in
+            let inwards = leading ? drag.translation.width > 30 : drag.translation.width < -30
+            if inwards { open() }
+        })
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Settings, folded away")
+        .accessibilityAction(named: "Show settings", open)
+    }
+
+    /// Each heading's icon, with its name turned to run down the rail when there's room.
+    private func rail(labelled: Bool) -> some View {
+        VStack(spacing: labelled ? 14 : 10) {
+            ForEach(sections) { section in
+                Button { go(section) } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: section.icon)
+                            .font(.body.weight(.medium))
+                        if labelled {
+                            Text(section.title)
+                                .font(.caption.weight(.semibold))
+                                .fixedSize()
+                                .rotationEffect(.degrees(leading ? -90 : 90))
+                                .frame(width: 16, height: section.title.size(withFont: 12) + 2)
+                        }
+                    }
+                    .frame(width: Self.width)
+                    .padding(.vertical, 4)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.title)
+            }
+        }
+        .padding(.vertical, 14)
+    }
+}
+
+private extension String {
+    /// Roughly how long this reads in a semibold caption of `size`, for laying it out turned.
+    func size(withFont size: CGFloat) -> CGFloat {
+        (self as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: .semibold)]).width
     }
 }
