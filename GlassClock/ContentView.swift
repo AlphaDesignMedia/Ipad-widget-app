@@ -70,7 +70,14 @@ struct ContentView: View {
     private var mine: HomeScreenStyle? { myHomeScreen.style(in: systemColorScheme) }
     @AppStorage("workspaceLayout") private var layout = WorkspaceLayout.automatic
     @AppStorage("previewBackdrop") private var backdrop = PreviewBackdrop.plain
-    @AppStorage("interfaceStyle") private var interface = InterfaceStyle.panels
+    @AppStorage("interfaceStyle") private var savedInterface = InterfaceStyle.panels
+    /// iPhone opens in Classic: floating panels over a phone-sized screen get in the way (owner,
+    /// 22 Oct 2026). Panels stay one tap away there, remembered apart from the iPad's choice.
+    @AppStorage("phonePanels") private var phonePanels = false
+    private var interface: InterfaceStyle {
+        get { compact ? (phonePanels ? .panels : .classic) : savedInterface }
+        nonmutating set { if compact { phonePanels = newValue == .panels } else { savedInterface = newValue } }
+    }
     @State private var selectedSection: SettingsSection? = .presets
     @State private var showsInspector = true
     @State private var showsSidebar = true
@@ -91,6 +98,9 @@ struct ContentView: View {
     @State private var extrasShown = true
     @State private var extrasHide: Task<Void, Never>?
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverOn
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// An iPhone (or a narrow window): the preview gets most of the room and the extras go.
+    private var compact: Bool { sizeClass == .compact }
     private var extrasVisible: Bool { (extrasShown || !quietControls || editingWidget || voiceOverOn) && !widgetMoving }
     /// Being dragged or pinched: everything around it steps away, so it's just the widget
     /// (owner, 22 Oct 2026: "remove all of the extra things when I'm moving it around").
@@ -296,10 +306,10 @@ struct ContentView: View {
             }
         }
         .onChange(of: showsTour) { _, on in
-            // The tour shows off Panels, with both panels out.
+            // The tour shows off Panels, with both panels out (not on iPhone, which stays Classic).
             guard on else { return }
             withAnimation(.smooth(duration: 0.45)) {
-                interface = .panels
+                if !compact { interface = .panels }
                 showsSidebar = true
                 showsInspector = true
                 editingWidget = false
@@ -419,7 +429,7 @@ struct ContentView: View {
                     default:
                         VStack(spacing: Space.medium) {
                             previewStage()
-                                .frame(height: min(stageHeight, max(300, size.height - 280)))
+                                .frame(height: compact ? size.height * 0.58 : min(stageHeight, max(300, size.height - 280)))
                             settingsPanel
                         }
                         // The same gap under the top bar as at the sides, so the panel doesn't
@@ -2433,17 +2443,18 @@ struct ContentView: View {
     /// In Panels the stage is drawn twice, so its labels and buttons sit above the widget,
     /// which can be moved anywhere, and are never hidden under it (owner feedback, 2026-10-21).
     private func previewStage(showsChrome: Bool = true, measures: Bool = true) -> some View {
-            VStack(spacing: Space.large) {
+            VStack(spacing: compact ? Space.small : Space.large) {
                 Spacer(minLength: 0)
                 // In Panels the style and size controls float with the widget instead (below).
                 if !controlsFollowWidget { homeScreenBubble }
-                if !controlsFollowWidget {
+                // On iPhone the question and label give their room to the widget.
+                if !controlsFollowWidget && !compact {
                     myHomeScreenNote
                         .modifier(StageChrome(shown: showsChrome))
                 }
                 // Labelled so the preview isn't mistaken for a working widget (HIG: Widgets). In
                 // Panels the label is a tag on the widget itself (`previewTag`).
-                if !controlsFollowWidget {
+                if !controlsFollowWidget && !compact {
                     Text("Preview")
                         .font(.footnote.weight(.semibold))
                         .textCase(.uppercase)
@@ -2480,9 +2491,9 @@ struct ContentView: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, controlsFollowWidget ? Space.small : Space.large)
-            .padding(.top, Space.medium)
-            .padding(.bottom, Space.large)
+            .padding(.horizontal, controlsFollowWidget || compact ? Space.small : Space.large)
+            .padding(.top, compact ? Space.small : Space.medium)
+            .padding(.bottom, compact ? Space.small : Space.large)
             .overlay(alignment: .top) {
                 if showsChrome, let backdropToast {
                     VStack(spacing: 4) {
@@ -2835,7 +2846,7 @@ struct ContentView: View {
 
     private var sizeBubble: some View {
         bubble {
-            GlassPicker("Widget size", selection: $previewSize, options: PreviewSize.allCases, large: true) { $0.rawValue }
+            GlassPicker("Widget size", selection: $previewSize, options: PreviewSize.allCases, large: true) { compact && $0 == .extraLarge ? "XL" : $0.rawValue }
             .frame(maxWidth: 480)
         }
     }
