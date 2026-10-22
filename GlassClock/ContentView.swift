@@ -167,6 +167,11 @@ struct ContentView: View {
     @AppStorage("groupsTrailing") private var groupsTrailing = false
     @AppStorage("settingsLeading") private var settingsLeading = false
     @AppStorage("groupsBelow") private var groupsBelow = false
+    /// The groups pill on its own side sits where it was dropped, top to bottom, or lies along
+    /// the bottom of the window (owner, 22 Oct 2026: "move this panel up and down… pull it to
+    /// the bottom").
+    @AppStorage("groupsTop") private var groupsTop = 0.0
+    @AppStorage("groupsAlongBottom") private var groupsAlongBottom = false
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     /// The settings being carried by a card's title bar (see `PanelCarry`).
     @State private var settingsCarried = false
@@ -514,10 +519,11 @@ struct ContentView: View {
                         Spacer(minLength: 0)
                         AnyView(panelColumn(leading: false, area: geometry.size, settingsWidth: settingsWidth))
                     }
-                    // More room below than at the sides (owner feedback, 2026-10-21).
+                    // More room below than at the sides (owner feedback, 2026-10-21), and room for
+                    // the groups when they lie along the bottom.
                     .padding(.horizontal, Space.medium)
                     .padding(.top, Space.small)
-                    .padding(.bottom, Space.large)
+                    .padding(.bottom, showsSidebar && groupsFree && groupsAlongBottom ? 56 + Space.medium * 2 : Space.large)
                     // Kept to the top, so one panel stays put when the other tucks away.
                     .frame(maxHeight: .infinity, alignment: .top)
                     .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82), value: panelLayoutKey)
@@ -529,6 +535,13 @@ struct ContentView: View {
                 .simultaneousGesture(TapGesture().onEnded { if editingWidget { setEditingWidget(false) } }, isEnabled: editingWidget)
                 .overlay {
                     if !showsSidebar { AnyView(groupsDock(in: geometry.size)) }
+                }
+                // Dropped along the bottom: the same pill, lying flat.
+                .overlay(alignment: .bottom) {
+                    if showsSidebar && groupsFree && groupsAlongBottom {
+                        AnyView(groupsColumnPanel(leading: true, area: geometry.size, width: geometry.size.width, strip: true))
+                            .padding(.bottom, Space.medium)
+                    }
                 }
                 .overlay(alignment: .topLeading) {
                     if showsSidebar && !groupsFree { AnyView(attachedGroups(in: geometry.size)) }
@@ -655,17 +668,38 @@ struct ContentView: View {
     /// across the top, so the settings keep most of the height.
     @ViewBuilder
     private func groupsPanel(asStrip: Bool) -> some View {
-        if asStrip { groupsStrip } else { groupsList }
+        if asStrip { groupsPill(upright: false) } else if groupsCollapsed { groupsPill(upright: true) } else { groupsList }
     }
 
-    /// The groups sharing a side with the settings: the same pill of icons as when they're stuck
-    /// to the widget, turned to lie across the top (owner, 22 Oct 2026: the old strip looked like
-    /// a different app).
-    private var groupsStrip: some View {
-        HStack(spacing: 2) {
-            ForEach(SettingsSection.allCases) { section in groupButton(section, iconsOnly: true) }
+    /// The groups as one pill of glass with each icon in a circle (owner, 22 Oct 2026): upright
+    /// on its own at the side, or lying across the top or bottom of the settings when they share
+    /// a side. The same piece either way, so it never looks like a different app.
+    private func groupsPill(upright: Bool) -> some View {
+        let layout = upright ? AnyLayout(VStackLayout(spacing: 4)) : AnyLayout(HStackLayout(spacing: 4))
+        return layout {
+            if upright {
+                // Opens the full list with names.
+                Button {
+                    withAnimation(reduceMotion ? nil : .snappy) { groupsCollapsed = false }
+                } label: {
+                    Image(systemName: "sidebar.right")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(.circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Show group names")
+            }
+            ForEach(SettingsSection.allCases) { section in
+                groupButton(section, iconsOnly: true)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("groupsList")) } action: { groupFrames[section] = $0 }
+            }
         }
-        .padding(Space.small)
+        .coordinateSpace(name: "groupsList")
+        // Run a finger down the upright pill to glide through the groups.
+        .simultaneousGesture(groupsScrub, isEnabled: upright)
+        .padding(6)
         .fixedSize()
         .background {
             GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .capsule)
@@ -751,8 +785,10 @@ struct ContentView: View {
                     Spacer(minLength: 0)
                 }
             }
-            .padding(.horizontal, iconsOnly ? 8 : 16)
-            .padding(.vertical, 12)
+            // Icons alone sit in a circle; with names, a pill.
+            .padding(.horizontal, iconsOnly ? 0 : 16)
+            .padding(.vertical, iconsOnly ? 0 : 12)
+            .frame(width: iconsOnly ? 44 : nil, height: iconsOnly ? 44 : nil)
             // The group in use is a brighter piece of glass with a light rim, with a sweep of
             // light when it's picked, matching the focus on the cards (owner direction,
             // 2026-10-21) rather than a fill of colour.
@@ -814,8 +850,12 @@ struct ContentView: View {
             // Tighter than the gap between panels: the carousel draws cards together anyway
             // (owner, 22 Oct 2026: "a bit too much spacing").
             .listSectionSpacing(Corner.inset * 0.6)
-            .contentMargins([.horizontal, .top], Corner.edge, for: .scrollContent)
-            .contentMargins(.bottom, Space.extraLarge, for: .scrollContent)
+            .contentMargins(.horizontal, Corner.edge, for: .scrollContent)
+            // Room above the first card and below the last, so Presets and Accessibility can
+            // scroll into the frosted middle like the rest (owner, 22 Oct 2026: "towards the
+            // bottom, everything is out of focus").
+            .contentMargins(.top, max(Corner.edge, inspectorRect.height * 0.2), for: .scrollContent)
+            .contentMargins(.bottom, max(Space.extraLarge, inspectorRect.height * 0.45), for: .scrollContent)
             .task(id: focusRequest) {
                 guard focusRequest > 0, let target = selectedSection else { return }
                 // Lets a panel that's just opening settle before gliding.
@@ -884,11 +924,11 @@ struct ContentView: View {
 
     /// Which side each panel is on, and which is on top when they share a side.
     private var panelsStacked: Bool { groupsTrailing != settingsLeading }
-    private var panelLayoutKey: String { "\(groupsTrailing)\(settingsLeading)\(groupsBelow)" }
+    private var panelLayoutKey: String { "\(groupsTrailing)\(settingsLeading)\(groupsBelow)\(groupsAlongBottom)" }
 
     /// How much room the panels on one side take from the preview.
     private func panelInset(leading: Bool, settingsWidth: CGFloat) -> CGFloat {
-        let groupsHere = showsSidebar && sidebarAlongside && groupsTrailing != leading
+        let groupsHere = showsSidebar && sidebarAlongside && !groupsAlongBottom && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if settingsHere { return settingsWidth + Space.medium }
         return groupsHere ? groupsWidth + Space.medium : 0
@@ -898,11 +938,15 @@ struct ContentView: View {
     /// settings taking the rest).
     @ViewBuilder
     private func panelColumn(leading: Bool, area: CGSize, settingsWidth: CGFloat) -> some View {
-        let groupsHere = showsSidebar && groupsFree && groupsTrailing != leading
+        let groupsHere = showsSidebar && groupsFree && !groupsAlongBottom && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if groupsHere || settingsHere {
             VStack(spacing: Space.medium) {
-                if groupsHere && !groupsBelow { groupsColumnPanel(leading: leading, area: area, width: settingsHere ? settingsWidth : groupsWidth, strip: settingsHere) }
+                if groupsHere && !groupsBelow {
+                    groupsColumnPanel(leading: leading, area: area, width: settingsHere ? settingsWidth : groupsWidth, strip: settingsHere)
+                        // On its own side, at the height it was dropped, kept on screen.
+                        .padding(.top, settingsHere ? 0 : max(0, min(groupsTop, area.height - sidebarRect.height - Space.large)))
+                }
                 if settingsHere { settingsColumnPanel(leading: leading, area: area, width: settingsWidth) }
                 if groupsHere && groupsBelow { groupsColumnPanel(leading: leading, area: area, width: settingsHere ? settingsWidth : groupsWidth, strip: settingsHere) }
             }
@@ -1169,7 +1213,16 @@ struct ContentView: View {
             }
             return
         }
-        placePanel(groups: true, at: end, in: area)
+        // Near the bottom of the window it lies along the bottom; anywhere else it goes to that
+        // side, at the height it was dropped.
+        let alongBottom = finger.y - panelsOrigin.y > area.height - 160
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+            groupsAlongBottom = alongBottom
+            if !alongBottom {
+                groupsTop = max(0, Double(sidebarRect.minY - panelsOrigin.y + drag.translation.height - Space.small))
+            }
+        }
+        if !alongBottom { placePanel(groups: true, at: end, in: area) }
     }
 
     /// What the groups would stick to if let go at `point` (in the window).
@@ -2186,29 +2239,9 @@ struct ContentView: View {
                     return
                 }
                 guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
-                withAnimation(.snappy) {
-                    // A swipe right pulls the groups in from the left (their icons first, then the
-                    // full list), or pushes the settings away. A swipe left pulls the settings in,
-                    // or folds the groups to their icons, then tucks them away.
-                    if dx > 0 {
-                        if !showsSidebar {
-                            groupsCollapsed = true
-                            showsSidebar = true
-                        } else if groupsCollapsed {
-                            groupsCollapsed = false
-                        } else {
-                            showsInspector = false
-                        }
-                    } else {
-                        if !showsInspector {
-                            showsInspector = true
-                        } else if showsSidebar && !groupsCollapsed {
-                            groupsCollapsed = true
-                        } else {
-                            showsSidebar = false
-                        }
-                    }
-                }
+                // One simple rule (owner, 22 Oct 2026): a sideways swipe either way puts both
+                // panels away, and another brings them back, like a double-tap.
+                toggleBothPanels()
             }
     }
 

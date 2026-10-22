@@ -517,11 +517,15 @@ struct ClockStyle: Codable, Equatable {
         }
     }
 
+    /// Worked out from the hour and minute rather than a date format: with the iPad set to
+    /// 12-hour time, iOS quietly turned the "H" (0–23) format back into 1–12, so 24-hour clocks
+    /// showed the wrong hour (owner, 22 Oct 2026).
     func timeText(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = .current
-        formatter.dateFormat = uses12Hour ? "h:mm" : "H:mm"
-        return formatter.string(from: date)
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let hour24 = parts.hour ?? 0, minute = parts.minute ?? 0
+        let hour = uses12Hour ? (hour24 % 12 == 0 ? 12 : hour24 % 12) : hour24
+        // 24-hour shows two digits for the hour, like the Lock Screen (09:41); 12-hour doesn't (9:41).
+        return String(format: uses12Hour ? "%d:%02d" : "%02d:%02d", hour, minute)
     }
 
     func ampmText(_ date: Date) -> String? {
