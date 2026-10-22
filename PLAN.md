@@ -10,6 +10,8 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 **Sizes and devices:** iPad (all sizes, both orientations, Split View) and iPhone. Panels is the layout when there's room (a full-width iPad). Classic is the layout when there isn't (iPhone, narrow iPad windows). That's why both stay: they're the same pieces in two arrangements, not two apps. The test iPad is an M1 iPad Pro 12.9-inch. Each step also gets a quick look on an iPhone and a small iPad in the Simulator.
 
+**The look (owner, 22 Oct):** making it look really nice matters more than anything. Lean into Liquid Glass and good gestures. The window touches (title bars, bands, panels behaving like windows) went too far: fewer of them, more glass. The focus effect on the card in use should be a lot nicer and more thought out. That's the job of step 7.
+
 **What you decided:**
 - Rebuild the app's screens on a fresh branch. The widget, clock faces, fonts and backdrops stay as they are. The current app stays untouched until the new one is better.
 - Keep both Classic and Panels, built from the same pieces.
@@ -61,7 +63,8 @@ The Simulator's stutter is mostly the Mac (it shares the Mac's chip with everyth
 4. [ ] **Classic.** Stage plus the simple settings.
 5. [ ] **Panels.** Settings and groups panels on either side: hold to move, flick aside, edge tab to bring back, double-tap to clear.
 6. [ ] **Widget controls.** Home Screen style, size and backdrop around the widget.
-7. [ ] **Polish pass.** Glass, focus and animation, one at a time, checked on the iPad.
+7. [ ] **Polish pass.** Glass, focus and animation, one at a time, checked on the iPad. Fewer window touches, more glass.
+7b. [ ] **Guided tour.** A short tour of the gestures: drag, pinch, hold to resize, flick a panel aside.
 8. [ ] **Swap.** When the new app beats the old one on the iPad, it becomes main. The old one stays on a branch as a record.
 
 ### Keep or cut: your call
@@ -93,7 +96,7 @@ Put a ✔ or ✘ in "Your call" (or change my pick). Anything cut goes to IDEAS.
 | Controls tuck away after 5 s | Keep | |
 | Suggestion bubbles under the picker | Cut | |
 | App text matches the clock font | Keep | |
-| Guided tour | Later (once the design is settled) | |
+| Guided tour | Keep: it shows off the gestures. Built last, once the design is settled (after step 7) | ✔ |
 | Design Tweaks sliders | Debug builds only | |
 
 ### Working on the Mac
