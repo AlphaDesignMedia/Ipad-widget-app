@@ -89,7 +89,7 @@ struct ClockCard<S: Shape>: ViewModifier {
                     if style.keepsCardColours && homeScreen.showsKeptColours {
                         GeometryReader { geometry in
                             Image(uiImage: ClockRaster.card(style: style, size: geometry.size, dark: false))
-                                .resizable()
+                                .resizable(capInsets: ClockRaster.cardInsets(style))
                         }
                         .clipShape(shape)
                     }
