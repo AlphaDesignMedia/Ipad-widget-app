@@ -171,6 +171,8 @@ struct ContentView: View {
     @State private var groupsCarried = false
     /// Where a carried panel would settle, while one is carried.
     @State private var carryTarget: CarryTarget?
+    /// The card the settings were picked up by, while they're carried.
+    @State private var settingsGrab: CarryGrab?
     /// The groups stuck onto the widget or the settings panel, rather than a panel of their own
     /// (owner idea, 2026-10-21), and whether they're slid in to a small tab.
     @AppStorage("groupsAttachment") private var groupsAttachment = GroupsAttachment.none
@@ -941,8 +943,10 @@ struct ContentView: View {
             // Measured at rest, before the lift and the carry (see the groups panel).
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !settingsCarried { inspectorRect = $0 } }
             .modifier(CarriedShape(carried: settingsCarried || StressTest.carried, style: carryStyle,
-                                   icon: selectedSection?.icon ?? "slider.horizontal.3",
-                                   title: selectedSection?.title ?? "Settings", simple: reduceMotion))
+                                   icon: settingsGrab?.icon ?? selectedSection?.icon ?? "slider.horizontal.3",
+                                   title: settingsGrab?.title ?? selectedSection?.title ?? "Settings", simple: reduceMotion,
+                                   hold: settingsGrab.map { CGPoint(x: $0.point.x - inspectorRect.minX, y: $0.point.y - inspectorRect.minY) },
+                                   size: inspectorRect.size))
             // Lifts when it's picked up, like a widget on the Home Screen.
             .scaleEffect(settingsCarried ? 1.025 : 1)
             .shadow(color: .black.opacity(settingsCarried ? 0.2 : 0), radius: 22, y: 12)
@@ -950,16 +954,18 @@ struct ContentView: View {
             .modifier(LiveOffset(motion: motion, path: \.settingsMove))
             .zIndex(settingsCarried ? 1 : 0)
             .environment(\.panelCarry, PanelCarry(
+                grabbed: { grab in if settingsGrab == nil { settingsGrab = grab } },
                 moved: { move in
                     if !settingsCarried { settingsCarried = true }
                     motion.settingsMove = move
-                    track(carryTarget(groups: false, move: move, finger: nil, in: area))
+                    track(carryTarget(groups: false, move: move, finger: settingsFinger(move), in: area))
                 },
                 ended: { moved in
                     if let moved {
-                        placePanel(groups: false, at: CGPoint(x: inspectorRect.midX + moved.width,
-                                                              y: inspectorRect.minY + 40 + moved.height), in: area)
+                        placePanel(groups: false, at: settingsFinger(moved)
+                                   ?? CGPoint(x: inspectorRect.midX + moved.width, y: inspectorRect.minY + 40 + moved.height), in: area)
                     }
+                    settingsGrab = nil
                     carryTarget = nil
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                         motion.settingsMove = .zero
@@ -969,6 +975,11 @@ struct ContentView: View {
                 flicked: { towardsLeading in flickSettings(towardsLeading: towardsLeading, in: area) }))
             .sensoryFeedback(.impact(weight: .medium), trigger: settingsCarried) { _, lifted in lifted }
             .transition(panelTransition(leading ? .leading : .trailing))
+    }
+
+    /// Where the finger carrying the settings is now, if it picked them up by a card.
+    private func settingsFinger(_ move: CGSize) -> CGPoint? {
+        settingsGrab.map { CGPoint(x: $0.point.x + move.width, y: $0.point.y + move.height) }
     }
 
     /// Puts a panel down: on the side it's dropped, sharing that side if the other panel is
@@ -989,9 +1000,13 @@ struct ContentView: View {
     private func carryTarget(groups: Bool, move: CGSize, finger: CGPoint?, in area: CGSize) -> CarryTarget {
         let base = groups ? sidebarRect : inspectorRect
         let other = groups ? inspectorRect : sidebarRect
+        // The settings go by the finger when it's known, the same as where they're put down.
+        let byFinger = groups ? nil : finger
+        let x = byFinger?.x ?? base.midX + move.width
+        let y = byFinger?.y ?? base.minY + (groups ? 0 : 40) + move.height
         return CarryTarget(groups: groups,
-                           leading: base.midX + move.width < area.width / 2,
-                           top: base.minY + move.height < other.midY,
+                           leading: x < area.width / 2,
+                           top: y < other.midY,
                            attach: groups ? finger.flatMap { attachmentTarget(at: $0) } : nil)
     }
 

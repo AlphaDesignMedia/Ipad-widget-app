@@ -698,6 +698,7 @@ struct SettingsCard<Content: View>: View {
             .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
             .onChanged { value in
                 guard let panelCarry, case .second(true, let drag) = value else { return }
+                if let drag { panelCarry.grabbed(CarryGrab(point: drag.startLocation, title: title, icon: icon)) }
                 panelCarry.moved(drag?.translation ?? .zero)
             }
             .onEnded { value in
@@ -994,18 +995,26 @@ struct CarriedShape: ViewModifier {
     var icon: String
     var title: String
     var simple: Bool
+    /// Where the finger picked it up, in the view's own space, and the view's size: it shrinks
+    /// into the finger and the stand-in sits under it, rather than at the top of the panel
+    /// (owner, 22 Oct 2026: it stuck above the Presets card when grabbed).
+    var hold: CGPoint? = nil
+    var size: CGSize = .zero
 
     func body(content: Content) -> some View {
         let shrinks = carried && style != .lift
+        let anchor = hold.map { size.width > 0 && size.height > 0
+            ? UnitPoint(x: $0.x / size.width, y: $0.y / size.height) : .top } ?? .top
         content
             .opacity(shrinks ? 0.02 : 1)
-            .scaleEffect(shrinks && !simple ? 0.35 : 1, anchor: .top)
+            .scaleEffect(shrinks && !simple ? 0.35 : 1, anchor: anchor)
             .overlay(alignment: .top) {
                 if shrinks {
                     standIn
                         .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
                         .transition(simple ? .opacity : .opacity.combined(with: .scale(scale: 2.2, anchor: .top)))
                         .allowsHitTesting(false)
+                        .position(x: hold?.x ?? size.width / 2, y: hold?.y ?? 26)
                 }
             }
             .animation(simple ? .easeOut(duration: 0.15) : .spring(response: 0.35, dampingFraction: 0.78), value: shrinks)
@@ -1031,11 +1040,20 @@ struct CarriedShape: ViewModifier {
 
 /// What holding and dragging a card's title bar does: moves the panel it's in.
 struct PanelCarry {
+    /// Where the title bar was picked up (in the window) and which card it belongs to.
+    var grabbed: (CarryGrab) -> Void = { _ in }
     var moved: (CGSize) -> Void
     /// The final distance, or nil if it was let go without moving.
     var ended: (CGSize?) -> Void
     /// A quick sideways flick, without holding first: true towards the leading side.
     var flicked: (Bool) -> Void = { _ in }
+}
+
+/// The card a panel was picked up by, and where (in the window).
+struct CarryGrab: Equatable {
+    var point: CGPoint
+    var title: String?
+    var icon: String?
 }
 
 /// Where things are while a finger moves them. Kept apart from the main screen's own state so

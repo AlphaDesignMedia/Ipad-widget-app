@@ -11,6 +11,10 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
   2. Tap the widget to bring up its controls: the groups shouldn't move.
   3. Drag the widget to the far left, then the far right: the groups should move to the roomier side.
 
+## Latest run (22 Oct, later)
+- Done: picking up the settings by a card's title bar now carries that card, under your finger.
+- Not checked in Xcode: this machine can't build. Build on the Mac before trying it.
+
 ## Handover (22 Oct, 1am) — start here in a new chat
 **Your answers (22 Oct):**
 - **Corners:** like the app icon tiles. Rounded rectangles where each inner corner follows the one around it. Not pills everywhere.
@@ -22,7 +26,8 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 **Open issues to check on the iPad:**
 - [ ] Pinch down to Small paused or jittered on the iPad. The pinch has been reworked to follow the fingers freely, with an outline and ticks. Try it again.
-- [ ] Settings "sticking above" the Presets card when grabbed, and the window menu docked at the bottom looks wrong.
+- [x] Settings "sticking above" the Presets card when grabbed. *The stand-in now appears under your finger with the name of the card you picked up, and the panel shrinks into that spot instead of towards its top. Where it lands (left or right, above or below) follows your finger too. Try it with Design Tweaks → Carry set to the title or puck style.*
+- [ ] The window menu docked at the bottom looks wrong. *I need a screenshot to see what's off: groups below the settings, or the round dock button?*
 - [ ] Freer dropping of panels and the groups pill (later).
 - [ ] Widget controls now tuck away after 5 s. Tap the Preview pill to bring them back. Check this feels right.
 
