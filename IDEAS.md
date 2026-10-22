@@ -124,8 +124,7 @@ _Last updated 21 Oct 2026._
 
 | Idea | Status | Notes |
 |---|---|---|
-| Glass Storage widget (owner, 22 Oct 2026) | 💤 | A future Glass app: a storage ring for the iPad (used and free), with gentle suggestions like "Nearly full: Settings → General → iPad Storage". iOS limits: apps can't read your total iCloud storage, other apps' sizes or which apps could be offloaded. They can read the device's free and total space, and their own iCloud files. So suggestions are general tips and a link into Settings, not a list of your files. |
-| Claude usage tracker and optimiser | 💤 | Shows what's used and what's left. Suggests ways to get more done with less: batch small requests, compact sooner, a cheaper model for simple jobs, big work overnight. |
+| Claude usage tracker and optimiser | 🛠 started on the dashboard, 22 Oct 2026 | Shows what's used and what's left. Suggests ways to get more done with less: batch small requests, compact sooner, a cheaper model for simple jobs, big work overnight. |
 
 ## Design tools: suggestion
 
