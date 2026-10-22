@@ -567,6 +567,7 @@ struct ContentView: View {
                     // Not while the settings rail is up: the rail already lists every group.
                     if !showsSidebar && showsInspector { AnyView(groupsDock(in: geometry.size)) }
                 }
+                .overlay(alignment: .bottom) { AnyView(backdropNameOverlay) }
                 // Dropped along the bottom: the same pill, lying flat.
                 .overlay(alignment: .bottom) {
                     if showsSidebar && groupsFree && groupsAlongBottom {
@@ -2612,41 +2613,14 @@ struct ContentView: View {
             .padding(.horizontal, controlsFollowWidget || compact ? Space.small : Space.large)
             .padding(.top, compact ? Space.small : Space.medium)
             .padding(.bottom, compact ? Space.small : Space.large)
+            // In Classic the backdrop's name shows over the preview; in Panels it sits at the
+            // bottom middle of the window instead, where it's easy to find (`backdropNameOverlay`).
             .overlay(alignment: .top) {
-                if showsChrome, let backdropToast {
-                    VStack(spacing: 4) {
-                        // Which family the swipe has reached, with a dot per backdrop in it, so
-                        // it's clear when the swipe moves from Gradients into Mesh and so on.
-                        if let kind = backdrop.kind {
-                            Text(kind.title.uppercased())
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(backdropToast)
-                            .font(.headline)
-                        if let kind = backdrop.kind {
-                            HStack(spacing: 5) {
-                                // The current one is a longer pill, so it reads by shape as
-                                // well as by shade.
-                                ForEach(kind.backdrops) { item in
-                                    Capsule()
-                                        .fill(item == backdrop ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                                        .frame(width: item == backdrop ? 16 : 6, height: 6)
-                                }
-                            }
-                            .padding(.top, 2)
-                        }
-                    }
-                    .padding(.horizontal, Space.medium)
-                    .padding(.vertical, Space.small)
-                    // Rounds to a capsule when it's one line (Your Photo), a soft card when three.
-                    // Frosted like the bubbles, so it reads on dark patterns too.
-                    .background { bubbleBacking(.rect(cornerRadius: 20)) }
-                    .appGlass(.rect(cornerRadius: 20))
-                    .environment(\.colorScheme, controlScheme)
-                    .padding(.top, Space.small)
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)))
-                    .accessibilityHidden(true)
+                if showsChrome, interface == .classic, let backdropToast {
+                    backdropNameCard(backdropToast)
+                        .padding(.top, Space.small)
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)))
+                        .accessibilityHidden(true)
                 }
             }
     }
@@ -2728,12 +2702,79 @@ struct ContentView: View {
         }
     }
 
+    /// The backdrop's name, its kind above, and a dot for each backdrop of that kind.
+    private func backdropNameCard(_ name: String) -> some View {
+                    VStack(spacing: 4) {
+                        // Which family the swipe has reached, with a dot per backdrop in it, so
+                        // it's clear when the swipe moves from Gradients into Mesh and so on.
+                        if let kind = backdrop.kind {
+                            Text(kind.title.uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(name)
+                            .font(.headline)
+                        if let kind = backdrop.kind {
+                            HStack(spacing: 5) {
+                                // The current one is a longer pill, so it reads by shape as
+                                // well as by shade.
+                                ForEach(kind.backdrops) { item in
+                                    Capsule()
+                                        .fill(item == backdrop ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                                        .frame(width: item == backdrop ? 16 : 6, height: 6)
+                                }
+                            }
+                            .padding(.top, 2)
+                        }
+                    }
+                    .padding(.horizontal, Space.medium)
+                    .padding(.vertical, Space.small)
+                    // Rounds to a capsule when it's one line (Your Photo), a soft card when three.
+                    // Frosted like the bubbles, so it reads on dark patterns too.
+                    .background { bubbleBacking(.rect(cornerRadius: 20)) }
+                    .appGlass(.rect(cornerRadius: 20))
+                    .environment(\.colorScheme, controlScheme)
+    }
+
+    /// Panels: the backdrop's name at the bottom middle, in line with the panels rather than
+    /// floating over the widget (owner, 22 Oct 2026). Swipe across it for the next or previous
+    /// backdrop, or tap a dot to jump to one; it stays up while it's being used.
+    private var backdropNameOverlay: some View {
+        Group {
+            if let backdropToast {
+                backdropNameCard(backdropToast)
+                    .contentShape(.rect(cornerRadius: 20))
+                    .gesture(DragGesture(minimumDistance: 12).onEnded { drag in
+                        let dx = drag.translation.width
+                        guard abs(dx) > 30, abs(dx) > abs(drag.translation.height) else { return }
+                        stepBackdrop(forward: dx < 0)
+                    })
+                    .onTapGesture(coordinateSpace: .local) { _ in stepBackdrop(forward: true) }
+                    .padding(.bottom, Space.large + (showsSidebar && groupsFree && groupsAlongBottom ? 64 : 0))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)).combined(with: .scale(scale: 0.85)))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Backdrop: \(backdropToast)")
+                    .accessibilityAdjustableAction { direction in stepBackdrop(forward: direction == .increment) }
+            }
+        }
+    }
+
+    /// The next or previous backdrop, sliding in the way a swipe on the preview does.
+    private func stepBackdrop(forward: Bool) {
+        let options = availableBackdrops
+        let index = options.firstIndex(of: backdrop) ?? 0
+        backdropTravel = forward ? .bottom : .top
+        withAnimation(.smooth(duration: 0.55)) {
+            backdrop = options[(index + (forward ? 1 : options.count - 1)) % options.count]
+        }
+    }
+
     /// Briefly shows the new backdrop's name over the preview.
     private func showBackdropName() {
         let name = backdrop.label
         withAnimation(.snappy) { backdropToast = name }
         Task {
-            try? await Task.sleep(for: .seconds(1.3))
+            try? await Task.sleep(for: .seconds(interface == .panels ? 2.4 : 1.3))
             // Kept up for screenshots when a backdrop was passed in for testing.
             if backdropToast == name, StressTest.backdrop == nil { withAnimation(.easeOut(duration: 0.4)) { backdropToast = nil } }
             backdropTravel = .bottom
