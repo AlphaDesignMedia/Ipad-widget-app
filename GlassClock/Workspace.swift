@@ -529,9 +529,9 @@ enum Corner {
     static var inset: CGFloat { CGFloat(Tweak.gap.value) }
     /// The padding between a panel's edge and its cards.
     static var edge: CGFloat { CGFloat(Tweak.panelEdge.value) }
-    /// The cards of settings inside a panel: in step with the panel, but never so square that
-    /// they stop looking like the app's other rounded windows (owner, 22 Oct 2026).
-    static var card: CGFloat { max(26, panel - edge) }
+    /// The cards of settings inside a panel: concentric with the panel, like the app icon tiles
+    /// (owner, 22 Oct 2026: every inner corner follows the one around it).
+    static var card: CGFloat { max(4, panel - edge) }
     /// Padding inside a card, around its rows.
     static var cardPadding: CGFloat { CGFloat(Tweak.cardPadding.value) }
 }

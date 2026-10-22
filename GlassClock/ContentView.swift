@@ -632,8 +632,31 @@ struct ContentView: View {
 
     /// The groups as a list, or (sharing a side with the settings) a compact grid of icons
     /// across the top, so the settings keep most of the height.
+    @ViewBuilder
     private func groupsPanel(asStrip: Bool) -> some View {
-        let iconsOnly = groupsCollapsed || asStrip
+        if asStrip { groupsStrip } else { groupsList }
+    }
+
+    /// The groups sharing a side with the settings: the same pill of icons as when they're stuck
+    /// to the widget, turned to lie across the top (owner, 22 Oct 2026: the old strip looked like
+    /// a different app).
+    private var groupsStrip: some View {
+        HStack(spacing: 2) {
+            ForEach(SettingsSection.allCases) { section in groupButton(section, iconsOnly: true) }
+        }
+        .padding(Space.small)
+        .fixedSize()
+        .background {
+            GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .capsule)
+        }
+        .appGlass(.capsule, panel: true)
+        .frame(maxWidth: .infinity)
+        .animation(.snappy, value: selectedSection)
+    }
+
+    private var groupsList: some View {
+        let iconsOnly = groupsCollapsed
+        let asStrip = false
         return ScrollView {
             if asStrip {
                 // Every group on one row, however many there are.
