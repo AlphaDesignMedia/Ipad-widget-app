@@ -936,6 +936,12 @@ struct ContentView: View {
                 try? await Task.sleep(for: .seconds(1.4))
                 withAnimation(.easeInOut(duration: 0.6)) { highlighted = nil }
             }
+            // Switching the look (Reduce glass, the app look) redraws every card, which threw
+            // the list back to the top (owner, 22 Oct 2026). It goes back to the card in use.
+            .onChange(of: reducesGlass) { returnTo(.accessibility, anchor: .bottom, proxy) }
+            // Text size changes by pinching anywhere too, so it goes back to the card in use.
+            .onChange(of: textSizeStep) { returnTo(focusedSection ?? .accessibility, anchor: .center, proxy) }
+            .onChange(of: appTheme) { returnTo(.widget, anchor: .top, proxy) }
         }
     }
 
@@ -963,6 +969,16 @@ struct ContentView: View {
     }
 
     /// Opens the settings and glides them to a group.
+    /// Back to the group whose setting was just changed, once the list has redrawn.
+    private func returnTo(_ section: SettingsSection, anchor: UnitPoint, _ proxy: ScrollViewProxy) {
+        // The rebuilt list replays its last jump to the selected group, so that points here too.
+        selectedSection = section
+        Task {
+            try? await Task.sleep(for: .milliseconds(320))
+            proxy.scrollTo(section, anchor: anchor)
+        }
+    }
+
     private func focus(_ section: SettingsSection) {
         selectedSection = section
         // The groups and the settings work as one: picking a group always brings the settings
