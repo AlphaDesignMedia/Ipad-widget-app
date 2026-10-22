@@ -1172,9 +1172,12 @@ struct GlassPicker<T: Hashable>: View {
     @Binding var selection: T
     var options: [T]
     var label: (T) -> String
+    /// Bigger text and taller options, for switches used often (the widget sizes).
+    var large = false
 
-    init(_ title: String, selection: Binding<T>, options: [T], label: @escaping (T) -> String) {
+    init(_ title: String, selection: Binding<T>, options: [T], large: Bool = false, label: @escaping (T) -> String) {
         self.title = title
+        self.large = large
         _selection = selection
         self.options = options
         self.label = label
@@ -1188,11 +1191,12 @@ struct GlassPicker<T: Hashable>: View {
                     withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) { selection = option }
                 } label: {
                     Text(label(option))
-                        .font(.subheadline.weight(chosen ? .semibold : .regular))
+                        .font((large ? Font.body : .subheadline).weight(chosen ? .semibold : .regular))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .foregroundStyle(chosen ? .primary : .secondary)
-                        .frame(maxWidth: .infinity, minHeight: 32)
+                        .padding(.horizontal, large ? 10 : 6)
+                        .frame(maxWidth: .infinity, minHeight: large ? 44 : 32)
                         .background {
                             if chosen {
                                 GlossyBead(shape: Capsule())
@@ -1205,7 +1209,7 @@ struct GlassPicker<T: Hashable>: View {
                 .accessibilityAddTraits(chosen ? .isSelected : [])
             }
         }
-        .padding(3)
+        .padding(large ? 4 : 3)
         .background(Capsule().fill(.primary.opacity(0.08)))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)

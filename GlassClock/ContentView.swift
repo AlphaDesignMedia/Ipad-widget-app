@@ -2835,8 +2835,8 @@ struct ContentView: View {
 
     private var sizeBubble: some View {
         bubble {
-            GlassPicker("Widget size", selection: $previewSize, options: PreviewSize.allCases) { $0.rawValue }
-            .frame(maxWidth: 380)
+            GlassPicker("Widget size", selection: $previewSize, options: PreviewSize.allCases, large: true) { $0.rawValue }
+            .frame(maxWidth: 480)
         }
     }
 
