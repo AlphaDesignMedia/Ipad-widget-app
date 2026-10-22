@@ -1239,3 +1239,20 @@ struct LiftShadow: View {
             .allowsHitTesting(false)
     }
 }
+
+/// Saves where the panels were put. They're plain view state rather than @AppStorage, whose
+/// updates reached the screen a frame late and made a dropped panel slide back first.
+struct SavesPanelPlaces: ViewModifier {
+    var settingsLeading: Bool
+    var groupsTrailing: Bool
+    var groupsTop: Double
+    var groupsAlongBottom: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: settingsLeading) { _, value in UserDefaults.standard.set(value, forKey: "settingsLeading") }
+            .onChange(of: groupsTrailing) { _, value in UserDefaults.standard.set(value, forKey: "groupsTrailing") }
+            .onChange(of: groupsTop) { _, value in UserDefaults.standard.set(value, forKey: "groupsTop") }
+            .onChange(of: groupsAlongBottom) { _, value in UserDefaults.standard.set(value, forKey: "groupsAlongBottom") }
+    }
+}

@@ -177,17 +177,24 @@ struct ContentView: View {
     /// Where the panels go (owner idea, 2026-10-21): the groups on the right instead of the
     /// left, the settings on the left instead of the right, and when both share a side, whether
     /// the groups sit below the settings. Drag a panel to put it somewhere else.
-    @AppStorage("groupsTrailing") private var groupsTrailing = false
-    @AppStorage("settingsLeading") private var settingsLeading = false
+    /// Which side the groups are on, how far down, and whether along the bottom: plain view
+    /// state saved by hand, like `settingsLeading`, so a drop lands in the same frame.
+    @State private var groupsTrailing = UserDefaults.standard.bool(forKey: "groupsTrailing")
+    /// Which side the settings are on. Plain view state, saved by hand: @AppStorage's update
+    /// reached the screen a frame late, so a panel put down on the other side drew once in its
+    /// old column before swapping, and visibly slid back first (simulator frames, 22 Oct 2026).
+    @State private var settingsLeading = UserDefaults.standard.bool(forKey: "settingsLeading")
     @AppStorage("groupsBelow") private var groupsBelow = false
     /// The groups pill on its own side sits where it was dropped, top to bottom, or lies along
     /// the bottom of the window (owner, 22 Oct 2026: "move this panel up and down… pull it to
     /// the bottom").
-    @AppStorage("groupsTop") private var groupsTop = 0.0
-    @AppStorage("groupsAlongBottom") private var groupsAlongBottom = false
+    @State private var groupsTop = UserDefaults.standard.double(forKey: "groupsTop")
+    @State private var groupsAlongBottom = UserDefaults.standard.bool(forKey: "groupsAlongBottom")
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     /// The settings being carried by a card's title bar (see `PanelCarry`).
     @State private var settingsCarried = false
+    /// True for a moment after a panel is put down on the other side (see `panelTransition`).
+    @State private var panelSwap = false
     /// The settings tucked aside: turned, mostly off the edge, still in view (see `Peek`).
     @State private var settingsPeeking = false
     @GestureState private var groupsHeld = false
@@ -572,6 +579,8 @@ struct ContentView: View {
             // A panel opened over the widget: the widget steps out to the free space, so it's
             // never hidden (owner, 22 Oct 2026: the widget is what you want to look at).
             .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels() } }
+            .modifier(SavesPanelPlaces(settingsLeading: settingsLeading, groupsTrailing: groupsTrailing,
+                                       groupsTop: groupsTop, groupsAlongBottom: groupsAlongBottom))
             // Using a control keeps them up a while longer.
             .onChange(of: homeScreen) { showExtras() }
             .onChange(of: previewSize) { if extrasShown { showExtras() } }
@@ -690,7 +699,10 @@ struct ContentView: View {
 
     /// Panels slide in from their own edge, or fade when Reduce Motion is on.
     private func panelTransition(_ edge: Edge) -> AnyTransition {
-        reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
+        // A panel carried to the other side swaps columns without any transition: it's put
+        // down exactly where the finger left it and glides home from there (`panelSwap`).
+        if panelSwap { return .identity }
+        return reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
     }
 
     /// The settings groups on a glass panel: a tap glides the settings to that group. It folds
@@ -1063,14 +1075,37 @@ struct ContentView: View {
                 },
                 ended: { moved in
                     if let moved {
-                        placePanel(groups: false, at: settingsFinger(moved)
-                                   ?? CGPoint(x: inspectorRect.midX + moved.width, y: inspectorRect.minY + 40 + moved.height), in: area)
+                        let finger = settingsFinger(moved)
+                            ?? CGPoint(x: inspectorRect.midX + moved.width, y: inspectorRect.minY + 40 + moved.height)
+                        let wasLeading = settingsLeading, before = inspectorRect
+                        // Swapping sides moves the panel to the other column, which SwiftUI sees
+                        // as a new panel: it faded out, slid in from the edge and the rest of the
+                        // screen jumped (simulator frames, 22 Oct 2026). Instead it's put down in
+                        // its new column exactly where the finger left it, with no transition,
+                        // and glides home from there.
+                        panelSwap = true
+                        var still = Transaction()
+                        still.disablesAnimations = true
+                        withTransaction(still) {
+                            placePanel(groups: false, at: finger, in: area, animated: false)
+                            if settingsLeading != wasLeading {
+                                let home = settingsLeading ? panelsOrigin.x + Space.medium
+                                    : panelsOrigin.x + area.width - Space.medium - before.width
+                                motion.settingsMove = CGSize(width: moved.width - (home - before.minX), height: moved.height)
+                            }
+                        }
                     }
                     settingsGrab = nil
                     carryTarget = nil
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                    withAnimation(reduceMotion ? nil : Self.cardLand) {
                         motion.settingsMove = .zero
                         settingsCarried = false
+                    }
+                    // The widget steps out from under it as it lands, not half a second later.
+                    clearWidgetFromPanels(after: 60)
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(700))
+                        panelSwap = false
                     }
                 },
                 flicked: { towardsLeading in flickSettings(towardsLeading: towardsLeading, in: area) }))
@@ -1085,9 +1120,9 @@ struct ContentView: View {
 
     /// Puts a panel down: on the side it's dropped, sharing that side if the other panel is
     /// already there (above or below it, by where it was dropped).
-    private func placePanel(groups: Bool, at point: CGPoint, in area: CGSize) {
+    private func placePanel(groups: Bool, at point: CGPoint, in area: CGSize, animated: Bool = true) {
         let leading = point.x < area.width / 2
-        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+        withAnimation(reduceMotion || !animated ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
             if groups { groupsTrailing = !leading } else { settingsLeading = leading }
             if panelsStacked {
                 let other = groups ? inspectorRect : sidebarRect
@@ -1175,7 +1210,7 @@ struct ContentView: View {
     /// Lets go of the groups: they glide from under the finger to where they've settled.
     private func dropGroups() {
         carryTarget = nil
-        withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.8)) {
+        withAnimation(reduceMotion ? nil : Self.cardLand) {
             motion.groupsMove = .zero
             groupsCarried = false
         }
@@ -1237,13 +1272,34 @@ struct ContentView: View {
         // Near the bottom of the window it lies along the bottom; anywhere else it goes to that
         // side, at the height it was dropped.
         let alongBottom = finger.y - panelsOrigin.y > area.height - 160
-        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
-            groupsAlongBottom = alongBottom
-            if !alongBottom {
-                groupsTop = max(0, Double(sidebarRect.minY - panelsOrigin.y + drag.translation.height - Space.small))
+        if alongBottom || groupsAlongBottom {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+                groupsAlongBottom = alongBottom
             }
+            if !alongBottom { placePanel(groups: true, at: end, in: area) }
+            return
         }
-        if !alongBottom { placePanel(groups: true, at: end, in: area) }
+        // Put down where the finger let go, then glides home: the new place is set at once,
+        // and the distance carried is swapped for what's left between there and here, so the
+        // pill never jumps or slides in from an edge (as the settings panel, 22 Oct 2026).
+        let before = sidebarRect
+        panelSwap = true
+        var still = Transaction()
+        still.disablesAnimations = true
+        withTransaction(still) {
+            let top = max(0, min(Double(sidebarRect.minY - panelsOrigin.y + drag.translation.height - Space.small),
+                                 Double(area.height - sidebarRect.height - Space.large)))
+            groupsTop = top
+            placePanel(groups: true, at: end, in: area, animated: false)
+            let homeX = groupsTrailing ? panelsOrigin.x + area.width - Space.medium - before.width : panelsOrigin.x + Space.medium
+            let homeY = panelsOrigin.y + Space.small + CGFloat(top)
+            motion.groupsMove = CGSize(width: before.minX + drag.translation.width - homeX,
+                                       height: before.minY + drag.translation.height - homeY)
+        }
+        Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            panelSwap = false
+        }
     }
 
     /// What the groups would stick to if let go at `point` (in the window).
@@ -2423,9 +2479,9 @@ struct ContentView: View {
 
     /// Once a newly opened panel has settled, moves the widget back to the middle of the free
     /// space if the panel covers it.
-    private func clearWidgetFromPanels() {
+    private func clearWidgetFromPanels(after delay: Int = 450) {
         Task {
-            try? await Task.sleep(for: .milliseconds(450))
+            try? await Task.sleep(for: .milliseconds(delay))
             let card = widgetRect.insetBy(dx: 12, dy: 12)
             let covered = (showsInspector && card.intersects(inspectorRect))
                 || (showsSidebar && groupsFree && card.intersects(sidebarRect))
