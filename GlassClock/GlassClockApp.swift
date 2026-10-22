@@ -9,6 +9,9 @@ struct GlassClockApp: App {
                 StyleGallery(page: page)
             } else {
                 ContentView()
+                    .overlay(alignment: .bottom) {
+                        if UserDefaults.standard.bool(forKey: "frameMeter") { FrameMeter().padding(.bottom, 2) }
+                    }
             }
             #else
             ContentView()

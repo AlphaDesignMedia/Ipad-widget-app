@@ -9,9 +9,9 @@ LOG="${TMPDIR:-/tmp}/glassclock-auto-sync.log"
 say() { jq -cn --arg m "$1" '{systemMessage: $m}'; exit 0; }
 
 [[ -n "$(git status --porcelain)" ]] || exit 0
-# Only on main: on another branch (such as a prototype being built) the work isn't finished,
-# and committing, pushing or installing it would be premature.
-[[ "$(git branch --show-current)" == main ]] || exit 0
+# Only on main and the rebuild: on another branch (such as a prototype being built) the work
+# isn't finished, and committing, pushing or installing it would be premature.
+[[ "$(git branch --show-current)" == (main|rebuild) ]] || exit 0
 [[ -f .git/MERGE_HEAD ]] && say "Auto-sync skipped: a merge is in progress."
 
 CHANGED=$(git status --porcelain | awk '{print $NF}')

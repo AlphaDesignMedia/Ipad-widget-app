@@ -1,5 +1,6 @@
 #!/bin/zsh
 # Builds Glass Clock, installs it on the plugged-in iPad and relaunches it.
+#   --meter  shows the frame meter (frames per second and hitches) along the bottom
 # Uses the free Personal Team, which can't use App Groups, so the build swaps the
 # App Group entitlements for Config/FreeTeam.entitlements, which shares settings through the keychain.
 set -euo pipefail
@@ -20,6 +21,8 @@ xcodebuild -project GlassClock.xcodeproj -scheme GlassClock -configuration Debug
 # (it relaunches itself) fixed it (2026-10-20).
 xcrun devicectl device install app --device "$DEVICE" \
   "$BUILD_DIR/Build/Products/Debug-iphoneos/GlassClock.app" >/dev/null
+ARGS=()
+[[ "${1:-}" == --meter ]] && ARGS=(-frameMeter YES)
 xcrun devicectl device process launch --device "$DEVICE" --terminate-existing \
-  com.aarondennel.glassclock >/dev/null
+  com.aarondennel.glassclock "${ARGS[@]}" >/dev/null
 echo "Running on iPad."
