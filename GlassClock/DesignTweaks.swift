@@ -193,10 +193,7 @@ struct DesignTweaksPanel: View {
                     }
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Carrying a panel").font(.subheadline)
-                        Picker("Carrying a panel", selection: $carry) {
-                            ForEach(CarryStyle.allCases) { Text($0.label).tag($0) }
-                        }
-                        .pickerStyle(.segmented)
+                        GlassPicker("Carrying a panel", selection: $carry, options: CarryStyle.allCases) { $0.label }
                     }
                     Toggle(isOn: $oneRow) {
                         VStack(alignment: .leading, spacing: 2) {

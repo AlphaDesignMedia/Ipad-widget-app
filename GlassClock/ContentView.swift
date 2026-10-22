@@ -815,12 +815,7 @@ struct ContentView: View {
                 if selected {
                     // A glossy bead rather than an outline (owner, 22 Oct 2026): a soft fill
                     // lit from above, with an inner highlight and a gentle shadow under it.
-                    Capsule()
-                        .fill(LinearGradient(colors: [.white.opacity(0.34), .white.opacity(0.08)],
-                                             startPoint: .top, endPoint: .bottom)
-                            .shadow(.inner(color: .white.opacity(0.45), radius: 1, y: 1))
-                            .shadow(.inner(color: .black.opacity(0.12), radius: 2, y: -1))
-                            .shadow(.drop(color: .black.opacity(0.22), radius: 4, y: 2)))
+                    GlossyBead(shape: Capsule())
                         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
                         .matchedGeometryEffect(id: "group selection", in: groupSelection)
                 }
@@ -1531,17 +1526,12 @@ struct ContentView: View {
 
     /// Classic (simple) or Panels (everything), always one tap away in the middle of the top bar.
     private var interfaceSwitch: some View {
-        Picker("Interface", selection: Binding(
+        GlassPicker("Interface", selection: Binding(
             get: { interface },
             set: { next in withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { interface = next } }
-        )) {
-            // Words rather than icons: a segmented control shows only the icon of a Label.
-            ForEach(InterfaceStyle.allCases) { option in
-                Text(option.label).tag(option)
-            }
-        }
-        .pickerStyle(.segmented)
+        ), options: InterfaceStyle.allCases) { $0.label }
         .frame(width: 220)
+        .appGlass(.capsule)
         .opacity(switchSettled ? 0.75 : 1)
         // (It used to slide sideways to line up with the widget, but its tap area stayed behind,
         // so Classic couldn't be tapped; owner report, 22 Oct 2026. It stays in the middle.)
@@ -2845,10 +2835,7 @@ struct ContentView: View {
 
     private var sizeBubble: some View {
         bubble {
-            Picker("Widget size", selection: $previewSize) {
-                ForEach(PreviewSize.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
+            GlassPicker("Widget size", selection: $previewSize, options: PreviewSize.allCases) { $0.rawValue }
             .frame(maxWidth: 380)
         }
     }
@@ -3040,13 +3027,11 @@ struct ContentView: View {
                 Button { roll(StylePart.colourParts) } label: {
                     HStack(spacing: 6) { Image(systemName: "paintpalette"); Text("Lucky Colours") }
                 }
-                .buttonStyle(.bordered)
                 .readableChip()
                 .fixedSize()
                 Button { roll(StylePart.styleParts) } label: {
                     HStack(spacing: 6) { Image(systemName: "textformat"); Text("Lucky Style") }
                 }
-                .buttonStyle(.bordered)
                 .readableChip()
                 .fixedSize()
             }
@@ -3065,7 +3050,6 @@ struct ContentView: View {
                     } label: {
                         HStack(spacing: 6) { Image(systemName: "plus"); Text("Save Current") }
                     }
-                    .buttonStyle(.bordered)
                     .readableChip()
                     .fixedSize()
                 }
@@ -3076,7 +3060,6 @@ struct ContentView: View {
             FlowLayout(spacing: 10) {
                 ForEach(ClockStyle.presets, id: \.name) { preset in
                     Button(preset.name) { use(preset.style) }
-                        .buttonStyle(.bordered)
                         .readableChip()
                 }
             }
@@ -3139,10 +3122,7 @@ struct ContentView: View {
             slider("Letter spacing", value: $style.detailTracking, in: -0.06...0.25, low: "Tight", high: "Wide")
 
         case .colour:
-            Picker("Style", selection: $style.textFill) {
-                ForEach(TextFill.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
+            GlassPicker("Style", selection: $style.textFill, options: TextFill.allCases) { $0.label }
             swatchRow(selection: $style.color)
             if style.textFill == .gradient {
                 VStack(alignment: .leading, spacing: 8) {
@@ -3191,10 +3171,7 @@ struct ContentView: View {
             }
 
         case .card:
-            Picker("Style", selection: $style.background) {
-                ForEach(CardBackground.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
+            GlassPicker("Style", selection: $style.background, options: CardBackground.allCases) { $0.label }
             swatchRow(selection: $style.backgroundColor)
             slider("Transparency", value: $style.cardOpacity, in: ClockStyle.cardOpacityRange, low: "Clear", high: "Solid")
 
@@ -3222,10 +3199,7 @@ struct ContentView: View {
 
         case .widget:
             groupLabel("App look")
-            Picker("Theme", selection: $appTheme) {
-                ForEach(AppTheme.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
+            GlassPicker("Theme", selection: $appTheme, options: AppTheme.allCases) { $0.label }
             .disabled(reducesGlass)
             if appTheme.isGlassy && !reducesGlass {
                 slider("Glass", value: $glassAmount, in: 0...1, low: "Frosted", high: "Clear")
@@ -3262,10 +3236,7 @@ struct ContentView: View {
 
     /// Digital or analog. Everything else (fonts aside) styles both the same way.
     private var facePicker: some View {
-        Picker("Clock", selection: $style.face) {
-            ForEach(ClockFaceKind.allCases) { Text($0.label).tag($0) }
-        }
-        .pickerStyle(.segmented)
+        GlassPicker("Clock", selection: $style.face, options: ClockFaceKind.allCases) { $0.label }
     }
 
     /// A small label that starts a group of settings inside a section.
@@ -3336,7 +3307,6 @@ struct ContentView: View {
         } label: {
             HStack(spacing: 6) { Image(systemName: "star.fill"); Text(customPresets[index].name) }
         }
-        .buttonStyle(.bordered)
         .readableChip()
         .tint(.orange)
         .fixedSize()

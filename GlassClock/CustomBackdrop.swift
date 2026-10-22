@@ -120,10 +120,7 @@ struct CustomBackdropEditor: View {
             }
 
             Text("Pattern").font(.subheadline.weight(.semibold))
-            Picker("Pattern", selection: $backdrop.pattern) {
-                ForEach(BackdropPattern.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
+            GlassPicker("Pattern", selection: $backdrop.pattern, options: BackdropPattern.allCases) { $0.label }
         }
         .padding(20)
         .frame(width: 360)

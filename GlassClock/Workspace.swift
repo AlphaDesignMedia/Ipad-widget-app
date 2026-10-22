@@ -453,14 +453,36 @@ extension View {
     func prominentButton() -> some View { modifier(ProminentButton()) }
 }
 
-/// Bordered chips (Lucky Colours, starter styles…) with readable text. In Dark, the tint
-/// coloured text on its own faint tint sank into warm backdrops like Sunset and Dune, so the
-/// text goes white there and the pill keeps the colour (contrast first, 2026-10-21).
+/// Chips (Lucky Colours, starter styles…) as solid little beads of glass (owner, 22 Oct 2026:
+/// the system's see-through tinted chips washed out on clear glass, worst in Light). Dark text
+/// on a near-white bead in Light, white text on a smoky bead in Dark, both lit from above.
 struct ReadableChip: ViewModifier {
-    @Environment(\.colorScheme) private var scheme
-
     func body(content: Content) -> some View {
-        if scheme == .dark { content.foregroundStyle(.primary) } else { content }
+        content.buttonStyle(GlassChipStyle())
+    }
+}
+
+struct GlassChipStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        let dark = scheme == .dark
+        configuration.label
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(dark ? Color.white : .black.opacity(0.85))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background {
+                Capsule().fill(LinearGradient(
+                    colors: dark ? [.white.opacity(0.26), .white.opacity(0.12)] : [.white.opacity(0.95), .white.opacity(0.75)],
+                    startPoint: .top, endPoint: .bottom)
+                    .shadow(.inner(color: .white.opacity(dark ? 0.35 : 0.9), radius: 1, y: 1))
+                    .shadow(.drop(color: .black.opacity(dark ? 0.3 : 0.14), radius: 3, y: 1.5)))
+            }
+            .opacity(isEnabled ? 1 : 0.5)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
     }
 }
 
@@ -525,7 +547,7 @@ struct AppGlass<S: Shape>: ViewModifier {
     }
 
     private var dim: Color {
-        colorScheme == .dark ? .black.opacity(panel ? 0.3 : 0.34) : .white.opacity(panel ? 0.32 : 0.4)
+        colorScheme == .dark ? .black.opacity(panel ? 0.38 : 0.4) : .white.opacity(panel ? 0.5 : 0.55)
     }
 
     private var clearAndSmall: Bool { theme.isGlassy && tint == nil && !panel && homeLook != .tinted }
@@ -788,7 +810,7 @@ private struct GlassBacking<S: Shape>: View {
             // in Dark and lighter in Light, so text stands off the backdrop. The Glass slider
             // sets how strong the wash is.
             shape.fill(colorScheme == .dark ? Color.black : .white)
-                .opacity((colorScheme == .dark ? 0.2 : 0.26) + 0.3 * (1 - amount))
+                .opacity((colorScheme == .dark ? 0.3 : 0.42) + 0.3 * (1 - amount))
             // A Tinted Home Screen's glass carries the tint all through.
             if homeLook == .tinted {
                 shape.fill(AppColor.chosen(appColor).opacity(0.32))
@@ -1125,4 +1147,67 @@ struct CarryTarget: Equatable {
     var leading: Bool
     var top: Bool
     var attach: GroupsAttachment?
+}
+
+/// The app's selection mark: a glossy bead of glass lit from above, with an inner highlight
+/// and a soft shadow, rather than an outline (owner, 22 Oct 2026: "go full glass").
+struct GlossyBead<S: Shape>: View {
+    var shape: S
+
+    var body: some View {
+        shape.fill(LinearGradient(colors: [.white.opacity(0.34), .white.opacity(0.08)],
+                                  startPoint: .top, endPoint: .bottom)
+            .shadow(.inner(color: .white.opacity(0.45), radius: 1, y: 1))
+            .shadow(.inner(color: .black.opacity(0.12), radius: 2, y: -1))
+            .shadow(.drop(color: .black.opacity(0.22), radius: 4, y: 2)))
+    }
+}
+
+/// A segmented switch in glass: the chosen option sits in a glossy bead that glides between
+/// options, instead of the system's grey segmented control.
+struct GlassPicker<T: Hashable>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var space
+    var title: String
+    @Binding var selection: T
+    var options: [T]
+    var label: (T) -> String
+
+    init(_ title: String, selection: Binding<T>, options: [T], label: @escaping (T) -> String) {
+        self.title = title
+        _selection = selection
+        self.options = options
+        self.label = label
+    }
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(options, id: \.self) { option in
+                let chosen = option == selection
+                Button {
+                    withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) { selection = option }
+                } label: {
+                    Text(label(option))
+                        .font(.subheadline.weight(chosen ? .semibold : .regular))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(chosen ? .primary : .secondary)
+                        .frame(maxWidth: .infinity, minHeight: 32)
+                        .background {
+                            if chosen {
+                                GlossyBead(shape: Capsule())
+                                    .matchedGeometryEffect(id: "bead", in: space)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(chosen ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(Capsule().fill(.primary.opacity(0.08)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title)
+    }
 }

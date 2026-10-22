@@ -30,11 +30,7 @@ struct HomeStylePicker: View {
                         if selected {
                             // Bright glass with a light rim, like every other selection in
                             // the app (owner direction, 2026-10-21), rather than a solid tile.
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(.background.opacity(0.6))
-                                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .strokeBorder(.white.opacity(Tweak.rim.value), lineWidth: 1))
-                                .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
+                            GlossyBead(shape: RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .matchedGeometryEffect(id: "selection", in: selectionSpace)
                         }
                     }
