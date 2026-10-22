@@ -193,8 +193,15 @@ struct ContentView: View {
     /// The same for the groups. Each panel keeps its own size, so pinching one leaves the other
     /// alone (owner direction, 2026-10-21).
     @AppStorage("groupsTextSize") private var groupsTextStep = 1
-    @AppStorage(CarryStyle.key) private var carryStyle = CarryStyle.lift
-    @AppStorage(OneRowControls.key) private var oneRowControls = false
+    @AppStorage(CarryStyle.key) private var savedCarryStyle = CarryStyle.lift
+    @AppStorage(OneRowControls.key) private var savedOneRowControls = false
+    /// The Foundation build carries panels at full size and keeps the controls stacked
+    /// (see `Essentials`).
+    private var carryStyle: CarryStyle { Essentials.on ? .lift : savedCarryStyle }
+    private var oneRowControls: Bool {
+        get { savedOneRowControls && !Essentials.on }
+        nonmutating set { savedOneRowControls = newValue }
+    }
     /// Which bubble shows when the widget's controls are one row: 0 style, 1 size, 2 backdrop.
     @State private var controlsPage = 0
     @State private var controlsPageForward = true
@@ -578,7 +585,7 @@ struct ContentView: View {
     /// The groups are a panel of their own: not stuck to anything, or stuck to the settings
     /// while those are put away.
     private var groupsFree: Bool {
-        groupsAttachment == .none || (groupsAttachment == .settings && !showsInspector)
+        Essentials.on || groupsAttachment == .none || (groupsAttachment == .settings && !showsInspector)
     }
 
     private func fitSidebar() {
@@ -1139,7 +1146,7 @@ struct ContentView: View {
 
     /// What the groups would stick to if let go at `point` (in the window).
     private func attachmentTarget(at point: CGPoint) -> GroupsAttachment? {
-        guard interface == .panels else { return nil }
+        guard interface == .panels, !Essentials.on else { return nil }
         if widgetGroupRect.insetBy(dx: -24, dy: -24).contains(point) { return .widget }
         if showsInspector, inspectorRect.contains(point) { return .settings }
         return nil
@@ -1639,7 +1646,7 @@ struct ContentView: View {
                     .strokeBorder(AppColor.chosen(appColor), lineWidth: 3)
             }
         }
-        .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0, degrees: tweakWiggle))
+        .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0 && !Essentials.on, degrees: tweakWiggle))
     }
 
     /// The controls that ride with the widget, hanging off its top or bottom edge.
@@ -2703,6 +2710,7 @@ struct ContentView: View {
     }
 
     private var suggestion: Suggestion? {
+        if Essentials.on { return nil }
         if suggestsFont { return .tryFont }
         if style != appliedStyle && changesSettled && !dismissedApplyHint && !applyWhenLeaving { return .apply }
         return nil

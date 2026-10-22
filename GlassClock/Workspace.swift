@@ -663,7 +663,8 @@ struct SettingsCard<Content: View>: View {
             let frame = proxy.frame(in: .named("settingsList"))
             let line: CGFloat = 300
             let offset = max(-1, min(1, (frame.midY - line) / 900))
-            let amount = glassy && !reduceMotion ? focusStrength : 0
+            // No squash in the Foundation build (see `Essentials`).
+            let amount = glassy && !reduceMotion && !Essentials.on ? focusStrength : 0
             // A carousel turning (owner, 22 Oct 2026): cards squash towards their far edge as they
             // leave the middle, as if tipping back on a drum. Done
             // flat: a real 3D tilt is cut off by the list at each card's edge (tried twice).

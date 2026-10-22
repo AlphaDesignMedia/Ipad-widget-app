@@ -16,6 +16,9 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 - Day-to-day tweaks happen in Claude Code on the Mac, which builds and installs on the iPad after every reply. Cloud sessions are for planning and bigger chunks.
 - The Simulator (the one Claude drives on the Mac) is for quick looks at layout. The iPad has the final say.
 
+### The Foundation build (to use while the rebuild goes on)
+The app as it is today, with every core feature and the feel you liked (Panels, the glass style, dragging, pinching, hold-to-resize, the groups pill), and the playground switched off: no groups sticking onto things, no carousel squash, no one-row controls, no suggestion bubbles, no title card or puck while carrying, and no wiggle. It's the default when the app opens. `Scripts/run-on-ipad.sh --playground` brings the experiments back (`GlassClock/Essentials.swift`).
+
 ### Why the Simulator doesn't match the iPad (and the fix)
 The "emulator" is the iPad Simulator that Claude Code runs on the Mac and takes screenshots of. It differs from your iPad in five ways:
 1. **Older iPadOS.** The Simulator has been on iPadOS 26.5, but the iPad runs iPadOS 27. Liquid Glass, widgets and Clear/Tinted all changed in 27. DESIGN_SYSTEM.md already records things that worked in the Simulator and broke on the iPad.
