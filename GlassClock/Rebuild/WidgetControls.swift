@@ -45,6 +45,8 @@ struct WidgetControls: View {
             Label("Preview", systemImage: "slider.horizontal.3")
                 .font(.footnote.weight(.semibold))
                 .textCase(.uppercase)
+                .lineLimit(1)
+                .fixedSize()
                 .padding(.horizontal, Theme.Padding.chip)
                 .frame(minHeight: Theme.Size.tapTarget)
                 .contentShape(.capsule)
@@ -100,6 +102,10 @@ struct WidgetControls: View {
 
     private func restartTuck() {
         tuck?.cancel()
+        #if DEBUG
+        // `-holdControls YES` keeps them out, for Simulator screenshots.
+        if UserDefaults.standard.bool(forKey: "holdControls") { return }
+        #endif
         tuck = Task {
             try? await Task.sleep(for: .seconds(5))
             if !Task.isCancelled { shown = false }

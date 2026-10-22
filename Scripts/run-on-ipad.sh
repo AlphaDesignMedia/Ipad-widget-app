@@ -19,7 +19,8 @@ CONFIG=Release
 for option in "$@"; do
   [[ "$option" == --debug || "$option" == --meter || "$option" == --rebuild ]] && CONFIG=Debug
 done
-DEVICE=$(xcrun devicectl list devices 2>/dev/null | awk '/iPad/ && /connected/ {print $3; exit}')
+# Xcode 27.1 lists a reachable iPad as "available (paired)" rather than "connected".
+DEVICE=$(xcrun devicectl list devices 2>/dev/null | awk '/iPad/ && (/connected/ || /available/) {print $3; exit}')
 [[ -n "$DEVICE" ]] || { echo "No connected iPad found."; exit 1; }
 # Built for any iPad rather than this one: Xcode's own connection to the iPad drops when it
 # locks or sleeps, even while devicectl (which does the install) can still reach it.
