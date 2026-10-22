@@ -436,6 +436,7 @@ struct ContentView: View {
                 ZStack {
                     backdropView
                         .ignoresSafeArea()
+                    StatusScrim()
                     if arrangement == .previewOnly {
                         previewStage()
                     } else {
@@ -500,6 +501,7 @@ struct ContentView: View {
                     ZStack {
                         AnyView(backdropView)
                             .ignoresSafeArea()
+                        StatusScrim()
                         AnyView(previewStage(showsChrome: false))
                             .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                             .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
