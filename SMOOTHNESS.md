@@ -1,6 +1,6 @@
 # Smoothness while you're out (22 Oct, from 13:20)
 
-Status: in progress. Last entry: 13:53
+Status: in progress. Last entry: 13:56
 
 Nothing here goes on your iPad until you choose it. Each item is its own commit, so any one can be tried alone.
 
@@ -22,7 +22,11 @@ Nothing here goes on your iPad until you choose it. Each item is its own commit,
   - The new lifted shadow is only drawn while the widget is carried. The landing fixes add no
     layers; dragging still only redraws the widget, not the whole screen.
 
+- [x] Extra: the Stage Manager-style tuck went solid black (same 3D-turn problem as the widget).
+  Now it's a flat squeeze that keeps its clear glass.
+
 ## Try on the iPad
 - Drag the widget quickly across the screen and let go: it should glide into the slot and stop, staying under your finger the whole way and clear, not dark.
 - Hold a settings card's title and carry the panel to the other side: it should land where you let go and glide into place, with the widget stepping aside at once.
+- Flick a settings title bar towards the edge: the tucked sliver should stay clear glass, not black.
 - Hold the groups pill and move it up, down and across: same glide, no jump.

@@ -3612,9 +3612,11 @@ struct Peek: ViewModifier {
         let away: CGFloat = towardsLeading ? -1 : 1
         content
             .allowsHitTesting(!on)
-            .rotation3DEffect(.degrees(on && !simple ? Double(-away) * 24 : 0), axis: (x: 0, y: 1, z: 0),
-                              anchor: towardsLeading ? .trailing : .leading, perspective: 0.45)
-            .scaleEffect(on && !simple ? 0.9 : 1, anchor: towardsLeading ? .trailing : .leading)
+            // Squeezed narrower and a little shorter rather than turned in 3D: Liquid Glass in a
+            // 3D turn can't see the backdrop and went solid black (simulator, 22 Oct 2026).
+            // The squeeze still reads as a window turned away, like Stage Manager.
+            .scaleEffect(x: on && !simple ? 0.8 : 1, y: on && !simple ? 0.9 : 1,
+                         anchor: towardsLeading ? .trailing : .leading)
             .offset(x: on ? away * (width - Self.showing) : 0)
             .opacity(on && simple ? 0.6 : 1)
             .overlay {
