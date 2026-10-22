@@ -7,7 +7,7 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## Latest run (22 Oct, 1:20 p.m.)
 - Done: step 6 (widget controls) is written. Under the widget there's now one glass card for the Home Screen look, the widget size and the backdrop. It tucks into a "Preview" tag after 5 seconds; tap the tag to get it back. Swipe across the empty backdrop to change it. Not ticked until it's tried on the iPad.
-- Your own unsaved changes in ContentView.swift (iPhone opens in Classic) were being edited during this run, so I left them alone and didn't commit them.
+- Your live session's iPhone changes (iPhone opens in Classic) were saved by auto-save during this run; I didn't touch them.
 - Try on the iPad (`Scripts/run-on-ipad.sh --rebuild`):
   1. Wait 5 seconds: the controls should shrink into the "Preview" tag. Tap it: they should come back. Does 5 seconds feel right?
   2. Tap Dark, then Large, then a few backdrop circles: the widget and backdrop should change at once, and the controls should stay out while you use them.
