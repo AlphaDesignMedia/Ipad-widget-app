@@ -632,6 +632,24 @@ struct ContentView: View {
         withAnimation(.snappy) { widgetColumn = next.column; widgetRow = next.row }
     }
 
+    /// A sideways swipe moves things the way the finger goes (owner, 22 Oct 2026: "aware of
+    /// what side it's being swiped on"): a panel put away on the side it comes from slides back
+    /// in; otherwise the panels on the side it heads towards slide out that edge. So a swipe is
+    /// always undone by swiping back. Double-tap clears everything.
+    private func swipePanels(right: Bool) {
+        let groupsBehind = groupsFree && groupsTrailing != right
+        let settingsBehind = settingsLeading == right
+        withAnimation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.86)) {
+            if (groupsBehind && !showsSidebar) || (settingsBehind && !showsInspector) {
+                if groupsBehind { showsSidebar = true }
+                if settingsBehind { showsInspector = true }
+            } else {
+                if !groupsBehind { showsSidebar = false }
+                if !settingsBehind { showsInspector = false }
+            }
+        }
+    }
+
     /// Clears both panels away for a full view of the clock, or brings them both back.
     private func toggleBothPanels() {
         withAnimation(reduceMotion ? nil : .snappy) {
@@ -851,11 +869,10 @@ struct ContentView: View {
             // (owner, 22 Oct 2026: "a bit too much spacing").
             .listSectionSpacing(Corner.inset * 0.6)
             .contentMargins(.horizontal, Corner.edge, for: .scrollContent)
-            // Room above the first card and below the last, so Presets and Accessibility can
-            // scroll into the frosted middle like the rest (owner, 22 Oct 2026: "towards the
-            // bottom, everything is out of focus").
-            .contentMargins(.top, max(Corner.edge, inspectorRect.height * 0.2), for: .scrollContent)
-            .contentMargins(.bottom, max(Space.extraLarge, inspectorRect.height * 0.45), for: .scrollContent)
+            .contentMargins(.top, Corner.edge, for: .scrollContent)
+            // Some room below the last card, so Accessibility comes up out of the clear edge
+            // (owner, 22 Oct 2026: not too far, the top stays as it was).
+            .contentMargins(.bottom, max(Space.extraLarge, inspectorRect.height * 0.22), for: .scrollContent)
             .task(id: focusRequest) {
                 guard focusRequest > 0, let target = selectedSection else { return }
                 // Lets a panel that's just opening settle before gliding.
@@ -1001,22 +1018,10 @@ struct ContentView: View {
             // stopped segmented controls inside from answering taps, 2026-10-21.)
             .onScrollPhaseChange { _, phase in
                 if phase != .idle { markActive(.settings) }
-                motion.scrolling = phase != .idle
             }
             .scrollIndicators(.hidden)
-            .onScrollGeometryChange(for: CGSize.self) { geometry in
-                let room = geometry.contentSize.height - geometry.containerSize.height
-                let fraction = room > 0 ? (geometry.contentOffset.y + geometry.contentInsets.top) / room : 0
-                return CGSize(width: fraction, height: geometry.containerSize.height / max(1, geometry.contentSize.height))
-            } action: { _, value in
-                motion.scrollFraction = value.width
-                motion.scrollVisible = value.height
-            }
-            .overlay(alignment: .trailing) {
-                GlassScrollBar(motion: motion)
-                    .padding(.vertical, Corner.panel / 2)
-                    .padding(.trailing, 3)
-            }
+            // (No scroll bar, owner 22 Oct 2026: it can't be grabbed, and the groups show where
+            // you are.)
             .frame(width: width)
             // Measured at rest, before the lift and the carry (see the groups panel).
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !settingsCarried { inspectorRect = $0 } }
@@ -1036,7 +1041,7 @@ struct ContentView: View {
                 moved: { move in
                     if !settingsCarried { settingsCarried = true }
                     motion.settingsMove = move
-                    track(carryTarget(groups: false, move: move, finger: settingsFinger(move), in: area))
+                    track(carryTarget(groups: false, move: move, finger: settingsFinger(move), in: area), moved: move)
                 },
                 ended: { moved in
                     if let moved {
@@ -1089,7 +1094,10 @@ struct ContentView: View {
     }
 
     /// Keeps the carry target, only when it changes (so a drag redraws the screen rarely).
-    private func track(_ target: CarryTarget) {
+    private func track(_ target: CarryTarget, moved: CGSize) {
+        // Only once it's actually being carried, not the moment it's held (owner, 22 Oct 2026:
+        // an outline flashed up on a plain hold).
+        guard hypot(moved.width, moved.height) > 14 else { return }
         if carryTarget != target { carryTarget = target }
     }
 
@@ -1140,7 +1148,7 @@ struct ContentView: View {
                 guard case .second(true, let drag?) = value else { return }
                 if !groupsCarried { groupsCarried = true }
                 motion.groupsMove = drag.translation
-                track(carryTarget(groups: true, move: drag.translation, finger: drag.location, in: area))
+                track(carryTarget(groups: true, move: drag.translation, finger: drag.location, in: area), moved: drag.translation)
             }
             .onEnded { value in
                 if case .second(true, let drag?) = value { endSidebarMove(drag, in: area) }
@@ -2239,9 +2247,7 @@ struct ContentView: View {
                     return
                 }
                 guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
-                // One simple rule (owner, 22 Oct 2026): a sideways swipe either way puts both
-                // panels away, and another brings them back, like a double-tap.
-                toggleBothPanels()
+                swipePanels(right: dx > 0)
             }
     }
 

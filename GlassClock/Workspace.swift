@@ -652,16 +652,8 @@ struct SettingsCard<Content: View>: View {
         }
         // Jumped to from the groups: a bright rim and a sweep of light across the glass,
         // rather than a wash of colour (owner direction, 2026-10-21).
-        // A glass rim rather than a flat line: bright where the light catches the top corner,
-        // fading round the sides and catching again faintly at the bottom (owner, 22 Oct 2026).
-        // Drawn just inside the edge, so the panel never cuts it off.
-        .overlay {
-            shape.inset(by: 0.75)
-                .stroke(LinearGradient(colors: [.white.opacity(rim), .white.opacity(rim * 0.25), .white.opacity(rim * 0.55)],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5)
-                .opacity(highlighted ? 1 : 0)
-                .animation(.easeOut(duration: 0.3), value: highlighted)
-        }
+        // (No drawn rim, owner 22 Oct 2026: it looked glitched at the edges. The glass keeps its
+        // own edge, and the sweep of light marks a card jumped to.)
         .shimmer(trigger: highlighted, in: shape)
         .modifier(CardGlass(on: glassy, shape: shape))
         .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
@@ -1066,11 +1058,6 @@ struct CarryGrab: Equatable {
     var settingsMove = CGSize.zero
     var railMove = CGSize.zero
     var panelPull: CGFloat = 0
-    /// The settings list's scroll position (0 top … 1 bottom), how much of it shows, and whether
-    /// it's moving, for the glass scroll bar.
-    var scrollFraction: CGFloat = 0
-    var scrollVisible: CGFloat = 1
-    var scrolling = false
     /// No movement, for a view that only sometimes follows one of the others.
     let none = CGSize.zero
 }
@@ -1138,29 +1125,4 @@ struct CarryTarget: Equatable {
     var leading: Bool
     var top: Bool
     var attach: GroupsAttachment?
-}
-
-/// A scroll bar of Liquid Glass for the settings list (owner, 22 Oct 2026), in place of the
-/// system's thin grey one: a small pill of glass that shows while the list moves, then fades.
-/// It reads the live scroll position, so scrolling redraws only the bar.
-struct GlassScrollBar: View {
-    var motion: LiveMotion
-
-    var body: some View {
-        GeometryReader { track in
-            let height = max(44, track.size.height * min(1, motion.scrollVisible))
-            Capsule()
-                .fill(.white.opacity(0.18))
-                .frame(width: motion.scrolling ? 8 : 6, height: height)
-                .appGlass(.capsule)
-                .offset(y: (track.size.height - height) * min(1, max(0, motion.scrollFraction)))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .frame(width: 10)
-        .opacity(motion.scrolling && motion.scrollVisible < 1 ? 1 : 0)
-        .animation(.easeOut(duration: 0.3).delay(motion.scrolling ? 0 : 0.9), value: motion.scrolling)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: motion.scrolling)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
 }
