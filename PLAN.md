@@ -11,7 +11,22 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
   2. Tap the widget to bring up its controls: the groups shouldn't move.
   3. Drag the widget to the far left, then the far right: the groups should move to the roomier side.
 
-## Direction (your words, 22 Oct)
+## Handover (22 Oct, 1am) — start here in a new chat
+**Your answers (22 Oct):**
+- **Corners:** like the app icon tiles. Rounded rectangles where each inner corner follows the one around it. Not pills everywhere.
+- **Groups strip across the top of the settings:** keep it, but make it the same pill as the side groups. Done; check it.
+- **Settings scroll edges:** a soft fade, not a rounded cut. Done.
+- **Priority:** polish what's there. No new behaviours until it feels finished.
+
+**What you said feels good:** dragging, moving, pinching and hold-to-resize. You also like the pill when the groups are docked on the left.
+
+**Open issues to check on the iPad:**
+- [ ] Pinch down to Small paused or jittered on the iPad. The pinch has been reworked to follow the fingers freely, with an outline and ticks. Try it again.
+- [ ] Settings "sticking above" the Presets card when grabbed, and the window menu docked at the bottom looks wrong.
+- [ ] Freer dropping of panels and the groups pill (later).
+- [ ] Widget controls now tuck away after 5 s. Tap the Preview pill to bring them back. Check this feels right.
+
+
 - The widget is the star. Everything else should support it and get out of its way.
 - Smooth and fast before new features. No crashes, no jank.
 - Glass first, with transparency used subtly and done well.
@@ -28,7 +43,7 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 ## Next — window feel and gestures
 - [x] **Swipe a panel sideways to push it aside.** Flick a settings card's title bar, or flick across the groups. *Still to do: the tab doesn't show the panel's icons yet.*
 - [x] **Pull it back in** by grabbing the tab. *It opens on release; it doesn't follow your finger yet.*
-- [ ] **Quieter extras.** Move "Your Home Screen", the notes and the labels away from the widget. Show them only when needed, but still let them be moved.
+- [x] **Quieter extras.** Move "Your Home Screen", the notes and the labels away from the widget. Show them only when needed, but still let them be moved.
 
 ## Then — settings carousel
 - [x] **A carousel instead of shrinking.** Cards squash as they leave the middle, as if tipping back. *A real 3D tilt gets cut off by the list, so it's done flat.*
@@ -36,7 +51,7 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 - [x] **Glass decides the focus.** The card in the middle is frosted, and the cards around it are clear glass rather than faded.
 - [x] **A glass outline.** A gradient rim drawn just inside the edge. Cards no longer move past their slot, which was cutting off titles and bottom edges.
 
-- [x] **Consistent corners and pills.** Bars are pills, and cards are rounder in step with the panels.
+- [x] **Consistent corners.** Concentric rounded rectangles like the app icon tiles. Single-line bars stay pills.
 - [x] **The widget steps out of the way** when a panel opens over it.
 
 ## Later (lower priority)

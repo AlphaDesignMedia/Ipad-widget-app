@@ -920,7 +920,9 @@ struct ContentView: View {
             .dynamicTypeSize(settingsTextSize)
             .simultaneousGesture(textPinchGesture(.settings))
             .sensoryFeedback(.selection, trigger: settingsTextSize)
-            .clipShape(.rect(cornerRadius: Corner.panel))
+            // With no panel behind the cards (Glass), they fade out softly at the top and bottom
+            // as they scroll, rather than being cut by a big rounded edge (owner, 22 Oct 2026).
+            .modifier(ScrollEdges(fades: appTheme.isGlassy && !reducesGlass))
             // In the Glass theme there's no panel behind the cards: each card is its own window
             // of glass, apart from the others by the gap between them (owner direction, 2026-10-21).
             .modifier(PanelBacking(clear: appTheme.isGlassy && !reducesGlass))
@@ -3384,6 +3386,26 @@ struct CornerArc: Shape {
                                      y: corner.y < 0 ? rect.maxY + rect.minY : 0)
             .scaledBy(x: corner.x < 0 ? -1 : 1, y: corner.y < 0 ? -1 : 1)
         return path.applying(flip)
+    }
+}
+
+/// Where the settings list ends at the top and bottom: a soft fade when the cards float on
+/// their own, or the panel's rounded edge when they sit on a panel.
+struct ScrollEdges: ViewModifier {
+    var fades: Bool
+
+    func body(content: Content) -> some View {
+        if fades {
+            content.mask {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 28)
+                    Color.black
+                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 36)
+                }
+            }
+        } else {
+            content.clipShape(.rect(cornerRadius: Corner.panel))
+        }
     }
 }
 
