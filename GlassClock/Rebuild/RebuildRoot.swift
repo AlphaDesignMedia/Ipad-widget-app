@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// The rebuilt app (PLAN.md, "The rebuild"). Steps 1 and 2: the backdrop, the widget at real
-/// size on a Home Screen grid (drag it to a slot, pinch to resize) and Apply, on the shared model. Debug builds open it with `-rebuild YES`
+/// The rebuilt app (PLAN.md, "The rebuild"). Steps 1 to 3: the backdrop, the widget at real
+/// size on a Home Screen grid (drag it to a slot, pinch to resize), and the settings as cards
+/// with Apply to Widget, on the shared model. Debug builds open it with `-rebuild YES`
 /// (`Scripts/run-on-ipad.sh --rebuild`); until step 8 the old app stays the default.
+/// For now the settings sit beside the stage when there's room and below it when there isn't;
+/// steps 4 and 5 turn these into Classic and Panels.
 struct RebuildRoot: View {
     @State private var model: AppModel
 
@@ -15,16 +18,27 @@ struct RebuildRoot: View {
         StageBackdrop(backdrop: model.backdrop, homeScreen: model.homeScreen)
             .ignoresSafeArea()
             .overlay {
-                Stage()
-                    .padding(Theme.Space.medium)
-            }
-            .overlay(alignment: .topTrailing) {
-                Button(model.isApplied ? "Applied" : "Apply to Widget", action: model.apply)
-                    .buttonStyle(.glassProminent)
-                    .disabled(model.isApplied)
-                    .padding(Theme.Space.medium)
+                GeometryReader { space in
+                    if space.size.width >= Theme.Size.sideBySide {
+                        HStack(spacing: Theme.Gap.panels) {
+                            if model.settingsLeading { settings.frame(width: Theme.Size.settingsColumn) }
+                            Stage()
+                            if !model.settingsLeading { settings.frame(width: Theme.Size.settingsColumn) }
+                        }
+                    } else {
+                        VStack(spacing: Theme.Gap.panels) {
+                            Stage().frame(height: space.size.height * 0.4)
+                            settings
+                        }
+                    }
+                }
+                .padding(Theme.Space.medium)
             }
             .environment(model)
+    }
+
+    private var settings: some View {
+        SettingsList()
     }
 }
 

@@ -5,12 +5,12 @@ Ticks show what's done. Scheduled runs work top to bottom and tick things off he
 
 ## The rebuild (decided 22 Oct) — start here
 
-## Latest run (22 Oct, 9 a.m.)
-- Done: the rebuilt app builds and runs (step 1), and the stage is in (step 2): the widget sits on a Home Screen grid, you drag it to a slot and pinch it to change size. Neither is ticked until it's been tried on the iPad, which wasn't plugged in this time.
+## Latest run (22 Oct, 10 a.m.)
+- Done: step 3 is written. Every group's settings (Presets, Layout, Fonts, Colour, Effects, Card, Home Screens, Accessibility) are now cards of clear glass in one scrolling list beside the widget, with Apply to Widget held at the bottom. On a narrow screen the list sits under the widget. Steps 1 to 3 stay unticked until they've been tried on the iPad.
 - Try on the iPad (open it with `Scripts/run-on-ipad.sh --rebuild`):
-  1. Drag the widget around: it should lift, show the empty slots, and glide into the dashed one when you let go. Is it as smooth as the old app, or smoother?
-  2. Pinch it bigger and smaller: it should step through Small, Medium, Large and Extra Large.
-  3. Close and reopen the app: the widget should be where you left it, at the same size.
+  1. Scroll the settings and change a few things (a font, a colour, I'm Feeling Lucky): the widget should change at once, and the button at the bottom should turn from "Applied" to "Apply to Widget".
+  2. Tap Apply to Widget: it should tap back, say "Applied", and your Home Screen widget should update.
+  3. Turn on Reduce glass in the Accessibility card: the cards should become solid. Is the text easy to read on your backdrop in both Light and Dark?
 
 **Why.** In one day the main screen grew from 914 lines to 3,483 lines, all in one file (`ContentView.swift`), with 113 pieces of state. Every change anywhere redraws that whole screen, which is where the lag comes from. Many features also have two or three versions behind switches, so every fix has to work in all of them, which is where most of the bugs come from. Patching this won't get the smoothness back, so we rebuild the app's screens and keep the parts that work.
 
@@ -79,6 +79,7 @@ Classic is free, and Pro (about £2, paid once) unlocks the full studio. Every P
 2. [ ] **The stage.** Backdrop, Home Screen grid and the widget at real size. Drag it to a slot and pinch to resize. Must feel as good as today.
    *First version written 22 Oct (`GlassClock/Rebuild/Stage.swift`): the widget sits on a Home Screen grid, drags to a slot (empty slots and a dashed landing outline show while carried, with a tap of feedback on each new slot) and pinches through the sizes. Its spot is remembered. The drag lives in the widget's own small view, so only the widget redraws while a finger moves. VoiceOver can move it and change its size. Checked in the Simulator for placement and sizes (Screenshots/oct22/rebuild-stage-*.png); drag and pinch need the iPad. Try: `Scripts/run-on-ipad.sh --rebuild`, drag the widget around, pinch it up and down.*
 3. [ ] **Settings cards.** Every group's controls as cards in one scrolling list. Apply to Widget.
+   *Written 22 Oct (scheduled run), not yet tried on the iPad: `GlassClock/Rebuild/SettingsList.swift`, `StyleCard.swift`, `StyleControls.swift`, `PresetRows.swift`. One card per group, one version of each control, saved presets and locks shared with the old app. Apply sits at the bottom of the list: bold while there are changes, quiet glass once applied. Checked in the Simulator in Light and Dark (Screenshots/oct22/rebuild-settings-*.png); the dark wash was made stronger and a soft shadow added so cards read on any backdrop. Taps weren't checked (the Simulator can't be driven on an unattended run). Left for later steps: the App card (app look, app colour, apply when leaving) and the focus effect (step 7).*
 4. [ ] **Classic.** Stage plus the simple settings.
 5. [ ] **Panels.** Settings and groups panels on either side: hold to move, flick aside, edge tab to bring back, double-tap to clear.
 6. [ ] **Widget controls.** Home Screen style, size and backdrop around the widget.

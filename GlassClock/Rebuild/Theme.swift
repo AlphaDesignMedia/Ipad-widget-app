@@ -50,6 +50,20 @@ enum Theme {
         static let focus: Double = 2.0
         static let rim: Double = 0.9
         static let shimmer: Double = 1.0
+        /// The wash inside a card's clear glass, so its text stands off the backdrop: white in
+        /// Light, black in Dark (contrast first, owner 21 Oct).
+        static let washLight: Double = 0.57
+        static let washDark: Double = 0.62
+    }
+
+    enum Size {
+        /// The settings column beside the stage, when the window has room for both.
+        static let settingsColumn: CGFloat = 400
+        /// The narrowest window that fits the stage and the settings side by side.
+        static let sideBySide: CGFloat = 820
+        /// A colour swatch, and the tap target around it (HIG minimum).
+        static let swatch: CGFloat = 34
+        static let tapTarget: CGFloat = 44
     }
 
     enum Motion {
