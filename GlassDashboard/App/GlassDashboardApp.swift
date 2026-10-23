@@ -20,15 +20,14 @@ struct DashboardHome: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(red: 1, green: 0.93, blue: 0.85), Color(red: 0.86, green: 0.9, blue: 1)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
+            Backdrop()
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     Text("Glass Dashboard")
                         .font(.largeTitle.weight(.bold))
                     numbers
                     actions
+                    widgetPreview
                     howTo
                 }
                 .padding(22)
@@ -36,7 +35,6 @@ struct DashboardHome: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .foregroundStyle(Color(white: 0.12))
         .task { await refresh() }
         // A tap on the widget opens this app with the dashboard's address; pass it on to Safari.
         .onOpenURL { url in openURL(url) }
@@ -92,6 +90,30 @@ struct DashboardHome: View {
         .controlSize(.large)
     }
 
+    /// Both widget sizes at their Home Screen size (13-inch iPad), with today's numbers.
+    @ViewBuilder private var widgetPreview: some View {
+        if let status {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Your widget").font(.headline)
+                HStack(alignment: .top, spacing: 20) {
+                    SmallFace(status: status)
+                        .padding(16)
+                        .frame(width: 170, height: 170)
+                        .background(DashboardBackground())
+                        .clipShape(.rect(cornerRadius: 28))
+                    MediumFace(status: status, fresh: fresh, now: .now)
+                        .padding(16)
+                        .frame(width: 378.5, height: 170)
+                        .background(DashboardBackground())
+                        .clipShape(.rect(cornerRadius: 28))
+                }
+            }
+            .padding(22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassEffect(.regular, in: .rect(cornerRadius: 28))
+        }
+    }
+
     private var howTo: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Add the widget").font(.headline)
@@ -127,7 +149,7 @@ private struct Tile: View {
                 Text(count, format: .number)
                     .font(.system(size: 48, weight: .heavy, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(highlight ? Color.orange : Color(white: 0.12))
+                    .foregroundStyle(highlight ? Color.orange : Color.primary)
                 Text(label)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -138,6 +160,20 @@ private struct Tile: View {
             .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// A soft peach-to-blue wash in Light mode and a deep dusk in Dark, so the glass has
+/// something gentle to sit on and the text always matches the glass.
+private struct Backdrop: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        LinearGradient(colors: colorScheme == .dark
+                       ? [Color(red: 0.2, green: 0.13, blue: 0.1), Color(red: 0.07, green: 0.09, blue: 0.18)]
+                       : [Color(red: 1, green: 0.93, blue: 0.85), Color(red: 0.86, green: 0.9, blue: 1)],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+            .ignoresSafeArea()
     }
 }
 

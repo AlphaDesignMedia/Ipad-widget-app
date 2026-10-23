@@ -14,3 +14,9 @@ Starting point, change anything that doesn't fit.
 ## Using AI for this
 - Claude Code builds and fixes the app. Claude chat plans, writes copy and keeps this folder tidy.
 - Give AI one task at a time, check the result on the iPad, then move on.
+
+## Glass Dashboard widget (since 23 Oct 2026)
+- The **Glass Dashboard** app on the iPad has a Home Screen widget that mirrors the progress dashboard: what needs you, what's waiting to try, what's up next, the build on the iPad and the latest update.
+- The widget can't sign in to Claude, so it reads a small file of numbers kept in a secret GitHub Gist. **Whenever Claude updates the dashboard, it also runs `Scripts/publish-status.sh`** (save the `decisions`, `items`, `builds` and `chat` collections with ArtifactData, then pass that folder to the script). Otherwise the widget falls behind.
+- The widget checks for new numbers about every 20 minutes and says "Updated X ago". Offline, it keeps the last numbers and says so.
+- To reinstall it on the iPad: `Scripts/run-dashboard-on-ipad.sh`.

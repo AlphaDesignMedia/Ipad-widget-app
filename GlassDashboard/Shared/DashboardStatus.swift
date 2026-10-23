@@ -34,7 +34,7 @@ enum StatusFeed {
     static let dashboard = URL(string: "https://claude.ai/artifact/UQ9Yo6F6RBNdoUn8B9sqeW")!
     /// The gist's raw file. Without a commit in the address it always gives the newest version
     /// (GitHub caches it for about five minutes).
-    static let url = URL(string: "https://gist.githubusercontent.com/AlphaDesignMedia/GIST_ID/raw/status.json")!
+    static let url = URL(string: "https://gist.githubusercontent.com/AlphaDesignMedia/1f2abb87c59f63844a9f7523f37da9f4/raw/status.json")!
 
     private static let cacheKey = "lastStatus"
 
