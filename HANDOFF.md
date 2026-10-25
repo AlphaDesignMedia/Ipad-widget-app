@@ -2,7 +2,7 @@
 
 _Updated 25 Oct 2026, 6:00 pm_
 
-**Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** `friend-test-25oct-3` (6:45 pm), the build for the friend's test. GitHub opens on `main`, which is older: the friend should clone the `friend-test-25oct-3` tag (or branch `from-415`). It adds Outline everything (Accessibility, with a width slider) and a calm adaptive blue as the default app colour.
+**Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** `friend-test-25oct-4` (6:45 pm), the build for the friend's test. GitHub opens on `main`, which is older: the friend should clone the `friend-test-25oct-4` tag (or branch `from-415`). It adds Outline everything (Accessibility, with a width slider) and a calm adaptive blue as the default app colour.
 
 **6:40 pm update:** Moods cross-fade with no blur and queue fast taps (the likely cause of the tapping stalls), with an Experimental note. Panels Arrange menu: Best for This Window, Groups Along the Bottom, Settings Only. The tour lets you try each move and has "I'll explore myself". Light: subtler glow under dark text, and the bubbles around the widget are more defined. Dark: backdrops turn deep, mirroring Light's pastels. Not yet checked on the iPad: whether Moods still stall. Figma value list: plan agreed in chat, waiting for "go".
 

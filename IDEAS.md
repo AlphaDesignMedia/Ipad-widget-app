@@ -178,3 +178,17 @@ you. The other option is to send screenshots with scribbles on them, which works
 - [x] Which kind you're in: swiping up/down shows the kind (Gradients, Mesh, Patterns) above the name, with a dot per backdrop in it.
 - [ ] Swipe the backdrop sideways through kinds: on hold, as sideways swipes already bring the panels in and out. Owner to decide (e.g. two-finger sideways swipe for kinds?).
 - [x] One swipeable bubble with page dots (optional: Design Tweaks → Widget controls in one row).
+
+## Frost vs Liquid Glass: follow up (owner, 25 Oct 2026)
+- Never mix the older iOS blur materials with the new Liquid Glass. Frost is now Liquid Glass's own "regular" glass with the Light/Dark wash (App look → Frosted glass, on by default).
+- Tinted and Clear must look like the real system glass: they stay clear.
+- Contrast is the person's choice through options (Adjust for contrast, outlines). Get the friend's feedback, then decide what goes in the menus. Stability first for now.
+
+## Pricing and free tier (owner, 25 Oct 2026, not decided)
+- Be generous: Classic and a lot of customising free; Panels free for a set time at first.
+- Enthusiast tier for deep customising, at a reasonable price.
+- Donations (even £1) unlock a reward, e.g. 6 months of the enthusiast tier. Maybe a review too. Note: Apple doesn't allow rewards for reviews, so that one is out; a donation reward is fine through in-app purchase.
+- Keep in mind: most people use the app because they love the glass, even in Tinted. Also make it a really good app for people who don't like glass.
+
+## Developer mode (built 25 Oct 2026)
+- Switch at the bottom of App and Widget. Hides Design Tweaks unless on. Move other test tools behind it as they come up.

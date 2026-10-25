@@ -272,6 +272,13 @@ struct ContentView: View {
     /// The same for the groups. Each panel keeps its own size, so pinching one leaves the other
     /// alone (owner direction, 2026-10-21).
     @AppStorage("groupsTextSize") private var groupsTextStep = 1
+    /// Pinching a panel sizes the whole app's text and controls together (owner, 25 Oct 2026),
+    /// or, switched off, each panel on its own as before.
+    @AppStorage("pinchWholeApp") private var pinchesWholeApp = true
+    /// Design Tweaks and other tools for working on the app stay out of sight unless this is on,
+    /// so a friend trying the app sees the normal app (owner, 25 Oct 2026).
+    @AppStorage("developerMode") private var developerMode = false
+    @AppStorage(GlassFrost.key) private var frostsGlass = true
     @AppStorage(CarryStyle.key) private var savedCarryStyle = CarryStyle.lift
     @AppStorage(OneRowControls.key) private var savedOneRowControls = false
     /// The Foundation build carries panels at full size and keeps the controls stacked
@@ -531,6 +538,8 @@ struct ContentView: View {
             .navigationTitle("Glass Clock")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarItems }
+            // The toolbar, widget controls and everything else grow with a pinch too.
+            .modifier(AppTextSize(size: pinchesWholeApp ? settingsTextSize : nil))
         }
     }
 
@@ -710,6 +719,8 @@ struct ContentView: View {
             .navigationTitle("Glass Clock")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarItems }
+            // The toolbar, widget controls and everything else grow with a pinch too.
+            .modifier(AppTextSize(size: pinchesWholeApp ? settingsTextSize : nil))
         }
         // The groups sit alongside in full when there's room beside the real-size preview and
         // the settings, fold to their icons when only that fits, and tuck away otherwise.
@@ -2425,22 +2436,27 @@ struct ContentView: View {
     /// The panels whose text can be pinched bigger or smaller.
     private enum TextPanel { case settings, groups }
 
+    /// With the whole app sized together, every panel follows the settings' size.
+    private func sizingPanel(_ panel: TextPanel) -> TextPanel {
+        pinchesWholeApp ? .settings : panel
+    }
+
     private func textStep(_ panel: TextPanel) -> Int {
-        panel == .settings ? textSizeStep : groupsTextStep
+        sizingPanel(panel) == .settings ? textSizeStep : groupsTextStep
     }
 
     private func setTextStep(_ panel: TextPanel, _ step: Int) {
         let step = min(textSizes.count - 1, max(0, step))
-        if panel == .settings { textSizeStep = step } else { groupsTextStep = step }
+        if sizingPanel(panel) == .settings { textSizeStep = step } else { groupsTextStep = step }
     }
 
     private func setPinchingStep(_ panel: TextPanel, _ step: Int?) {
-        if panel == .settings { pinchingTextStep = step } else { pinchingGroupsStep = step }
+        if sizingPanel(panel) == .settings { pinchingTextStep = step } else { pinchingGroupsStep = step }
     }
 
     /// A panel's text size step, following the fingers while a pinch is under way.
     private func currentTextStep(_ panel: TextPanel) -> Int {
-        let pinching = panel == .settings ? pinchingTextStep : pinchingGroupsStep
+        let pinching = sizingPanel(panel) == .settings ? pinchingTextStep : pinchingGroupsStep
         return min(textSizes.count - 1, max(0, pinching ?? textStep(panel)))
     }
 
@@ -3748,9 +3764,22 @@ struct ContentView: View {
 
         case .accessibility:
             // Usability before flair (owner direction, 2026-10-21): each effect can be turned
-            // down to something plain and standard.
-            Toggle("Simpler effects", isOn: $simpleMotion)
-            Toggle("Reduce glass", isOn: $reducesGlass)
+            // down to something plain and standard. Grouped by what it helps with (owner,
+            // 25 Oct 2026: "organise that a little bit").
+            groupLabel("Size")
+            Toggle("Pinch sizes the whole app", isOn: $pinchesWholeApp)
+            // Pinching a panel changes the size; these do the same with a plain tap.
+            if pinchesWholeApp {
+                Stepper("App size: \(textSizeNames[textSizeStep])", value: $textSizeStep, in: 0...(textSizes.count - 1))
+            } else {
+                Stepper("Settings: \(textSizeNames[textSizeStep])", value: $textSizeStep, in: 0...(textSizes.count - 1))
+                Stepper("Groups: \(textSizeNames[groupsTextStep])", value: $groupsTextStep, in: 0...(textSizes.count - 1))
+            }
+
+            groupLabel("Reading")
+            // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's
+            // style. Off keeps the standard system text, for anyone who finds that easier to read.
+            Toggle("App text matches the clock font", isOn: $matchesClockFont)
             Toggle("Outline everything", isOn: $outlines)
             if outlines {
                 slider("Outline width", value: $outlineWidth, in: 1...6, low: "Fine", high: "Bold")
@@ -3758,14 +3787,12 @@ struct ContentView: View {
                     ForEach(OutlineColour.allCases) { Text($0.label).tag($0) }
                 }
             }
+
+            groupLabel("Glass and motion")
+            Toggle("Reduce glass", isOn: $reducesGlass)
+            Toggle("Simpler effects", isOn: $simpleMotion)
             // Off keeps the widget's controls showing all the time.
             Toggle("Tuck widget controls away", isOn: $quietControls)
-            // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's
-            // style. Off keeps the standard system text, for anyone who finds that easier to read.
-            Toggle("App text matches the clock font", isOn: $matchesClockFont)
-            // Pinching a panel changes its own size; these do the same with a plain tap.
-            Stepper("Settings text: \(textSizeNames[textSizeStep])", value: $textSizeStep, in: 0...(textSizes.count - 1))
-            Stepper("Groups text: \(textSizeNames[groupsTextStep])", value: $groupsTextStep, in: 0...(textSizes.count - 1))
 
         case .widget:
             groupLabel("App look")
@@ -3773,6 +3800,9 @@ struct ContentView: View {
             .disabled(reducesGlass)
             if appTheme.isGlassy && !reducesGlass {
                 slider("Glass", value: $glassAmount, in: 0...1, low: "Frosted", high: "Clear")
+                if appTheme == .glass || appTheme == .home {
+                    Toggle("Frosted glass", isOn: $frostsGlass)
+                }
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text("App colour")
@@ -3793,10 +3823,12 @@ struct ContentView: View {
                 ForEach(PanelsMakeWay.allCases) { Text($0.label).tag($0) }
             }
             Toggle("Names on the folded rail", isOn: $railNames)
-            Button("Design Tweaks…") {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = true }
+            if developerMode {
+                Button("Design Tweaks…") {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = true }
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
             groupLabel("Widget")
             Toggle("Apply when leaving the app", isOn: $applyWhenLeaving)
             // Borderless, so each button answers only its own taps now the group is one card.
@@ -3806,6 +3838,7 @@ struct ContentView: View {
                 style = ClockStyle()
             }
             .buttonStyle(.borderless)
+            Toggle("Developer mode", isOn: $developerMode)
         }
     }
 
@@ -4249,5 +4282,15 @@ extension ClockFont {
         case .googleSansFlex: roundness > 0.5 ? .rounded : .default
         case .sf, .robotoFlex: .default
         }
+    }
+}
+
+/// The whole app's text size, when pinching sizes everything together; nil leaves the
+/// iPad's own size.
+private struct AppTextSize: ViewModifier {
+    var size: DynamicTypeSize?
+
+    func body(content: Content) -> some View {
+        if let size { content.dynamicTypeSize(size) } else { content }
     }
 }
