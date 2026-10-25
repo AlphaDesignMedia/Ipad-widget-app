@@ -1010,17 +1010,17 @@ struct ContentView: View {
     /// the groups stay away, so there's only ever one menu on screen (owner, 25 Oct 2026: "it
     /// could just be a bubble next to it").
     private func railBubbleCard(_ section: SettingsSection, height: CGFloat) -> some View {
+        // The card is its own glass, as in Classic: no panel box around it, and the scroll
+        // area doesn't clip its edges or shadow (owner, 25 Oct 2026: it looked boxed in).
         let card = AnyView(SettingsCard(title: section.title, icon: section.icon, footer: section.footer) {
             sectionContent(section)
         })
-        .padding(Space.small)
         return ViewThatFits(in: .vertical) {
             card
-            ScrollView { card }.scrollBounceBehavior(.basedOnSize)
+            ScrollView { card }.scrollBounceBehavior(.basedOnSize).scrollClipDisabled()
         }
         .frame(width: 360)
         .frame(maxHeight: min(height * 0.75, 640))
-        .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
         .transition(.scale(scale: 0.94, anchor: settingsLeading ? .leading : .trailing).combined(with: .opacity))
         .id(section)
     }
