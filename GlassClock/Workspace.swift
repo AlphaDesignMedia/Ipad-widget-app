@@ -657,6 +657,7 @@ struct AppGlass<S: Shape>: ViewModifier {
     @AppStorage(Outlines.colourKey) private var outlineColour = OutlineColour.automatic
     /// Read so the glass redraws when the contrast switch changes.
     @AppStorage(AppColor.keepsReadableKey) private var keepsReadable = true
+    @AppStorage(GlassFrost.key) private var frostsGlass = true
     var shape: S
     var interactive = false
     var tint: Color?
@@ -727,7 +728,8 @@ struct AppGlass<S: Shape>: ViewModifier {
         // Clear glass with a gentle dimming layer, the way Apple keeps the Clear Home Screen
         // readable: darker in Dark, lighter in Light, so text stands off the backdrop while
         // the glass stays see-through (owner, 22 Oct 2026).
-        case .glass, .home: return .clear.tint(dim)
+        case .glass, .home:
+            return GlassFrost.applies(frostsGlass, homeLook) ? .regular.tint(dim) : .clear.tint(dim)
         case .frosted: return .regular
         case .colour: return .regular.tint(AppColor.resolve(appColor).opacity(panel ? 0.22 : 0.3))
         }
@@ -808,6 +810,8 @@ struct SettingsCard<Content: View>: View {
     @AppStorage(Tweak.panelEdge.key) private var tweakEdge = Tweak.panelEdge.standard
     @AppStorage(Tweak.titleBar.key) private var titleBar = Tweak.titleBar.standard
     @AppStorage(Tweak.footer.key) private var footerPadding = Tweak.footer.standard
+    @AppStorage(GlassFrost.key) private var frostsGlass = true
+    @Environment(\.homeLook) private var homeLook
     /// The group's title, tucked inside the top of the card (owner feedback, 2026-10-21).
     var title: String?
     var icon: String?
@@ -893,7 +897,7 @@ struct SettingsCard<Content: View>: View {
         // for itself; switches, pickers and buttons still answer their own.
         .background { shape.fill(.clear).contentShape(shape).onTapGesture {} }
         .shimmer(trigger: highlighted, in: shape)
-        .modifier(CardGlass(on: glassy, shape: shape))
+        .modifier(CardGlass(on: glassy, frosted: GlassFrost.applies(frostsGlass, homeLook), shape: shape))
         .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
         // Like a carousel: cards grow as they near the middle of the list and shrink away
         // from it, smoothly as they scroll.
@@ -957,11 +961,12 @@ extension View {
 
 private struct CardGlass<S: Shape>: ViewModifier {
     var on: Bool
+    var frosted = false
     var shape: S
 
     func body(content: Content) -> some View {
         if on {
-            content.glassEffect(.clear, in: shape)
+            content.glassEffect(frosted ? .regular : .clear, in: shape)
         } else {
             content
         }
@@ -989,6 +994,18 @@ struct PanelLabelBacking: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+/// Frost on the Glass look (owner, 25 Oct 2026: "we've lost the frostiness"). It's Liquid
+/// Glass's own frostier glass with the Light or Dark wash under it, never the older blur
+/// materials, so it stays one kind of glass. Clear and Tinted Home Screens stay clear glass,
+/// to match what the system draws there.
+enum GlassFrost {
+    static let key = "glassFrost"
+
+    static func applies(_ on: Bool, _ homeLook: HomeScreenStyle?) -> Bool {
+        on && homeLook != .clear && homeLook != .tinted
     }
 }
 
