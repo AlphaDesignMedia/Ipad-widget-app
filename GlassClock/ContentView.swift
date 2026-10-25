@@ -373,7 +373,7 @@ struct ContentView: View {
         // The guided tour, over the real app (owner idea, 2026-10-21).
         .overlay {
             if showsTour {
-                GuidedTour(targets: tourTargets, finish: endTour) {
+                GuidedTour(targets: tourTargets, finish: endTour, firstTime: !hasSeenTour) {
                     withAnimation(.smooth(duration: 0.45)) { interface = .classic }
                     endTour()
                 }
@@ -2231,6 +2231,8 @@ struct ContentView: View {
                     .transition(.scale(scale: 0.96).combined(with: .opacity))
             }
         }
+        // Held, it grows a little, as if picked up (owner, 25 Oct 2026).
+        .scaleEffect(editingWidget && !draggingCard && !reduceMotion ? 1.05 : 1)
         .animation(.snappy(duration: 0.15), value: editingWidget && !draggingCard)
         .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0 && !Essentials.on, degrees: tweakWiggle))
         // Trying out instead of the wiggle (owner, 22 Oct 2026: "similar but different"): while
@@ -2569,6 +2571,16 @@ struct ContentView: View {
         if stageRect != .zero { targets[.backdrop] = stageRect.insetBy(dx: 20, dy: 40) }
         targets[.toolbar] = CGRect(x: 12, y: 28, width: max(200, windowWidth - 24), height: 52)
         return targets
+    }
+
+    private func startFresh() {
+        let defaults = UserDefaults.standard
+        for key in defaults.dictionaryRepresentation().keys where key != "developerMode" {
+            defaults.removeObject(forKey: key)
+        }
+        style = ClockStyle()
+        hasSeenTour = false
+        Task { try? await Task.sleep(for: .seconds(0.6)); showsTour = true }
     }
 
     private func endTour() {
@@ -3848,6 +3860,12 @@ struct ContentView: View {
             }
             .buttonStyle(.borderless)
             Toggle("Developer mode", isOn: $developerMode)
+            if developerMode {
+                // Try the app as someone new to it (owner, 25 Oct 2026): every setting back to
+                // how it ships, then the full first-time tour. Developer mode itself stays on.
+                Button("Start Fresh, Like a New Install", role: .destructive) { startFresh() }
+                    .buttonStyle(.borderless)
+            }
         }
     }
 
