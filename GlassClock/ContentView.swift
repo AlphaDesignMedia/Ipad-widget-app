@@ -203,6 +203,31 @@ struct ContentView: View {
     @State private var railHidGroups = false
     /// The group opened from the folded rail, shown in a card beside it.
     @State private var railBubble: SettingsSection?
+    /// Quarter turns of the screen from upright portrait, clockwise.
+    @State private var quarterTurns = 0
+    /// The edge of the iPad itself (clockwise from the top in portrait) the folded rail is held
+    /// to, so it stays put when the iPad turns and everything else moves round it. Only the
+    /// rail does this; the full settings open where they always do (owner, 25 Oct 2026).
+    @State private var railPin: Int?
+    /// The edge of the iPad the rail was dragged to, when that's the top or bottom; it stays
+    /// there until it's dragged back to a side. Down a side, `settingsLeading` says which.
+    @State private var railHome: Int? = UserDefaults.standard.object(forKey: "railHome") as? Int
+
+    /// Where the folded rail is on screen now.
+    private var railEdge: Edge {
+        guard let railPin = railPin ?? railHome else { return settingsLeading ? .leading : .trailing }
+        return [Edge.top, .trailing, .bottom, .leading][(railPin + quarterTurns) % 4]
+    }
+
+    private static func currentQuarterTurns() -> Int {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        switch scene?.effectiveGeometry.interfaceOrientation {
+        case .landscapeLeft: return 1
+        case .portraitUpsideDown: return 2
+        case .landscapeRight: return 3
+        default: return 0
+        }
+    }
 
     private func reopenFromRail() {
         showsInspector = true
@@ -508,6 +533,8 @@ struct ContentView: View {
                         AnyView(previewStage(showsChrome: false))
                             .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                             .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
+                            .padding(.top, railInset(.top))
+                            .padding(.bottom, railInset(.bottom))
                             .modifier(LivePull(motion: motion, still: reduceMotion))
                     }
                     .contentShape(Rectangle())
@@ -534,6 +561,8 @@ struct ContentView: View {
                     AnyView(previewStage(measures: false)).allowsHitTesting(false)
                         .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                         .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
+                        .padding(.top, railInset(.top))
+                        .padding(.bottom, railInset(.bottom))
                         .modifier(LivePull(motion: motion, still: reduceMotion))
                         .zIndex(0.9)
 
@@ -593,27 +622,24 @@ struct ContentView: View {
                 .overlay(alignment: .topLeading) {
                     if showsSidebar && !groupsFree { AnyView(attachedGroups(in: geometry.size)) }
                 }
-                .overlay(alignment: settingsLeading ? .leading : .trailing) {
-                    if !showsInspector {
-                        HStack(spacing: Space.small) {
-                            if !settingsLeading, let railBubble { railBubbleCard(railBubble, height: geometry.size.height) }
-                            SettingsRail(leading: settingsLeading, sections: SettingsSection.allCases,
-                                         open: { withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { railBubble = nil; reopenFromRail() } },
-                                         // A heading opens just that group in a card beside the rail;
-                                         // tapping it again closes it.
-                                         go: { section in withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { railBubble = railBubble == section ? nil : section } })
-                            if settingsLeading, let railBubble { railBubbleCard(railBubble, height: geometry.size.height) }
-                        }
-                        .padding(.horizontal, Space.small)
-                        .transition(.move(edge: settingsLeading ? .leading : .trailing).combined(with: .opacity))
+                .overlay(alignment: railAlignment) { AnyView(railOverlay(in: geometry)) }
+                // The folded rail keeps to its edge of the iPad as it turns.
+                .onAppear { quarterTurns = Self.currentQuarterTurns() }
+                .onChange(of: geometry.size) {
+                    let turns = Self.currentQuarterTurns()
+                    guard turns != quarterTurns else { return }
+                    if railPin == nil, railHome == nil, !showsInspector {
+                        railPin = ((settingsLeading ? 3 : 1) - quarterTurns + 4) % 4
                     }
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { quarterTurns = turns }
                 }
             }
             .sensoryFeedback(.impact(weight: .light), trigger: showsInspector)
             .sensoryFeedback(.impact(weight: .light), trigger: showsSidebar)
             // A panel opened over the widget: the widget steps out to the free space, so it's
             // never hidden (owner, 22 Oct 2026: the widget is what you want to look at).
-            .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels(); railBubble = nil } }
+            .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels(); railBubble = nil; railPin = nil } }
+            .onChange(of: settingsLeading) { railPin = nil }
             // The rail and the groups list the same headings, so they're never on screen
             // together, however the settings were put away (owner, 25 Oct 2026). The groups
             // step aside for the rail and come back with the settings.
@@ -1006,6 +1032,84 @@ struct ContentView: View {
         focusRequest += 1
     }
 
+    private var railAlignment: Alignment {
+        Alignment(horizontal: railEdge == .leading ? .leading : railEdge == .trailing ? .trailing : .center,
+                  vertical: railEdge == .top ? .top : railEdge == .bottom ? .bottom : .center)
+    }
+
+    /// The folded settings rail on its edge, with the one group opened from it beside it.
+    @ViewBuilder
+    private func railOverlay(in geometry: GeometryProxy) -> some View {
+        if !showsInspector {
+            let rail = SettingsRail(edge: railEdge, sections: SettingsSection.allCases,
+                         open: { withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { railBubble = nil; reopenFromRail() } },
+                         // A heading opens just that group in a card beside the rail;
+                         // tapping it again closes it.
+                         go: { section in withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { railBubble = railBubble == section ? nil : section } },
+                         moved: { point in dropRail(at: point, in: geometry.frame(in: .global)) })
+            Group {
+                switch railEdge {
+                case .top:
+                    VStack(spacing: Space.small) {
+                        rail
+                        if let railBubble { railBubbleCard(railBubble, height: geometry.size.height) }
+                    }
+                    .padding(.top, Space.small)
+                case .bottom:
+                    VStack(spacing: Space.small) {
+                        if let railBubble { railBubbleCard(railBubble, height: geometry.size.height) }
+                        rail
+                    }
+                    .padding(.bottom, Space.small)
+                case .leading:
+                    HStack(spacing: Space.small) {
+                        rail
+                        if let railBubble { railBubbleCard(railBubble, height: geometry.size.height) }
+                    }
+                    .padding(.horizontal, Space.small)
+                case .trailing:
+                    HStack(spacing: Space.small) {
+                        if let railBubble { railBubbleCard(railBubble, height: geometry.size.height) }
+                        rail
+                    }
+                    .padding(.horizontal, Space.small)
+                }
+            }
+            // Moved to another edge, it feathers out where it was and fades in at
+            // its new home, as the interfaces swap (owner, 25 Oct 2026: keep it
+            // consistent with the other designs).
+            .id(railEdge)
+            .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace).combined(with: .scale(scale: 0.97)))
+        }
+    }
+
+    /// The rail let go after a hold-and-drag: it goes to the nearest edge of the screen. Down a
+    /// side it's where the settings open too; along the top or bottom it lies flat, as the
+    /// strip in Classic does, and keeps to that edge of the iPad as it turns.
+    private func dropRail(at point: CGPoint, in frame: CGRect) {
+        let gaps: [(Edge, CGFloat)] = [(.top, point.y - frame.minY), (.bottom, frame.maxY - point.y),
+                                       (.leading, point.x - frame.minX), (.trailing, frame.maxX - point.x)]
+        let edge = gaps.min { $0.1 < $1.1 }!.0
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+            railBubble = nil
+            railPin = nil
+            switch edge {
+            case .leading, .trailing:
+                railHome = nil
+                settingsLeading = edge == .leading
+            case .top, .bottom:
+                let screen = edge == .top ? 0 : 2
+                railHome = (screen - quarterTurns + 4) % 4
+            }
+        }
+        UserDefaults.standard.set(railHome, forKey: "railHome")
+    }
+
+    /// Room the flat rail takes along the top or bottom, so the preview sits clear of it.
+    private func railInset(_ edge: Edge) -> CGFloat {
+        !showsInspector && railEdge == edge ? SettingsRail.width + Space.small * 2 : 0
+    }
+
     /// One group, opened from the folded rail, as a glass card beside it. The full settings and
     /// the groups stay away, so there's only ever one menu on screen (owner, 25 Oct 2026: "it
     /// could just be a bubble next to it").
@@ -1021,7 +1125,7 @@ struct ContentView: View {
         }
         .frame(width: 360)
         .frame(maxHeight: min(height * 0.75, 640))
-        .transition(.scale(scale: 0.94, anchor: settingsLeading ? .leading : .trailing).combined(with: .opacity))
+        .transition(.scale(scale: 0.94, anchor: railEdge == .top ? .top : railEdge == .bottom ? .bottom : railEdge == .leading ? .leading : .trailing).combined(with: .opacity))
         .id(section)
     }
 
@@ -1056,7 +1160,7 @@ struct ContentView: View {
         let groupsHere = showsSidebar && sidebarAlongside && !groupsOnEdge && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if settingsHere { return settingsPeeking ? Peek.showing + Space.medium : settingsWidth + Space.medium }
-        if !showsInspector && settingsLeading == leading { return SettingsRail.width + Space.small * 2 }
+        if !showsInspector && railEdge == (leading ? .leading : .trailing) { return SettingsRail.width + Space.small * 2 }
         return groupsHere ? groupsWidth + Space.medium : 0
     }
 

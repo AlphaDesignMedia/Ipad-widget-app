@@ -1316,23 +1316,64 @@ struct SavesPanelPlaces: ViewModifier {
 struct SettingsRail: View {
     static let width: CGFloat = 44
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    var leading: Bool
+    /// The screen edge it sits on. Down a side it runs tall with its names turned; when the iPad
+    /// is turned so its edge is along the top or bottom, it lies flat with the names upright
+    /// (owner, 25 Oct 2026: the rail stays put when you turn the iPad to read it).
+    var edge: Edge
     var sections: [SettingsSection]
     var open: () -> Void
     var go: (SettingsSection) -> Void
+    /// Hold the rail and drag it to put it on another edge; it's told where it was let go, in
+    /// global points (owner, 25 Oct 2026: "grab it and pull it anywhere", e.g. flat at the bottom).
+    var moved: ((CGPoint) -> Void)? = nil
+    @GestureState private var carried: CGSize?
     /// Names down the rail, or icons only (owner, 22 Oct 2026: "try both"; a switch in Panels).
     @AppStorage("railNames") private var showsNames = true
 
+    private var leading: Bool { edge == .leading }
+    private var flat: Bool { edge == .top || edge == .bottom }
+
     var body: some View {
-        ViewThatFits(in: .vertical) {
-            if showsNames { rail(labelled: true) }
-            rail(labelled: false)
+        Group {
+            if flat {
+                ViewThatFits(in: .horizontal) {
+                    if showsNames { flatRail(labelled: true) }
+                    flatRail(labelled: false)
+                }
+                .frame(height: Self.width)
+            } else {
+                ViewThatFits(in: .vertical) {
+                    if showsNames { rail(labelled: true) }
+                    rail(labelled: false)
+                }
+                .frame(width: Self.width)
+            }
         }
-        .frame(width: Self.width)
         .appGlass(.capsule, interactive: true)
         .contentShape(.capsule)
+        .scaleEffect(carried == nil ? 1 : 1.04)
+        .shadow(color: .black.opacity(carried == nil ? 0 : 0.18), radius: 16, y: 6)
+        .offset(carried ?? .zero)
+        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8), value: carried == nil)
+        .sensoryFeedback(.impact(weight: .medium), trigger: carried == nil)
+        // A quick tap still reaches the headings: the hold only wins after a moment.
+        .highPriorityGesture(LongPressGesture(minimumDuration: 0.3)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .updating($carried) { value, state, _ in
+                guard moved != nil, case .second(true, let drag) = value else { return }
+                state = drag?.translation ?? .zero
+            }
+            .onEnded { value in
+                guard case .second(true, let drag?) = value else { return }
+                moved?(drag.location)
+            })
         .gesture(DragGesture(minimumDistance: 10).onEnded { drag in
-            let inwards = leading ? drag.translation.width > 30 : drag.translation.width < -30
+            let inwards = switch edge {
+            case .leading: drag.translation.width > 30
+            case .trailing: drag.translation.width < -30
+            case .top: drag.translation.height > 30
+            case .bottom: drag.translation.height < -30
+            }
             if inwards { open() }
         })
         .accessibilityElement(children: .contain)
@@ -1365,6 +1406,31 @@ struct SettingsRail: View {
             }
         }
         .padding(.vertical, 14)
+    }
+
+    /// The same headings in a row along the top or bottom, names the right way up.
+    private func flatRail(labelled: Bool) -> some View {
+        HStack(spacing: labelled ? 18 : 10) {
+            ForEach(sections) { section in
+                Button { go(section) } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: section.icon)
+                            .font(.body.weight(.medium))
+                        if labelled {
+                            Text(section.title)
+                                .font(.caption.weight(.semibold))
+                                .fixedSize()
+                        }
+                    }
+                    .frame(height: Self.width)
+                    .padding(.horizontal, labelled ? 4 : 8)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.title)
+            }
+        }
+        .padding(.horizontal, 16)
     }
 }
 
