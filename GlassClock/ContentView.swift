@@ -3143,46 +3143,14 @@ struct ContentView: View {
 
     /// Plain is white or black, so the card looks as it will on a plain Home Screen; Clear and
     /// Tinted need a wallpaper for their white content to show up.
-    @ViewBuilder
     private func backdropFill(_ backdrop: PreviewBackdrop) -> some View {
-        switch backdrop {
-        case .plain where homeScreen.accent == nil:
-            homeScreen == .dark ? Color.black : Color.white
-        case .plain:
-            // Clear and Tinted draw white text, so Plain is a quiet slate there rather than
-            // white; it used to fall back to Aurora and looked the same (owner, 2026-10-21).
-            LinearGradient(colors: [Color(white: 0.34), Color(white: 0.18)], startPoint: .top, endPoint: .bottom)
-        case .photo where backdropPhoto != nil:
-            Color.clear.overlay {
-                Image(uiImage: backdropPhoto!)
-                    .resizable()
-                    .scaledToFill()
-            }
-            .clipped()
-        case _ where backdrop.isPattern:
-            PatternBackdrop(kind: backdrop, custom: backdrop == .custom ? customBackdrop.wrappedValue : nil)
-        default:
-            ZStack {
-                if let mesh = backdrop.mesh {
-                    // The middle points sit off-centre, so the colours flow rather than form a grid.
-                    MeshGradient(width: 3, height: 3, points: [
-                        [0, 0], [0.5, 0], [1, 0],
-                        [0, 0.45], [0.62, 0.42], [1, 0.55],
-                        [0, 1], [0.4, 1], [1, 1],
-                    ], colors: mesh, smoothsColors: true)
-                } else {
-                    LinearGradient(colors: backdrop.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-                }
-                // In Light the panels are pale, and the deep gradients clashed with them (owner,
-                // 25 Oct 2026), so they're washed lighter, as the patterns already are.
-                Color.white.opacity(backdropLightWash)
-            }
-        }
+        BackdropFill(backdrop: backdrop, homeScreen: homeScreen, lifted: liftsBackdrops, photo: backdropPhoto,
+                     custom: backdrop == .custom ? customBackdrop.wrappedValue : nil)
     }
 
-    /// How much white goes over a gradient or mesh backdrop: some in Light, none in Dark.
-    private var backdropLightWash: Double {
-        (appColorScheme ?? systemColorScheme) == .light && homeScreen.accent == nil ? 0.38 : 0
+    /// Gradient and mesh backdrops turn pastel in Light (see `BackdropFill`).
+    private var liftsBackdrops: Bool {
+        (appColorScheme ?? systemColorScheme) == .light && homeScreen.accent == nil
     }
 
     /// A rounded piece of glass for a preview control (glass is for the controls layer, HIG: Materials).
@@ -3489,18 +3457,8 @@ struct ContentView: View {
 
     /// A small circle showing the current backdrop.
     private var backdropThumbnail: some View {
-        Group {
-            if backdrop == .photo, let backdropPhoto {
-                Image(uiImage: backdropPhoto).resizable().scaledToFill()
-            } else if backdrop == .plain {
-                homeScreen == .dark ? Color.black : Color.white
-            } else if backdrop.isPattern {
-                PatternBackdrop(kind: backdrop, custom: backdrop == .custom ? customBackdrop.wrappedValue : nil)
-            } else {
-                LinearGradient(colors: backdrop.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
-        }
-        .frame(width: 22, height: 22)
+        backdropFill(backdrop)
+            .frame(width: 22, height: 22)
         .clipShape(Circle())
         .overlay { Circle().strokeBorder(.secondary.opacity(0.4), lineWidth: 1) }
     }
@@ -3596,14 +3554,14 @@ struct ContentView: View {
             }
             .padding(.vertical, 4)
 
-            groupLabel("Starter styles")
-            FlowLayout(spacing: 10) {
-                ForEach(ClockStyle.presets, id: \.name) { preset in
-                    Button(preset.name) { use(preset.style) }
-                        .readableChip()
-                }
+            groupLabel("Moods")
+            MoodRow(style: style, locked: lockedParts, backdrop: backdrop, homeScreen: homeScreen,
+                    liftsBackdrops: liftsBackdrops) { mood, scene in
+                withAnimation(reduceMotion ? nil : .smooth) { style = mood }
+                if !lockedParts.contains(.font) { suggestsFont = true }
+                withAnimation(reduceMotion ? nil : .smooth(duration: 0.55)) { backdrop = scene }
             }
-            .padding(.vertical, 4)
+            .equatable()
 
             lockChips
 

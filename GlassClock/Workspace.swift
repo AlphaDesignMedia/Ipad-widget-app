@@ -200,6 +200,63 @@ struct PatternBackdrop: View {
     }
 }
 
+/// A backdrop drawn to fill its space, shared by the preview, its thumbnail and the Moods.
+struct BackdropFill: View {
+    var backdrop: PreviewBackdrop
+    var homeScreen: HomeScreenStyle
+    /// Light: gradients and mesh are lifted to pastels, so the deep ones (Midnight, Graphite,
+    /// Ocean) don't clash with the pale panels (owner, 25 Oct 2026). A flat white wash over
+    /// them was tried first and turned the dark ones a muddy grey.
+    var lifted = false
+    var photo: UIImage? = nil
+    var custom: CustomBackdrop? = nil
+
+    var body: some View {
+        switch backdrop {
+        case .plain where homeScreen.accent == nil:
+            homeScreen == .dark ? Color.black : Color.white
+        case .plain:
+            // Clear and Tinted draw white text, so Plain is a quiet slate there rather than
+            // white; it used to fall back to Aurora and looked the same (owner, 2026-10-21).
+            LinearGradient(colors: [Color(white: 0.34), Color(white: 0.18)], startPoint: .top, endPoint: .bottom)
+        case .photo where photo != nil:
+            Color.clear.overlay { Image(uiImage: photo!).resizable().scaledToFill() }.clipped()
+        case _ where backdrop.isPattern:
+            PatternBackdrop(kind: backdrop, custom: custom)
+        default:
+            if let mesh = backdrop.mesh {
+                // The middle points sit off-centre, so the colours flow rather than form a grid.
+                MeshGradient(width: 3, height: 3, points: [
+                    [0, 0], [0.5, 0], [1, 0],
+                    [0, 0.45], [0.62, 0.42], [1, 0.55],
+                    [0, 1], [0.4, 1], [1, 1],
+                ], colors: paint(mesh), smoothsColors: true)
+            } else {
+                LinearGradient(colors: paint(backdrop.colors), startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
+        }
+    }
+
+    private func paint(_ colors: [Color]) -> [Color] { lifted ? colors.map { $0.lifted() } : colors }
+}
+
+extension Color {
+    /// Brightened to `brightness` (linear luminance), so dark colours turn pastel and pale ones
+    /// are left as they are. The colour itself is brightened first and white only makes up the
+    /// rest, so Midnight turns periwinkle rather than grey.
+    func lifted(to brightness: Float = 0.45) -> Color {
+        let c = resolve(in: EnvironmentValues())
+        var rgb = [c.linearRed, c.linearGreen, c.linearBlue]
+        func luminance() -> Float { 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] }
+        guard luminance() < brightness else { return self }
+        let gain = min(brightness / max(luminance(), 0.001), 1 / max(rgb.max()!, 0.001))
+        rgb = rgb.map { $0 * gain }
+        let t = max(0, (brightness - luminance()) / (1 - luminance()))
+        rgb = rgb.map { $0 + (1 - $0) * t }
+        return Color(Color.Resolved(colorSpace: .sRGBLinear, red: rgb[0], green: rgb[1], blue: rgb[2], opacity: c.opacity))
+    }
+}
+
 /// The photo chosen as a backdrop, kept in the app's own storage.
 enum BackdropPhoto {
     private static var url: URL {
