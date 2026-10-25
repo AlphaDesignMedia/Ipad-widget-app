@@ -43,6 +43,7 @@ _Last updated 21 Oct 2026._
 
 | Idea | Status | Notes |
 |---|---|---|
+| Move the folded rail anywhere (owner, 25 Oct 2026) | 💤 | Today it snaps to the nearest edge (top, bottom, left, right). Owner would like to place it freely, not only on an edge. Not urgent. |
 | Rail cards that swap sides (owner, 25 Oct 2026) | 💤 | From trying the rail card: tapping on the other side sent the card into the other panel, which clashed a little but felt great. Worth an alternative layout where cards can live on either side. |
 | Rail stays put when the iPad turns (owner, 25 Oct 2026) | ✅ | 25 Oct. Only the folded rail does it. It stays on its edge of the iPad; turned so that edge is the top or bottom, it lies flat with the names the right way up, and the group card opens above or below it. Not yet tried on the iPad. |
 | Put the rail along the top or bottom by choice (owner, 25 Oct 2026) | ✅ 25 Oct | Not only when the iPad turns: drag or pick where the folded rail lives, top, bottom or either side. Uses the flat rail just built. |
