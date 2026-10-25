@@ -622,6 +622,18 @@ struct ContentView: View {
                 .overlay(alignment: .topLeading) {
                     if showsSidebar && !groupsFree { AnyView(attachedGroups(in: geometry.size)) }
                 }
+                // While a card is open from the rail, the rest of the screen holds still: a touch
+                // there closes the card instead of dragging the wallpaper (owner, 25 Oct 2026).
+                .overlay {
+                    if railBubble != nil && !showsInspector {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .gesture(DragGesture(minimumDistance: 0).onEnded { _ in
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { railBubble = nil }
+                            })
+                            .accessibilityHidden(true)
+                    }
+                }
                 .overlay(alignment: railAlignment) { AnyView(railOverlay(in: geometry)) }
                 // The folded rail keeps to its edge of the iPad as it turns.
                 .onAppear { quarterTurns = Self.currentQuarterTurns() }
@@ -1124,7 +1136,19 @@ struct ContentView: View {
             ScrollView { card }.scrollBounceBehavior(.basedOnSize).scrollClipDisabled()
         }
         .frame(width: 360)
-        .frame(maxHeight: min(height * 0.75, 640))
+        // Flat along the top or bottom in portrait, it leaves room for the rail and the
+        // top bar, so it never runs into the other menus.
+        .frame(maxHeight: railEdge == .top || railEdge == .bottom ? min(height * 0.6, 560) : min(height * 0.75, 640))
+        // A soft feather under the card, so the wallpaper doesn't clash with it.
+        .background {
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
+                .fill(.thinMaterial)
+                .padding(-14)
+                .blur(radius: 22)
+                .opacity(0.85)
+                .allowsHitTesting(false)
+        }
+        .contentShape(Rectangle())
         .transition(.scale(scale: 0.94, anchor: railEdge == .top ? .top : railEdge == .bottom ? .bottom : railEdge == .leading ? .leading : .trailing).combined(with: .opacity))
         .id(section)
     }
