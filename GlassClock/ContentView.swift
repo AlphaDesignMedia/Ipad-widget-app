@@ -2223,6 +2223,15 @@ struct ContentView: View {
                     .strokeBorder(AppColor.chosen(appColor), lineWidth: 3)
             }
         }
+        // A glass rim around it while it's held (owner, 25 Oct 2026: "a glass outline, or a
+        // glass behind it"), so it reads as picked up. It rocks with the widget.
+        .background {
+            if editingWidget && !draggingCard {
+                EditHalo(radius: 28 * scale, outset: 7 * scale)
+                    .transition(.scale(scale: 0.96).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy(duration: 0.25), value: editingWidget && !draggingCard)
         .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0 && !Essentials.on, degrees: tweakWiggle))
         // Trying out instead of the wiggle (owner, 22 Oct 2026: "similar but different"): while
         // held for editing it breathes, swelling a touch and settling, slowly.
@@ -4102,20 +4111,72 @@ struct Breathe: ViewModifier {
     }
 }
 
+/// The Home Screen's edit-mode jiggle (owner, 25 Oct 2026: "reminiscent of Apple"): a quick,
+/// slightly uneven rock with a tiny bob, rather than an even swing, starting at a random point
+/// so it doesn't look mechanical. Driven by the clock, so it costs one rotation per frame.
 struct Wiggle: ViewModifier {
     var active: Bool
-    var degrees: Double = 0.7
+    var degrees: Double = 1
+
+    @State private var start = Date.now
+    @State private var phase = Double.random(in: 0...(2 * .pi))
 
     func body(content: Content) -> some View {
         if active {
-            content.phaseAnimator([-degrees, degrees]) { view, angle in
-                view.rotationEffect(.degrees(angle))
-            } animation: { _ in
-                .easeInOut(duration: 0.17)
+            TimelineView(.animation) { context in
+                let t = context.date.timeIntervalSince(start)
+                // About 3.6 rocks a second; the second, slower wave makes each swing a little
+                // different, and it eases in over the first fifth of a second.
+                let ease = min(1, t / 0.2)
+                let rock = sin(t * 22.6 + phase) * 0.85 + sin(t * 9.1 + phase) * 0.15
+                let bob = sin(t * 17.3 + phase * 1.7)
+                content
+                    .rotationEffect(.degrees(rock * degrees * ease))
+                    .offset(y: bob * 0.6 * ease)
             }
+            .onAppear { start = .now; phase = .random(in: 0...(2 * .pi)) }
         } else {
             content
         }
+    }
+}
+
+/// A rim of glass just outside the widget while it's held: real Liquid Glass, cut to a ring so
+/// none of it sits behind the widget's own (often clear) glass, with a lit edge drawn on top so
+/// it shows even where the glass is hard to see.
+struct EditHalo: View {
+    var radius: CGFloat
+    var outset: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var reducesTransparency
+
+    var body: some View {
+        let outer = RoundedRectangle(cornerRadius: radius + outset, style: .continuous)
+        ZStack {
+            if !reducesTransparency {
+                Color.clear
+                    .glassEffect(.clear, in: outer)
+                    .mask { HaloRing(radius: radius, outset: outset).fill(style: FillStyle(eoFill: true)) }
+            }
+            outer.stroke(.black.opacity(0.2), lineWidth: 2)
+            outer.stroke(LinearGradient(colors: [.white, .white.opacity(0.25), .white.opacity(0.8)],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing),
+                         lineWidth: 1.5)
+        }
+        .padding(-outset)
+        .allowsHitTesting(false)
+    }
+}
+
+/// The band between the widget's edge and the halo's outer edge.
+struct HaloRing: Shape {
+    var radius: CGFloat
+    var outset: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path(roundedRect: rect, cornerRadius: radius + outset, style: .continuous)
+        path.addRoundedRect(in: rect.insetBy(dx: outset, dy: outset),
+                            cornerSize: CGSize(width: radius, height: radius), style: .continuous)
+        return path
     }
 }
 
