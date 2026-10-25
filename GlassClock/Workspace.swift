@@ -506,6 +506,7 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 
 /// The app colour, for buttons, highlights and the Colour theme. Automatic is the system blue.
 enum AppColor {
+    static let keepsReadableKey = "appColourReadable"
     /// The app's own blue for Automatic (owner, 25 Oct 2026: black felt off): a calm blue,
     /// a little deeper in Light and a little lighter in Dark, so it reads on either.
     static let standard = Color(UIColor { traits in
@@ -515,14 +516,29 @@ enum AppColor {
     })
 
     static func resolve(_ raw: String) -> Color {
-        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? standard
+        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : readable($0.color) } ?? standard
+    }
+
+    /// Any colour kept readable (owner, 25 Oct 2026: think about contrast on the colours you
+    /// can pick). In Light a pale one deepens until white text on it and it on pale glass both
+    /// read; in Dark it sits in a middle band, light enough to show on dark glass and dark
+    /// enough for a button's white text. The hue stays, so a pastel pick still looks like it.
+    static func readable(_ color: Color) -> Color {
+        // Off gives the exact colour picked (owner, same day: help people make any colour work,
+        // don't stop them), with Outline everything there to keep it clear.
+        guard UserDefaults.standard.object(forKey: keepsReadableKey) as? Bool ?? true else { return color }
+        return Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(color.lifted(to: 0.18).deepened(to: 0.3))
+                : UIColor(color.deepened(to: 0.16))
+        })
     }
 
     /// The app colour spelled out (blue for Automatic), for selected and primary things.
     /// `accentColor` would pick up the black-and-white tint the Glass theme gives icons on
     /// glass, and selected items should look the same everywhere (owner, 2026-10-21).
     static func chosen(_ raw: String) -> Color {
-        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? standard
+        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : readable($0.color) } ?? standard
     }
 }
 
@@ -531,6 +547,7 @@ enum AppColor {
 /// white (Show Mine, Copy Values; tap check, 2026-10-21).
 struct ProminentButton: ViewModifier {
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    @AppStorage(AppColor.keepsReadableKey) private var keepsReadable = true
     @AppStorage("appTheme") private var theme = AppTheme.home
     @AppStorage("reduceGlass") private var reducesGlass = false
     @Environment(\.homeLook) private var homeLook
@@ -637,6 +654,9 @@ struct AppGlass<S: Shape>: ViewModifier {
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     @AppStorage(Outlines.key) private var outlines = false
     @AppStorage(Outlines.widthKey) private var outlineWidth = Outlines.standardWidth
+    @AppStorage(Outlines.colourKey) private var outlineColour = OutlineColour.automatic
+    /// Read so the glass redraws when the contrast switch changes.
+    @AppStorage(AppColor.keepsReadableKey) private var keepsReadable = true
     var shape: S
     var interactive = false
     var tint: Color?
@@ -647,8 +667,28 @@ struct AppGlass<S: Shape>: ViewModifier {
     func body(content: Content) -> some View {
         glassed(content)
             .overlay {
-                if outlines { shape.stroke(.primary.opacity(0.9), lineWidth: outlineWidth).allowsHitTesting(false) }
+                if outlines { outline.allowsHitTesting(false) }
             }
+    }
+
+    @ViewBuilder
+    private var outline: some View {
+        switch outlineColour {
+        case .automatic: shape.stroke(.primary.opacity(0.9), lineWidth: outlineWidth)
+        case .appColour: shape.stroke(AppColor.chosen(appColor), lineWidth: outlineWidth)
+        case .white: shape.stroke(.white, lineWidth: outlineWidth)
+        case .black: shape.stroke(.black, lineWidth: outlineWidth)
+        // A rim of light, like the edge of a glass pane: bright where the light catches it,
+        // fading round the far side, on a faint dark line so it still shows on pale backdrops.
+        // Plain strokes, no extra glass, so it costs nothing to draw.
+        case .glass:
+            ZStack {
+                shape.stroke(.black.opacity(colorScheme == .dark ? 0.35 : 0.18), lineWidth: outlineWidth + 1)
+                shape.stroke(LinearGradient(colors: [.white, .white.opacity(0.3), .white.opacity(0.75)],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing),
+                             lineWidth: outlineWidth)
+            }
+        }
     }
 
     @ViewBuilder
@@ -710,7 +750,24 @@ struct AppGlass<S: Shape>: ViewModifier {
 enum Outlines {
     static let key = "outlines"
     static let widthKey = "outlineWidth"
+    static let colourKey = "outlineColour"
     static let standardWidth = 2.0
+}
+
+/// The outline's colour (owner, 25 Oct 2026: choose it, even a glass outline).
+enum OutlineColour: String, CaseIterable, Identifiable {
+    case automatic, appColour, glass, white, black
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .appColour: "App Colour"
+        case .glass: "Glass"
+        case .white: "White"
+        case .black: "Black"
+        }
+    }
 }
 
 /// Corner rounding, kept concentric (owner feedback 2026-10-21): a box inside a panel is

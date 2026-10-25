@@ -40,6 +40,8 @@ struct ContentView: View {
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage(Outlines.key) private var outlines = false
     @AppStorage(Outlines.widthKey) private var outlineWidth = Outlines.standardWidth
+    @AppStorage(Outlines.colourKey) private var outlineColour = OutlineColour.automatic
+    @AppStorage(AppColor.keepsReadableKey) private var appColourReadable = true
     @AppStorage("appTheme") private var appTheme = AppTheme.home
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
@@ -122,6 +124,9 @@ struct ContentView: View {
     /// The spring a dropped widget lands with: no overshoot, so it glides into its slot and
     /// stops, rather than passing it and pulling back (owner, 22 Oct 2026).
     static let cardLand = Animation.spring(response: 0.42, dampingFraction: 1)
+    /// A thrown widget: heavier and a touch longer, so it slides across and settles into its
+    /// slot with the faintest give, rather than stopping dead.
+    static let cardThrow = Animation.spring(response: 0.6, dampingFraction: 0.86)
     @State private var draggingCard = false
     /// Like editing the Home Screen: a long press makes the widget wiggle, and a handle on its
     /// corner resizes it (owner idea, 2026-10-21).
@@ -2072,11 +2077,19 @@ struct ContentView: View {
                         draggingCard = false
                     }
                 } else if let drag = value.second {
-                    let end = CGPoint(x: home.midX + drag.translation.width, y: home.midY + drag.translation.height)
+                    // A throw carries on (owner, 25 Oct 2026: "more gravity… drag itself a bit and
+                    // then catch the nearest dots"): it travels part of the way the flick was
+                    // heading, as if slowed by weight, then slots into the nearest place there.
+                    let flick = CGSize(width: drag.predictedEndTranslation.width - drag.translation.width,
+                                       height: drag.predictedEndTranslation.height - drag.translation.height)
+                    let thrown = hypot(flick.width, flick.height) > 60
+                    let carry: CGFloat = thrown ? 0.4 : 0
+                    let end = CGPoint(x: home.midX + drag.translation.width + flick.width * carry,
+                                      y: home.midY + drag.translation.height + flick.height * carry)
                     let target = grid.nearest(to: end, span: span)
                     // The distance springs back to zero with the same spring that moves the widget
                     // to its new slot, so the two cancel out and it glides on from under the finger.
-                    withAnimation(reduceMotion ? nil : Self.cardLand) {
+                    withAnimation(reduceMotion ? nil : thrown ? Self.cardThrow : Self.cardLand) {
                         widgetColumn = target.column
                         widgetRow = target.row
                         motion.cardDrag = .zero
@@ -3230,10 +3243,12 @@ struct ContentView: View {
     private func bubbleBacking(_ shape: some Shape) -> some View {
         // Otherwise pure Liquid Glass, like the text-size bubble (owner, 22 Oct 2026). Over the
         // pastel backdrops in Light, clear glass looked blown out, so it gets a faint white body
-        // and a hairline edge there: no blur, so it costs nothing (owner, 25 Oct 2026).
+        // and a hairline edge there: no blur, so it costs nothing (owner, 25 Oct 2026). Only a
+        // whisper of white in the panels layout, where the full body made the bubbles feel
+        // stuck on rather than floating (owner, same day); Classic keeps it.
         if controlScheme == .light {
             ZStack {
-                shape.fill(.white.opacity(0.4))
+                shape.fill(.white.opacity(interface == .classic ? 0.4 : 0.12))
                 shape.stroke(.black.opacity(0.1), lineWidth: 0.5)
             }
         }
@@ -3739,6 +3754,9 @@ struct ContentView: View {
             Toggle("Outline everything", isOn: $outlines)
             if outlines {
                 slider("Outline width", value: $outlineWidth, in: 1...6, low: "Fine", high: "Bold")
+                Picker("Outline colour", selection: $outlineColour) {
+                    ForEach(OutlineColour.allCases) { Text($0.label).tag($0) }
+                }
             }
             // Off keeps the widget's controls showing all the time.
             Toggle("Tuck widget controls away", isOn: $quietControls)
@@ -3762,6 +3780,10 @@ struct ContentView: View {
                     get: { ClockColor(rawValue: appColor) ?? .auto },
                     set: { appColor = $0.rawValue }
                 ))
+                Toggle("Adjust for contrast", isOn: $appColourReadable)
+                Text("Deepens pale colours in Light and lifts dark ones in Dark, so text and icons stay readable. Turn it off for the exact colour.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Picker("Appearance", selection: $appAppearance) {
                 ForEach(AppAppearance.allCases) { Text($0.label).tag($0) }

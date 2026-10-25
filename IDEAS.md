@@ -11,6 +11,12 @@ _Last updated 21 Oct 2026._
 
 - [ ] **Theme colour on the widget's outlines** (owner, 25 Oct 2026, message cut off mid-sentence): the backdrop's colour carried into the edges of the bubbles around the widget (only those), in Light and maybe Dark. Small: tint the new hairline edge with the backdrop's colour. Waiting until after the friend test.
 - [ ] **Your own two-tone theme** (owner, 25 Oct 2026): pastels in Light and deeps in Dark now mirror each other automatically; next, let people pick their own colour pair, like Google's one-colour and two-colour themes.
+- [ ] **"Your colour" as a headline feature** (owner, 25 Oct 2026). One plan, four parts:
+  1. The tour asks for your favourite colour and sets it up.
+  2. One clear switch: "Use my colour everywhere" (panels, glass tint, backdrops, buttons).
+  3. A clear on/off for the glass override (colour and gradients on glass), shown as a feature, not hidden.
+  4. Any colour allowed: "Adjust for contrast" (now in App look, on by default) plus Outline everything as the escape hatch for out-of-range picks. Next: suggest an outline automatically when a pick is low-contrast.
+- [ ] **Preview vs real widget, shadows and Tinted** (owner, 25 Oct 2026): improve the shadows in the preview and the widget, and match the preview to reality, especially on Tinted. Either warn when a setting goes past what Tinted can show, or cap it there. Needs side-by-side iPad screenshots first.
 
 | Idea | Status | Notes |
 |---|---|---|
