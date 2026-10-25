@@ -165,6 +165,9 @@ struct ContentView: View {
     @AppStorage("matchesClockFont") private var matchesClockFont = true
     /// Where the widget is on screen, for the guided tour.
     @State private var widgetRect = CGRect.zero
+    /// How far the widget has stepped aside for a card opened from the rail; back to zero
+    /// when the card closes. Its place on the grid doesn't change.
+    @State private var widgetNudge = CGSize.zero
     /// False for a moment while Panels opens, so the widget appears in its place.
     @State private var widgetSettled = true
     /// Where the controls above and below the widget are, in the window, so the stuck-on groups
@@ -1131,24 +1134,28 @@ struct ContentView: View {
         let card = AnyView(SettingsCard(title: section.title, icon: section.icon, footer: section.footer) {
             sectionContent(section)
         })
+        // Too tall to fit, it scrolls and fades to clear at the top and bottom, as the side
+        // menu does, so above a bottom rail it melts away before the rail rather than running
+        // into it (owner, 25 Oct 2026: a white feather behind it wasn't right). The fade's
+        // area reaches past the card's sides, so its edges and shadow aren't cut.
+        let side: CGFloat = 24
         return ViewThatFits(in: .vertical) {
-            card
-            ScrollView { card }.scrollBounceBehavior(.basedOnSize).scrollClipDisabled()
+            card.frame(width: 360)
+            ScrollView { card.frame(width: 360).padding(.horizontal, side) }
+                .contentMargins(.vertical, 28, for: .scrollContent)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
+                .modifier(ScrollEdges(fades: appTheme.isGlassy && !reducesGlass))
+                .padding(.horizontal, -side)
         }
         .frame(width: 360)
         // Flat along the top or bottom in portrait, it leaves room for the rail and the
         // top bar, so it never runs into the other menus.
         .frame(maxHeight: railEdge == .top || railEdge == .bottom ? min(height * 0.6, 560) : min(height * 0.75, 640))
-        // A soft feather under the card, so the wallpaper doesn't clash with it.
-        .background {
-            RoundedRectangle(cornerRadius: 36, style: .continuous)
-                .fill(.thinMaterial)
-                .padding(-14)
-                .blur(radius: 22)
-                .opacity(0.85)
-                .allowsHitTesting(false)
-        }
         .contentShape(Rectangle())
+        // The widget steps out of its way, and comes back when it closes.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stepWidgetAside(from: $0) }
+        .onDisappear { stepWidgetAside(from: nil) }
         .transition(.scale(scale: 0.94, anchor: railEdge == .top ? .top : railEdge == .bottom ? .bottom : railEdge == .leading ? .leading : .trailing).combined(with: .opacity))
         .id(section)
     }
@@ -2700,6 +2707,8 @@ struct ContentView: View {
                 // the same spring keeps the two in step: one glide from the finger into the slot.
                 .animation(reduceMotion ? nil : Self.cardLand, value: centre)
                 .modifier(LiveOffset(motion: motion, path: \.cardDrag))
+                // Out of the way of a card opened from the rail (see stepWidgetAside).
+                .offset(widgetNudge)
                 // The resize handle sits beside the widget rather than on it, so the
                 // widget's own drag doesn't take its touches.
                 if editingWidget && !draggingCard {
@@ -2744,6 +2753,29 @@ struct ContentView: View {
             guard covered, !draggingCard else { return }
             withAnimation(Self.cardSettle) { widgetColumn = -1; widgetRow = -1 }
         }
+    }
+
+    /// A card open from the rail would cover the widget: the widget slides away from the
+    /// card's edge with the card's own spring, just far enough to be seen, kept on screen
+    /// (owner, 25 Oct 2026: "you want to see the changes you make"). Nil slides it back.
+    private func stepWidgetAside(from card: CGRect?) {
+        var nudge = CGSize.zero
+        if let card, widgetRect != .zero, card.intersects(widgetRect) {
+            let gap = Space.medium
+            switch railEdge {
+            case .bottom: nudge.height = card.minY - gap - widgetRect.maxY
+            case .top: nudge.height = card.maxY + gap - widgetRect.minY
+            case .leading: nudge.width = card.maxX + gap - widgetRect.minX
+            case .trailing: nudge.width = card.minX - gap - widgetRect.maxX
+            }
+            // Never pushed off the screen: where there isn't room it goes as far as it can.
+            if layerRect != .zero {
+                nudge.width = min(max(nudge.width, layerRect.minX - widgetRect.minX), layerRect.maxX - widgetRect.maxX)
+                nudge.height = min(max(nudge.height, layerRect.minY - widgetRect.minY), layerRect.maxY - widgetRect.maxY)
+            }
+        }
+        guard nudge != widgetNudge else { return }
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { widgetNudge = nudge }
     }
 
     /// Tucks away any panel the widget would land under (`target` is in the grid's space).

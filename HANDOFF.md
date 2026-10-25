@@ -2,16 +2,20 @@
 
 _Updated 25 Oct 2026_
 
-**On the iPad:** 19d3b17 (tag `ipad-25oct-1451`).
+**On the iPad:** the rail card fade and the widget stepping aside (tag `ipad-25oct-1510`).
 
 **Done today:**
 - Hold and drag the folded rail to any edge. It lies flat at the top or bottom (portrait docking), feathers into its new place, and keeps its side when the iPad turns.
 - Rail heading taps work again (42fd8c7).
-- Rail cards have a soft feather under them. The screen around an open card holds still, so you can't drag the wallpaper by accident, and a tap there closes the card. In portrait the card is shorter, so it clears the other menus.
+- The screen around an open rail card holds still, so you can't drag the wallpaper by accident, and a tap there closes the card. In portrait the card is shorter, so it clears the other menus.
+- Rail card: the white feather behind it is gone. A tall card fades to clear at the top and bottom like the side menu, and above a bottom rail it fades out before the rail. Looks nice on the iPad. The app crashed once while trying it; no crash log has come through yet.
+- The widget steps aside for a rail card: it slides away from the card with the same spring, stays on screen, and comes back when the card closes. Not yet tried on the iPad.
 
 **Ideas (💤 in IDEAS.md):**
-- Widget steps aside when a rail card pops out (next up)
-- Light mode: shadows still slightly off (send a screenshot)
+- Rail card: wider, so it fits with the rest
+- Grab the rail card and move it aside, as in Classic
+- Crash reports for beta testers: nothing set up yet. TestFlight does it but needs the paid developer program
+- Light mode: softer, feathered card shadows and readable text on light panels. Needs research first (black feather looks blurry, white is a known don't)
 - Phone-size layout: parked until the iPad is settled
 - Tinted mode: cards by the collapsed left menu lose their glass. The backed look could become an accessibility setting
 - Anchor the group card to the clock widget
@@ -25,4 +29,4 @@ _Updated 25 Oct 2026_
 - One batched message of feedback, then one build, then a break
 - Dashboard updates come from this file, on request
 
-**Next up (suggested):** check the feather and the portrait overlap on the iPad (send a screenshot if menus still overlap), then the widget stepping aside.
+**Next up (suggested):** try the widget stepping aside on the iPad (rail at the bottom, extra large widget, open Presets). If it crashes again, plug the iPad in so the crash log can be pulled. Then decide on the paid developer program for beta testing.
