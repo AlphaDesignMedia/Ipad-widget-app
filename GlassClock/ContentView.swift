@@ -38,6 +38,8 @@ struct ContentView: View {
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
     /// Swaps the app's glass panels for solid ones (also follows Reduce Transparency).
     @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage(Outlines.key) private var outlines = false
+    @AppStorage(Outlines.widthKey) private var outlineWidth = Outlines.standardWidth
     @AppStorage("appTheme") private var appTheme = AppTheme.home
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
@@ -1964,7 +1966,7 @@ struct ContentView: View {
     /// Icons on the clear glass toolbar: black or white to suit the backdrop in the Glass theme
     /// (see `AppGlass`), so they never blend into a backdrop of the same colour.
     private var iconsOnGlass: Color? {
-        appTheme.isGlassy && !reducesGlass ? .primary : nil
+        appTheme.isGlassy && !reducesGlass ? AppColor.chosen(appColor) : nil
     }
 
     /// Classic (simple) or Panels (everything), always one tap away in the middle of the top bar.
@@ -3734,6 +3736,10 @@ struct ContentView: View {
             // down to something plain and standard.
             Toggle("Simpler effects", isOn: $simpleMotion)
             Toggle("Reduce glass", isOn: $reducesGlass)
+            Toggle("Outline everything", isOn: $outlines)
+            if outlines {
+                slider("Outline width", value: $outlineWidth, in: 1...6, low: "Fine", high: "Bold")
+            }
             // Off keeps the widget's controls showing all the time.
             Toggle("Tuck widget controls away", isOn: $quietControls)
             // An experiment (owner idea, 2026-10-21): the app's own text takes on the clock's

@@ -506,15 +506,23 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 
 /// The app colour, for buttons, highlights and the Colour theme. Automatic is the system blue.
 enum AppColor {
+    /// The app's own blue for Automatic (owner, 25 Oct 2026: black felt off): a calm blue,
+    /// a little deeper in Light and a little lighter in Dark, so it reads on either.
+    static let standard = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.42, green: 0.66, blue: 1.0, alpha: 1)
+            : UIColor(red: 0.13, green: 0.40, blue: 0.86, alpha: 1)
+    })
+
     static func resolve(_ raw: String) -> Color {
-        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? .accentColor
+        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? standard
     }
 
     /// The app colour spelled out (blue for Automatic), for selected and primary things.
     /// `accentColor` would pick up the black-and-white tint the Glass theme gives icons on
     /// glass, and selected items should look the same everywhere (owner, 2026-10-21).
     static func chosen(_ raw: String) -> Color {
-        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? .blue
+        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : $0.color } ?? standard
     }
 }
 
@@ -627,6 +635,8 @@ struct AppGlass<S: Shape>: ViewModifier {
     @AppStorage("reduceGlass") private var reducesGlass = false
     @AppStorage("appTheme") private var theme = AppTheme.home
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    @AppStorage(Outlines.key) private var outlines = false
+    @AppStorage(Outlines.widthKey) private var outlineWidth = Outlines.standardWidth
     var shape: S
     var interactive = false
     var tint: Color?
@@ -635,6 +645,14 @@ struct AppGlass<S: Shape>: ViewModifier {
     var panel = false
 
     func body(content: Content) -> some View {
+        glassed(content)
+            .overlay {
+                if outlines { shape.stroke(.primary.opacity(0.9), lineWidth: outlineWidth).allowsHitTesting(false) }
+            }
+    }
+
+    @ViewBuilder
+    private func glassed(_ content: Content) -> some View {
         if systemReducesTransparency || reducesGlass {
             content
                 .background {
@@ -649,7 +667,9 @@ struct AppGlass<S: Shape>: ViewModifier {
                 // it between black and white to suit what's behind, which the primary colour
                 // does, so in the Glass theme icons and labels on glass use it. Selected items
                 // keep their colour on a solid fill, and the settings cards set their own tint.
-                .tint(theme.isGlassy && tint == nil ? Color.primary : nil)
+                // Automatic now uses the app's blue rather than black (owner, 25 Oct 2026); the
+                // backdrops are toned to suit Light and Dark, so it stays readable.
+                .tint(theme.isGlassy && tint == nil ? AppColor.chosen(appColor) : nil)
                 // Clear glass keeps its text readable with a soft halo in the opposite colour
                 // (owner, 22 Oct 2026: clear glass everywhere, but text must show). Small
                 // controls only: a shadow over a whole panel would cost smoothness.
@@ -683,6 +703,14 @@ struct AppGlass<S: Shape>: ViewModifier {
         guard clearAndSmall else { return .clear }
         return colorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.7)
     }
+}
+
+/// Outline everything (owner, 25 Oct 2026): an accessibility setting that draws a clear line
+/// round every piece of glass, panels and controls alike, with a slider for how thick.
+enum Outlines {
+    static let key = "outlines"
+    static let widthKey = "outlineWidth"
+    static let standardWidth = 2.0
 }
 
 /// Corner rounding, kept concentric (owner feedback 2026-10-21): a box inside a panel is
