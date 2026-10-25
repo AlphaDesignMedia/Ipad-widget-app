@@ -1,0 +1,2304 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Glass Clock Progress</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one tall column for a portrait monitor. Glass cards float over a soft bloom backdrop,
+   like Glass Clock's own panels. Summary first (clock, build, needs-you), then the board. */
+:root {
+  /* Readability first (owner, 22 Oct 2026: a so-so monitor): calmer blooms, glass that's
+     mostly solid, darker secondary text and a defined edge on every card. */
+  --ground: #ece8f3;
+  --bloom-a: #cfc3f3; --bloom-b: #f6cfbf; --bloom-c: #c0e0f2;
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+  --rim: rgba(255, 255, 255, 0.9);
+  --line: rgba(40, 30, 70, 0.16);
+  --edge: rgba(40, 30, 70, 0.12);
+  --fg: #120e22; --muted: #3f3a55; --faint: #5f5a76;
+  --accent: #2f55d4; --accent-ink: #ffffff;
+  --good: #146c47; --warn: #9a4f00; --hold: #5e5488;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Figtree", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #0f0d18; --bloom-a: #33285f; --bloom-b: #5a3329; --bloom-c: #1a3d56;
+  --glass: rgba(24, 21, 38, 0.78); --glass-strong: rgba(34, 30, 52, 0.92);
+  --rim: rgba(255, 255, 255, 0.14); --line: rgba(255, 255, 255, 0.16); --edge: rgba(0, 0, 0, 0.45);
+  --fg: #f7f5fc; --muted: #d2cce3; --faint: #aaa3c2;
+  --accent: #93abff; --accent-ink: #0d0b16;
+  --good: #6fe0aa; --warn: #f6c070; --hold: #bdb3e4; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --ground: #0f0d18; --bloom-a: #33285f; --bloom-b: #5a3329; --bloom-c: #1a3d56;
+  --glass: rgba(24, 21, 38, 0.78); --glass-strong: rgba(34, 30, 52, 0.92);
+  --rim: rgba(255, 255, 255, 0.14); --line: rgba(255, 255, 255, 0.16); --edge: rgba(0, 0, 0, 0.45);
+  --fg: #f7f5fc; --muted: #d2cce3; --faint: #aaa3c2;
+  --accent: #93abff; --accent-ink: #0d0b16;
+  --good: #6fe0aa; --warn: #f6c070; --hold: #bdb3e4; color-scheme: dark }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { font-size: 17px; }
+html[data-text="s"] { font-size: 15px; } html[data-text="l"] { font-size: 19.5px; }
+body { margin: 0; min-height: 100%; color: var(--fg); font: 1rem/1.55 var(--body); background: var(--ground); }
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 40% at 15% 8%, var(--bloom-a), transparent 70%),
+    radial-gradient(55% 35% at 90% 30%, var(--bloom-b), transparent 70%),
+    radial-gradient(70% 45% at 30% 85%, var(--bloom-c), transparent 70%),
+    var(--ground); }
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 30px;
+  padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { margin: 0; font-family: var(--display); line-height: 1.12; text-wrap: balance; }
+h2 { font-size: 1.3rem; font-weight: 700; }
+p { margin: 0; }
+.label { font: 600 0.78rem/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+.glass { background: var(--glass); border: 1px solid var(--line); border-radius: 26px;
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: inset 0 1px 0 var(--rim), 0 10px 30px var(--edge); }
+.decision, .item, .agent, .note, .opt, .bar, textarea, .tag { border-color: var(--line) !important; }
+section.glass { padding: 26px; display: grid; gap: 18px; min-width: 0; }
+.head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* Layout you can set (owner, 22 Oct 2026: "more responsive and possibly adjustable"): one
+   column on a portrait screen, two side by side on a wide one (Auto picks by width), and three
+   text sizes. Kept per device in browser storage. */
+.wrap { grid-template-columns: minmax(0, 1fr); }
+.col { display: grid; gap: 30px; align-content: start; min-width: 0; }
+.viewbar { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; grid-column: 1 / -1; margin-bottom: -8px; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.seg button { font: 600 0.8rem/1 var(--body); color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 7px 12px; cursor: pointer; min-height: 32px; }
+.seg button[aria-checked="true"] { background: var(--glass-strong); color: var(--fg); box-shadow: inset 0 1px 0 var(--rim), 0 1px 4px var(--edge); }
+.seg button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.seg [data-text="s"] { font-size: 0.72rem; } .seg [data-text="l"] { font-size: 0.98rem; }
+.wrap.two { max-width: 1560px; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); align-items: start; }
+.wrap.two .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+/* Hero: a glass clock card, the subject itself, beside what's on the iPad. */
+.hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 22px; }
+@media (max-width: 720px) { .hero { grid-template-columns: 1fr; } }
+.clock { padding: 26px 28px; display: grid; gap: 4px; align-content: center; min-height: 190px; }
+.clock .time { font: 700 clamp(3.4rem, 9vw, 5.4rem)/0.95 var(--display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  color: var(--fg); }
+.clock .date { font: 500 1.1rem var(--body); color: var(--muted); }
+.clock .proj { margin-top: 10px; font-weight: 600; }
+.build { padding: 22px; display: grid; gap: 12px; align-content: start; }
+.build .now { font: 700 1.25rem/1.2 var(--display); }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { font: 600 0.82rem/1 var(--mono); padding: 7px 11px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--rim); }
+.tag b { font-weight: 500; color: var(--muted); }
+
+/* Counts strip */
+.counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.count { padding: 14px 16px; border-radius: 20px; display: grid; gap: 2px; }
+.count b { font: 700 1.9rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.count span { color: var(--muted); font-size: 0.92rem; }
+.count.needs b { color: var(--warn); }
+
+/* Decisions */
+.decisions { display: grid; gap: 12px; }
+.decision { padding: 16px 18px; border-radius: 20px; background: var(--glass-strong); border: 1px solid var(--rim); display: grid; gap: 10px; min-width: 0; }
+.decision .q { font-weight: 600; font-size: 1.04rem; }
+.decision .why { color: var(--muted); font-size: 0.98rem; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.opt { font: 600 0.92rem var(--body); color: var(--fg); padding: 9px 15px; border-radius: 999px; cursor: pointer;
+  background: var(--glass); border: 1px solid var(--rim); box-shadow: inset 0 1px 0 var(--rim); transition: transform .15s, background .15s; }
+.opt:hover { background: var(--glass-strong); }
+.opt:active { transform: scale(0.97); }
+.opt:focus-visible, .send:focus-visible, textarea:focus-visible, .toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.opt[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.decision textarea { min-height: 38px; }
+.answered { opacity: 0.9; }
+.answered .q::after { content: "  ✓"; color: var(--good); }
+.toggle { justify-self: start; font: 600 0.86rem var(--body); color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; }
+
+/* Board: lanes stacked for a tall screen */
+.lanes { display: grid; gap: 14px; }
+.lane { display: grid; gap: 8px; }
+.lane-head { display: flex; align-items: center; gap: 10px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.lane-head .n { color: var(--muted); font: 600 0.85rem var(--mono); }
+.items { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.item { padding: 12px 14px; border-radius: 16px; background: var(--glass-strong); border: 1px solid var(--rim); display: grid; gap: 4px; min-width: 0; }
+.item .t { font-weight: 600; }
+.item .d { color: var(--muted); font-size: 0.95rem; }
+.item .area { justify-self: start; font: 600 0.74rem/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.lane.done .item, .lane.dropped .item { background: var(--glass); }
+.lane.dropped .item .t { text-decoration: line-through; color: var(--muted); }
+
+/* Progress bar */
+.bar { height: 12px; border-radius: 999px; background: var(--glass); border: 1px solid var(--rim); overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 0.92rem; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Agents */
+.agents { display: grid; gap: 8px; }
+.agent { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 16px; background: var(--glass-strong); border: 1px solid var(--rim); }
+.agent .what { color: var(--muted); font-size: 0.95rem; }
+.pill { font: 700 0.76rem/1 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+
+/* Notes */
+textarea { width: 100%; font: 400 1rem/1.45 var(--body); color: var(--fg); background: var(--glass); border: 1px solid var(--rim); border-radius: 16px; padding: 12px 14px; resize: vertical; min-height: 84px; }
+textarea::placeholder { color: var(--faint); }
+.send { justify-self: start; font: 600 0.95rem var(--body); padding: 10px 18px; border-radius: 999px; border: 0; cursor: pointer; background: var(--accent); color: var(--accent-ink); }
+.send:disabled { opacity: 0.5; cursor: default; }
+.notes { display: grid; gap: 8px; }
+.note { padding: 10px 14px; border-radius: 14px; background: var(--glass-strong); border: 1px solid var(--rim); display: grid; gap: 2px; }
+.note small { color: var(--faint); font-size: 0.86rem; }
+.empty { color: var(--muted); font-size: 0.95rem; }
+.status { color: var(--muted); font-size: 0.92rem; }
+/* Build history: the builds on the iPad as stops along a line, newest on the right. Stable
+   points are diamonds, experiments dots; the one on the iPad glows twice as the page opens,
+   like a choice landing in the app. Tap a stop to see what changed in it. */
+.history { position: relative; display: flex; justify-content: space-between; align-items: start; gap: 4px; padding-top: 4px; }
+.history::before { content: ""; position: absolute; left: 22px; right: 22px; top: 14px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--line) 12%, var(--line) 88%, var(--accent)); }
+.history.more { padding-top: 18px; }
+.history.more::before { top: 28px; }
+.history.more::after { content: "earlier"; position: absolute; left: 0; top: 0; font: 600 0.68rem var(--mono); color: var(--faint); letter-spacing: 0.04em; }
+.bstop { position: relative; display: grid; justify-items: center; gap: 8px; min-width: 44px; padding: 0 0 2px; background: none; border: 0; cursor: pointer;
+  font: 600 0.74rem/1.1 var(--mono); color: var(--muted); -webkit-tap-highlight-color: transparent; }
+.bstop i { display: block; width: 14px; height: 14px; margin: 3px 0; border-radius: 50%; background: var(--accent);
+  box-shadow: 0 0 0 4px var(--glass-strong); transition: transform .25s cubic-bezier(.3,1.4,.5,1); }
+.bstop.stable i { border-radius: 3px; background: var(--good); transform: rotate(45deg); }
+.bstop:hover i, .bstop:focus-visible i { transform: scale(1.25); }
+.bstop.stable:hover i, .bstop.stable:focus-visible i { transform: rotate(45deg) scale(1.25); }
+.bstop.current i { width: 20px; height: 20px; margin: 0; animation: landed 1.6s ease-out 0.4s 1; }
+.bstop[aria-pressed="true"] { color: var(--fg); }
+.bstop[aria-pressed="true"]::after { content: ""; position: absolute; bottom: -19px; width: 12px; height: 12px; transform: rotate(45deg); z-index: 1;
+  background: var(--glass-strong); border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
+.bstop:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+@keyframes landed {
+  0%, 100% { box-shadow: 0 0 0 4px var(--glass-strong), 0 0 0 4px color-mix(in srgb, var(--accent) 0%, transparent); }
+  20%, 60% { box-shadow: 0 0 0 4px var(--glass-strong), 0 0 0 11px color-mix(in srgb, var(--accent) 30%, transparent); }
+  40% { box-shadow: 0 0 0 4px var(--glass-strong), 0 0 0 7px color-mix(in srgb, var(--accent) 12%, transparent); }
+}
+.changes { display: grid; gap: 6px; padding: 12px 14px; border-radius: 16px; background: var(--glass-strong); border: 1px solid var(--line); }
+.changes h3 { font: 700 0.98rem/1.2 var(--display); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.changes h3 small { font: 600 0.74rem var(--mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.changes ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.changes li { font-size: 0.95rem; }
+.changes li::marker { color: var(--accent); }
+.changes.swap { animation: swap .28s ease-out; }
+@keyframes swap { from { opacity: 0; transform: translateY(4px); } }
+/* Conversation: Claude's replies from the chat as cards, newest first, with a box to answer.
+   While a Claude session is watching, a message goes straight to it as a comment sent to
+   Claude; otherwise it waits in the jobs queue, read when a Claude session next starts. */
+.presence { display: inline-flex; align-items: center; gap: 8px; font: 600 0.8rem/1 var(--mono); color: var(--muted); letter-spacing: 0.03em; }
+.presence i { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+.presence.here i { background: var(--good); box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 50%, transparent); animation: here 2.4s ease-out infinite; }
+.presence.away i { background: var(--warn); }
+@keyframes here { 70% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--good) 0%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.composer { display: grid; gap: 10px; }
+.composer .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.composer textarea { min-height: 64px; }
+.replying { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 6px 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--glass-strong)); font-size: 0.9rem; color: var(--fg); }
+.replying button { border: 0; background: none; color: var(--muted); font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 8px; }
+.chat { display: grid; gap: 10px; }
+.msg { padding: 14px 16px; border-radius: 18px; background: var(--glass-strong); border: 1px solid var(--line); display: grid; gap: 8px; min-width: 0; }
+.msg.swap { animation: swap .3s ease-out; }
+.msg header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.msg header b { font: 700 1.02rem/1.25 var(--display); }
+.msg header small { font: 600 0.74rem var(--mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.msg p { color: var(--fg); white-space: pre-line; }
+.msg ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.msg li::marker { color: var(--accent); }
+.msg.you { margin-left: clamp(24px, 12%, 80px); background: color-mix(in srgb, var(--accent) 14%, var(--glass-strong)); }
+.msg.you header b { font: 600 0.8rem var(--mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ghost { font: 600 0.88rem var(--body); color: var(--accent); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.ghost:hover { background: var(--glass); }
+.go { font: 700 0.9rem var(--body); color: var(--accent-ink); background: var(--good); border: 0; border-radius: 999px; padding: 8px 16px 8px 14px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 14px color-mix(in srgb, var(--good) 35%, transparent);
+  transition: transform .15s; }
+.go::after { content: "→"; transition: transform .2s; }
+.go:hover::after { transform: translateX(3px); }
+.go:active { transform: scale(0.97); }
+.go:disabled { opacity: 0.5; cursor: default; }
+.ghost:focus-visible, .go:focus-visible, .replying button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.started { font: 600 0.8rem var(--mono); color: var(--good); letter-spacing: 0.03em; }
+.proposal { padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--line); font-size: 0.95rem; }
+.proposal b { font-weight: 700; }
+.jobs { display: grid; gap: 6px; }
+.job { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); font-size: 0.92rem; }
+.job .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job .dot.working { animation: here 1.6s ease-out infinite; }
+/* Mood board: the latest screenshots from the iPad build as a strip of glass frames that
+   scrolls sideways and snaps; tap one to see it large. The same shots sit on their build. */
+.mood { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 200px); gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+  padding: 4px 2px 10px; margin: 0 -2px; scrollbar-width: thin; }
+.shot { scroll-snap-align: start; display: grid; gap: 6px; padding: 0; border: 0; background: none; cursor: zoom-in; text-align: left; color: var(--fg); font: inherit; }
+.shot img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; object-position: top; border-radius: 14px; border: 1px solid var(--line);
+  box-shadow: 0 6px 18px var(--edge); transition: transform .25s cubic-bezier(.3,1.4,.5,1); background: var(--glass); }
+.shot:hover img, .shot:focus-visible img { transform: translateY(-3px) rotate(-0.6deg); }
+.shot span { font-size: 0.86rem; color: var(--muted); }
+.shot:focus-visible { outline: none; }
+.shot:focus-visible img { outline: 3px solid var(--accent); outline-offset: 2px; }
+.thumbs { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+.thumbs .shot { width: 72px; }
+.thumbs .shot img { border-radius: 8px; box-shadow: none; }
+.tagline { display: inline-flex; align-items: center; gap: 6px; font: 700 0.7rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 5px 9px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.msg.idea { border-style: dashed; }
+.msg .pic { width: 100%; max-height: 320px; object-fit: cover; object-position: top; border-radius: 12px; border: 1px solid var(--line); cursor: zoom-in; }
+dialog.lightbox { border: 0; padding: 0; background: none; max-width: min(92vw, 900px); max-height: 92vh; }
+dialog.lightbox::backdrop { background: rgba(10, 8, 20, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+dialog.lightbox img { display: block; max-width: 100%; max-height: 84vh; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+dialog.lightbox p { color: #fff; text-align: center; padding-top: 10px; font-weight: 600; }
+dialog.lightbox[open] img { animation: rise .3s cubic-bezier(.2,1.2,.4,1); }
+@keyframes rise { from { opacity: 0; transform: scale(.96) translateY(8px); } }
+.thread { display: grid; gap: 8px; }
+.replies { display: grid; gap: 8px; margin-left: 18px; padding-left: 14px; border-left: 2px solid var(--line); }
+.replies.flat { margin-left: 0; padding-left: 0; border-left: 0; }
+.msg.you.reply, .replies .msg.you { margin-left: 0; }
+.inline { display: grid; gap: 8px; padding-top: 4px; animation: swap .25s ease-out; }
+.inline .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pending { display: inline-flex; align-items: center; gap: 8px; font: 600 0.8rem var(--mono); color: var(--muted); letter-spacing: 0.02em; }
+.pending i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); animation: here 1.6s ease-out infinite; }
+.pending.saved i { background: var(--warn); animation: none; }
+.itempic { width: 100%; max-height: 140px; object-fit: cover; object-position: top; border-radius: 10px; border: 1px solid var(--line); margin-top: 6px; cursor: zoom-in; }
+/* Everything points somewhere (owner, 22 Oct 2026: "tap an element and it takes me to the
+   task or relevant thing"): tapping glides there and the target glows twice, like a choice
+   landing in the app. */
+button.count { font: inherit; color: inherit; text-align: left; cursor: pointer; transition: transform .2s cubic-bezier(.3,1.4,.5,1); }
+button.count:hover, .item.linked:hover { transform: translateY(-2px); }
+button.count:focus-visible, .item.linked:focus-visible, .started.link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.item.linked { cursor: pointer; transition: transform .2s cubic-bezier(.3,1.4,.5,1); position: relative; padding-right: 30px; }
+.item.linked::after { content: "→"; position: absolute; right: 12px; top: 12px; color: var(--accent); font-weight: 700; transition: transform .2s; }
+.item.linked:hover::after { transform: translateX(3px); }
+.started.link { background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.found { animation: found 1.7s ease-out; }
+@keyframes found {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+  15%, 55% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 35%, transparent); }
+  35% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+}
+/* Voice (owner, 22 Oct 2026: push to talk, shortened into a quick message, no voice-typing
+   subscription): hold the mic and speak; the browser's own speech recognition writes into the
+   box. Long messages are tightened by Claude for you to check before sending. */
+.mic { display: inline-flex; align-items: center; gap: 6px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.mic.live { color: var(--accent-ink); background: var(--warn); border-color: transparent; box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 50%, transparent); animation: here 1.4s ease-out infinite; }
+/* Glass mode (owner, 22 Oct 2026: "a little extra, just for fun"): off by default so the page stays
+   easy to read. On = clearer panes, more blur, richer blooms and a soft light edge on each card.
+   "Match system" turns it on unless the device asks for reduced transparency or more contrast. */
+html[data-glass="on"] {
+  --glass: rgba(255, 255, 255, 0.42); --glass-strong: rgba(255, 255, 255, 0.58);
+  --rim: rgba(255, 255, 255, 0.95); --line: rgba(40, 30, 70, 0.12); --edge: rgba(60, 40, 120, 0.16);
+  --bloom-a: #b9a6f7; --bloom-b: #ffc4a8; --bloom-c: #a6d8f5;
+}
+html[data-glass="on"][data-theme="dark"] {
+  --glass: rgba(40, 34, 66, 0.42); --glass-strong: rgba(58, 50, 92, 0.58);
+  --rim: rgba(255, 255, 255, 0.3); --line: rgba(255, 255, 255, 0.18); --edge: rgba(0, 0, 0, 0.35);
+  --bloom-a: #4a38a0; --bloom-b: #8a4a36; --bloom-c: #226089;
+}
+@media (prefers-color-scheme: dark) { html[data-glass="on"]:not([data-theme="light"]) {
+  --glass: rgba(40, 34, 66, 0.42); --glass-strong: rgba(58, 50, 92, 0.58);
+  --rim: rgba(255, 255, 255, 0.3); --line: rgba(255, 255, 255, 0.18); --edge: rgba(0, 0, 0, 0.35);
+  --bloom-a: #4a38a0; --bloom-b: #8a4a36; --bloom-c: #226089; } }
+html[data-glass="on"] .glass, html[data-glass="on"] .seg {
+  -webkit-backdrop-filter: blur(34px) saturate(190%); backdrop-filter: blur(34px) saturate(190%); }
+html[data-glass="on"] .glass { background-image: linear-gradient(160deg, rgba(255,255,255,0.28), rgba(255,255,255,0) 45%);
+  box-shadow: inset 0 1px 0 var(--rim), inset 0 0 0 1px rgba(255,255,255,0.12), 0 16px 40px var(--edge); }
+html[data-glass="on"] .decision, html[data-glass="on"] .item, html[data-glass="on"] .agent, html[data-glass="on"] .msg,
+html[data-glass="on"] .note, html[data-glass="on"] .changes, html[data-glass="on"] .tag {
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+html[data-glass="on"] .clock .time { text-shadow: 0 2px 24px color-mix(in srgb, var(--accent) 30%, transparent); }
+/* Flick through the moods: the viewer swipes left and right (or arrows / arrow keys) through the
+   mood board shots; the strip itself still scrolls sideways and snaps. */
+.mood { overscroll-behavior-x: contain; }
+.shot { scroll-snap-stop: always; }
+dialog.lightbox img { touch-action: pan-y; user-select: none; -webkit-user-drag: none; }
+.lb-nav { position: absolute; top: 50%; translate: 0 -50%; width: 46px; height: 46px; border-radius: 50%; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.4); background: rgba(20,16,36,.55); color: #fff; font: 700 1.5rem/1 var(--body);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.lb-prev { left: 10px; } .lb-next { right: 10px; }
+.lb-nav:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+dialog.lightbox img.from-r { animation: fromR .28s ease-out; } dialog.lightbox img.from-l { animation: fromL .28s ease-out; }
+@keyframes fromR { from { opacity: .2; transform: translateX(40px); } }
+@keyframes fromL { from { opacity: .2; transform: translateX(-40px); } }
+/* Live updates feed */
+.feed { display: grid; gap: 8px; margin: 0; padding: 0; }
+.upd { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; width: 100%;
+  font: inherit; color: var(--fg); padding: 10px 12px; border-radius: 14px; background: var(--glass-strong); border: 1px solid var(--line); cursor: pointer; }
+button.upd:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.upd.plain { cursor: default; }
+.upd .what { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 0.95rem; }
+.upd small { font: 600 0.74rem var(--mono); color: var(--muted); white-space: nowrap; }
+.upd.fresh { animation: found 1.7s ease-out; }
+/* Arrange the panels (owner, 22 Oct 2026): Edit layout shows a tab above each panel; drag a tab to
+   move it, even to the other column. Saved on this device as you drop; Reset puts it back. */
+.panel { position: relative; }
+.grip { display: none; position: absolute; top: -17px; left: 20px; z-index: 4; height: 32px; padding: 0 14px; gap: 6px; align-items: center;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--glass-strong); color: var(--fg); cursor: grab; touch-action: none;
+  font: 700 0.78rem/1 var(--mono); letter-spacing: 0.04em; box-shadow: 0 3px 10px var(--edge); user-select: none; -webkit-user-select: none; }
+.wrap.editing .grip { display: inline-flex; }
+.wrap.editing .panel { outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 5px; border-radius: 26px; }
+.wrap.editing .col { min-height: 140px; }
+.panel.dragging { position: fixed; z-index: 6; margin: 0; opacity: .92; transform: scale(1.012); filter: drop-shadow(0 18px 30px var(--edge)); outline-offset: 0; }
+.ph { border-radius: 26px; border: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.panel.dragging .grip { cursor: grabbing; }
+body.dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+.seg.tools button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.toolnote { align-self: center; color: var(--muted); font-size: 0.85rem; }
+/* Claude usage (owner, 22 Oct 2026): how much of the Pro plan is used, as two glass rings
+   (this 5-hour window and the week), with a few tips for getting more done with less. Claude
+   posts a fresh reading whenever it works on the project. */
+.usage { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+.ring { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px; border-radius: 18px;
+  background: var(--glass-strong); border: 1px solid var(--line); }
+.ring svg { width: 64px; height: 64px; rotate: -90deg; }
+.ring .track { fill: none; stroke: var(--line); stroke-width: 7; }
+.ring .fill { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1); }
+.ring b { display: block; font: 700 1.5rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.ring span { color: var(--muted); font-size: 0.88rem; }
+.tips { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.95rem; }
+.tips li::marker { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .ring .fill { transition: none; } }
+/* One View menu (owner, 22 Oct 2026: "we need a menu for this"): columns, text size, glass,
+   background and panel arranging, tucked behind one button at the top right. Backgrounds are
+   kept simple: four presets, or your own colour or photo, saved on this device. */
+.viewbar { position: relative; align-items: center; }
+.menubtn { display: inline-flex; align-items: center; gap: 8px; font: 600 0.88rem var(--body); color: var(--fg); cursor: pointer;
+  padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--glass);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: inset 0 1px 0 var(--rim); }
+.menubtn[aria-expanded="true"] { background: var(--glass-strong); }
+.menubtn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.viewmenu { position: absolute; top: calc(100% + 10px); right: 0; z-index: 8; width: min(440px, calc(100vw - 32px)); padding: 16px; display: grid; gap: 14px;
+  border-radius: 22px; background: var(--glass-strong); animation: swap .22s ease-out; }
+.mrow { display: grid; gap: 6px; }
+.mrow .seg { justify-self: start; flex-wrap: wrap; }
+.own { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pick { position: relative; overflow: hidden; cursor: pointer; }
+.pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+html[data-bg="plain"] body::after { background: var(--ground); }
+html[data-bg="dusk"] body::after { background: radial-gradient(70% 50% at 20% 10%, #f3b8a8, transparent 70%), radial-gradient(60% 45% at 85% 40%, #b9a2e8, transparent 70%), linear-gradient(180deg, #e9dcef, #d7cbe8); }
+html[data-bg="sea"] body::after { background: radial-gradient(70% 50% at 20% 10%, #a8dcef, transparent 70%), radial-gradient(60% 45% at 85% 50%, #9fc4f0, transparent 70%), linear-gradient(180deg, #dcecf3, #c8dcee); }
+:root[data-theme="dark"][data-bg="dusk"] body::after, :root[data-theme="dark"][data-bg="sea"] body::after { filter: brightness(.35) saturate(1.2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-bg="dusk"] body::after, :root:not([data-theme="light"])[data-bg="sea"] body::after { filter: brightness(.35) saturate(1.2); } }
+html[data-bg="own"] body::after { background: var(--own-bg, var(--ground)) center / cover no-repeat; }
+.itemc { display: grid; gap: 8px; justify-items: start; margin-top: 4px; }
+.itemc textarea { min-height: 56px; width: 100%; }
+.itemc .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ghost.small { padding: 4px 11px; font-size: 0.8rem; }
+.calc { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.calc .item, .calc .seg { flex: 1 1 100%; }
+.calc input { width: 5.5rem; font: inherit; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--glass); color: var(--fg); }
+.calc input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.ghost[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.inrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* Bento (owner, 23 Oct 2026: one full-screen view with everything on it): panels sit in a grid; a folded panel is a small tile that still shows its key info, an open one takes two cells. */
+.peek { display: none; flex-basis: 100%; color: var(--muted); font-size: 0.92rem; }
+.panel.folded .peek { display: block; }
+.wrap.bento { max-width: 1700px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start; column-gap: 24px; row-gap: 0; grid-auto-rows: 6px; }
+.menubtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.panel, .panel * { min-width: 0; overflow-wrap: anywhere; }
+/* A long list scrolls inside its own panel instead of stretching the whole page. */
+.wrap.bento section.panel:not(.folded)[data-sz="n"] { max-height: 600px; overflow: hidden; }
+.wrap.bento section.panel:not(.folded)[data-sz="w"] { max-height: 680px; overflow: hidden; }
+.wrap.bento section.panel:not(.folded)[data-sz="f"] { max-height: 760px; overflow: hidden; }
+@media (orientation: landscape) and (max-height: 900px) { .wrap.bento section.panel:not(.folded)[data-sz="n"] { max-height: 500px; } .wrap.bento section.panel:not(.folded)[data-sz="w"] { max-height: 560px; } .wrap.bento section.panel:not(.folded)[data-sz="f"] { max-height: 640px; } }
+/* No backfilling of gaps above: a panel keeps its place when another changes size. */
+.wrap.bento { grid-auto-flow: row !important; }
+#undoLayout:disabled { opacity: .4; cursor: default; }
+/* Edit mode (24 Oct): panels can only be dragged or resized while Edit is on. */
+#tidyLayout, #undoLayout { display: none !important; }
+.wrap.arranging #tidyLayout, .wrap.arranging #undoLayout { display: inline-flex !important; }
+.wrap.bento section.panel:not(.folded) > .corner { display: none !important; }
+.wrap.bento.arranging section.panel:not(.folded) > .corner { display: block !important; }
+.wrap.bento:not(.arranging) section.panel > .head-row { cursor: default; touch-action: auto; user-select: auto; -webkit-user-select: auto; }
+.wrap.arranging section.panel { outline: 2px dashed color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 3px; }
+.wrap > .viewbar { order: -10 !important; }
+.viewbar > #copyUpdate { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.viewbar > #editBtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.wrap.bento section.panel.showall { max-height: none !important; }
+.wrap.bento section.panel.clipped:not(.showall) { position: relative; padding-bottom: 52px; }
+.showAll { display: none; }
+.wrap.bento section.panel.clipped .showAll { display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 46px; width: 100%; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 inherit inherit; background: var(--glass-strong); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); color: inherit; font: inherit; font-weight: 600; cursor: pointer; z-index: 3; }
+.wrap.bento section.panel.showall .showAll { position: static; margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; }
+.wrap.bento.editing .grip { position: sticky; top: 0; left: auto; display: inline-flex; margin: 0 0 8px; }
+.wrap.bento.editing .panel.sized { overflow: auto; }
+.head-row > .label { min-width: 0; flex: 1 1 8rem; }
+/* Panel headings: title and Fold on one line, the small caption on its own line under them,
+   so no panel loses a row to a lonely Fold button (24 Oct). */
+.head-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 4px; }
+.head-row > h2 { grid-column: 1; grid-row: 1; margin: 0; }
+.head-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+.head-row > .szbtn { grid-column: 2; grid-row: 1; min-width: 34px; }
+.head-row > .fold { grid-column: 3; grid-row: 1; margin-left: 0; }
+.sizer { display: none !important; }
+section.panel[hidden] { display: none !important; }
+.panel.shelved { display: none !important; }
+.head-row > .label, .head-row > .presence { grid-column: 1 / -1; grid-row: 2; min-width: 0; justify-self: start; }
+.head-row > .label:empty { display: none; }
+/* Top row: the clock card stretches to match its neighbour, time at the top and the
+   summary at the bottom, so there's no hole under it. */
+.wrap.bento .hero { align-items: stretch !important; grid-column: 1 / -1 !important; }
+.wrap.bento .clock { align-content: stretch !important; grid-template-rows: auto auto auto 1fr; }
+.wrap.bento .clock > .proj { align-self: end; }
+.wrap.bento .col { display: contents; }
+.wrap.bento .hero { grid-column: span 2; }
+.wrap.bento .counts { grid-column: 1 / -1; }
+.wrap.bento { grid-auto-flow: dense; }
+/* Layout pass (owner, 23 Oct 2026: lay it out a bit nicer): wider columns, tidy forms and rows. */
+.wrap.bento { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.wrap.bento .hero { align-items: start; }
+.clock { min-height: 0; align-content: start; }
+.agent { grid-template-columns: auto minmax(0, 1fr); }
+.agent .pill { grid-column: 2; justify-self: start; }
+.usageForm { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px !important; align-items: end !important; }
+.usageForm label { display: grid; gap: 4px; }
+.usageForm input, #fromTag, #chatText { font: inherit; color: var(--fg); background: var(--glass-strong); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; min-height: 40px; width: 100% !important; box-sizing: border-box; }
+.usageForm button { grid-column: 1 / -1; font: 600 0.9rem var(--body); min-height: 40px; border-radius: 999px; border: 1px solid var(--line); background: var(--glass-strong); color: var(--fg); cursor: pointer; }
+#fromTag { width: auto !important; min-height: 36px; padding: 6px 10px; }
+#cmdChips { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px !important; }
+.usage { grid-template-columns: 1fr; }
+#cmdChips button { width: 100%; }
+@media (orientation: portrait) { .wrap.bento .hero { align-items: stretch; } .clock { align-content: center; } }
+.ring b { white-space: nowrap; }
+#cmdChips button { display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px 12px; min-height: 40px; border-radius: 14px; }
+#prio { display: flex; width: 100%; } #prio button { flex: 1 1 0; white-space: nowrap; padding-inline: 6px; }
+@media (min-width: 1500px) { .wrap.bento section.panel:not(.folded) { grid-column: span 2; } }
+.wrap.bento section.panel.folded { grid-column: span 1; }
+/* Resize panels (owner, 22 Oct 2026: "grab their corners and resize them… quick, basic"): with
+   Resize on, each panel gets a corner handle; drag it to change the panel's width and height.
+   Sizes are saved on this device; double-tap a handle, or Reset, to put a panel back. */
+.sizer { display: none; position: fixed; z-index: 5; padding: 0; width: 30px; height: 30px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--glass-strong); box-shadow: 0 3px 10px var(--edge); cursor: nwse-resize; touch-action: none; }
+.sizer::before { content: ""; position: absolute; inset: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); border-radius: 0 0 4px 0; }
+.wrap.resizing .panel { outline: 2px dashed color-mix(in srgb, var(--good) 55%, transparent); outline-offset: 5px; border-radius: 26px; }
+.panel.sized { justify-self: start; max-width: 100%; overflow: auto; overscroll-behavior: auto; }
+.wrap.editing .panel.sized { overflow: visible; }
+body.sizing { user-select: none; -webkit-user-select: none; cursor: nwse-resize; }
+/* Fluid and fast (owner, 22 Oct 2026): a jump bar that stays at the top, panels that fold to
+   their heading, Done and Dropped folded, shorter lists, and live updates that only redraw
+   what changed. Folds are kept on this device. */
+/* One top bar (24 Oct): jump links on the left, actions on the right; the Live note is a small bubble bottom right. */
+.viewbar { position: sticky !important; top: 8px; z-index: 9; justify-content: space-between !important; flex-wrap: wrap; gap: 6px 10px; padding: 6px 8px; margin-bottom: 0 !important; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line); box-shadow: 0 6px 18px var(--edge); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.viewbar > .jumpbar { position: static !important; box-shadow: none; background: none; border: 0; padding: 0; margin-right: auto; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.viewbar > .menubtn { border-color: transparent; background: var(--glass); box-shadow: none; }
+#arrangeBtn, #toolNote, #resetLayout { display: none !important; }
+#liveNote { position: fixed; right: 14px; bottom: 14px; z-index: 30; margin: 0; padding: 7px 12px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line); box-shadow: 0 6px 18px var(--edge); font-size: 0.78rem; max-width: min(78vw, 340px); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#liveNote:empty { display: none; }
+#liveNote.min { max-width: 74px; }
+@media (max-width: 700px) { .viewbar { position: static !important; border-radius: 22px; } }
+@media (max-width: 900px) { .viewbar > .jumpbar button { padding: 7px 6px; } .viewbar > .menubtn { padding-inline: 8px; } .viewbar { gap: 6px 4px; } }
+/* Window-style drag bar on every panel (24 Oct): grab the dots at the top of a panel to move it, no Arrange needed. */
+.wrap.bento section.panel > .grip { display: flex !important; position: static !important; width: 100%; height: 28px; margin: -8px 0 4px; padding: 0; justify-content: center; align-items: center; border: 0; background: none; box-shadow: none; border-radius: 12px; color: var(--muted); font-size: 0; cursor: grab; }
+.wrap.bento section.panel > .grip::before { content: "\2807\2807\2807"; font-size: 1.05rem; letter-spacing: .25em; line-height: 1; }
+.wrap.bento section.panel > .grip:hover { background: var(--glass); }
+.wrap.bento section.panel > .grip { display: none !important; }
+.wrap.bento section.panel > .head-row { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+.wrap.bento section.panel > .head-row button { cursor: pointer; touch-action: manipulation; }
+.wrap.bento section.panel.folded > .head-row { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+/* Corner handle: drag outward to make a panel bigger (S, M, L), inward to make it smaller. */
+.corner { display: none; }
+.wrap.bento section.panel:not(.folded) > .corner { display: block; position: absolute; right: 6px; bottom: 6px; width: 30px; height: 30px; padding: 0; border: 0; background: none; cursor: nwse-resize; touch-action: none; z-index: 6; }
+.wrap.bento section.panel > .corner::before { content: ""; position: absolute; right: 7px; bottom: 7px; width: 12px; height: 12px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); border-radius: 0 0 5px 0; opacity: .7; }
+/* Top buttons: one row, same height, lined up. */
+.viewbar { align-items: center !important; row-gap: 6px; }
+@media (max-width: 900px) { .viewbar > #liveNote { flex: 1 0 100%; text-align: right; } }
+.viewbar .menubtn { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.jumpbar { position: sticky; top: 64px; z-index: 7; grid-column: 1 / -1; display: flex; gap: 6px; overflow-x: auto; padding: 5px; justify-self: start;
+  border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line); box-shadow: 0 6px 18px var(--edge);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); scrollbar-width: none; max-width: 100%; }
+.jumpbar button { font: 600 0.85rem var(--body); color: var(--fg); background: none; border: 0; border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+.jumpbar button:hover { background: var(--glass); }
+.jumpbar button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.fold { margin-left: auto; }
+.panel.folded > :not(.head-row):not(.grip):not(.sizer) { display: none !important; }
+.panel.folded { padding-block: 16px; }
+.found { animation-duration: 1.1s; }
+@media (prefers-reduced-motion: reduce) { .upd.fresh, dialog.lightbox img.from-r, dialog.lightbox img.from-l { animation: none; } .panel.dragging { transform: none; } }
+/* Four rings (24 Oct, Aaron): the last reading you typed beside an estimate that moves on its own
+   (dashed, labelled est.), and reset times that count down every second without Claude. */
+.usage { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px; }
+.usage .ring { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 6px; padding: 12px 8px; }
+.ring.est { background: transparent; border-style: dashed; }
+.ring.est .fill { opacity: .7; }
+.ring .status { font-variant-numeric: tabular-nums; }
+#copyQuick { font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .opt, .bstop i, .go, .go::after { transition: none; } .bstop.current i, .changes.swap, .msg.swap, .presence.here i, .job .dot.working, dialog.lightbox[open] img, .inline, .pending i, .found, .mic.live { animation: none; } button.count, .item.linked { transition: none; } .shot img { transition: none; } }
+</style>
+
+<div class="wrap">
+<div class="viewbar">
+  <span class="toolnote" id="toolNote" hidden>Drag a tab to move a panel · saved on this device</span>
+  <span class="toolnote" id="liveNote"></span>
+  <button type="button" class="menubtn" id="copyUpdate"><span>Update</span></button>
+  <button type="button" class="menubtn" id="copyQuick" title="Copies a starter for one quick, cheap change: whatever is typed in the Inbox box, or a blank to fill in"><span>Quick</span></button>
+  <button type="button" class="menubtn" id="copyFresh" title="Copies a short starter for a fresh, cheap chat"><span>New chat</span></button>
+  <button type="button" class="menubtn" id="editBtn" aria-pressed="false"><span>Edit</span></button>
+  <button type="button" class="menubtn" id="undoLayout" disabled><span>Undo</span></button>
+  <button type="button" class="menubtn" id="tidyLayout"><span>Tidy layout</span></button>
+  <button type="button" class="menubtn" id="arrangeBtn" aria-pressed="false"><span>Arrange</span></button>
+  <button type="button" class="menubtn" id="reloadBtn" onclick="location.reload()"><span>↻ Reload</span></button>
+  <a class="menubtn" id="chatLink" target="_blank" rel="noopener" hidden style="text-decoration:none"><span>Open chat</span></a>
+  <button type="button" class="menubtn" id="menuBtn" aria-expanded="false" aria-controls="viewMenu"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>View</span></button>
+  <div class="viewmenu glass" id="viewMenu" role="group" aria-label="View options" hidden>
+    <div class="mrow"><span class="label">Columns</span><div class="seg" role="radiogroup" aria-label="Columns"><button type="button" data-cols="auto" role="radio">Auto</button><button type="button" data-cols="bento" role="radio">Bento</button><button type="button" data-cols="1" role="radio">One</button><button type="button" data-cols="2" role="radio">Two</button></div></div>
+    <div class="mrow"><span class="label">Light / Dark</span><div class="seg" role="radiogroup" aria-label="Light or dark"><button type="button" data-th="match" role="radio">Match</button><button type="button" data-th="light" role="radio">Light</button><button type="button" data-th="dark" role="radio">Dark</button></div></div>
+    <div class="mrow"><span class="label">Text size</span><div class="seg" role="radiogroup" aria-label="Text size"><button type="button" data-text="s" role="radio" aria-label="Smaller text">A</button><button type="button" data-text="m" role="radio" aria-label="Standard text">A</button><button type="button" data-text="l" role="radio" aria-label="Larger text">A</button></div></div>
+    <div class="mrow"><span class="label">Glass</span><div class="seg" role="radiogroup" aria-label="Glass mode"><button type="button" data-glass="off" role="radio">Off</button><button type="button" data-glass="on" role="radio">On</button><button type="button" data-glass="auto" role="radio">Match system</button></div></div>
+    <div class="mrow"><span class="label">Background</span><div class="seg" role="radiogroup" aria-label="Background"><button type="button" data-bg="bloom" role="radio">Bloom</button><button type="button" data-bg="plain" role="radio">Plain</button><button type="button" data-bg="dusk" role="radio">Dusk</button><button type="button" data-bg="sea" role="radio">Sea</button></div></div>
+    <div class="mrow"><span class="label">Your own</span><div class="own"><label class="ghost pick">Colour<input type="color" id="bgColour" value="#c9c0ee"></label><label class="ghost pick">Photo<input type="file" id="bgPhoto" accept="image/*"></label><span class="status" id="bgStatus"></span></div></div>
+    <div class="mrow"><span class="label">Archive</span><div class="seg tools" role="group" aria-label="Archive"><button type="button" id="archiveBtn">Archive finished</button><button type="button" id="archShow" aria-pressed="false">Show archive</button><button type="button" id="copyPlan" title="Copies a starter for a small, quick planning chat">Plan chat</button></div><span class="status" id="archMsg"></span></div>
+    <div class="mrow"><span class="label">Panels</span><div class="seg tools" role="group" aria-label="Arrange panels"><button type="button" id="editLayout" aria-pressed="false">Edit layout</button><button type="button" id="resizePanels" aria-pressed="false">Resize</button><button type="button" id="resetLayout" hidden>Reset</button></div></div>
+  </div>
+</div>
+<nav class="jumpbar" aria-label="Jump to">
+  <button type="button" data-go="section:needsTitle">Needs you</button>
+  <button type="button" data-go="section:chatTitle">Replies</button>
+  <button type="button" data-go="section:updatesTitle">Updates</button>
+  <button type="button" data-go="section:boardTitle">Board</button>
+  <button type="button" data-go="section:usageTitle">Usage</button>
+</nav>
+<div class="col" id="colA">
+  <div class="hero panel" data-panel="hero" data-name="Clock & iPad">
+    <div class="glass clock" aria-label="Current time">
+      <span class="label">Glass Clock · progress</span>
+      <div class="time" id="time">--:--</div>
+      <div class="date" id="date"></div>
+      <p class="proj" id="headline">Loading the latest from Claude…</p>
+    </div>
+    <div class="glass build">
+      <span class="label">On your iPad · as Claude last recorded</span>
+      <div class="now" id="ipad">–</div>
+      <p class="status" id="ipadNote"></p>
+      <div class="tags" id="tags"></div>
+      <div class="history" id="history" role="group" aria-label="Builds on your iPad, newest last" hidden></div>
+      <div class="changes" id="changes" aria-live="polite" hidden></div>
+      <p class="status" id="sinceStable"></p>
+      <button class="send" id="pushIpad" type="button">Send to iPad</button>
+      <p class="status" id="pushStatus">Only queues a request. Nothing builds until you ask Claude in the main chat to go through the dashboard.</p>
+    </div>
+  </div>
+
+  <div class="counts panel" id="counts" data-panel="counts" data-name="At a glance" aria-label="At a glance">
+    <button type="button" class="glass count needs" data-go="section:needsTitle"><b id="cNeeds">–</b><span>need you</span></button>
+    <button type="button" class="glass count" data-go="lane:ipad"><b id="cTry">–</b><span>to try on the iPad</span></button>
+    <button type="button" class="glass count" data-go="lane:next"><b id="cNext">–</b><span>up next</span></button>
+    <button type="button" class="glass count" data-go="lane:done"><b id="cDone">–</b><span>done</span></button>
+  </div>
+
+  <section class="glass panel" data-panel="cmds" data-name="Next step" aria-labelledby="cmdsTitle">
+    <div class="head-row"><h2 id="cmdsTitle">Next step</h2><span class="label">Tap to copy</span></div>
+    <ul class="tips" id="cmdNudges"></ul>
+    <div class="seg tools" id="cmdChips" role="group" aria-label="Copy a command" style="display:flex;flex-wrap:wrap;gap:6px;border-radius:18px;max-width:100%"></div>
+    <p class="status" id="cmdMsg"></p>
+    <p class="status" id="cmdNote"><b>Update</b>: tap it, then paste in the chat button, top right. No slash.</p>
+    <div id="briefBox" hidden><span class="label" id="briefTitle"></span><ul class="tips" id="briefList"></ul></div>
+  </section>
+
+  <section class="glass panel" data-panel="updates" data-name="Live updates" aria-labelledby="updatesTitle">
+    <div class="head-row"><h2 id="updatesTitle">Live updates</h2><span class="presence away" id="liveDot"><i></i><span>Connecting…</span></span></div>
+    <p class="status" id="updatesSummary"></p>
+    <div class="feed" id="feed"><p class="empty">Builds, replies and answers will show up here as they happen.</p></div>
+    <button class="toggle" id="feedMore" type="button" hidden>Show more</button>
+  </section>
+
+  <section class="glass panel" id="moodSection" data-panel="mood" data-name="Mood board" aria-labelledby="moodTitle" hidden>
+    <div class="head-row"><h2 id="moodTitle">Mood board</h2><span class="label">Latest from the iPad build · tap to look closer</span></div>
+    <div class="mood" id="mood" role="list"></div>
+  </section>
+
+  <section class="glass panel" data-panel="chat" data-name="Conversation" aria-labelledby="chatTitle">
+    <div class="head-row"><h2 id="chatTitle">Replies from Claude</h2><span class="presence" id="presence"><i></i><span>Connecting…</span></span></div>
+    <div class="composer" hidden>
+      <label class="label" for="chatTextOld">Message Claude</label>
+      <textarea id="chatTextOld" rows="2" maxlength="3500" placeholder="Ask something, decide something, or tell Claude to go ahead…"></textarea>
+      <div class="row">
+        <button class="send" id="chatSend" type="button">Send to Claude</button>
+      </div>
+    </div>
+    <div class="jobs" id="jobs"></div>
+    <div class="chat" id="chat"><p class="empty">Claude's replies will show up here as cards.</p></div>
+    <button class="toggle" id="chatMore" type="button" hidden>Show earlier</button>
+  </section>
+
+</div>
+<div class="col" id="colB">
+  <section class="glass panel" data-panel="usage" data-name="Claude usage" aria-labelledby="usageTitle" id="usageSection" hidden>
+    <div class="head-row"><h2 id="usageTitle">Claude usage</h2><span class="label" id="usagePlan"></span></div>
+    <div class="usage" id="usageRings"></div>
+    <p class="status" id="usageEst"></p>
+    <form class="usageForm" id="usageForm" style="grid-template-columns:1fr !important;gap:10px !important;margin:10px 0">
+      <label class="status"><span style="display:flex;justify-content:space-between"><span>5-hour used</span><b id="uFiveVal"></b></span><input id="uFive" type="range" min="0" max="100" step="1" style="min-height:0;padding:0;border:0;background:none"></label>
+      <label class="status"><span style="display:flex;justify-content:space-between"><span>5-hour resets in</span><b id="uHrsVal"></b></span><input id="uHrs" type="range" min="0" max="5" step="0.25" style="min-height:0;padding:0;border:0;background:none"></label>
+      <label class="status"><span style="display:flex;justify-content:space-between"><span>or type the time it resets (24h)</span></span><input id="uAt" type="time" style="min-height:0"></label>
+      <label class="status"><span style="display:flex;justify-content:space-between"><span>Week used</span><b id="uWeekVal"></b></span><input id="uWeek" type="range" min="0" max="100" step="1" style="min-height:0;padding:0;border:0;background:none"></label>
+      <span class="status" id="uMsg">Move a slider to match your Usage screen. It saves when you let go.</span>
+    </form>
+    <label class="ghost" style="display:flex;justify-content:center;align-items:center;gap:8px;min-height:40px;border-radius:14px;cursor:pointer;margin:0 0 8px"><span>Send a usage screenshot</span><input type="file" id="usageShot" accept="image/*" hidden></label>
+    <p class="status" id="usageShotStatus"></p>
+    <ul class="tips" id="usageTips"></ul>
+    <p class="status" id="usageWhen"></p>
+  </section>
+  <section class="glass panel" data-panel="needs" data-name="Needs you" aria-labelledby="needsTitle">
+    <div class="head-row"><h2 id="needsTitle">Needs you</h2><span class="label">Tap an answer · saved here; Claude sees it when you ask it to go through the dashboard</span></div>
+    <div class="decisions" id="open"><p class="empty">Questions for you will appear here.</p></div>
+    <div id="parkedWrap" hidden><p class="status" style="margin:14px 0 6px"><b>Decided, waiting</b> <span id="cParked"></span> &middot; Claude leaves these alone until you press Go or Send at next Update.</p><div class="decisions" id="parked"></div></div>
+    <button class="toggle" id="showAnswered" type="button" hidden>Show answered</button>
+    <div class="decisions" id="answered"></div>
+  </section>
+
+  <section class="glass panel" data-panel="suggest" data-name="Suggested for you" aria-labelledby="suggestTitle" id="suggestPanel" hidden>
+    <div class="head-row"><h2 id="suggestTitle">Suggested for you</h2><span class="label">One at a time. No hurry to answer.</span></div>
+    <div id="sgNow"></div>
+    <div id="sgKept"></div>
+  </section>
+
+  <section class="glass panel" data-panel="reminders" data-name="Reminders" aria-labelledby="remTitle">
+    <div class="head-row"><h2 id="remTitle">Reminders</h2><span class="label" id="remAge">Read-only</span></div>
+    <ul class="tips" id="remList"><li class="empty">Nothing read yet. Type Update and I will read your Reminders.</li></ul>
+    <p class="status">Not live: I copy these from your Reminders app when you type Update.</p>
+  </section>
+
+  <section class="glass panel" data-panel="board" data-name="Where things are" aria-labelledby="boardTitle">
+    <div class="head-row"><h2 id="boardTitle">Where things are</h2><span class="label" id="updated"></span></div>
+    <div class="bar" id="bar" aria-hidden="true"></div>
+    <div class="legend" id="legend"></div>
+    <div class="lanes" id="lanes"><p class="empty">The board fills in once Claude has posted the plan.</p></div>
+  </section>
+
+  <section class="glass panel" data-panel="agents" data-name="What Claude is doing" aria-labelledby="agentsTitle">
+    <div class="head-row"><h2 id="agentsTitle">What Claude is doing</h2><span class="label" id="threadsAge">A record Claude updates</span></div>
+    <p class="status" id="mainThread"></p>
+    <div class="agents" id="threads"><p class="empty">No open comment threads recorded yet.</p></div>
+    <p class="status">Showing what Claude last wrote here, not a live view. Refreshing costs no usage.</p>
+    <div class="agents" id="agents"></div>
+  </section>
+
+  <section class="glass panel" data-panel="research" data-name="Research" aria-labelledby="researchTitle">
+    <div class="head-row"><h2 id="researchTitle">Research: pricing and costs</h2><span class="label" id="researchAge"></span></div>
+    <p class="status" id="researchCaveat">Loading the research…</p>
+    <div class="seg tools" id="rtabs" role="group" aria-label="Research view"><button type="button" data-r="models" aria-pressed="true">Pricing models</button><button type="button" data-r="costs" aria-pressed="false">Running costs</button><button type="button" data-r="calc" aria-pressed="false">Calculator</button><button type="button" data-r="guide" aria-pressed="false">Working guide</button><button type="button" data-r="auto" aria-pressed="false">Automation</button></div>
+    <div id="rbody"></div>
+    <ul class="tips" id="rsources"></ul>
+  </section>
+
+  <section class="glass panel" data-panel="notes" data-name="Inbox" aria-labelledby="notesTitle">
+    <div class="head-row"><h2 id="notesTitle">Inbox</h2><span class="label" id="inboxLabel">Saved here even when Claude is away</span></div>
+    <label class="label" for="chatText" hidden>Note</label>
+    <textarea id="chatText" placeholder="An idea, a bug, a change of mind. Tap Talk to dictate: long voice notes are tidied up for you. It's saved on the page straight away."></textarea>
+    <div class="seg tools" id="prio" role="group" aria-label="Priority"><button type="button" data-p="now" aria-pressed="false">Now</button><button type="button" data-p="next" aria-pressed="true">Next session</button><button type="button" data-p="later" aria-pressed="false">Later</button></div>
+    <div class="inrow"><button class="send" id="sendNote" type="button">Save to Inbox</button><button class="ghost" id="rememberBtn" type="button" aria-pressed="false">★ Remember</button><label class="ghost pick">Screenshot<input type="file" id="noteShot" accept="image/*"></label><select class="ghost" id="fromTag" aria-label="Where this came from"><option value="">From: my idea</option><option value="ChatGPT">From: ChatGPT</option><option value="Claude chat">From: Claude chat</option><option value="Bug">From: a bug</option><option value="Usage screenshot">From: Usage screenshot</option></select><span class="status" id="shotStatus"></span>
+        <button class="ghost mic" id="micBtn" type="button" aria-label="Talk"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg><span>Talk</span></button>
+        <button class="ghost" id="tidyBtn" type="button" hidden>Tidy up</button>
+        <button class="ghost" id="undoTidy" type="button" hidden>Undo tidy</button>
+        <span class="status" id="chatStatus"></span></div>
+    <p class="status" id="noteStatus"></p>
+    <div class="notes" id="notes"></div>
+  </section>
+</div>
+</div>
+
+<dialog class="lightbox" id="lightbox" aria-label="Screenshot"><button type="button" class="lb-nav lb-prev" id="lbPrev" aria-label="Previous">‹</button><img id="lightImg" alt=""><button type="button" class="lb-nav lb-next" id="lbNext" aria-label="Next">›</button><p id="lightCap"></p></dialog>
+<script>
+const LANES = [
+  { key: "ipad", title: "On the iPad to try", color: "var(--accent)" },
+  { key: "now", title: "Now", color: "var(--warn)" },
+  { key: "next", title: "Next", color: "var(--hold)" },
+  { key: "later", title: "Later", color: "var(--faint)" },
+  { key: "done", title: "Done", color: "var(--good)" },
+  { key: "dropped", title: "Dropped", color: "var(--faint)" },
+];
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+// Saved look (25 Oct, Aaron: every update wipes my background and layout). Browser storage can come back empty,
+// so the look is also kept in this person's private space in the page's database and put back if the browser lost it.
+const PREF_KEYS = ["view", "ownBg", "folds", "sizes", "layout", "lay:xs", "lay:sm", "lay:md", "lay:lg"];
+const isPref = (k) => PREF_KEYS.includes(k);
+let prefsReady = false, prefTimer = null;
+function syncPrefs() {
+  try {
+    if (!prefsReady || !db || !canWrite) return;
+    clearTimeout(prefTimer);
+    prefTimer = setTimeout(async () => {
+      try {
+        const keys = {}; PREF_KEYS.forEach((k) => { const v = localStorage.getItem(k); if (v != null) keys[k] = v; });
+        if (JSON.stringify(keys).length > 900000) delete keys.ownBg;
+        await db.doc("data/users/me/prefs").set({ at: new Date().toISOString(), keys });
+      } catch (e) {}
+    }, 1500);
+  } catch (e) {}
+}
+try {
+  const so = Storage.prototype.setItem, ro = Storage.prototype.removeItem;
+  Storage.prototype.setItem = function (k, v) { so.call(this, k, v); if (this === localStorage && isPref(k)) syncPrefs(); };
+  Storage.prototype.removeItem = function (k) { ro.call(this, k); if (this === localStorage && isPref(k)) syncPrefs(); };
+} catch (e) {}
+const onceDoc = (ref) => ref.get ? ref.get() : new Promise((res, rej) => { let un = null, done = false; un = ref.onSnapshot((s) => { if (done) return; done = true; try { un && un(); } catch (e) {} res(s); }, rej); });
+async function restorePrefs() {
+  try {
+    const snap = await Promise.race([onceDoc(db.doc("data/users/me/prefs")), new Promise((res) => setTimeout(() => res("timeout"), 5000))]);
+    if (snap === "timeout") return; // couldn't read it: leave the browser's own copy alone and don't overwrite the saved one
+    let restored = 0;
+    if (snap && snap.exists) {
+      const keys = (snap.data() || {}).keys || {};
+      Object.keys(keys).forEach((k) => { try { if (isPref(k) && localStorage.getItem(k) == null) { localStorage.setItem(k, keys[k]); if (localStorage.getItem(k) != null) restored++; } } catch (e) {} });
+    }
+    prefsReady = true;
+    if (restored) { location.reload(); return; }
+    if (!snap || !snap.exists) syncPrefs();
+  } catch (e) { prefsReady = true; }
+}
+// Time left, not a clock time: "2h 05m" or "45m".
+function cdLeft(iso) { const ms = new Date(iso) - Date.now(); if (ms <= 0) return "now"; const m = Math.round(ms / 60000), h = Math.floor(m / 60); return (h ? h + "h " + String(m % 60).padStart(2, "0") + "m" : m + "m"); }
+
+// Links (see the .found styles): "build:id", "chat:id", "decision:id", "lane:key",
+// "section:headingId" or "shot:id". Glides there and makes the target glow.
+function glow(node) {
+  if (!node) return;
+  node.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+  node.classList.remove("found"); void node.offsetWidth; node.classList.add("found");
+  setTimeout(() => node.classList.remove("found"), 1800);
+}
+function goTo(link) {
+  const [kind, id] = String(link).split(":");
+  if (kind === "build") {
+    if (!builds.some((b) => b.id === id)) return;
+    pickedBuild = id; renderHistory(); renderChanges(true); glow($("changes"));
+  } else if (kind === "chat") {
+    let node = document.querySelector('#chat [data-id="' + id + '"]');
+    while (!node && chatShown < chat.length) { chatShown += 6; renderChat(); node = document.querySelector('#chat [data-id="' + id + '"]'); }
+    glow(node);
+  } else if (kind === "decision") {
+    let node = document.querySelector('.decision[data-id="' + id + '"]');
+    if (node && node.closest("#answered") && $("answered").hidden) { $("answered").hidden = false; renderDecisions(); node = document.querySelector('.decision[data-id="' + id + '"]'); }
+    glow(node);
+  } else if (kind === "lane") {
+    glow(document.querySelector('.lane[data-lane="' + id + '"]'));
+  } else if (kind === "section") {
+    glow($(id) && $(id).closest("section"));
+  } else if (kind === "shot") {
+    const sh = shots.find((x) => x.id === id); if (sh) openShot(sh);
+  }
+}
+function linkUp(node, link, label) {
+  node.classList.add("linked"); node.tabIndex = 0; node.setAttribute("role", "button");
+  if (label) node.setAttribute("aria-label", label + ", go to it");
+  node.addEventListener("click", () => goTo(link));
+  node.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goTo(link); } });
+}
+function startedLink(at, find) {
+  const m = chat.find(find);
+  if (!m) return el("span", "started", "Started " + ago(at));
+  const b = el("button", "started link", "Started " + ago(at) + " · see it"); b.type = "button";
+  b.addEventListener("click", () => goTo("chat:" + m.id));
+  return b;
+}
+document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => goTo(b.dataset.go)));
+
+// Page layout (see the .viewbar styles).
+const view = { cols: "auto", text: "m", glass: "off", bg: "bloom", th: "match", arch: false };
+const hostTheme = document.documentElement.getAttribute("data-theme");
+try { Object.assign(view, JSON.parse(localStorage.getItem("view") || "{}")); } catch (e) {}
+function glassOn() {
+  if (view.glass === "on") return true;
+  if (view.glass !== "auto") return false;
+  // Match system: glass unless the device asks for less transparency or more contrast.
+  return !matchMedia("(prefers-reduced-transparency: reduce), (prefers-contrast: more)").matches;
+}
+function applyView() {
+  const bento = view.cols === "bento" || (view.cols === "auto" && window.innerWidth >= 640), two = view.cols === "2";
+  document.querySelector(".wrap").classList.toggle("bento", bento);
+  document.querySelector(".wrap").classList.toggle("two", two);
+  document.documentElement.dataset.text = view.text;
+  document.documentElement.dataset.glass = glassOn() ? "on" : "off";
+  document.documentElement.dataset.bg = view.bg;
+  const R = document.documentElement;
+  if (view.th === "light" || view.th === "dark") R.setAttribute("data-theme", view.th); else if (hostTheme) R.setAttribute("data-theme", hostTheme); else R.removeAttribute("data-theme");
+  document.querySelectorAll(".seg:not(.tools) button").forEach((b) => {
+    const on = b.dataset.th ? b.dataset.th === view.th : b.dataset.cols ? b.dataset.cols === view.cols : b.dataset.glass ? b.dataset.glass === view.glass : b.dataset.bg ? b.dataset.bg === view.bg : b.dataset.text === view.text;
+    b.setAttribute("aria-checked", on);
+  });
+}
+document.querySelectorAll(".seg:not(.tools) button").forEach((b) => b.addEventListener("click", () => {
+  if (b.dataset.th) view.th = b.dataset.th; else if (b.dataset.cols) view.cols = b.dataset.cols; else if (b.dataset.glass) view.glass = b.dataset.glass; else if (b.dataset.bg) view.bg = b.dataset.bg; else view.text = b.dataset.text;
+  try { localStorage.setItem("view", JSON.stringify(view)); } catch (e) {}
+  applyView();
+}));
+window.addEventListener("resize", applyView);
+applyView();
+
+// Arrange the panels (see the .grip styles). Each panel gets a drag tab; moving one reorders
+// it live, even into the other column, and the order is saved on this device as you drop.
+const COLS = ["colA", "colB"];
+// Bento: the two columns dissolve into one grid, so panels are ordered with CSS `order` (saved as "bento").
+// Layouts are remembered per screen size on this device: phone / narrow window, iPad portrait, iPad landscape, big screen.
+const bucketNow = () => { const w = innerWidth; return w < 640 ? "xs" : w < 900 ? "sm" : w < 1300 ? "md" : "lg"; };
+let curBucket = bucketNow();
+function readLay() { try { return JSON.parse(localStorage.getItem("lay:" + curBucket) || "{}") || {}; } catch (e) { return {}; } }
+let undoStack = [];
+function updUndo() { const u = document.getElementById("undoLayout"); if (u) u.disabled = !undoStack.some((x) => x.b === curBucket); }
+function pushUndo() { undoStack.push({ b: curBucket, s: JSON.stringify(readLay()) }); if (undoStack.length > 20) undoStack.shift(); updUndo(); }
+function writeLay(part) { pushUndo(); try { localStorage.setItem("lay:" + curBucket, JSON.stringify({ ...readLay(), ...part })); } catch (e) {} }
+const BENTO_DEFAULT = ["hero", "counts", "needs", "suggest", "usage", "reminders", "notes", "chat", "agents", "updates", "cmds", "board", "research", "mood"];
+let bentoSaved = readLay().order || null;
+const isBento = () => document.querySelector(".wrap").classList.contains("bento");
+function bentoIds() {
+  const all = [...document.querySelectorAll("[data-panel]")].map((p) => p.dataset.panel), base = (bentoSaved || BENTO_DEFAULT).filter((i) => all.includes(i));
+  return [...base, ...all.filter((i) => !base.includes(i))];
+}
+function applyBentoOrder(ids) {
+  const list = ids || bentoIds(), bento = isBento();
+  document.querySelectorAll("[data-panel]").forEach((p) => { const i = list.indexOf(p.dataset.panel); p.style.order = bento && i >= 0 ? (p.dataset.panel === "hero" ? -2 : p.dataset.panel === "counts" ? -1 : i * 2 + 2) : ""; });
+}
+const panelEls = () => [...document.querySelectorAll("[data-panel]")];
+const panelById = (id) => document.querySelector('[data-panel="' + id + '"]');
+panelEls().forEach((p) => { p.dataset.home = p.parentElement.id; });
+function currentLayout() {
+  const out = {};
+  COLS.forEach((c) => { out[c] = [...$(c).children].filter((n) => n.dataset.panel).map((n) => n.dataset.panel); });
+  return out;
+}
+function applyLayout(layout) {
+  const seen = new Set();
+  COLS.forEach((c) => (layout[c] || []).forEach((id) => {
+    const p = panelById(id); if (p && !seen.has(id)) { seen.add(id); $(c).append(p); }
+  }));
+  panelEls().forEach((p) => { if (!seen.has(p.dataset.panel)) $(p.dataset.home).append(p); }); // panels added since it was saved
+}
+const home = currentLayout(); // the original order, taken before any saved layout is applied
+try { const saved = JSON.parse(localStorage.getItem("layout") || "null"); if (saved) applyLayout(saved); } catch (e) {}
+const gripLabel = (p) => "Move " + (p.dataset.name || "panel");
+panelEls().forEach((p) => {
+  const g = el("button", "grip", "⠿ " + (p.dataset.name || "Panel")); g.type = "button"; g.setAttribute("aria-label", gripLabel(p));
+  p.prepend(g);
+});
+let drag = null, dragX = 0, dragY = 0;
+// The dragged panel floats under your finger and a placeholder holds its slot in the column;
+// the placeholder is what moves, so the panel you're holding never leaves the page mid-drag.
+function placeDragged() {
+  const p = drag.panel, ph = drag.ph; let best = null, bd = Infinity;
+  p.style.left = (dragX - drag.ox) + "px"; p.style.top = (dragY - drag.oy) + "px";
+  if (isBento()) {
+    const ids = bentoIds().filter((i) => i !== p.dataset.panel); let idx = ids.length;
+    for (let i = 0; i < ids.length; i++) {
+      const s = panelById(ids[i]); if (!s || s.hidden) continue; const r = s.getBoundingClientRect();
+      if (dragY < r.top || (dragY < r.bottom && dragX < r.left + r.width / 2)) { idx = i; break; }
+    }
+    drag.list = [...ids.slice(0, idx), p.dataset.panel, ...ids.slice(idx)];
+    ids.forEach((id, i) => { const s = panelById(id); if (s) s.style.order = i * 2 + 2; });
+    ph.style.order = idx * 2 + 1; return;
+  }
+  COLS.forEach((c) => {
+    const r = $(c).getBoundingClientRect();
+    const dx = dragX < r.left ? r.left - dragX : dragX > r.right ? dragX - r.right : 0;
+    const dy = dragY < r.top ? r.top - dragY : dragY > r.bottom ? dragY - r.bottom : 0;
+    const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = $(c); }
+  });
+  const sibs = [...best.children].filter((n) => n.dataset.panel && n !== p && !n.hidden);
+  let ref = null;
+  for (const s of sibs) { const r = s.getBoundingClientRect(); if (dragY < r.top + r.height / 2) { ref = s; break; } }
+  let next = ph.nextElementSibling; while (next === p) next = next.nextElementSibling;
+  if (ph.parentElement !== best || next !== ref) best.insertBefore(ph, ref);
+}
+function dragLoop() {
+  if (!drag) return;
+  if (dragY < 90) scrollBy(0, -Math.min(18, (90 - dragY) / 4 + 4));
+  else if (dragY > innerHeight - 90) scrollBy(0, Math.min(18, (dragY - (innerHeight - 90)) / 4 + 4));
+  placeDragged(); requestAnimationFrame(dragLoop);
+}
+document.addEventListener("pointerdown", (e) => {
+  let g = e.target.closest && e.target.closest(".grip");
+  if (!g && e.target.closest) { const h = e.target.closest(".wrap.bento section.panel > .head-row"); if (h && !e.target.closest("button, a, input, textarea, select")) g = h; }
+  if (!g) return;
+  { const wr = document.querySelector(".wrap").classList; if (!wr.contains("arranging") && !wr.contains("editing")) return; }
+  e.preventDefault();
+  const p = g.closest("[data-panel]"), r = p.getBoundingClientRect(), ph = el("div", "ph");
+  ph.style.height = r.height + "px"; ph.style.gridColumn = getComputedStyle(p).gridColumn; ph.style.gridRow = "span " + Math.ceil((r.height + 18) / 6); p.before(ph);
+  drag = { panel: p, ph, id: e.pointerId, ox: e.clientX - r.left, oy: e.clientY - r.top }; dragX = e.clientX; dragY = e.clientY;
+  p.style.width = r.width + "px"; p.classList.add("dragging");
+  try { g.setPointerCapture(e.pointerId); } catch (x) {}
+  document.body.classList.add("dragging"); requestAnimationFrame(dragLoop);
+});
+document.addEventListener("pointermove", (e) => { if (drag && e.pointerId === drag.id) { dragX = e.clientX; dragY = e.clientY; } });
+function endDrag() {
+  if (!drag) return;
+  const p = drag.panel, ex = dragX, ey = dragY, bento = isBento(), list = drag.list;
+  if (bento) drag.ph.remove(); else drag.ph.replaceWith(p);
+  // Soft bump: dropped near a screen edge, the panel gives a small springy nudge back inwards.
+  try {
+    const m = 40, nx = ex < m ? 10 : ex > innerWidth - m ? -10 : 0, ny = ey < m ? 10 : ey > innerHeight - m ? -10 : 0;
+    if ((nx || ny) && p.animate && !matchMedia("(prefers-reduced-motion: reduce)").matches)
+      p.animate([{ transform: "translate(" + -nx + "px," + -ny + "px)" }, { transform: "translate(" + nx * 0.4 + "px," + ny * 0.4 + "px)", offset: 0.55 }, { transform: "none" }], { duration: 380, easing: "ease-out" });
+  } catch (x) {}
+  p.classList.remove("dragging"); p.style.left = p.style.top = ""; applySize(p); document.body.classList.remove("dragging"); drag = null;
+  try {
+    if (bento) { if (list) { bentoSaved = list; writeLay({ order: list }); applyBentoOrder(list); } }
+    else localStorage.setItem("layout", JSON.stringify(currentLayout()));
+    $("toolNote").textContent = "Saved on this device";
+  } catch (e) { $("toolNote").textContent = "Couldn't save the layout here"; }
+}
+document.addEventListener("pointerup", endDrag); document.addEventListener("pointercancel", endDrag);
+$("editLayout").addEventListener("click", () => {
+  const on = $("editLayout").getAttribute("aria-pressed") !== "true";
+  $("editLayout").setAttribute("aria-pressed", on); $("editLayout").textContent = on ? "Done" : "Edit layout";
+  document.querySelector(".wrap").classList.toggle("editing", on);
+  $("resetLayout").hidden = !on; $("toolNote").hidden = !on;
+  $("toolNote").textContent = "Drag a tab to move a panel · saved on this device";
+});
+$("resetLayout").addEventListener("click", () => {
+  applyLayout(home); try { localStorage.removeItem("layout"); } catch (e) {}
+  $("toolNote").textContent = "Back to the original layout";
+});
+
+// The View menu and your own background (see the .viewmenu styles).
+const menuBtn = $("menuBtn"), viewMenu = $("viewMenu");
+function setMenu(open) { viewMenu.hidden = !open; menuBtn.setAttribute("aria-expanded", open); }
+menuBtn.addEventListener("click", (e) => { e.stopPropagation(); setMenu(viewMenu.hidden); });
+document.addEventListener("click", (e) => { if (!viewMenu.hidden && !viewMenu.contains(e.target) && e.target !== menuBtn) setMenu(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !viewMenu.hidden) { setMenu(false); menuBtn.focus(); } });
+$("editLayout").addEventListener("click", () => setMenu(false));
+function saveView() { try { localStorage.setItem("view", JSON.stringify(view)); } catch (e) {} }
+function useOwn(css) { document.documentElement.style.setProperty("--own-bg", css); view.bg = "own"; saveView(); applyView(); }
+try { const own = localStorage.getItem("ownBg"); if (own) document.documentElement.style.setProperty("--own-bg", own); } catch (e) {}
+$("bgColour").addEventListener("input", (e) => {
+  const c = e.target.value, css = "linear-gradient(180deg, " + c + ", color-mix(in srgb, " + c + " 70%, black))";
+  try { localStorage.setItem("ownBg", css); } catch (x) {}
+  useOwn(css); $("bgStatus").textContent = "";
+});
+$("bgPhoto").addEventListener("change", (e) => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const img = new Image(), url = URL.createObjectURL(f);
+  img.onload = () => {
+    // Shrunk to fit browser storage; kept on this device only.
+    const k = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    const css = 'url("' + c.toDataURL("image/jpeg", 0.78) + '")'; URL.revokeObjectURL(url);
+    let kept = true; try { localStorage.setItem("ownBg", css); } catch (x) { kept = false; }
+    useOwn(css); $("bgStatus").textContent = kept ? "Saved on this device" : "Too big to keep: it'll reset when you reload";
+  };
+  img.src = url;
+});
+
+// Resize panels (see the .sizer styles).
+let sizes = {};
+try { sizes = JSON.parse(localStorage.getItem("sizes") || "{}"); } catch (e) {}
+// Fixed panel sizes (24 Oct, Aaron: "more rigid"): Small, Medium, Large snap to the column grid.
+const DEFAULT_SZ = { hero: "f", counts: "f", needs: "w", suggest: "n", usage: "n", reminders: "n", notes: "w", chat: "n", agents: "w", updates: "w", cmds: "n", board: "n", research: "n", mood: "n" };
+const SZ_LABEL = { n: "1\u00d7", w: "2\u00d7", f: "Full" }, SZ_WORD = { n: "normal", w: "double wide", f: "full width" };
+let psz = readLay().sz || {};
+const szOf = (id) => psz[id] || DEFAULT_SZ[id] || "m";
+const savePsz = () => writeLay({ sz: psz });
+const colCount = () => Math.max(1, getComputedStyle(document.querySelector(".wrap")).gridTemplateColumns.split(" ").filter(Boolean).length);
+function applySize(p) {
+  const id = p.dataset.panel, bento = isBento();
+  p.classList.remove("sized"); p.style.width = ""; p.style.height = "";
+  p.dataset.sz = szOf(id);
+  const z = szOf(id), cols = colCount();
+  p.style.gridColumn = bento && id !== "hero" && id !== "counts" ? (z === "f" || cols < 2 ? "1 / -1" : z === "w" ? "span 2" : "span 1") : "";
+}
+function saveSizes() { try { localStorage.setItem("sizes", JSON.stringify(sizes)); } catch (e) {} }
+const handles = new Map(); let rzOn = false, pz = null, wheelT = 0;
+panelEls().forEach((p) => {
+  applySize(p);
+  const h = el("button", "sizer"); h.type = "button"; h.setAttribute("aria-label", "Resize " + (p.dataset.name || "panel"));
+  let start = null;
+  h.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = p.getBoundingClientRect(); start = { x: e.clientX, y: e.clientY, w: r.width, h: r.height };
+    try { h.setPointerCapture(e.pointerId); } catch (x) {} document.body.classList.add("sizing");
+  });
+  h.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const id = p.dataset.panel, prev = sizes[id] || {}, ht = Math.round(Math.max(120, start.h + e.clientY - start.y));
+    if (isBento()) {
+      // In the bento grid a panel snaps to whole columns; height is free.
+      const wr = document.querySelector(".wrap"), cs = getComputedStyle(wr), tracks = cs.gridTemplateColumns.split(" "), gap = parseFloat(cs.columnGap) || 18, cw = parseFloat(tracks[0]) || 300;
+      const span = Math.max(1, Math.min(tracks.length, Math.round((start.w + e.clientX - start.x + gap) / (cw + gap))));
+      sizes[id] = { ...prev, span, h: ht };
+    } else {
+      const max = p.parentElement.getBoundingClientRect().width;
+      sizes[id] = { ...prev, w: Math.round(Math.min(max, Math.max(240, start.w + e.clientX - start.x))), h: ht };
+    }
+    applySize(p);
+  });
+  const end = () => { if (!start) return; start = null; document.body.classList.remove("sizing"); saveSizes(); };
+  h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
+  h.addEventListener("dblclick", () => { delete sizes[p.dataset.panel]; applySize(p); saveSizes(); });
+  // Keyboard: arrow keys nudge the size.
+  h.addEventListener("keydown", (e) => {
+    const d = { ArrowRight: [20, 0], ArrowLeft: [-20, 0], ArrowDown: [0, 20], ArrowUp: [0, -20] }[e.key]; if (!d) return;
+    e.preventDefault(); const r = p.getBoundingClientRect();
+    sizes[p.dataset.panel] = { w: Math.round(Math.max(240, r.width + d[0])), h: Math.round(Math.max(120, r.height + d[1])) }; applySize(p); saveSizes();
+  });
+  document.body.append(h); handles.set(p, h);
+});
+$("resizePanels").addEventListener("click", () => {
+  const on = $("resizePanels").getAttribute("aria-pressed") !== "true";
+  $("resizePanels").setAttribute("aria-pressed", on); $("resizePanels").textContent = on ? "Done resizing" : "Resize";
+  document.querySelector(".wrap").classList.toggle("resizing", on);
+  const was = rzOn; rzOn = on; if (on && !was) requestAnimationFrame(placeHandles);
+  if (!on) handles.forEach((h) => { h.style.display = "none"; });
+  $("resetLayout").hidden = !on && $("editLayout").getAttribute("aria-pressed") !== "true";
+  $("toolNote").hidden = !on; $("toolNote").textContent = "Drag a corner to resize · pinch a panel to scale it · saved on this device";
+  setMenu(false);
+});
+$("resetLayout").addEventListener("click", () => { sizes = {}; saveSizes(); panelEls().forEach(applySize); try { localStorage.removeItem("bento"); } catch (e) {} bentoSaved = null; applyBentoOrder(); });
+// Switching between Bento and the column views (or resizing the window) re-applies order and sizes.
+// Bento without gaps: rows are 6px, and every item spans as many rows as its height needs (re-measured whenever it resizes).
+const ROW = 6, GAP = 24;
+const gridItems = () => [...document.querySelectorAll(".wrap > :not(.col), .wrap .col > [data-panel]")];
+function respan(n) {
+  if (!isBento()) { n.style.gridRow = ""; return; }
+  if (n.hidden || n.classList.contains("dragging")) return;
+  const cs = getComputedStyle(n), h = n.getBoundingClientRect().height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+  n.style.gridRow = "span " + Math.max(1, Math.ceil((h + GAP) / ROW));
+}
+const ro = window.ResizeObserver ? new ResizeObserver((es) => es.forEach((e) => respan(e.target))) : null;
+if (ro) gridItems().forEach((n) => ro.observe(n));
+// One Arrange button turns on moving and resizing together.
+$("arrangeBtn").addEventListener("click", () => {
+  const on = $("arrangeBtn").getAttribute("aria-pressed") !== "true";
+  ["editLayout", "resizePanels"].forEach((id) => { if (($(id).getAttribute("aria-pressed") === "true") !== on) $(id).click(); });
+  $("arrangeBtn").setAttribute("aria-pressed", on); $("arrangeBtn").firstElementChild.textContent = on ? "Done" : "Arrange";
+  $("toolNote").hidden = !on; $("toolNote").textContent = on ? "Drag a title to move · tap 1x, 2x or Full to change its size" : "";
+});
+const reflow = () => { applyBentoOrder(); panelEls().forEach(applySize); gridItems().forEach(respan); };
+document.querySelectorAll("[data-cols]").forEach((b) => b.addEventListener("click", () => { reflow(); setTimeout(reflow, 80); }));
+window.addEventListener("resize", reflow); reflow();
+// No scroll boxes inside the page: long panels are cut short with a "Show all" bar instead,
+// so a finger on a panel always scrolls the page.
+const SHOWALL_KEY = "gc-showall";
+let showAllSet = new Set();
+try { showAllSet = new Set(JSON.parse(localStorage.getItem(SHOWALL_KEY) || "[]")); } catch (e) {}
+function clipCheck(n) {
+  if (!isBento() || n.classList.contains("folded") || n.classList.contains("sized")) { n.classList.remove("clipped"); return; }
+  let b = n.querySelector(":scope > .showAll");
+  if (!b) {
+    b = document.createElement("button"); b.type = "button"; b.className = "showAll";
+    b.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const key = n.dataset.panel || n.id; const open = !n.classList.contains("showall");
+      n.classList.toggle("showall", open);
+      if (open) showAllSet.add(key); else { showAllSet.delete(key); n.scrollIntoView({ block: "nearest" }); }
+      try { localStorage.setItem(SHOWALL_KEY, JSON.stringify([...showAllSet])); } catch (e) {}
+      clipCheck(n);
+    });
+    n.append(b);
+  }
+  if (showAllSet.has(n.dataset.panel || n.id)) n.classList.add("showall");
+  const open = n.classList.contains("showall");
+  const tall = open ? n.scrollHeight > 600 : n.scrollHeight > n.clientHeight + 6;
+  n.classList.toggle("clipped", tall);
+  b.textContent = open ? "Show less ↑" : "Show all ↓";
+  if (n.lastElementChild !== b) n.append(b);
+}
+let clipQueued = false;
+const clipAll = () => { if (clipQueued) return; clipQueued = true; requestAnimationFrame(() => { clipQueued = false; panelEls().forEach(clipCheck); }); };
+if (window.MutationObserver) new MutationObserver((ms) => { if (ms.some((m) => !(m.target.classList && m.target.classList.contains("showAll")))) clipAll(); }).observe(document.querySelector(".wrap") || document.body, { childList: true, subtree: true, characterData: true });
+window.addEventListener("resize", clipAll); document.querySelectorAll("[data-cols]").forEach((x) => x.addEventListener("click", clipAll));
+clipAll();
+// Keep each corner handle on its panel while Resize is on (handles sit on the page, not inside the panels).
+function placeHandles() {
+  if (!rzOn) return;
+  handles.forEach((h, p) => {
+    const r = p.getBoundingClientRect(), show = r.width > 0 && !p.classList.contains("dragging");
+    h.style.display = show ? "block" : "none";
+    if (show) { h.style.left = (r.right - 24) + "px"; h.style.top = (r.bottom - 24) + "px"; }
+  });
+  requestAnimationFrame(placeHandles);
+}
+// Pinch a panel to scale it (iPad and Mac Safari send gesture events; Chrome sends ctrl + wheel for a trackpad pinch).
+function pinchTo(p, w, h) {
+  sizes[p.dataset.panel] = { w: Math.round(Math.min(p.parentElement.clientWidth, Math.max(240, w))), h: Math.round(Math.min(3000, Math.max(120, h))) };
+  applySize(p);
+}
+const panelAt = (e) => e.target.closest && e.target.closest("[data-panel]");
+document.addEventListener("gesturestart", (e) => {
+  const p = rzOn && panelAt(e); if (!p) return;
+  e.preventDefault(); const r = p.getBoundingClientRect(); pz = { p, w: r.width, h: r.height };
+}, { passive: false });
+document.addEventListener("gesturechange", (e) => { if (pz) { e.preventDefault(); pinchTo(pz.p, pz.w * e.scale, pz.h * e.scale); } }, { passive: false });
+document.addEventListener("gestureend", () => { if (pz) { pz = null; saveSizes(); } });
+document.addEventListener("wheel", (e) => {
+  const p = rzOn && e.ctrlKey && panelAt(e); if (!p) return;
+  e.preventDefault(); const r = p.getBoundingClientRect(), k = Math.exp(-e.deltaY * 0.01);
+  pinchTo(p, r.width * k, r.height * k); clearTimeout(wheelT); wheelT = setTimeout(saveSizes, 300);
+}, { passive: false });
+
+// Folding (see the .jumpbar styles).
+let foldState = {};
+try { foldState = JSON.parse(localStorage.getItem("folds") || "{}"); } catch (e) {}
+const saveFolds = () => { try { localStorage.setItem("folds", JSON.stringify(foldState)); } catch (e) {} };
+const laneFolded = (k) => foldState["lane:" + k] ?? (k === "done" || k === "dropped");
+const FOLDED_FIRST = ["research", "mood", "board"];
+(() => { const vb = document.querySelector(".viewbar"), jb = document.querySelector(".jumpbar"); if (vb && jb) vb.prepend(jb); const ln = $("liveNote"); ln.classList.add("min"); document.body.append(ln); ln.addEventListener("click", () => ln.classList.toggle("min")); })();
+// Tidy layout: puts every panel back in the default order and size on this device and repacks the grid.
+function applyAllLayout() {
+  applyBentoOrder();
+  panelEls().forEach((p) => { applySize(p); const z = p.querySelector(".szbtn"); if (z) z.textContent = SZ_LABEL[szOf(p.dataset.panel)]; });
+  gridItems().forEach(respan); clipAll();
+}
+function say(t) { const ln = $("liveNote"); ln.classList.remove("min"); ln.textContent = t; setTimeout(() => { ln.classList.add("min"); }, 2500); }
+$("tidyLayout").addEventListener("click", () => {
+  pushUndo();
+  try { localStorage.removeItem("lay:" + curBucket); } catch (e) {}
+  bentoSaved = null; psz = {}; applyAllLayout(); window.scrollTo({ top: 0, behavior: "smooth" }); say("Layout tidied");
+});
+$("undoLayout").addEventListener("click", () => {
+  let i = -1; for (let k = undoStack.length - 1; k >= 0; k--) if (undoStack[k].b === curBucket) { i = k; break; }
+  if (i < 0) return;
+  const [u] = undoStack.splice(i, 1);
+  try { localStorage.setItem("lay:" + curBucket, u.s); } catch (e) {}
+  bentoSaved = readLay().order || null; psz = readLay().sz || {}; applyAllLayout(); updUndo(); say("Undone");
+});
+const FRESH = "Carry on from the Glass Clock dashboard: https://claude.ai/code/artifact/dde21e58-520d-499c-87fb-1b580e98ff0f . Read its brief first (meta/brief). Then run Update by filtered queries only: notes where seen==false, decisions answered but seen==false, chat where from=='you' and at is after meta/brief lastUpdate. Do not read the whole comment list or the page code. Do only what is waiting, leave parked decisions alone, post one short reply card, set lastUpdate, and stop. Keep it cheap: do it yourself, no helper agents.";
+// Quick (24 Oct, Aaron: "a condensed version for a really quick edit"): one job, no brief, no comment sweep, no helpers, no card.
+const QUICK = (job) => "Quick job on the Glass Clock dashboard https://claude.ai/code/artifact/dde21e58-520d-499c-87fb-1b580e98ff0f . Do only this: " + job + " . Don't read the brief, comments or other collections unless this job needs them. Do it yourself, no helper agents, no reply card. When done, set the meta/status headline in one line and stop.";
+$("copyQuick").addEventListener("click", async () => { startFiveIfIdle(); const job = $("chatText").value.trim(); await copyCmd(QUICK(job || "[say what you want]")); say(job ? "Copied Quick with your Inbox text. Open a new chat, pick Sonnet, paste." : "Copied Quick. Open a new chat, pick Sonnet, paste, and fill in the blank."); });
+function updCount(d) { let n = 0; try { n = d === 0 ? 0 : (+localStorage.getItem("gc-upd") || 0) + d; localStorage.setItem("gc-upd", String(n)); } catch (e) {} return n; }
+function markFresh(n) { const b = $("copyFresh"); b.classList.toggle("hot", n >= 4); b.title = n >= 4 ? "You have copied Update " + n + " times in this chat. Time for a fresh one." : "Copies a short starter for a fresh, cheap chat"; }
+$("copyUpdate").addEventListener("click", async () => { startFiveIfIdle(); await copyCmd("Update"); const n = updCount(1); markFresh(n); say(n >= 4 ? "Copied \u201cUpdate\u201d. That's number " + n + " in this chat: compact it or tap New chat for a fresh start." : "Copied \u201cUpdate\u201d. Paste it in the chat button, top right."); });
+$("copyFresh").addEventListener("click", async () => { startFiveIfIdle(); await copyCmd(FRESH); markFresh(updCount(0)); say("Copied the fresh-chat starter. Open a new chat in the same project and paste it."); });
+markFresh((() => { try { return +localStorage.getItem("gc-upd") || 0; } catch (e) { return 0; } })());
+$("editBtn").addEventListener("click", () => { const on = $("editBtn").getAttribute("aria-pressed") !== "true"; $("editBtn").setAttribute("aria-pressed", on); $("editBtn").firstElementChild.textContent = on ? "Done" : "Edit"; document.querySelector(".wrap").classList.toggle("arranging", on); });
+window.addEventListener("resize", () => { const nb = bucketNow(); if (nb !== curBucket) { curBucket = nb; bentoSaved = readLay().order || null; psz = readLay().sz || {}; applyAllLayout(); updUndo(); } });
+updUndo();
+// Shelving (25 Oct, Aaron: trim to what I use). A shelved panel is hidden, not deleted. View > Panels shown brings it back.
+// Mood board, Research and Reminders start shelved until he chooses otherwise.
+const SHELF_DEFAULT = ["mood", "research", "reminders"];
+const shelved = () => (Array.isArray(view.hid) ? view.hid : SHELF_DEFAULT);
+function applyShelf() {
+  const hid = shelved();
+  panelEls().forEach((p) => p.classList.toggle("shelved", hid.includes(p.dataset.panel)));
+  document.querySelectorAll("#shelfBtns button").forEach((b) => b.setAttribute("aria-pressed", String(!hid.includes(b.dataset.p))));
+}
+(() => {
+  const row = el("div", "mrow"), seg = el("div", "seg tools");
+  row.append(el("span", "label", "Panels shown")); seg.id = "shelfBtns"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Panels shown");
+  panelEls().filter((p) => p.dataset.panel !== "hero" && p.dataset.panel !== "counts").forEach((p) => {
+    const b = el("button", null, p.dataset.name || p.dataset.panel); b.type = "button"; b.dataset.p = p.dataset.panel;
+    b.addEventListener("click", () => { const hid = shelved().slice(), i = hid.indexOf(p.dataset.panel); if (i >= 0) hid.splice(i, 1); else hid.push(p.dataset.panel); view.hid = hid; saveView(); applyShelf(); applyAllLayout(); });
+    seg.append(b);
+  });
+  row.append(seg, el("span", "status", "Shelved panels are hidden, not deleted."));
+  $("viewMenu").insertBefore(row, $("viewMenu").lastElementChild);
+  applyShelf(); applyAllLayout();
+})();
+
+// After a panel is resized or folded, scroll it into view and flash it so it never seems to vanish.
+function keepInView(p) { p.classList.remove("found"); void p.offsetWidth; p.classList.add("found"); setTimeout(() => p.scrollIntoView({ block: "nearest", behavior: "smooth" }), 220); setTimeout(() => p.classList.remove("found"), 1800); } // quieter panels start folded
+let feedShown = 5;
+document.querySelectorAll("section.panel").forEach((p) => {
+  const head = p.querySelector(".head-row"); if (!head) return;
+  const id = p.dataset.panel, b = el("button", "ghost small fold"); b.type = "button";
+  const set = (f) => { p.classList.toggle("folded", f); b.textContent = f ? "Open" : "Fold"; b.setAttribute("aria-expanded", !f); };
+  set(foldState["panel:" + id] ?? FOLDED_FIRST.includes(id));
+  b.addEventListener("click", () => { const f = !p.classList.contains("folded"); foldState["panel:" + id] = f; saveFolds(); set(f); keepInView(p); });
+  const pk = el("span", "peek"); pk.dataset.peek = id;
+  const zb = el("button", "ghost small szbtn"); zb.type = "button";
+  const zl = () => { zb.textContent = SZ_LABEL[szOf(id)]; zb.setAttribute("aria-label", "Panel size " + SZ_WORD[szOf(id)] + ", tap to change"); };
+  zl(); zb.addEventListener("click", () => { const o = ["n", "w", "f"]; psz[id] = o[(o.indexOf(szOf(id)) + 1) % 3]; savePsz(); zl(); applySize(p); respan(p); clipAll(); keepInView(p); });
+  head.append(zb, b, pk);
+  const cn = el("button", "corner"); cn.type = "button"; cn.setAttribute("aria-label", "Drag to resize " + (p.dataset.name || "panel")); p.append(cn);
+  let cd = null;
+  cn.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); cd = { x: e.clientX, y: e.clientY, i: ["n", "w", "f"].indexOf(szOf(id)) }; try { cn.setPointerCapture(e.pointerId); } catch (x) {} });
+  const outline = () => { let o = document.getElementById("sizeOutline"); if (!o) { o = el("div"); o.id = "sizeOutline"; document.body.append(o); } return o; };
+  cn.addEventListener("pointermove", (e) => {
+    if (!cd) return;
+    cd.n = ["n", "w", "f"][Math.max(0, Math.min(2, cd.i + Math.round(((e.clientX - cd.x) + (e.clientY - cd.y)) / 90)))];
+    const w = document.querySelector(".wrap").getBoundingClientRect(), r = p.getBoundingClientRect(), cols = colCount(), colW = (w.width - 24 * (cols - 1)) / cols;
+    const full = cd.n === "f" || cols < 2, wid = full ? w.width : cd.n === "w" ? colW * 2 + 24 : colW, o = outline();
+    o.style.cssText = "position:fixed;z-index:50;pointer-events:none;border:2px dashed var(--accent);border-radius:24px;background:color-mix(in srgb,var(--accent) 10%,transparent);display:flex;align-items:flex-end;justify-content:flex-end;padding:10px;font:700 .8rem var(--mono);left:" + (full ? w.left : r.left) + "px;top:" + r.top + "px;width:" + wid + "px;height:" + r.height + "px";
+    o.textContent = SZ_LABEL[cd.n] + (cd.n === szOf(id) ? " (no change)" : " \u00b7 release to apply");
+  });
+  const cend = (e) => {
+    if (!cd) return; const n = cd.n; cd = null;
+    const o = document.getElementById("sizeOutline"); if (o) o.remove();
+    if (e && e.type === "pointercancel") return;
+    if (n && n !== szOf(id)) { psz[id] = n; savePsz(); zl(); applySize(p); respan(p); clipAll(); keepInView(p); }
+  };
+  cn.addEventListener("pointerup", cend); cn.addEventListener("pointercancel", cend);
+});
+// A jump opens a folded panel first.
+const goToBase = goTo;
+goTo = function (link) {
+  const [kind, id] = String(link).split(":");
+  const target = kind === "section" ? $(id) && $(id).closest("section") : kind === "lane" ? $("lanes").closest("section")
+    : kind === "chat" ? $("chat").closest("section") : kind === "decision" ? $("open").closest("section") : null;
+  if (target && target.classList.contains("folded")) target.querySelector(".fold").click();
+  if (kind === "lane" && laneFolded(id)) { foldState["lane:" + id] = false; saveFolds(); renderBoard(); }
+  goToBase(link);
+};
+$("feedMore").addEventListener("click", () => { feedShown += 10; renderUpdates(); });
+// Only redraw a section when its data actually changed, so live updates don't make cards jump.
+const lastKey = {};
+function changed(name, data) { const k = JSON.stringify(data); if (lastKey[name] === k) return false; lastKey[name] = k; return true; }
+
+// The clock card keeps time, like the widget.
+function tick() {
+  const d = new Date();
+  $("time").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M/i, "");
+  $("date").textContent = d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+}
+tick(); setInterval(tick, 15000);
+
+let threads = [];
+const TSTATE = { "in progress": "var(--good)", "needs you": "var(--warn)", waiting: "var(--hold)", done: "var(--faint)", parked: "var(--faint)" };
+function renderThreads() {
+  const box = $("threads"); box.replaceChildren();
+  const list = threads.filter((t) => t.state !== "gone").sort((a, b) => (a.order ?? 9) - (b.order ?? 9));
+  if (!list.length) { box.append(el("p", "empty", "No open comment threads recorded yet.")); return; }
+  list.forEach((t) => {
+    const row = el("div", "agent"), colour = TSTATE[t.state] || "var(--faint)";
+    const dot = el("span", "dot"); dot.style.background = colour;
+    const mid = el("div"); mid.append(el("div", null, t.title), el("div", "what", t.last || ""));
+    const pill = el("span", "pill", t.state || "waiting"); pill.style.color = colour;
+    row.append(dot, mid, pill); box.append(row);
+  });
+  const latest = list.map((t) => t.updatedAt).filter(Boolean).sort().pop();
+  $("threadsAge").textContent = latest ? "Last written " + new Date(latest).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "A record Claude updates";
+}
+let db = null, canWrite = true;
+let items = [], decisions = [], notes = [], allDec = [], allNotes = [], allChat = [];
+const visArch = (a) => (view.arch ? a : a.filter((x) => !x.archived));
+
+function renderMeta(m) {
+  if (!m) return;
+  if (m.headline) $("headline").textContent = m.headline;
+  $("ipad").textContent = m.ipadBuild || "–";
+  $("ipadNote").textContent = m.ipadNote || "";
+  const tags = $("tags"); tags.replaceChildren();
+  (m.savedBuilds || []).forEach((b) => { const t = el("span", "tag"); t.append(el("b", null, b.label + " · "), b.when); tags.append(t); });
+  $("updated").textContent = m.updatedAt ? "Updated " + m.updatedAt : "";
+  const mt = $("mainThread"); mt.replaceChildren();
+  if (m.mainThread) {
+    mt.append("Main thread for talking to Claude: ");
+    if (m.mainThreadUrl) { const a = el("a", null, m.mainThread); a.href = m.mainThreadUrl; a.target = "_blank"; a.rel = "noopener"; mt.append(a); $("chatLink").href = m.mainThreadUrl; $("chatLink").hidden = false; }
+    else mt.append(el("b", null, m.mainThread));
+  }
+  const agents = $("agents"); agents.replaceChildren();
+  const list = m.agents || [];
+  list.forEach((a) => {
+    const row = el("div", "agent");
+    const colour = a.state === "working" ? "var(--good)" : a.state === "waiting" ? "var(--warn)" : "var(--faint)";
+    const dot = el("span", "dot"); dot.style.background = colour;
+    const mid = el("div"); mid.append(el("div", null, a.name), el("div", "what", a.detail || ""));
+    const pill = el("span", "pill", a.state || "idle"); pill.style.color = colour;
+    row.append(dot, mid, pill); agents.append(row);
+  });
+}
+
+function renderBoard() {
+  const by = Object.fromEntries(LANES.map((l) => [l.key, []]));
+  items.forEach((it) => (by[it.lane] || by.later).push(it));
+  Object.values(by).forEach((arr) => arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+  $("cTry").textContent = by.ipad.length; $("cNext").textContent = by.now.length + by.next.length; $("cDone").textContent = by.done.length;
+  const total = items.length || 1, bar = $("bar"), legend = $("legend");
+  bar.replaceChildren(); legend.replaceChildren();
+  LANES.filter((l) => l.key !== "dropped").forEach((l) => {
+    const n = by[l.key].length; if (!n) return;
+    const seg = el("i"); seg.style.width = (n / total * 100) + "%"; seg.style.background = l.color; bar.append(seg);
+    const s = el("span"); const d = el("span", "dot"); d.style.background = l.color; s.append(d, `${l.title} ${n}`); legend.append(s);
+  });
+  const lanes = $("lanes"); lanes.replaceChildren();
+  if (!items.length) { lanes.append(el("p", "empty", "The board fills in once Claude has posted the plan.")); return; }
+  LANES.forEach((l) => {
+    const arr = by[l.key]; if (!arr.length) return;
+    const lane = el("div", "lane " + l.key); lane.dataset.lane = l.key;
+    const head = el("div", "lane-head"); const d = el("span", "dot"); d.style.background = l.color;
+    head.append(d, el("h3", null, l.title), el("span", "n", String(arr.length)));
+    // Done and Dropped start folded (owner, 22 Oct 2026: less to scroll); tap the heading to open.
+    const folded = laneFolded(l.key);
+    const tg = el("button", "ghost small", folded ? "Show" : "Hide"); tg.type = "button"; tg.setAttribute("aria-expanded", !folded);
+    tg.addEventListener("click", () => { foldState["lane:" + l.key] = !folded; saveFolds(); renderBoard(); });
+    head.append(tg);
+    const box = el("div", "items"); box.hidden = folded;
+    arr.forEach((it) => {
+      const card = el("div", "item"); card.dataset.id = it.id;
+      if (it.link) linkUp(card, it.link, it.title);
+      if (it.area) card.append(el("span", "area", it.area));
+      card.append(el("div", "t", it.title));
+      if (it.detail) card.append(el("div", "d", it.detail));
+      // A picture from the build it landed in, when there is one; tap it to see it large.
+      const ln = String(it.link || "");
+      const pic = ln.startsWith("shot:") ? shots.find((x) => x.id === ln.slice(5))
+        : ln.startsWith("build:") ? shots.find((x) => x.build === ln.slice(6)) : null;
+      if (pic) {
+        const im = el("img", "itempic"); im.src = pic.url; im.alt = pic.caption || it.title; im.loading = "lazy";
+        im.addEventListener("click", (e) => { e.stopPropagation(); openShot(pic); });
+        card.append(im);
+      }
+      card.append(tickBtn(it));
+      card.append(itemComment(it, card));
+      box.append(card);
+    });
+    lane.append(head, box); lanes.append(lane);
+  });
+}
+
+// Comment on any board card (owner, 22 Oct 2026: "click on a certain part and comment on it"):
+// a small Comment button opens a box in the card; the message reaches Claude tied to that item.
+// Tap to tick (owner, 23 Oct 2026): ticks a card straight into Done; the same button undoes it.
+function tickBtn(it) {
+  const done = it.lane === "done";
+  if (done && !it.prevLane) return document.createDocumentFragment();
+  const b = el("button", "ghost small", done ? "Undo tick" : "✓ Tick"); b.type = "button";
+  b.setAttribute("aria-label", (done ? "Undo tick on " : "Tick off ") + it.title);
+  b.addEventListener("click", async (e) => {
+    e.stopPropagation(); if (!db) return; b.disabled = true;
+    try { await db.collection("items").doc(it.id).update(done ? { lane: it.prevLane, prevLane: null } : { lane: "done", prevLane: it.lane }); }
+    catch (x) { b.disabled = false; b.textContent = "Couldn't save"; }
+  });
+  b.addEventListener("keydown", (e) => e.stopPropagation());
+  return b;
+}
+let openItem = null; const itemDrafts = {};
+function itemComment(it, card) {
+  const wrap = el("div", "itemc");
+  const b = el("button", "ghost small", openItem === it.id ? "Close" : "Comment"); b.type = "button";
+  b.setAttribute("aria-expanded", openItem === it.id); b.setAttribute("aria-label", "Comment on " + it.title);
+  b.addEventListener("click", (e) => { e.stopPropagation(); openItem = openItem === it.id ? null : it.id; renderBoard(); if (openItem) { const t = document.querySelector('.item[data-id="' + it.id + '"] .itemc textarea'); t && t.focus(); } });
+  b.addEventListener("keydown", (e) => e.stopPropagation());
+  wrap.append(b);
+  if (openItem !== it.id) return wrap;
+  const t = el("textarea"); t.rows = 2; t.maxLength = 3500; t.placeholder = "What do you think of this?"; t.value = itemDrafts[it.id] || "";
+  t.addEventListener("input", () => { itemDrafts[it.id] = t.value; });
+  ["click", "keydown"].forEach((ev) => t.addEventListener(ev, (e) => e.stopPropagation()));
+  const row = el("div", "row"), send = el("button", "send", live ? "Send" : "Save for Claude"), hint = el("span", "status");
+  send.type = "button";
+  const doSend = async (e) => {
+    if (e) e.stopPropagation();
+    if (!t.value.trim()) { t.focus(); return; }
+    send.disabled = true;
+    const id = await tellClaude("About “" + it.title + "” (" + (LANES.find((l) => l.key === it.lane) || {}).title + "): " + t.value, card, null);
+    send.disabled = false;
+    if (id) { delete itemDrafts[it.id]; openItem = null; renderBoard(); goTo("chat:" + id); }
+  };
+  send.addEventListener("click", doSend);
+  t.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) doSend(); if (e.key === "Escape") { openItem = null; renderBoard(); } });
+  row.append(send);
+  if (sampler) {
+    const tb = el("button", "ghost", "Tidy up"); tb.type = "button";
+    tb.addEventListener("click", async (e) => { e.stopPropagation(); if (t.value.trim().length < 40) return; tb.disabled = true; hint.textContent = "Tidying…";
+      try { const out = await tidyText(t.value); if (out) { t.value = out; itemDrafts[it.id] = out; hint.textContent = /\[\?/.test(out) ? "Check the words marked [?]" : ""; } } catch (x) { hint.textContent = "Couldn't tidy just now."; }
+      tb.disabled = false; });
+    row.append(tb);
+  }
+  row.append(hint);
+  wrap.append(t, row);
+  return wrap;
+}
+
+function decisionCard(dec) {
+  const card = el("div", "decision" + (dec.answer ? " answered" : "")); card.dataset.id = dec.id;
+  card.append(el("div", "q", dec.question));
+  if (dec.archived) { card.style.opacity = ".6"; const bb = el("button", "ghost small", "Bring back"); bb.type = "button"; bb.disabled = !db || !canWrite; bb.addEventListener("click", async () => { try { await db.collection("decisions").doc(dec.id).update({ archived: false }); } catch (e) { readOnly(e); } }); card.append(bb); }
+  if (dec.detail) card.append(el("div", "why", dec.detail));
+  if (dec.img) { const im = el("img", "itempic"); im.src = dec.img; im.alt = dec.imgAlt || "Preview"; im.loading = "lazy"; im.addEventListener("click", () => openShot({ url: dec.img, caption: dec.imgAlt || "Preview" })); card.append(im); }
+  const opts = el("div", "opts");
+  (dec.options || []).forEach((o) => {
+    const b = el("button", "opt", o); b.type = "button";
+    b.setAttribute("aria-pressed", dec.answer === o ? "true" : "false");
+    b.disabled = !db || !canWrite;
+    b.addEventListener("click", () => answer(dec, dec.answer === o ? null : o));
+    opts.append(b);
+  });
+  card.append(opts);
+  const note = el("textarea"); note.id = "note-" + dec.id; note.placeholder = "Add a thought (optional)"; note.value = dec.note || ""; note.rows = 1;
+  note.disabled = !db || !canWrite;
+  let t; note.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => saveNote(dec, note.value), 900); });
+  card.append(note);
+  if (sampler && db && canWrite) { const tr = el("div", "actions"); addTidy(note, tr, (v) => saveNote(dec, v)); card.append(tr); }
+  if (dec.answer && !dec.seen) {
+    const acts = el("div", "actions");
+    if (dec.goneAt) acts.append(startedLink(dec.goneAt, (m) => m.from === "you" && (m.text || "").startsWith("Go: “" + dec.question)));
+    else {
+      const g = el("button", "go", "Go"); g.type = "button"; g.disabled = !db || !canWrite;
+      g.addEventListener("click", () => { g.disabled = true;
+        go("“" + dec.question + "” → " + dec.answer + (dec.note ? ". My note: " + dec.note : ""), card,
+           () => db.collection("decisions").doc(dec.id).update({ goneAt: new Date().toISOString(), parked: false })); });
+      acts.append(g, el("span", "status", "Start on this now"));
+      const pk = el("button", "ghost small", dec.parked ? "Send at next Update" : "Decided, park it"); pk.type = "button"; pk.disabled = !db || !canWrite;
+      pk.addEventListener("click", async () => { try { await db.collection("decisions").doc(dec.id).update(dec.parked ? { parked: false } : { parked: true, parkedAt: new Date().toISOString() }); } catch (e) { readOnly(e); } });
+      acts.append(pk);
+    }
+    card.append(acts);
+  }
+  return card;
+}
+
+function renderDecisions() {
+  // Answered but not yet picked up stays in view, so its Go button is there to press.
+  const park = decisions.filter((d) => d.answer && !d.seen && d.parked && !d.goneAt).sort((a, b) => (b.parkedAt || "").localeCompare(a.parkedAt || ""));
+  const open = decisions.filter((d) => (!d.answer || !d.seen) && !park.includes(d)).sort((a, b) => !!a.answer - !!b.answer || !!a.later - !!b.later || (a.priority ?? 9) - (b.priority ?? 9));
+  const done = decisions.filter((d) => d.answer && d.seen).sort((a, b) => (b.answeredAt || "").localeCompare(a.answeredAt || ""));
+  $("cNeeds").textContent = decisions.filter((d) => !d.answer).length;
+  const o = $("open"); o.replaceChildren();
+  if (!open.length) o.append(el("p", "empty", decisions.length ? "All answered. Claude picks them up next session." : "Questions for you will appear here."));
+  open.forEach((d) => {
+    const c = decisionCard(d);
+    if (!d.answer) { const lb = el("button", "ghost small", d.later ? "Bring back to the top" : "Come back later"); lb.type = "button"; lb.style.marginTop = "6px"; lb.disabled = !db || !canWrite; lb.addEventListener("click", async () => { try { await db.collection("decisions").doc(d.id).update({ later: !d.later }); } catch (e) { readOnly(e); } }); c.append(lb); if (d.later) c.style.opacity = ".72"; }
+    o.append(c);
+  });
+  const pw = $("parkedWrap"), pe = $("parked"); pe.replaceChildren(); pw.hidden = !park.length; $("cParked").textContent = park.length ? "(" + park.length + ")" : "";
+  park.forEach((d) => pe.append(decisionCard(d)));
+  const a = $("answered"); a.replaceChildren(); done.slice(0, 5).forEach((d) => a.append(decisionCard(d)));
+  $("showAnswered").hidden = !done.length;
+  $("showAnswered").textContent = (a.hidden ? "Show answered (" : "Hide answered (") + done.length + ")";
+}
+$("showAnswered").addEventListener("click", () => { $("answered").hidden = !$("answered").hidden; renderDecisions(); });
+
+async function answer(dec, option) {
+  try { await db.collection("decisions").doc(dec.id).update({ answer: option, answeredAt: new Date().toISOString(), seen: false }); }
+  catch (e) { readOnly(e); }
+}
+async function saveNote(dec, text) {
+  try { await db.collection("decisions").doc(dec.id).update({ note: text, seen: false }); } catch (e) { readOnly(e); }
+}
+
+function renderNotes() {
+  const box = $("notes"); box.replaceChildren();
+  const waiting = notes.filter((n) => !n.seen && !n.reply).length;
+  $("inboxLabel").textContent = waiting ? waiting + " saved, waiting for Claude" : "Saved here even when Claude is away";
+  notes.slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(0, 12).forEach((n) => {
+    const row = el("div", "note"); row.append(el("div", null, (n.flagged ? "★ " : "") + (n.from ? "[" + n.from + "] " : "") + n.text));
+    if (n.shot) { const im = el("img", "itempic"); im.src = n.shot; im.alt = "Screenshot"; im.loading = "lazy"; im.addEventListener("click", () => openShot({ url: n.shot, caption: "Your screenshot" })); row.append(im); }
+    const when = n.createdAt ? new Date(n.createdAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "";
+    row.append(el("small", null, when + (n.priority ? " · " + ({ now: "Now", next: "Next session", later: "Later" }[n.priority] || "") : "") + (n.reply ? " · Claude: " + n.reply : n.seen ? " · read by Claude" : " · waiting for Claude")));
+    if (!n.seen && !n.reply && db && canWrite) {
+      const bar = el("div"); bar.style.cssText = "display:flex;gap:8px;margin-top:6px";
+      const ed = el("button", "ghost small", "Edit"), del = el("button", "ghost small", "Delete"); ed.type = del.type = "button";
+      ed.addEventListener("click", () => {
+        const t = el("textarea"); t.value = n.text; t.rows = 3; t.style.cssText = "width:100%;margin-top:6px";
+        const sv = el("button", "send", "Save"), ca = el("button", "ghost small", "Cancel"); sv.type = ca.type = "button";
+        sv.addEventListener("click", async () => { const v = t.value.trim(); if (!v) return; try { await db.collection("notes").doc(n.id).update({ text: v, editedAt: new Date().toISOString() }); } catch (e) { readOnly(e); } });
+        ca.addEventListener("click", () => renderNotes());
+        bar.replaceChildren(sv, ca); addTidy(t, bar); row.insertBefore(t, bar);
+      });
+      del.addEventListener("click", () => {
+        del.textContent = "Tap again to delete"; del.onclick = async () => { try { await db.collection("notes").doc(n.id).delete(); } catch (e) { readOnly(e); } };
+        setTimeout(() => renderNotes(), 4000);
+      });
+      bar.append(ed, del); row.append(bar);
+    }
+    if (n.archived) { row.style.opacity = ".6"; const bb = el("button", "ghost small", "Bring back"); bb.type = "button"; bb.disabled = !db || !canWrite; bb.addEventListener("click", async () => { try { await db.collection("notes").doc(n.id).update({ archived: false }); } catch (e) { readOnly(e); } }); row.append(bb); }
+    box.append(row);
+  });
+}
+$("sendNote").addEventListener("click", async () => {
+  const text = $("chatText").value.trim(); if (!text || !db) return;
+  $("sendNote").disabled = true;
+  try { await db.collection("notes").add({ text, createdAt: new Date().toISOString(), seen: false, priority: prio, build: pickedBuild || null, flagged: remember, from: $("fromTag").value || null, shot: pendingShot || null }); pendingShot = null; $("shotStatus").textContent = ""; remember = false; $("rememberBtn").setAttribute("aria-pressed", "false"); $("chatText").value = ""; try { localStorage.removeItem("noteDraft"); } catch (e) {} $("noteStatus").textContent = "Saved on the page. Claude reads your inbox in one go at the start of a session."; }
+  catch (e) { readOnly(e); }
+  $("sendNote").disabled = false;
+});
+
+// Inbox: priority chips, and a draft that survives a reload.
+let prio = "next", remember = false, pendingShot = null;
+// Attach a screenshot: shrunk and saved as a low-quality JPEG so it costs Claude little to look at.
+$("noteShot").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const st = $("shotStatus"); st.textContent = "Attaching…";
+  try {
+    const assets = await window.claude.use("assets"); if (!assets) { st.textContent = "Screenshots aren't available in this view."; return; }
+    const bmp = await createImageBitmap(f), k = Math.min(1, 1000 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.6));
+    const up = await assets.upload(blob); pendingShot = up.url; st.textContent = "Attached (low quality, saves credits). Add a few words and save.";
+  } catch (x) { pendingShot = null; st.textContent = "Couldn't attach that. Try again."; }
+  e.target.value = "";
+});
+// One-tap usage: pick the Usage screenshot; it is shrunk, saved to the Inbox tagged "Usage screenshot", and read at the next Update.
+$("usageShot").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const st = $("usageShotStatus"); st.textContent = "Sending…";
+  try {
+    const assets = await window.claude.use("assets"); if (!assets || !db) { st.textContent = "Screenshots aren't available in this view."; return; }
+    const bmp = await createImageBitmap(f), k = Math.min(1, 1000 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.6)), up = await assets.upload(blob);
+    await db.collection("notes").add({ text: "Usage screenshot: please read the percentages and update my usage.", createdAt: new Date().toISOString(), seen: false, priority: "now", from: "Usage screenshot", shot: up.url });
+    st.textContent = "Sent. Type Update and I will read it.";
+  } catch (x) { st.textContent = "Couldn't send that. Try again."; }
+  e.target.value = "";
+});
+$("rememberBtn").addEventListener("click", () => { remember = !remember; $("rememberBtn").setAttribute("aria-pressed", remember); });
+document.querySelectorAll("#prio button").forEach((b) => b.addEventListener("click", () => {
+  prio = b.dataset.p; document.querySelectorAll("#prio button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+}));
+try { const d = localStorage.getItem("noteDraft"); if (d) $("chatText").value = d; } catch (e) {}
+$("chatText").addEventListener("input", () => { try { localStorage.setItem("noteDraft", $("chatText").value); } catch (e) {} });
+// Send to iPad: the page leaves a request; a scheduled check on the Mac builds, installs
+// and writes back what happened.
+const pushWords = {
+  waiting: "Queued only. Nothing installs until a Claude session that can reach your Mac is asked to do it, and none is running.",
+  installing: "Your Mac is building and installing it now…",
+  done: "Installed",
+  failed: "Didn't install",
+};
+function renderPush(r) {
+  const b = $("pushIpad"), st = $("pushStatus");
+  if (!r || !r.state) return;
+  const busy = r.state === "waiting" || r.state === "installing";
+  b.disabled = busy || !canWrite;
+  b.textContent = r.state === "waiting" ? "Queued" : busy ? "Installing…" : "Send to iPad";
+  let text = pushWords[r.state] || r.state;
+  if (r.state === "done" || r.state === "failed") text += (r.doneAt ? " · " + new Date(r.doneAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "") + (r.message ? ". " + r.message : ".");
+  st.textContent = text;
+}
+async function requestPush() {
+  $("pushIpad").disabled = true;
+  try { await db.doc("requests/ipad").set({ state: "waiting", requestedAt: new Date().toISOString() }); }
+  catch (e) { $("pushIpad").disabled = false; $("pushStatus").textContent = "Couldn't send just now. Try again in a moment."; }
+}
+$("pushIpad").addEventListener("click", requestPush);
+
+// Build history (see the .history styles). Shows the last six; older ones fade into "earlier".
+let builds = [], pickedBuild = null;
+const buildTime = (iso) => {
+  const d = new Date(iso), today = new Date().toDateString() === d.toDateString();
+  return today ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s?([ap])\.?m\.?/i, "$1m").toLowerCase()
+               : d.toLocaleDateString([], { weekday: "short" });
+};
+function renderHistory() {
+  const box = $("history"), list = [...builds].sort((a, b) => (a.at || "").localeCompare(b.at || ""));
+  box.hidden = $("changes").hidden = !list.length;
+  $("tags").hidden = !!list.length;
+  if (!list.length) return;
+  const shown = list.slice(-6), current = list[list.length - 1];
+  if (!pickedBuild || !list.some((b) => b.id === pickedBuild)) pickedBuild = current.id;
+  box.classList.toggle("more", list.length > shown.length);
+  box.replaceChildren(...shown.map((b) => {
+    const stop = el("button", "bstop" + (b.kind === "stable" ? " stable" : "") + (b === current ? " current" : ""));
+    stop.type = "button";
+    stop.setAttribute("aria-pressed", b.id === pickedBuild);
+    stop.setAttribute("aria-label", (b.kind === "stable" ? "Stable build" : "Experimental build") + ", " + buildTime(b.at) + (b === current ? ", on your iPad now" : ""));
+    stop.append(el("i"), el("span", null, b === current ? "now" : buildTime(b.at)));
+    stop.addEventListener("click", () => { pickedBuild = b.id; renderHistory(); renderChanges(true); });
+    return stop;
+  }));
+  renderChanges(false);
+  const stableAt = list.map((b) => b.kind).lastIndexOf("stable");
+  const after = stableAt >= 0 ? list.slice(stableAt + 1) : [];
+  const n = after.reduce((sum, b) => sum + (b.changes || []).length, 0);
+  $("sinceStable").textContent = after.length ? after.length + (after.length === 1 ? " build" : " builds") + " and " + n + " changes since your stable point" : "";
+}
+function renderChanges(animate) {
+  const b = builds.find((x) => x.id === pickedBuild), box = $("changes");
+  if (!b) return;
+  const h = el("h3", null, b.title || "Build"); h.append(el("small", null, (b.kind === "stable" ? "Stable · " : "Experiment · ") + buildTime(b.at)));
+  const ul = el("ul"); (b.changes || []).forEach((c) => ul.append(el("li", null, c)));
+  box.replaceChildren(h, ul);
+  const mine = shots.filter((x) => x.build === b.id);
+  if (mine.length) { const t = el("div", "thumbs"); mine.forEach((x) => t.append(shotButton({ ...x, caption: "" }))); box.append(t); }
+  if (animate) { box.classList.remove("swap"); void box.offsetWidth; box.classList.add("swap"); }
+}
+
+// Mood board and screenshots (see the .mood styles).
+let shots = [];
+function shotButton(sh) {
+  const b = el("button", "shot"); b.type = "button"; b.setAttribute("role", "listitem");
+  const img = el("img"); img.src = sh.url; img.alt = sh.caption || "Screenshot"; img.loading = "lazy";
+  b.append(img); if (sh.caption) b.append(el("span", null, sh.caption));
+  b.addEventListener("click", () => openShot(sh));
+  return b;
+}
+let moodList = [], lightList = [], lightIdx = 0;
+function showLight(i, dir) {
+  const n = lightList.length; lightIdx = ((i % n) + n) % n;
+  const sh = lightList[lightIdx], img = $("lightImg");
+  img.src = sh.url; img.alt = sh.caption || "Screenshot";
+  $("lightCap").textContent = (sh.caption || "") + (n > 1 ? (sh.caption ? "  ·  " : "") + (lightIdx + 1) + " / " + n : "");
+  img.classList.remove("from-r", "from-l");
+  if (dir) { void img.offsetWidth; img.classList.add(dir > 0 ? "from-r" : "from-l"); }
+  $("lbPrev").hidden = $("lbNext").hidden = n < 2;
+}
+function openShot(sh, list) {
+  const d = $("lightbox");
+  lightList = (list || moodList).slice(); let i = lightList.findIndex((x) => x.id && x.id === sh.id);
+  if (i < 0) { lightList = [sh]; i = 0; }
+  showLight(i, 0);
+  if (d.showModal) d.showModal(); else d.setAttribute("open", "");
+}
+// Flick left and right through the moods; arrows and arrow keys work too.
+{
+  const lb = $("lightbox"); let sx = null, sy = 0, swiped = false;
+  lb.addEventListener("pointerdown", (e) => { sx = e.clientX; sy = e.clientY; swiped = false; });
+  lb.addEventListener("pointerup", (e) => {
+    if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+    if (lightList.length > 1 && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) { swiped = true; showLight(lightIdx + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1); }
+  });
+  lb.addEventListener("pointercancel", () => { sx = null; });
+  lb.addEventListener("click", (e) => { if (swiped) { swiped = false; return; } if (e.target.closest(".lb-nav")) return; lb.close(); });
+  $("lbPrev").addEventListener("click", () => showLight(lightIdx - 1, -1));
+  $("lbNext").addEventListener("click", () => showLight(lightIdx + 1, 1));
+  document.addEventListener("keydown", (e) => {
+    if (!lb.open || lightList.length < 2) return;
+    if (e.key === "ArrowLeft") showLight(lightIdx - 1, -1); else if (e.key === "ArrowRight") showLight(lightIdx + 1, 1);
+  });
+}
+function renderMood() {
+  if (typeof renderBoard === "function") renderBoard();
+  const list = [...shots].sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+  const box = $("mood"); $("moodSection").hidden = !list.length;
+  moodList = list.slice(0, 12);
+  box.replaceChildren(...moodList.map(shotButton));
+  renderChanges(false); renderChat(); renderUpdates();
+}
+
+// Conversation (see the .chat styles).
+let comments = null, chat = [], jobs = [], chatShown = 4, live = false, usageNow = null;
+const ago = (iso) => {
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return "just now"; if (m < 60) return m + " min ago";
+  const d = new Date(iso); return new Date().toDateString() === d.toDateString()
+    ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : d.toLocaleDateString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+};
+async function checkPresence() {
+  let state = "off";
+  try { state = comments ? await comments.canSendToClaude() : "off"; } catch (e) { state = "off"; }
+  live = state === "available";
+  const p = $("presence"); p.className = "presence " + (live ? "here" : "away");
+  // Usage coming back doesn't wake Claude: it only answers here while a session is open and watching.
+  const usageBack = !!(usageNow && (usageNow.windows || []).length && usageNow.windows.every((w) => w.percentUsed < 100));
+  const waiting = jobs.filter((j) => j.state === "queued").length;
+  p.lastElementChild.textContent = live ? "Saved for Claude · it reads them when you ask in the main chat"
+    : usageBack && waiting ? "Saved · Claude reads them when you ask in the main chat"
+    : "Saved · waiting for the main chat";
+  $("chatSend").textContent = "Save for Claude";
+  if (typeof renderUpdates === "function") renderUpdates();
+}
+// One way out for every message: straight to the watching session, or the jobs queue.
+// Returns the new message's id, or null. `parent` is the card being answered, if any.
+async function tellClaude(text, near, parent) {
+  text = text.trim().slice(0, 3500);
+  if (!text || !db) return null;
+  await checkPresence(); // fresh, not the last 30-second check
+  const base = { from: "you", text, at: new Date().toISOString() };
+  if (parent) base.replyTo = parent;
+  if (live) {
+    try {
+      const anchor = await comments.anchorFor(near || $("chatTitle"));
+      const sent = await comments.sendToClaude({ anchor, text });
+      const ref = await db.collection("chat").add({ ...base, via: "live", thread: sent && sent.threadId || null });
+      return ref.id;
+    } catch (e) {
+      if (e && e.code !== "claude_unavailable") { flash("Couldn't send just now. Try again in a moment."); return null; }
+      live = false; checkPresence();
+    }
+  }
+  try {
+    await db.collection("jobs").add({ text, state: "queued", createdAt: base.at });
+    const ref = await db.collection("chat").add({ ...base, via: "queue" });
+    return ref.id;
+  } catch (e) { readOnly(e); return null; }
+}
+const flash = (t) => { $("chatStatus").textContent = t; };
+$("chatSend").addEventListener("click", async () => {
+  const box = $("chatText"), b = $("chatSend");
+  if (!box.value.trim()) { box.focus(); return; }
+  b.disabled = true;
+  if (await tellClaude(box.value, null, null)) { box.value = ""; flash(""); }
+  b.disabled = false;
+});
+$("chatText").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("chatSend").click(); });
+async function go(text, near, mark, parent) {
+  if (await tellClaude("Go: " + text, near, parent)) { try { await mark(); } catch (e) {} }
+}
+
+// Voice and tidying (see the .mic styles).
+let sampler = null, beforeTidy = null;
+// Words the dictation often gets wrong, so the tidy step corrects towards them.
+const GLOSSARY = "Claude (often misheard as iCloud, cloud or Clyde), Glass Clock, Liquid Glass, Panels, Classic, Moods, " +
+  "Not in the mood, widget, iPad, Home Screen, Lock Screen, dashboard, mood board, Send to iPad, Go, Tidy up, Needs you, " +
+  "build, preset, backdrop, Bold glass, Lock Screen, Neon, Minimal, Stacked serif, Aurora, Ocean, Midnight, Dune, Sunset, " +
+  "glossy bead, groups pill, headings rail, Design Tweaks, Apply to Widget";
+async function tidyText(text) {
+  const { text: out } = await sampler(
+    "Rewrite this message from a designer to Claude, the AI that builds their app, as a short, clear message. " +
+    "It was probably dictated, so drop filler, repeats and false starts. Keep every request, decision, preference and detail, and keep their voice. " +
+    "Fix misheard words using this word list where the meaning is clear: " + GLOSSARY + ". " +
+    "If you have to guess a word, write it as [?word] so they can check it. " +
+    "Keep anything after 'Important:' word for word. British English. Reply with the rewritten message only.\n\nMessage:\n" + text,
+    { modelTier: "quick", cache: false });
+  return out && out.trim();
+}
+// Same Tidy up (with Undo) for any writing box.
+function addTidy(t, row, onDone) {
+  if (!sampler) return;
+  const tb = el("button", "ghost small", "Tidy up"), hint = el("span", "status"); tb.type = "button";
+  let before = null;
+  tb.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (before != null) { t.value = before; before = null; tb.textContent = "Tidy up"; hint.textContent = ""; if (onDone) onDone(t.value); return; }
+    if (t.value.trim().length < 40) { hint.textContent = "Needs a bit more to tidy."; return; }
+    tb.disabled = true; hint.textContent = "Tidying…";
+    try { const out = await tidyText(t.value); if (out) { before = t.value; t.value = out; tb.textContent = "Undo tidy"; hint.textContent = /\[\?/.test(out) ? "Check the words marked [?]" : ""; if (onDone) onDone(out); } }
+    catch (x) { hint.textContent = "Couldn't tidy just now."; }
+    tb.disabled = false;
+  });
+  t.addEventListener("input", () => { before = null; tb.textContent = "Tidy up"; });
+  row.append(tb, hint);
+}
+async function tidy(auto) {
+  const box = $("chatText"), text = box.value.trim();
+  if (!sampler || text.length < 40) return;
+  const b = $("tidyBtn"); b.disabled = true; flash(auto ? "Tidying what you said…" : "Tidying…");
+  try {
+    const out = await tidyText(text);
+    if (out) { beforeTidy = box.value; box.value = out; $("undoTidy").hidden = false; flash(/\[\?/.test(out) ? "Tidied. Check the words marked [?], then send." : "Tidied. Check it, then send."); }
+  } catch (e) { flash(e && e.code === "rate_limited" ? "Tidying is busy; try again in a moment." : "Couldn't tidy just now."); }
+  b.disabled = false;
+}
+$("tidyBtn").addEventListener("click", () => tidy(false));
+$("undoTidy").addEventListener("click", () => { if (beforeTidy != null) $("chatText").value = beforeTidy; beforeTidy = null; $("undoTidy").hidden = true; flash(""); });
+$("chatText").addEventListener("input", () => { $("undoTidy").hidden = true; beforeTidy = null; });
+
+const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, talking = false, spoken = "", keepText = "", gotWords = false;
+// Tap to start, tap again to stop (holding a button on the iPad brings up the text menu instead).
+// Where the page isn't allowed the microphone, the button becomes "Dictate": it opens the box
+// so the keyboard's own mic can be used, which is free and built in.
+let voiceBlocked = !Speech;
+try { if (localStorage.getItem("voiceBlocked") === "1") voiceBlocked = true; } catch (e) {}
+function setMicLabel(t) { $("micBtn").lastChild.textContent = t; $("micBtn").setAttribute("aria-label", t); }
+function noVoice() {
+  voiceBlocked = true; try { localStorage.setItem("voiceBlocked", "1"); } catch (e) {}
+  setMicLabel("Dictate");
+  dictateHint();
+}
+function dictateHint() {
+  $("chatText").focus();
+  flash("Use the mic key on the keyboard (iPad) or press Fn twice (Mac), speak, then tap Tidy up.");
+}
+function startTalk() {
+  if (talking) return;
+  if (voiceBlocked) { dictateHint(); return; }
+  try {
+    rec = new Speech(); rec.lang = navigator.language || "en-GB"; rec.continuous = true; rec.interimResults = true;
+    keepText = $("chatText").value ? $("chatText").value.replace(/\s*$/, " ") : ""; spoken = ""; gotWords = false;
+    rec.onresult = (e) => {
+      let finals = "", interim = "";
+      for (let i = 0; i < e.results.length; i++) { const r = e.results[i]; (r.isFinal ? (finals += r[0].transcript) : (interim += r[0].transcript)); }
+      spoken = finals; gotWords = true; $("chatText").value = keepText + finals + interim;
+    };
+    rec.onerror = (e) => { const blocked = /not-allowed|service-not-allowed|audio-capture/.test(e.error); stopTalk(); if (blocked) noVoice(); };
+    rec.onend = () => { if (talking) stopTalk(); };
+    rec.start(); talking = true; $("micBtn").classList.add("live"); setMicLabel("Listening… tap to stop"); flash("");
+  } catch (e) { noVoice(); }
+}
+function stopTalk() {
+  if (!talking) return;
+  talking = false; $("micBtn").classList.remove("live"); setMicLabel(voiceBlocked ? "Dictate" : "Talk");
+  try { rec && rec.stop(); } catch (e) {}
+  // Long dictation gets tightened straight away, for you to check before sending.
+  setTimeout(() => { if (gotWords && $("chatText").value.trim().length > 160) tidy(true); }, 400);
+}
+const mic = $("micBtn");
+setMicLabel(voiceBlocked ? "Dictate" : "Talk");
+mic.addEventListener("click", () => { talking ? stopTalk() : startTalk(); });
+
+// Replies open right under the card they answer, and the answer lands under them, so a
+// back-and-forth reads as one thread. Drafts survive the live re-renders.
+let openReply = null; const drafts = {};
+function replyBox(m, card) {
+  const wrap = el("div", "inline");
+  const t = el("textarea"); t.rows = 2; t.maxLength = 3500; t.placeholder = "Reply to Claude…"; t.value = drafts[m.id] || "";
+  t.setAttribute("aria-label", "Reply to " + (m.title || "Claude"));
+  t.addEventListener("input", () => { drafts[m.id] = t.value; });
+  const row = el("div", "row"), send = el("button", "send", live ? "Send" : "Save for Claude"), cancel = el("button", "ghost", "Cancel");
+  send.type = cancel.type = "button";
+  const doSend = async () => {
+    if (!t.value.trim()) { t.focus(); return; }
+    send.disabled = true;
+    const id = await tellClaude(t.value, card, m.id);
+    send.disabled = false;
+    if (id) { delete drafts[m.id]; openReply = null; renderChat(); }
+  };
+  send.addEventListener("click", doSend);
+  cancel.addEventListener("click", () => { openReply = null; renderChat(); });
+  t.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) doSend(); if (e.key === "Escape") cancel.click(); });
+  const hint = el("span", "status", "⌘↩ to send");
+  if (sampler) {
+    const tb = el("button", "ghost", "Tidy up"); tb.type = "button";
+    tb.addEventListener("click", async () => {
+      if (t.value.trim().length < 40) { hint.textContent = "Say a bit more first."; return; }
+      tb.disabled = true; hint.textContent = "Tidying…";
+      try { const before = t.value, out = await tidyText(before);
+        if (out) { t.value = out; drafts[m.id] = out; hint.textContent = /\[\?/.test(out) ? "Check the words marked [?]" : "Tidied. Check it, then send.";
+          const u = el("button", "ghost", "Undo"); u.type = "button"; u.addEventListener("click", () => { t.value = before; drafts[m.id] = before; u.remove(); hint.textContent = ""; }); row.insertBefore(u, hint); }
+      } catch (e) { hint.textContent = "Couldn't tidy just now."; }
+      tb.disabled = false;
+    });
+    row.append(send, tb, cancel, hint);
+  } else row.append(send, cancel, hint);
+  wrap.append(t, row);
+  return wrap;
+}
+function messageCard(m, kids) {
+  const card = el("article", "msg" + (m.from === "you" ? " you" : "") + (m.kind === "idea" ? " idea" : "") + (m.replyTo ? " reply" : ""));
+  card.dataset.id = m.id;
+  if (m.kind === "idea") card.append(el("span", "tagline", "Idea"));
+  const head = el("header"); head.append(el("b", null, m.from === "you" ? "You" : (m.title || "Claude")), el("small", null, ago(m.at)));
+  card.append(head);
+  if (m.shot) { const im = el("img", "pic"); im.src = m.shot; im.alt = m.title || "Screenshot"; im.loading = "lazy"; im.addEventListener("click", () => openShot({ url: m.shot, caption: m.title })); card.append(im); }
+  if (m.text) card.append(el("p", null, m.text));
+  if (m.points && m.points.length) { const ul = el("ul"); m.points.forEach((x) => ul.append(el("li", null, x))); card.append(ul); }
+  if (m.from === "you") {
+    // Until Claude answers, say where the message is.
+    if (!kids.some((k) => k.from !== "you")) {
+      const st = el("div", "pending" + (m.via === "queue" ? " saved" : ""));
+      st.append(el("i"), el("span", null, m.via === "queue" ? "Saved · Claude picks it up next session" : "Sent · Claude is replying"));
+      card.append(st);
+    }
+    return card;
+  }
+  if (m.proposal) { const pr = el("div", "proposal"); pr.append(el("b", null, "Next: "), m.proposal); card.append(pr); }
+  const acts = el("div", "actions");
+  if (m.proposal && !m.goneAt) {
+    const g = el("button", "go", "Go"); g.type = "button"; g.disabled = !canWrite;
+    g.addEventListener("click", () => { g.disabled = true; go(m.proposal, card, () => db.collection("chat").doc(m.id).update({ goneAt: new Date().toISOString() }), m.id); });
+    acts.append(g);
+  } else if (m.goneAt) acts.append(startedLink(m.goneAt, (x) => x.from === "you" && x.replyTo === m.id));
+  if (m.build) { const b = el("button", "ghost", "See the build"); b.type = "button"; b.addEventListener("click", () => goTo("build:" + m.build)); acts.append(b); }
+  const r = el("button", "ghost", openReply === m.id ? "Close" : "Reply"); r.type = "button"; r.disabled = !canWrite;
+  r.setAttribute("aria-expanded", openReply === m.id);
+  r.addEventListener("click", () => { openReply = openReply === m.id ? null : m.id; renderChat(true); });
+  acts.append(r); card.append(acts);
+  if (openReply === m.id) card.append(replyBox(m, card));
+  return card;
+}
+function renderChat(focusReply) {
+  const box = $("chat");
+  if (!chat.length) return;
+  const hadFocus = box.contains(document.activeElement) && document.activeElement.tagName === "TEXTAREA";
+  const byParent = {};
+  chat.forEach((m) => { if (m.replyTo) (byParent[m.replyTo] = byParent[m.replyTo] || []).push(m); });
+  const latest = (m) => [m.at || "", ...(byParent[m.id] || []).map(latest)].sort().pop();
+  const roots = chat.filter((m) => !m.replyTo || !chat.some((x) => x.id === m.replyTo)).sort((a, b) => latest(b).localeCompare(latest(a)));
+  const thread = (m, depth) => {
+    const kids = (byParent[m.id] || []).sort((a, b) => (a.at || "").localeCompare(b.at || ""));
+    const card = messageCard(m, kids);
+    if (!kids.length) return card;
+    const group = el("div", "thread"); group.append(card);
+    const nest = el("div", depth < 3 ? "replies" : "replies flat");
+    kids.forEach((k) => nest.append(thread(k, depth + 1)));
+    group.append(nest);
+    return group;
+  };
+  box.replaceChildren(...roots.slice(0, chatShown).map((m) => thread(m, 0)));
+  $("chatMore").hidden = roots.length <= chatShown;
+  if (openReply && (focusReply || hadFocus)) { const t = box.querySelector(".inline textarea"); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }
+}
+$("chatMore").addEventListener("click", () => { chatShown += 6; renderChat(); });
+function renderJobs() {
+  const box = $("jobs"), day = Date.now() - 86400000;
+  const list = [...jobs].filter((j) => j.state !== "done" || new Date(j.doneAt || 0) > day)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(0, 4);
+  const words = { queued: "Waiting for Claude", working: "Claude's working on it", done: "Done", failed: "Didn't finish" };
+  const colours = { queued: "var(--warn)", working: "var(--good)", done: "var(--faint)", failed: "var(--warn)" };
+  box.replaceChildren(...list.map((j) => {
+    const row = el("div", "job"), dot = el("span", "dot " + j.state); dot.style.background = colours[j.state] || "var(--faint)";
+    row.append(dot, el("span", "what", j.result || j.text), el("span", "pill", words[j.state] || j.state));
+    row.lastChild.style.color = colours[j.state] || "var(--muted)";
+    return row;
+  }));
+}
+// Live updates: a feed of what just happened (builds, replies, answers, screenshots), newest first.
+let seenFeed = null;
+function renderUpdates() {
+  const feed = $("feed"); if (!feed) return;
+  const ev = [], clip = (t) => String(t || "").replace(/\s+/g, " ").trim().slice(0, 110);
+  builds.forEach((b) => b.at && ev.push({ at: b.at, text: "New build on your iPad: " + (b.title || "Build"), link: "build:" + b.id, color: "var(--accent)" }));
+  chat.forEach((m) => { if (!m.at) return;
+    ev.push(m.from === "you" ? { at: m.at, text: "You: " + clip(m.text), link: "chat:" + m.id, color: "var(--faint)" }
+      : { at: m.at, text: (m.title ? m.title + " · " : "Claude · ") + clip(m.text || (m.points || [])[0]), link: "chat:" + m.id, color: "var(--good)" }); });
+  decisions.forEach((d) => d.answer && d.answeredAt && ev.push({ at: d.answeredAt, text: "You answered: " + clip(d.question) + " → " + d.answer, link: "decision:" + d.id, color: "var(--warn)" }));
+  const jw = { queued: "Queued for Claude", working: "Claude's working on", done: "Done", failed: "Didn't finish" };
+  jobs.forEach((j) => { const at = j.doneAt || j.createdAt; at && ev.push({ at, text: (jw[j.state] || j.state) + ": " + clip(j.result || j.text), color: "var(--hold)" }); });
+  shots.forEach((s) => s.at && ev.push({ at: s.at, text: "New screenshot" + (s.caption ? ": " + clip(s.caption) : ""), link: "shot:" + s.id, color: "var(--accent)" }));
+  ev.sort((a, b) => b.at.localeCompare(a.at));
+  const top = ev.slice(0, feedShown), keys = top.map((e) => e.at + e.text);
+  $("feedMore").hidden = ev.length <= feedShown;
+  const fresh = seenFeed ? new Set(keys.filter((k) => !seenFeed.includes(k))) : new Set(); seenFeed = keys;
+  feed.replaceChildren(...(top.length ? top.map((e) => {
+    const row = el(e.link ? "button" : "div", "upd" + (e.link ? "" : " plain") + (fresh.has(e.at + e.text) ? " fresh" : ""));
+    if (e.link) { row.type = "button"; row.addEventListener("click", () => goTo(e.link)); }
+    const dot = el("span", "dot"); dot.style.background = e.color;
+    row.append(dot, el("span", "what", e.text), el("small", null, ago(e.at)));
+    return row;
+  }) : [el("p", "empty", "Builds, replies and answers will show up here as they happen.")]));
+  const n = (k) => items.filter((i) => i.lane === k).length;
+  $("updatesSummary").textContent = items.length || decisions.length
+    ? decisions.filter((d) => !d.answer).length + " need you · " + n("ipad") + " to try on the iPad · " + (n("now") + n("next")) + " up next · " + n("done") + " done" : "";
+  const dot = $("liveDot"); dot.className = "presence " + (live ? "here" : "away");
+  dot.lastElementChild.textContent = live ? "Page live · Claude only reads it when asked" : "Page live · Claude's session not linked";
+}
+// Claude usage (see the .usage styles).
+function renderUsage(u) {
+  $("usageSection").hidden = !u || !(u.windows || []).length;
+  if (!u || !(u.windows || []).length) return;
+  $("usagePlan").textContent = (u.plan || "") + " plan";
+  const colour = (p) => p >= 85 ? "var(--warn)" : p >= 60 ? "var(--hold)" : "var(--good)";
+  const until = (iso) => { const h = (new Date(iso) - Date.now()) / 3600000;
+    return h <= 0 ? "resets now" : h < 24 ? "resets in " + (Math.floor(h) ? Math.floor(h) + "h " : "") + Math.round((h % 1) * 60) + "m · " + new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "resets " + new Date(iso).toLocaleDateString([], { weekday: "short" }); };
+  const first = !$("usageRings").children.length;
+  const ring = (label, pct, sub, unk, est, resetIso) => {
+    const r = 26, c = 2 * Math.PI * r, box = el("div", "ring" + (est ? " est" : ""));
+    box.setAttribute("aria-label", label + ": " + (unk ? "percentage not known" : pct + "% used") + (sub ? ", " + sub : ""));
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("viewBox", "0 0 64 64");
+    const t = document.createElementNS(svg.namespaceURI, "circle"), f = document.createElementNS(svg.namespaceURI, "circle");
+    [t, f].forEach((n) => { n.setAttribute("cx", 32); n.setAttribute("cy", 32); n.setAttribute("r", r); });
+    t.setAttribute("class", "track"); f.setAttribute("class", "fill");
+    f.style.stroke = colour(pct); f.style.strokeDasharray = c; f.style.strokeDashoffset = c;
+    const to = c * (1 - Math.min(100, pct) / 100);
+    // Only the first draw sweeps round; the once-a-minute redraw just sets the new value.
+    if (first) requestAnimationFrame(() => requestAnimationFrame(() => { f.style.strokeDashoffset = to; }));
+    else { f.style.transition = "none"; f.style.strokeDashoffset = to; }
+    svg.append(t, f);
+    const s = el("div", "status", sub); if (resetIso) s.dataset.reset = resetIso;
+    const txt = el("div"); txt.append(el("b", null, unk ? "–" : pct + "%"), el("span", null, label), s);
+    box.append(svg, txt); return box;
+  };
+  const hm = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const ae = document.activeElement;
+  if (!ae || !ae.closest || !ae.closest("#usageForm")) {
+    const f5 = u.windows.find((w) => /5-hour/.test(w.label)), fw = u.windows.find((w) => /week/i.test(w.label));
+    if (f5) { $("uFive").value = f5.percentUsed; const h = Math.max(0, Math.min(5, (new Date(f5.resetsAt) - Date.now()) / 3600000)); $("uHrs").value = Math.round(h * 4) / 4; }
+    if (fw) $("uWeek").value = fw.percentUsed;
+    sliderReadouts();
+  }
+  // Rough guess of where usage is now: your pace so far in each window, carried forward from the last reading.
+  // Idle time makes it too high, and the real number only comes from your Usage screen, so it is labelled as a guess.
+  const estOf = (w, spanH) => {
+    const reset = new Date(w.resetsAt), at = u.at ? new Date(u.at) : null;
+    if (!at) return null;
+    if (reset < Date.now()) return 0; // that window has reset since the reading
+    const sinceStart = (at - (reset - spanH * 3600000)) / 3600000, sinceUpdate = (Date.now() - at) / 3600000;
+    if (sinceStart < 0.25) return w.percentUsed;
+    return Math.min(100, Math.round(w.percentUsed + (w.percentUsed / sinceStart) * sinceUpdate));
+  };
+  const e5w = u.windows.find((w) => /5-hour/.test(w.label)), eww = u.windows.find((w) => /week/i.test(w.label));
+  const e5 = e5w && !e5w.est ? estOf(e5w, 5) : null, ew = eww ? estOf(eww, 168) : null;
+  const more5 = e5 != null ? e5 - e5w.percentUsed : 0, moreW = ew != null ? ew - eww.percentUsed : 0;
+  // Four rings: each window's last reading, then the estimate beside it (dashed).
+  const wins = [];
+  [[e5w, e5, "5-hour"], [eww, ew, "Week"]].forEach(([w, e, name]) => {
+    if (!w) return;
+    const gone = new Date(w.resetsAt) <= Date.now();
+    if (w.est && !gone) { // started from a tap on Update / New chat / Quick: time known, % not
+      wins.push(ring(name + " · started " + hm(w.startedAt), 0, "", true, false, w.resetsAt));
+      wins.push(ring(name + " · est. now", 0, "type a reading to estimate", true, true));
+      return;
+    }
+    wins.push(ring(name + " · last reading", w.percentUsed, gone ? (name === "5-hour" ? "reset · starts at your next message" : "has reset since") : "", false, false, gone ? null : w.resetsAt));
+    const shown = gone ? 0 : e;
+    if (shown != null) wins.push(ring(name + " · est. now", shown, gone ? "fresh window" : "a guess from your pace", false, true));
+  });
+  $("usageEst").textContent = more5 >= 5 || moreW >= 3 ? "The estimate is above your last reading: check the Usage screen and move the sliders."
+    : "Dashed rings are a guess from your pace, not real numbers. The countdown runs on its own.";
+  $("usageEst").style.fontWeight = more5 >= 5 || moreW >= 3 ? "600" : "";
+  if (u.chat) wins.push(ring("This chat's memory", u.chat, u.chat >= 80 ? "tidies itself soon" : "room to spare"));
+  $("usageRings").replaceChildren(...wins); tickResets();
+  const staleH = u.at ? (Date.now() - new Date(u.at)) / 3600000 : 99;
+  $("usageRings").querySelectorAll(".ring:not(.est)").forEach((n) => { n.style.opacity = staleH > 1 ? "0.55" : "1"; });
+  $("usageRings").title = staleH > 1 ? "Last entered " + ago(u.at) + "; the real figure is probably higher now" : "";
+  // A few plain tips from the numbers.
+  const tips = [], five = u.windows.find((w) => /5-hour/.test(w.label)), week = u.windows.find((w) => /Weekly/.test(w.label));
+  if (five && new Date(five.resetsAt) > Date.now() && !five.est) {
+    const at = cdLeft(five.resetsAt);
+    if (five.percentUsed >= 80) tips.push("Nearly at the 5-hour limit: save bigger jobs until it resets in " + at + ".");
+    else if (five.percentUsed < 50) tips.push("Plenty left in this 5-hour window: a good time for a bigger job.");
+  }
+  if (week) {
+    const left = Math.max(0, (new Date(week.resetsAt) - Date.now()) / 86400000), passed = 1 - left / 7;
+    tips.push(week.percentUsed / 100 > passed + 0.1 ? "You're using the week faster than it's passing: batch small tweaks into one message."
+      : "On pace for the week (" + week.percentUsed + "% used, " + Math.round(passed * 100) + "% of the week gone).");
+  }
+  if (u.chat >= 80) tips.unshift("This chat is long. Save a summary to the plan document, then compact or start a fresh chat for the next area.");
+  else if (u.chat >= 70) tips.push("This chat is getting long: a fresh session for a new topic costs less.");
+  const worst = Math.max(...u.windows.map((w) => w.percentUsed));
+  if (worst >= 90) tips.unshift("Into your last 10%: keep it for quick ideas on a small model (Haiku, low effort) and save big builds until the reset. Jot ideas in Notes for Claude so none are lost.");
+  else if (worst >= 75) tips.unshift("About 75% used: wrap up big jobs and keep roughly 10% spare for quick ideas on a small model.");
+  if (u.at && Date.now() - new Date(u.at) > 3 * 3600000) tips.unshift("This reading is " + ago(u.at) + " and may be out of date: the page can't read your usage itself.");
+  tips.push("Answering several dashboard questions at once is cheaper than one message each.");
+  $("usageTips").replaceChildren(...tips.slice(0, 5).map((t) => el("li", null, t)));
+  $("usageWhen").textContent = u.at ? "Typed in " + ago(u.at) + (u.by === "you" ? " by you" : " by Claude") + (staleH > 1 ? " · faded because it's over an hour old, so the real figure is probably higher" : " · the page can't read your real usage, so this is only as fresh as the last entry") : "";
+}
+// Reset countdowns tick every second on the page itself.
+function tickResets() {
+  document.querySelectorAll("[data-reset]").forEach((n) => {
+    const ms = new Date(n.dataset.reset) - Date.now();
+    if (ms <= 0) { n.textContent = "reset now: fresh window"; return; }
+    const t = Math.floor(ms / 1000), d = Math.floor(t / 86400), h = Math.floor(t % 86400 / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60, two = (x) => String(x).padStart(2, "0");
+    const at = new Date(n.dataset.reset), when = d ? at.toLocaleDateString([], { weekday: "short" }) + " " : "";
+    n.textContent = "resets in " + (d ? d + "d " + h + "h" : (h ? h + "h " : "") + two(m) + "m " + two(sec) + "s") + " · " + when + at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  });
+}
+setInterval(tickResets, 1000);
+// Archive (25 Oct, Aaron): finished items move out of sight and out of Claude's reading. Nothing is deleted. Archived docs have archived:true.
+let archArm = null;
+function reArch() {
+  decisions = visArch(allDec); notes = visArch(allNotes); chat = visArch(allChat);
+  $("archShow").setAttribute("aria-pressed", String(!!view.arch)); $("archShow").textContent = view.arch ? "Hide archive" : "Show archive";
+  renderDecisions(); renderNotes(); renderChat(); renderUpdates();
+}
+$("archShow").addEventListener("click", () => { view.arch = !view.arch; try { localStorage.setItem("view", JSON.stringify(view)); } catch (e) {} reArch(); });
+$("archiveBtn").addEventListener("click", async () => {
+  const b = $("archiveBtn"), msg = $("archMsg");
+  if (!db || !canWrite) { msg.textContent = "Archiving needs the page in edit mode."; return; }
+  const at = (m) => m.createdAt || m.at || "";
+  const list = [
+    ...allDec.filter((d) => d.answer && d.seen && !d.archived).map((d) => ["decisions", d.id]),
+    ...allNotes.filter((n) => (n.seen || n.reply) && !n.archived).map((n) => ["notes", n.id]),
+    ...allChat.slice().sort((a, c) => at(c).localeCompare(at(a))).slice(6).filter((m) => !m.archived).map((m) => ["chat", m.id])
+  ];
+  if (!list.length) { msg.textContent = "Nothing finished to archive."; return; }
+  if (!archArm) { b.textContent = "Archive " + list.length + "? Tap again"; archArm = setTimeout(() => { archArm = null; b.textContent = "Archive finished"; }, 4000); return; }
+  clearTimeout(archArm); archArm = null; b.disabled = true; b.textContent = "Archiving…";
+  const stamp = new Date().toISOString(); let done = 0;
+  try {
+    for (let i = 0; i < list.length; i += 10) { await Promise.all(list.slice(i, i + 10).map(([c, id]) => db.collection(c).doc(id).update({ archived: true, archivedAt: stamp }))); done = Math.min(list.length, i + 10); }
+    msg.textContent = "Archived " + list.length + ". Nothing is deleted: Show archive brings them back.";
+  } catch (e) { msg.textContent = "Stopped after " + done + " of " + list.length + "."; }
+  b.disabled = false; b.textContent = "Archive finished";
+});
+// Plan chat: a small, cheap chat for thinking and planning the next Build (reads only the short brief).
+const PLAN = "Planning chat for the Glass Clock dashboard https://claude.ai/code/artifact/dde21e58-520d-499c-87fb-1b580e98ff0f . Read ONLY meta/brief and meta/status, nothing else unless I ask. Keep every answer short. Help me plan the next Build: list what is waiting, ask what I want to add, and when I say 'save' write the plan as one item in the brief. Do not edit the page. If I start a message with 'Archive:', search archived items (archived == true) for that topic and answer from them. Use Sonnet.";
+$("copyPlan").addEventListener("click", async () => { await copyCmd(PLAN); say("Copied the Plan chat starter. Open a new chat, pick Sonnet, paste."); });
+reArch();
+// Usage sliders (24 Oct 2026): move to match the Usage screen; saves on release.
+function sliderReadouts() {
+  $("uFiveVal").textContent = $("uFive").value + "%";
+  $("uWeekVal").textContent = $("uWeek").value + "%";
+  const h = parseFloat($("uHrs").value), hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+  $("uHrsVal").textContent = (hh ? hh + "h " : "") + mm + "m";
+}
+let uExact = null;
+$("uAt").addEventListener("change", () => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec($("uAt").value); if (!m) return;
+  const t = new Date(); t.setHours(+m[1], +m[2], 0, 0); if (t <= Date.now()) t.setDate(t.getDate() + 1);
+  const h = (t - Date.now()) / 3600000;
+  if (h > 5.05) { $("uMsg").textContent = "That's more than 5 hours away"; return; }
+  uExact = h; $("uHrs").value = Math.round(h * 4) / 4; sliderReadouts(); $("usageForm").requestSubmit();
+});
+$("uHrs").addEventListener("input", () => { uExact = null; });
+["uFive", "uHrs", "uWeek"].forEach((id) => {
+  $(id).addEventListener("input", sliderReadouts);
+  $(id).addEventListener("change", () => $("usageForm").requestSubmit());
+});
+// The 5-hour window starts at your first message after a reset. The page can't see that, so copying Update or New chat is taken as the start (an estimate).
+async function startFiveIfIdle() {
+  try {
+    if (!db || !canWrite || !usageNow) return;
+    const old = usageNow, wins = (old.windows || []).slice(), i = wins.findIndex((w) => /5-hour/.test(w.label));
+    if (i >= 0 && new Date(wins[i].resetsAt) > Date.now()) return;
+    const now = Date.now(), w5 = { label: "5-hour limit", percentUsed: 0, est: true, startedAt: new Date(now).toISOString(), resetsAt: new Date(now + 5 * 3600000).toISOString() };
+    if (i >= 0) wins[i] = w5; else wins.unshift(w5);
+    await db.doc("meta/usage").set({ ...old, windows: wins });
+  } catch (e) {}
+}
+$("usageForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const five = parseFloat($("uFive").value), week = parseFloat($("uWeek").value), hrs = uExact != null ? uExact : parseFloat($("uHrs").value);
+  const ok = (n) => Number.isFinite(n) && n >= 0 && n <= 100;
+  if (!ok(five) && !ok(week)) { $("uMsg").textContent = "Enter a percentage"; return; }
+  const old = usageNow || { plan: "Pro", windows: [] }, now = Date.now(), wins = [];
+  const prev5 = old.windows.find((w) => /5-hour/.test(w.label)), prevW = old.windows.find((w) => /week/i.test(w.label));
+  if (ok(five)) wins.push({ label: "5-hour limit", percentUsed: Math.round(five), resetsAt: new Date(now + (Number.isFinite(hrs) ? hrs : 5) * 3600000).toISOString() });
+  else if (prev5) wins.push(prev5);
+  if (ok(week)) wins.push({ label: "Weekly · all models", percentUsed: Math.round(week), resetsAt: prevW ? prevW.resetsAt : new Date(now + 7 * 86400000).toISOString() });
+  else if (prevW) wins.push(prevW);
+  try {
+    await db.doc("meta/usage").set({ ...old, plan: old.plan || "Pro", windows: wins, at: new Date(now).toISOString(), by: "you" });
+    $("uMsg").textContent = "Saved";
+  } catch (x) { $("uMsg").textContent = "Couldn't save"; }
+  setTimeout(() => { $("uMsg").textContent = ""; }, 3000);
+});
+setInterval(() => { renderChat(); renderUpdates(); }, 60000);
+// A folded panel still shows its key info (see .peek).
+function updatePeeks() {
+  try {
+    const tc = (s) => threads.filter((t) => t.state === s).length, queued = jobs.filter((j) => j.state === "queued").length;
+    const u = usageNow && (usageNow.windows || []).map((w) => { const five = /5-hour/.test(w.label), gone = new Date(w.resetsAt) <= Date.now(); return (/week/i.test(w.label) ? "week " : five ? "5h " : w.label + " ") + (five && gone ? "not started" : five && w.est ? "running" : w.percentUsed + "%") + (five && !gone ? " · " + cdLeft(w.resetsAt) + " left" : ""); }).join(" · ");
+    const txt = {
+      needs: decisions.filter((d) => !d.answer).length + " need you" + (decisions.some((d) => d.answer && !d.seen) ? " · some answered, waiting for Claude" : ""),
+      agents: tc("needs you") + " need you · " + tc("in progress") + " in progress · " + tc("waiting") + " waiting",
+      updates: $("updatesSummary").textContent,
+      board: items.length ? items.length + " items · " + items.filter((i) => i.lane === "done").length + " done" : "",
+      usage: u || "",
+      notes: $("inboxLabel").textContent,
+      cmds: $("cmdNudges").firstElementChild ? $("cmdNudges").firstElementChild.textContent : "",
+      research: research ? (research.models || []).length + " models · " + (research.costs || []).length + " costs · calculator" : "",
+      mood: shots.length + " screenshots",
+      chat: $("presence").lastElementChild.textContent + (queued ? " · " + queued + " queued" : ""),
+    };
+    const stamps = [...threads.map((t) => t.updatedAt), usageNow && usageNow.at].filter(Boolean).sort(), last = stamps.pop();
+    $("liveNote").textContent = (connOk ? "● Live" : "● Paused, reload") + (last ? " · Claude last wrote " + ago(last) : "");
+    document.querySelectorAll(".peek").forEach((p) => { p.textContent = txt[p.dataset.peek] || ""; });
+  } catch (e) {}
+}
+// Next step: reminders from what's on the page, plus tap-to-copy commands for the main chat.
+const CMDS = [["Update", "Update"], ["/compact", "/compact"], ["Usage numbers", "My usage: 5-hour __%, week __%"], ["Do the audit", "Do the audit"]];
+async function copyCmd(t) {
+  try { await navigator.clipboard.writeText(t); }
+  catch (e) { const a = document.createElement("textarea"); a.value = t; document.body.append(a); a.select(); try { document.execCommand("copy"); } catch (x) {} a.remove(); }
+  $("cmdMsg").textContent = "Copied: " + t; setTimeout(() => { $("cmdMsg").textContent = ""; }, 2500);
+}
+$("cmdChips").replaceChildren(...CMDS.map(([label, text], i) => { const b = el("button", i === 0 ? "send" : null, label); b.type = "button"; b.addEventListener("click", () => copyCmd(text)); return b; }));
+let modelNow = null;
+function renderReminders(d) {
+  const ul = $("remList"); ul.replaceChildren();
+  const items = (d && d.items) || [];
+  $("remAge").textContent = d && d.at ? "Read " + new Date(d.at).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "Read-only";
+  if (!items.length) { ul.append(el("li", "empty", "Nothing waiting. Type Update and I will read your Reminders.")); return; }
+  items.forEach((x) => { const when = x.due ? new Date(x.due).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""; ul.append(el("li", null, x.title + (when ? " · " + when : ""))); });
+}
+let sugs = [], sgCommentOpen = false;
+async function sgUpdate(id, data) { try { await db.collection("suggestions").doc(id).update(data); } catch (e) { $("cmdMsg").textContent = "Couldn't save that. Try again."; } }
+function renderSuggest() {
+  const act = sugs.find((x) => x.state === "active"), kept = sugs.filter((x) => x.state === "kept");
+  $("suggestPanel").hidden = !act && !kept.length;
+  const box = $("sgNow"); box.replaceChildren();
+  if (act) {
+    box.append(el("h3", null, act.title || "Suggestion"));
+    if (act.why) box.append(el("p", "status", "Why: " + act.why));
+    if (act.body) box.append(el("p", null, act.body));
+    const row = el("div"); row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin:10px 0";
+    const k = el("button", "send", "Keep"), n = el("button", "ghost", "Not for me"), c = el("button", "ghost", "Comment");
+    [k, n, c].forEach((b) => (b.type = "button"));
+    k.addEventListener("click", () => sgUpdate(act.id, { state: "kept", keptAt: new Date().toISOString() }));
+    n.addEventListener("click", () => sgUpdate(act.id, { state: "no", at: new Date().toISOString() }));
+    c.addEventListener("click", () => { sgCommentOpen = !sgCommentOpen; renderSuggest(); });
+    row.append(k, n, c); box.append(row);
+    if (sgCommentOpen) {
+      const t = el("textarea"); t.rows = 3; t.placeholder = "What would you change, or do differently next time?"; t.style.cssText = "width:100%;margin-bottom:8px";
+      const sv = el("button", "send", "Save comment"); sv.type = "button";
+      sv.addEventListener("click", () => { const v = t.value.trim(); if (!v) return; sgCommentOpen = false; sgUpdate(act.id, { feedback: [...(act.feedback || []), { text: v, at: new Date().toISOString() }] }); });
+      box.append(t, sv); const tr2 = el("div", "actions"); addTidy(t, tr2); box.append(tr2);
+    }
+    (act.feedback || []).slice(-2).forEach((f) => box.append(el("p", "status", "Your note: " + f.text)));
+    const ideas = act.ideas || [];
+    if (ideas.length) {
+      box.append(el("span", "label", "Other ideas · tap one to feature it"));
+      const ul = el("ul", "tips");
+      ideas.forEach((idea, i) => {
+        const li = el("li"), b = el("button", "ghost small", idea.title); b.type = "button"; b.style.cssText = "margin:0 6px 4px 0";
+        b.addEventListener("click", () => { const rest = ideas.filter((_, j) => j !== i).concat([{ title: act.title, body: act.body }]); sgUpdate(act.id, { title: idea.title, body: idea.body, why: "You picked this from the other ideas.", ideas: rest }); });
+        li.append(b, document.createTextNode(idea.body ? " " + idea.body : "")); ul.append(li);
+      });
+      box.append(ul);
+    }
+  }
+  const kb = $("sgKept"); kb.replaceChildren();
+  if (kept.length) {
+    kb.append(el("span", "label", "Kept"));
+    kept.forEach((x) => { const d = el("div"); d.append(el("b", null, x.title || "Kept"), el("p", "status", x.body || "")); const r = el("button", "ghost small", "Remove"); r.type = "button"; r.addEventListener("click", () => sgUpdate(x.id, { state: "no" })); d.append(r); kb.append(d); });
+  }
+  if (typeof respan === "function") respan($("suggestPanel"));
+}
+function renderNudges() {
+  const n = [], waiting = notes.filter((x) => !x.seen && !x.reply).length, open = decisions.filter((d) => !d.answer).length;
+  if (waiting) n.push(waiting + " in the Inbox: tap Update and paste it in the chat button, top right.");
+  if (open) n.push(open + " question" + (open > 1 ? "s" : "") + " waiting for you in Needs you.");
+  if (!usageNow || !usageNow.at || Date.now() - new Date(usageNow.at) > 3600000) n.push("Your usage reading is over an hour old, so it's probably higher now. Send a screenshot of the Usage screen or use the form.");
+  if (usageNow && usageNow.chat >= 70) n.push("The chat is getting long: after the update, run /compact.");
+  // Habit reminders (25 Oct): compact, archive, and watch the week.
+  let upd = 0; try { upd = +localStorage.getItem("gc-upd") || 0; } catch (e) {}
+  if (upd >= 3) n.push("Update copied " + upd + " times in this chat: run /compact, or tap New chat.");
+  const fin = allDec.filter((d) => d.answer && d.seen && !d.archived).length + allNotes.filter((x) => (x.seen || x.reply) && !x.archived).length + Math.max(0, allChat.filter((m) => !m.archived).length - 6);
+  if (fin >= 5) n.push(fin + " finished items are still on the page: View, then Archive finished. Claude then has less to read.");
+  const wk = usageNow && (usageNow.windows || []).find((x) => /week/i.test(x.label));
+  if (wk && !wk.est && new Date(wk.resetsAt) > Date.now() && wk.percentUsed / 100 > (1 - (new Date(wk.resetsAt) - Date.now()) / 604800000) + 0.1) n.push("The week is going faster than it is passing: batch changes into one message.");
+  if (modelNow && modelNow.text) n.unshift("Model: " + modelNow.text);
+  if (n.length === (modelNow && modelNow.text ? 1 : 0)) n.push("Nothing waiting. Add ideas to the Inbox as they come.");
+  $("cmdNudges").replaceChildren(...n.slice(0, 5).map((t) => el("li", null, t)));
+}
+setInterval(renderNudges, 3000); renderNudges();
+setInterval(updatePeeks, 2000); updatePeeks();
+
+// Research panel (see the .calc styles). The content lives in the research/pricing document.
+let research = null, rtab = "models", guideDoc = {}, autoDoc = {}, connOk = true;
+const calc = { price: 2.99, sales: 200, rate: 15, monthly: 1.99, subs: 50, months: 8 };
+function calcView(b) {
+  const mk = (label, key, step) => { const l = el("label", "status"); l.append(label + " "); const i = el("input"); i.type = "number"; i.min = "0"; i.step = step; i.value = calc[key]; i.inputMode = "decimal";
+    i.addEventListener("input", () => { calc[key] = Math.max(0, parseFloat(i.value) || 0); out(); }); l.append(i); return l; };
+  const rate = el("div", "seg tools");
+  [15, 30].forEach((r) => { const x = el("button", null, r + "% Apple cut"); x.type = "button"; x.setAttribute("aria-pressed", calc.rate === r);
+    x.addEventListener("click", () => { calc.rate = r; rate.querySelectorAll("button").forEach((y) => y.setAttribute("aria-pressed", y === x)); out(); }); rate.append(x); });
+  const o1 = el("div", "item"), o2 = el("div", "item");
+  const out = () => { const k = 1 - calc.rate / 100, a = calc.price * k * calc.sales, s = calc.monthly * calc.months * k * calc.subs;
+    o1.replaceChildren(el("div", "t", "One-off: about " + a.toFixed(0) + " in total"), el("div", "d", calc.sales + " sales at " + calc.price + ", after Apple's cut"));
+    o2.replaceChildren(el("div", "t", "Subscription: about " + s.toFixed(0) + " in total"), el("div", "d", calc.subs + " subscribers paying " + calc.monthly + " a month for " + calc.months + " months, after Apple's cut")); };
+  const wrap = el("div", "calc");
+  wrap.append(rate, mk("Price", "price", "0.01"), mk("Sales", "sales", "1"), mk("Monthly price", "monthly", "0.01"), mk("Subscribers", "subs", "1"), mk("Months each stays", "months", "1"), o1, o2, el("p", "status", "Currency-neutral. Before tax, tooling and refunds."));
+  out(); b.append(wrap);
+}
+function renderResearch() {
+  if (!research) { $("researchCaveat").textContent = "No research saved yet."; return; }
+  $("researchCaveat").textContent = research.caveat || "";
+  $("researchAge").textContent = research.updatedAt ? "Updated " + ago(research.updatedAt) : "";
+  const b = $("rbody"); b.replaceChildren(); b.className = rtab === "calc" ? "" : "items";
+  if (rtab === "models") (research.models || []).forEach((m) => { const c = el("div", "item"); c.append(el("div", "t", m.name), el("div", "d", "Good: " + m.good), el("div", "d", "Watch out: " + m.watch), el("div", "d", "Fit: " + m.fit)); b.append(c); });
+  else if (rtab === "costs") (research.costs || []).forEach((m) => { const c = el("div", "item"); c.append(el("div", "t", m.item), el("div", "d", m.amount), el("div", "d", m.note)); b.append(c); });
+  else if (rtab === "auto") (autoDoc.items || []).forEach((m) => { const c = el("div", "item"); c.append(el("div", "t", m.t)); (m.lines || []).forEach((x) => c.append(el("div", "d", x))); b.append(c); });
+  else if (rtab === "guide") {
+    (guideDoc.rows || []).forEach((r) => { const c = el("div", "item"); c.append(el("div", "t", r.model + " · " + r.effort + " effort"), el("div", "d", r.task), el("div", "d", r.why)); b.append(c); });
+    if ((guideDoc.rules || []).length) { const c = el("div", "item"); c.append(el("div", "t", "Habits")); guideDoc.rules.forEach((x) => c.append(el("div", "d", "• " + x))); b.append(c); }
+  } else calcView(b);
+  $("rsources").replaceChildren(...(research.sources || []).map((s) => { const li = el("li"), a = el("a", null, s.title); a.href = s.url; a.target = "_blank"; a.rel = "noopener"; li.append(a); return li; }));
+}
+document.querySelectorAll("#rtabs button").forEach((b) => b.addEventListener("click", () => {
+  rtab = b.dataset.r; document.querySelectorAll("#rtabs button").forEach((x) => x.setAttribute("aria-pressed", x === b)); renderResearch();
+}));
+
+function readOnly(e) {
+  if (e && e.code === "invalid_argument") { canWrite = false; $("noteStatus").textContent = "This view can't save changes."; renderDecisions(); }
+  else $("noteStatus").textContent = "Couldn't save just now. Try again in a moment.";
+}
+
+(async () => {
+  db = window.claude ? await window.claude.use("db") : null;
+  if (!db) {
+    $("headline").textContent = "Open this page in Claude to see the live board and answer questions.";
+    $("sendNote").disabled = true; $("pushIpad").disabled = true; $("chatSend").disabled = true; renderDecisions(); return;
+  }
+  const user = await window.claude.use("user");
+  const can = user ? await user.can("data.write") : null;
+  if (can === false) { canWrite = false; $("sendNote").disabled = true; $("pushIpad").disabled = true; $("chatSend").disabled = true; $("noteStatus").textContent = "View only."; }
+  restorePrefs(); // runs alongside the rest of start-up, never holds it up
+  const err = () => { connOk = false; $("noteStatus").textContent = "Live updates paused. Reload to reconnect."; };
+  db.doc("meta/status").onSnapshot((s) => renderMeta(s.exists ? s.data() : null), err);
+  db.doc("meta/usage").onSnapshot((s) => { usageNow = s.exists ? s.data() : null; renderUsage(usageNow); checkPresence(); }, err);
+  setInterval(() => renderUsage(usageNow), 60000);
+  db.collection("items").onSnapshot((s) => { const v = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (!changed("items", v)) return; items = v; renderBoard(); renderUpdates(); }, err);
+  db.collection("decisions").onSnapshot((s) => { const v = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (!changed("decisions", v)) return; allDec = v; decisions = visArch(v); renderDecisions(); renderUpdates(); }, err);
+  db.collection("shots").onSnapshot((s) => { const v = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (!changed("shots", v)) return; shots = v; renderMood(); }, err);
+  db.collection("chat").onSnapshot((s) => { const v = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (!changed("chat", v)) return; allChat = v; chat = visArch(v); renderChat(); renderUpdates(); }, err);
+  db.collection("jobs").onSnapshot((s) => { jobs = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderJobs(); renderUpdates(); }, err);
+  comments = await window.claude.use("comments");
+  sampler = await window.claude.use("sample");
+  $("tidyBtn").hidden = !sampler;
+  checkPresence(); setInterval(checkPresence, 30000);
+  db.collection("threads").onSnapshot((s) => { const v = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (!changed("threads", v)) return; threads = v; renderThreads(); }, err);
+  db.collection("builds").onSnapshot((s) => { builds = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderHistory(); renderUpdates(); }, err);
+  db.doc("requests/ipad").onSnapshot((s) => renderPush(s.exists ? s.data() : null), err);
+  db.collection("suggestions").onSnapshot((s) => { sugs = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderSuggest(); }, err);
+  db.doc("meta/reminders").onSnapshot((s) => { renderReminders(s.exists ? s.data() : null); }, err);
+  db.collection("notes").onSnapshot((s) => { allNotes = s.docs.map((d) => ({ id: d.id, ...d.data() })); notes = visArch(allNotes); renderNotes(); }, err);
+  db.doc("research/pricing").onSnapshot((s) => { const v = s.exists ? s.data() : null; if (!changed("research", v)) return; research = v; renderResearch(); }, err);
+  db.doc("meta/brief").onSnapshot((s) => {
+    const b = s.exists ? s.data() : null, box = $("briefBox"); box.hidden = !b || !(b.items || []).length; if (box.hidden) return;
+    const mark = { done: "✓ ", check: "◐ ", waiting: "○ ", standing: "• " };
+    $("briefTitle").textContent = (b.title || "Brief") + " · ✓ done, ◐ check it, ○ waiting";
+    $("briefList").replaceChildren(...b.items.map((it) => el("li", null, (mark[it.state] || "• ") + it.text)));
+  }, err);
+  db.doc("meta/model").onSnapshot((s) => { modelNow = s.exists ? s.data() : null; renderNudges(); }, err);
+  db.doc("research/automation").onSnapshot((s) => { autoDoc = s.exists ? s.data() : {}; renderResearch(); }, err);
+  db.doc("research/guide").onSnapshot((s) => { guideDoc = s.exists ? s.data() : {}; renderResearch(); }, err);
+})();
+</script>
+
+</body></html>
