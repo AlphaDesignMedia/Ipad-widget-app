@@ -1071,12 +1071,14 @@ struct Shimmer<S: Shape>: ViewModifier {
         content.overlay {
             if !reduceMotion && strength > 0 {
                 let wash: Color = colorScheme == .dark ? .white : .black
+                // Read here, outside the animator's closure, which runs off the main actor.
+                let peak = (colorScheme == .dark ? 0.32 : 0.12) * strength
                 Color.clear
                     .keyframeAnimator(initialValue: 0.0, trigger: trigger) { view, x in
                         view.overlay {
                             LinearGradient(stops: [
                                 .init(color: wash.opacity(0), location: 0),
-                                .init(color: wash.opacity((colorScheme == .dark ? 0.32 : 0.12) * strength), location: 0.5),
+                                .init(color: wash.opacity(peak), location: 0.5),
                                 .init(color: wash.opacity(0), location: 1),
                             ], startPoint: UnitPoint(x: x * 2.2 - 1.6, y: 0.2), endPoint: UnitPoint(x: x * 2.2 - 0.6, y: 0.8))
                             // Strongest mid-sweep, nothing at either end.
@@ -1503,5 +1505,26 @@ private extension String {
     /// Roughly how long this reads in a semibold caption of `size`, for laying it out turned.
     func size(withFont size: CGFloat) -> CGFloat {
         (self as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: .semibold)]).width
+    }
+}
+
+/// A soft wash behind the status bar (owner, dashboard 22 Oct 2026: the clock and battery were
+/// faint on pale backdrops). Dark behind the white status text in Dark, light behind the black
+/// text in Light, fading out just below it, so they read on any backdrop.
+struct StatusScrim: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                LinearGradient(colors: [(colorScheme == .dark ? Color.black : .white).opacity(0.42), .clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: geometry.safeAreaInsets.top + 28)
+                Spacer(minLength: 0)
+            }
+            .ignoresSafeArea(edges: .top)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

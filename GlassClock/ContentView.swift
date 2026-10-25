@@ -154,8 +154,6 @@ struct ContentView: View {
     @State private var switchSettled = false
     @Namespace private var groupSelection
     @AppStorage(Tweak.frost.key) private var tweakFrost = Tweak.frost.standard
-    @AppStorage(Tweak.focus.key) private var tweakFocus = Tweak.focus.standard
-    @AppStorage(Tweak.rim.key) private var tweakRim = Tweak.rim.standard
     @AppStorage(Tweak.cardPadding.key) private var tweakCardPadding = Tweak.cardPadding.standard
     /// Which panel is being used: it comes forward and the other steps back a little, like the
     /// cards in the settings (owner direction, 2026-10-21: the focus effect everywhere).
@@ -466,6 +464,7 @@ struct ContentView: View {
                 ZStack {
                     backdropView
                         .ignoresSafeArea()
+                    StatusScrim()
                     if arrangement == .previewOnly {
                         previewStage()
                     } else {
@@ -530,6 +529,7 @@ struct ContentView: View {
                     ZStack {
                         AnyView(backdropView)
                             .ignoresSafeArea()
+                        StatusScrim()
                         AnyView(previewStage(showsChrome: false))
                             .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                             .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
@@ -1213,28 +1213,6 @@ struct ContentView: View {
         .onDisappear { if railBubble == nil { stepWidgetAside(from: nil) } }
         .transition(.scale(scale: 0.94, anchor: railEdge == .top ? .top : railEdge == .bottom ? .bottom : railEdge == .leading ? .leading : .trailing).combined(with: .opacity))
         .id(section)
-    }
-
-    /// A little glass tab on the edge of the preview, where a tucked-away panel lives. Tap it,
-    /// or swipe in from that side.
-    private func edgeHandle(_ label: String, action: @escaping () -> Void) -> some View {
-        Capsule()
-            .fill(.clear)
-            .frame(width: 6, height: 64)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
-            .appGlass(.capsule, interactive: true)
-            .onTapGesture(perform: action)
-            // Or grab it and pull it inwards, like Slide Over (owner, 22 Oct 2026).
-            .gesture(DragGesture(minimumDistance: 8).onEnded { drag in
-                if abs(drag.predictedEndTranslation.width) > 50 || abs(drag.translation.width) > 30 { action() }
-            })
-            .padding(.horizontal, 6)
-            .transition(.opacity.combined(with: .scale(scale: 0.6)))
-            .accessibilityLabel(label)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { action() }
     }
 
     /// Which side each panel is on, and which is on top when they share a side.
