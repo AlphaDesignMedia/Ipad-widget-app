@@ -1,38 +1,31 @@
 # Glass Clock — handoff (paste into a new chat to carry on)
 
-_Updated 25 Oct 2026, 3:45 pm_
+_Updated 25 Oct 2026, 5:45 pm_
 
-**On the iPad:** fbd28ed (tag `ipad-25oct-1545`).
+**Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** e94dfe9.
 
-**Done today:**
-- Hold and drag the folded rail to any edge. It lies flat at the top or bottom (portrait docking), feathers into its new place, and keeps its side when the iPad turns.
-- Rail heading taps work again.
-- The screen around an open rail card holds still; a tap there closes the card. In portrait the card is shorter, so it clears the other menus.
-- Rail card fades to clear at the top and bottom like the side menu (the white feather is gone). Above a bottom rail it fades out before the rail. Owner: looks really nice.
-- The widget steps aside for a rail card with the same spring, stays on screen, and comes back when the card closes. Going from one group to the next it now stays put (it wobbled before).
-- **Crash:** iOS saved no crash log for today's crash (newest Glass Clock log is 21 Oct). Likely cause found and fixed: the widget worked out its step aside from where it had already stepped to, so as the rail card opened it could flip back and forth every frame, a loop that can hang or crash SwiftUI. It now works from its resting place. The app also now keeps iOS's crash and hang reports itself (MetricKit, in its Documents/Diagnostics), so the next one leaves a report Claude can copy off the iPad.
-- **Groups landing:** dropped near the top or bottom of the settings (or just past them), the groups lie flat above or below them on that side, rather than going to the middle of the bottom. Dropping in the middle of the screen's bottom or top edge still lays them along it. While carrying, the outline is the pill's own shape, where it will land.
-- **Groups lying flat use the new rail style:** along the top or bottom, or above or below the settings, the groups are one glass bar with icons and names (icons only when names don't fit, or when names are off in App > Panels), like the folded rail. The old pill of circles is gone. The group in use keeps its glossy bead.
-- **Light-mode text shadow:** Automatic shadow follows the text colour: dark text gets a soft light glow, light text a dark shadow, in the app and the widget. A shadow colour you pick stays.
-
-- **Moods are back** (they were lost when this branch went back to the 22 Oct 4:15 pm build), rebuilt lighter in GlassClock/Moods.swift: still pictures, and the row only redraws when the style or backdrop changes.
-- **Light backdrops:** dark gradients and mesh (Midnight, Graphite, Ocean) turn pastel in Light rather than getting a grey white wash.
+**Done this session:**
+- **Moods are back**, rebuilt lighter in GlassClock/Moods.swift: still pictures at 10:09, and the row only redraws when the style or backdrop changes. No "try a font" hint on every tap.
+- **Light backdrops:** dark gradients and mesh (Midnight, Graphite, Ocean) turn pastel in Light (`Color.lifted` in Workspace.swift) rather than a grey wash.
 - From main: status-bar wash and the Extra Large blank-screen fix. Code tidied for the developer review (no warnings, unused code removed).
+- Test runs: GLASSCLOCK_STRESS_MOODS, GLASSCLOCK_STRESS_DRAG, GLASSCLOCK_NO_MOODS (StyleGallery.swift).
+
+**What we found:**
+- **Moods feel slow** because ContentView (about 4,200 lines) redraws in full on every change, not because of the Moods. Drag test: 166 of 224 frames late with Moods, 172 of 230 without. The simulator draws glass in software, so measure speed on the iPad (`run-on-ipad.sh --meter`).
+- **Crashes:** no evidence. The MetricKit files from today are empty, and there are no .ips or jetsam logs since 21 Oct. It may be freezing rather than crashing. Waiting on the owner (dashboard decision `crash-kind`): does the app vanish to the Home Screen, or freeze?
+- **For the developer review:** the huge ContentView, the unused GlassClock/Rebuild folder (1,675 lines), `main` and `from-415` have split apart, about 300 MB of images in git, no tests, 21 uses of `AnyView`, and the backdrop drawn twice.
+
+**Bug reports from the owner:** AirDrop screenshots to the Mac and drag them into the chat with one line each. Claude can't watch video.
 
 **Roles:** the owner is the designer and creative lead (tweaks the design system by hand in Figma). Claude is the development agent: sets the build order, suggests proactively, builds, and keeps this file and the dashboard current.
 
 **Priority order (Claude's call, owner can reorder):**
-1. **Stability:** if it crashes again, copy Documents/Diagnostics off the iPad (command in GlassClock/CrashReports.swift) and fix the cause. A crash beats any new feature.
-2. **Check on the iPad (owner):** rail card open and switch groups (widget should step aside once, no flicker); Light mode with dark text and Automatic shadow (soft light glow); carry the groups to the bottom of the settings and watch the outline.
-   Also: drop the groups along the top and check the new rail-style bar.
-3. **Rail card wider** so it sits with the rest of the layout. Small.
-4. **Grab the rail card and move it aside,** as in Classic. Medium; the signature interaction.
-5. **Flick through group cards** with an elastic snap. Medium.
-6. **Light panels: feathered shadows and readable text in full Glass.** Research first (black feather looks blurry, white is a known don't), then one build.
-7. **Beta testing:** decide on the paid Apple Developer Program (about $99 a year). Then TestFlight, which sends crash reports automatically, plus MetricKit in the app.
-8. **Tinted mode:** cards by the folded left menu lose their glass.
-9. **Anchor the group card to the widget,** cards on either side.
-10. **Phone-size layout,** once the iPad settles.
+1. **Crash check:** get the owner's answer (vanish or freeze), copy Documents/Diagnostics off the iPad (command in CrashReports.swift), and fix the cause.
+2. **Stable build:** tag today's branch once it holds up. Then bring earlier features back one build at a time, each tested before it's tagged stable.
+3. **Figma design rules:** a named list of every Design Tweaks value (shadow, radii, spacing) for Figma Variables. Then the app reads the exported token JSON, so new features follow the owner's rules.
+4. **Speed:** split ContentView so a change redraws only its own part. Decide with the developer friend, and decide whether to finish or delete GlassClock/Rebuild.
+5. **Owner ideas (IDEAS.md):** a Light-mode glow in the owner's favourite colour, asked for on first open.
+6. The older list (rail card wider, grab the rail card, flick through cards, light panels, TestFlight, phone layout) waits until the build is stable.
 
 **Parked:** the rail holds still while the iPad turns (costs too much for now). Dashboard split into small files (owner said yes; big one-off job, do it with the next dashboard Build).
 
@@ -82,4 +75,4 @@ That prompt gives the assistant project context, asks for a manageable step, and
 
 **Small learning loop:** ask what the next step is → make or review one change → check it → note what you learned. Experiments that do not work are still useful information; keep the next action small and return to the handoff whenever the thread gets crowded.
 
-**Next up:** 3 (rail card wider), then 4.
+**Next up:** 1 (crash check), then 3 (Figma value list). Update the dashboard once, at the end of each chunk.
