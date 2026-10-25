@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct GlassClockApp: App {
+    init() { CrashReports.shared.start() }
+
     var body: some Scene {
         WindowGroup {
             #if DEBUG

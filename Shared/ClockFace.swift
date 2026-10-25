@@ -367,9 +367,9 @@ private struct LightLayer: View {
         let u = artwork.unit
         ZStack {
             if style.shadow {
-                // Automatic is a soft white in Light: a dark shadow under the digits on a pale
-                // card read as blurry text (owner, 25 Oct 2026). Black in Dark, as before.
-                shape.fill(style.shadowColor == .auto && colorScheme == .light ? Color.white : style.resolvedShadowColor)
+                // Automatic follows the text: a soft light glow under dark text (see
+                // ClockStyle.resolvedShadowColor).
+                shape.fill(style.resolvedShadowColor(darkScheme: colorScheme == .dark))
                     .blur(radius: style.shadowBlur(unit: u))
                     .offset(style.shadowOffset(unit: u))
                     .opacity(style.shadowOpacity)

@@ -138,6 +138,15 @@ struct ClockColor: RawRepresentable, Codable, Hashable, Identifiable {
     /// Whether this came from the colour wheel rather than the named swatches.
     var isCustom: Bool { rawValue.hasPrefix("#") }
 
+    /// Whether it reads as a dark colour (by its brightness to the eye); nil for Automatic,
+    /// which is dark or light with the Home Screen.
+    var isDark: Bool? {
+        guard self != .auto else { return nil }
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a) else { return false }
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.4
+    }
+
     /// A name for VoiceOver.
     var name: String { isCustom ? "Custom colour" : rawValue.capitalized }
 
@@ -461,7 +470,14 @@ struct ClockStyle: Codable, Equatable {
     }
 
     var resolvedGlowColor: Color { glowColor == .auto ? color.color : glowColor.color }
-    var resolvedShadowColor: Color { shadowColor == .auto ? .black : shadowColor.color }
+    /// Automatic follows the text: dark text gets a soft light glow under it, light text a
+    /// dark shadow (owner, 25 Oct 2026: black under black text in Light read as blurry text).
+    /// A colour picked for the shadow stays. `darkScheme` is how the Automatic text colour shows.
+    func resolvedShadowColor(darkScheme: Bool) -> Color {
+        guard shadowColor == .auto else { return shadowColor.color }
+        let darkText = color.isDark ?? !darkScheme
+        return darkText ? .white : .black
+    }
 
     // The shadow is held to a soft, natural range so every combination looks good (owner
     // feedback, 2026-10-20): it always keeps some blur, falls a modest distance, softens as it

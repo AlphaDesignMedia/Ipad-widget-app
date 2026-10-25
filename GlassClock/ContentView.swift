@@ -2764,7 +2764,11 @@ struct ContentView: View {
     /// (owner, 25 Oct 2026: "you want to see the changes you make"). Nil slides it back.
     private func stepWidgetAside(from card: CGRect?) {
         var nudge = CGSize.zero
-        if let card, widgetRect != .zero, card.intersects(widgetRect) {
+        // Worked out from where the widget rests, not where it has stepped to: measured after
+        // the step, the card no longer covered it, so it came back, was covered and stepped
+        // out again on every frame of the card's opening, a loop that could hang the app.
+        let widgetRect = widgetRect.offsetBy(dx: -widgetNudge.width, dy: -widgetNudge.height)
+        if let card, self.widgetRect != .zero, card.intersects(widgetRect) {
             let gap = Space.medium
             switch railEdge {
             case .bottom: nudge.height = card.minY - gap - widgetRect.maxY
