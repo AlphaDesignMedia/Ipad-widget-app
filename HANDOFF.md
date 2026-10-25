@@ -2,21 +2,27 @@
 
 _Updated 25 Oct 2026_
 
-**On the iPad:** d39f8ee (tag `ipad-25oct-1442`): drag the folded rail to any edge, and it keeps its side when the iPad turns.
+**On the iPad:** 19d3b17 (tag `ipad-25oct-1451`).
 
-
-**New in this build:** hold the folded rail and drag it to any edge. It lies flat at the top or bottom (portrait docking), and feathers and fades into its new place. Not yet tried by you.
+**Done today:**
+- Hold and drag the folded rail to any edge. It lies flat at the top or bottom (portrait docking), feathers into its new place, and keeps its side when the iPad turns.
+- Rail heading taps work again (42fd8c7).
+- Rail cards have a soft feather under them. The screen around an open card holds still, so you can't drag the wallpaper by accident, and a tap there closes the card. In portrait the card is shorter, so it clears the other menus.
 
 **Ideas (💤 in IDEAS.md):**
-- Tinted mode: cards by the collapsed left menu lose their glass. Fix it to match Glass mode; the backed look could become an accessibility setting
-- Anchor the group card to the clock widget (above, below, sides)
-- Flick through group cards with an elastic snap (tall cards scroll first)
-- Proper portrait layout for Panels, like Classic: drag the rail anywhere, dock it flat under the widget; suits iPhone too
-- Rail truly holds still while the iPad turns. **Parked**: costs too much for now. Intent: make turning the iPad to read the sideways names feel designed for you
+- Widget steps aside when a rail card pops out (next up)
+- Light mode: shadows still slightly off (send a screenshot)
+- Phone-size layout: parked until the iPad is settled
+- Tinted mode: cards by the collapsed left menu lose their glass. The backed look could become an accessibility setting
+- Anchor the group card to the clock widget
+- Flick through group cards with an elastic snap
+- Rail holds still while the iPad turns. **Parked**: costs too much for now
 
 **Decisions:**
-- Build what can be shown quickest first
-- The owner leads the creative direction and tweaks the design system by hand in Figma
+- Build what can be shown quickest first; park credit-heavy ideas with the reason
+- The owner is the creative lead and tweaks the design system by hand in Figma
+- "Suggest a quick fix" means go ahead and build it
+- One batched message of feedback, then one build, then a break
 - Dashboard updates come from this file, on request
 
-**Next up (suggested):** try the draggable rail on the iPad, then card flicking.
+**Next up (suggested):** check the feather and the portrait overlap on the iPad (send a screenshot if menus still overlap), then the widget stepping aside.
