@@ -1,10 +1,11 @@
 # Glass Clock — handoff (paste into a new chat to carry on)
 
-_Updated 25 Oct 2026, 5:45 pm_
+_Updated 25 Oct 2026, 6:00 pm_
 
 **Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** stable-ipad-25oct-1755.
 
 **Done this session:**
+- **Freeze fix + stable build** `stable-ipad-25oct-1755` (on the iPad, pushed). The `on-ipad` tag still points at e94dfe9: moving it needs a force-push, which the safety check blocks, so ask the owner first.
 - **Moods are back**, rebuilt lighter in GlassClock/Moods.swift: still pictures at 10:09, and the row only redraws when the style or backdrop changes. No "try a font" hint on every tap.
 - **Light backdrops:** dark gradients and mesh (Midnight, Graphite, Ocean) turn pastel in Light (`Color.lifted` in Workspace.swift) rather than a grey wash.
 - From main: status-bar wash and the Extra Large blank-screen fix. Code tidied for the developer review (no warnings, unused code removed).
@@ -21,11 +22,13 @@ _Updated 25 Oct 2026, 5:45 pm_
 
 **Priority order (Claude's call, owner can reorder):**
 1. **Crash check:** done (see above). If it freezes again, pull the newest SpringBoard/GlassClock .ips the same way.
-2. **Stable build:** tag today's branch once it holds up. Then bring earlier features back one build at a time, each tested before it's tagged stable.
+2. **Stable build:** tagged `stable-ipad-25oct-1755`. If the owner reports no freezes, bring earlier features back one build at a time, each tested before it's tagged stable.
 3. **Figma design rules:** a named list of every Design Tweaks value (shadow, radii, spacing) for Figma Variables. Then the app reads the exported token JSON, so new features follow the owner's rules.
 4. **Speed:** split ContentView so a change redraws only its own part. Decide with the developer friend, and decide whether to finish or delete GlassClock/Rebuild.
 5. **Owner ideas (IDEAS.md):** a Light-mode glow in the owner's favourite colour, asked for on first open.
 6. The older list (rail card wider, grab the rail card, flick through cards, light panels, TestFlight, phone layout) waits until the build is stable.
+
+**Dashboard widget:** `Scripts/publish-status.sh` is only on the `glass-dashboard` branch, so the widget's status gist wasn't refreshed this session.
 
 **Parked:** the rail holds still while the iPad turns (costs too much for now). Dashboard split into small files (owner said yes; big one-off job, do it with the next dashboard Build).
 
