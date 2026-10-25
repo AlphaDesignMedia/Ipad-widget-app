@@ -369,10 +369,11 @@ private struct LightLayer: View {
             if style.shadow {
                 // Automatic follows the text: a soft light glow under dark text (see
                 // ClockStyle.resolvedShadowColor).
+                let soften = style.shadowSoftening(darkScheme: colorScheme == .dark)
                 shape.fill(style.resolvedShadowColor(darkScheme: colorScheme == .dark))
-                    .blur(radius: style.shadowBlur(unit: u))
+                    .blur(radius: style.shadowBlur(unit: u) * soften)
                     .offset(style.shadowOffset(unit: u))
-                    .opacity(style.shadowOpacity)
+                    .opacity(style.shadowOpacity * soften)
             }
             if style.glow {
                 ZStack {

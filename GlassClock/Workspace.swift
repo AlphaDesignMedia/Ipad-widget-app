@@ -206,8 +206,10 @@ struct BackdropFill: View {
     var homeScreen: HomeScreenStyle
     /// Light: gradients and mesh are lifted to pastels, so the deep ones (Midnight, Graphite,
     /// Ocean) don't clash with the pale panels (owner, 25 Oct 2026). A flat white wash over
-    /// them was tried first and turned the dark ones a muddy grey.
-    var lifted = false
+    /// them was tried first and turned the dark ones a muddy grey. Dark mirrors it: the pale
+    /// ones sink to deep tones of the same colour (owner, 25 Oct 2026: pastels and deeps, like
+    /// a light and a dark tone of one colour).
+    var tone = BackdropTone.natural
     var photo: UIImage? = nil
     var custom: CustomBackdrop? = nil
 
@@ -237,7 +239,18 @@ struct BackdropFill: View {
         }
     }
 
-    private func paint(_ colors: [Color]) -> [Color] { lifted ? colors.map { $0.lifted() } : colors }
+    private func paint(_ colors: [Color]) -> [Color] {
+        switch tone {
+        case .natural: colors
+        case .pastel: colors.map { $0.lifted() }
+        case .deep: colors.map { $0.deepened() }
+        }
+    }
+}
+
+/// How the gradient and mesh backdrops are toned to suit Light or Dark.
+enum BackdropTone: Equatable {
+    case natural, pastel, deep
 }
 
 extension Color {
@@ -254,6 +267,19 @@ extension Color {
         let t = max(0, (brightness - luminance()) / (1 - luminance()))
         rgb = rgb.map { $0 + (1 - $0) * t }
         return Color(Color.Resolved(colorSpace: .sRGBLinear, red: rgb[0], green: rgb[1], blue: rgb[2], opacity: c.opacity))
+    }
+}
+
+extension Color {
+    /// Darkened to at most `brightness` (linear luminance), keeping the hue, so pale colours
+    /// turn deep and dark ones are left as they are. The mirror of `lifted`.
+    func deepened(to brightness: Float = 0.08) -> Color {
+        let c = resolve(in: EnvironmentValues())
+        let luminance = 0.2126 * c.linearRed + 0.7152 * c.linearGreen + 0.0722 * c.linearBlue
+        guard luminance > brightness else { return self }
+        let gain = brightness / luminance
+        return Color(Color.Resolved(colorSpace: .sRGBLinear, red: c.linearRed * gain, green: c.linearGreen * gain,
+                                    blue: c.linearBlue * gain, opacity: c.opacity))
     }
 }
 

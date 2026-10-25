@@ -12,12 +12,12 @@ struct MoodRow: View, Equatable {
     var locked: Set<StylePart>
     var backdrop: PreviewBackdrop
     var homeScreen: HomeScreenStyle
-    var liftsBackdrops: Bool
+    var tone: BackdropTone
     var apply: (ClockStyle, PreviewBackdrop) -> Void
 
     nonisolated static func == (a: Self, b: Self) -> Bool {
         a.style == b.style && a.locked == b.locked && a.backdrop == b.backdrop
-            && a.homeScreen == b.homeScreen && a.liftsBackdrops == b.liftsBackdrops
+            && a.homeScreen == b.homeScreen && a.tone == b.tone
     }
 
     private static let scenes: [String: PreviewBackdrop] = [
@@ -76,7 +76,7 @@ struct MoodRow: View, Equatable {
     /// The backdrop with a small widget in that style on it, drawn at full size and scaled down
     /// so its proportions match the real widget.
     private func picture(_ mood: ClockStyle, on scene: PreviewBackdrop) -> some View {
-        BackdropFill(backdrop: scene, homeScreen: homeScreen, lifted: liftsBackdrops)
+        BackdropFill(backdrop: scene, homeScreen: homeScreen, tone: tone)
             .frame(width: 104, height: 104)
             .overlay {
                 ClockFace(date: Self.shownTime, style: mood, simulatedAccent: homeScreen.accent,

@@ -62,9 +62,12 @@ struct GuidedTour: View {
             let area = geometry.size
             let hole = targets[step].map { $0.insetBy(dx: -12, dy: -12) }
             ZStack(alignment: .topLeading) {
-                SpotlightShape(hole: hole ?? CGRect(x: area.width / 2, y: area.height / 2, width: 0, height: 0))
+                let shape = SpotlightShape(hole: hole ?? CGRect(x: area.width / 2, y: area.height / 2, width: 0, height: 0))
+                // The lit part stays live, so you can try each movement as it's shown (owner,
+                // 25 Oct 2026); a tap on the dimmed part moves on.
+                shape
                     .fill(.black.opacity(0.42), style: FillStyle(eoFill: true))
-                    .contentShape(.rect)
+                    .contentShape(shape, eoFill: true)
                     .onTapGesture(perform: next)
                 if let hole {
                     RoundedRectangle(cornerRadius: 30, style: .continuous)
@@ -95,6 +98,11 @@ struct GuidedTour: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if step != .welcome {
+                Label("Go ahead and try it: the lit part works.", systemImage: "hand.point.up.left")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.tint)
+            }
             HStack(spacing: 6) {
                 ForEach(GuideStep.allCases, id: \.self) { dot in
                     Capsule()
@@ -110,7 +118,7 @@ struct GuidedTour: View {
                 .prominentButton()
                 .buttonBorderShape(.capsule)
                 HStack {
-                    Button("Skip", action: finish)
+                    Button("I'll explore myself", action: finish)
                     Spacer()
                     Button("Keep it simple", action: keepSimple)
                 }

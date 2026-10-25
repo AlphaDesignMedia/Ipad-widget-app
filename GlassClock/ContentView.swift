@@ -310,6 +310,12 @@ struct ContentView: View {
     /// True for the moment a backdrop picked from the menu slides in, so the blurred stage
     /// behind it is only drawn while it can be seen.
     @State private var backdropSettling = false
+    /// A mood changes the backdrop with a plain cross-fade, no sheet and no blurred stage: quick
+    /// taps between moods stacked several full-screen transitions at once and stalled the iPad
+    /// (owner, 25 Oct 2026). Taps that land while one settles wait, and only the last is drawn.
+    @State private var quietBackdrop = false
+    @State private var moodSettling = false
+    @State private var pendingMood: (style: ClockStyle, scene: PreviewBackdrop)?
     /// How far a finger travels to pull a backdrop all the way in: the window's height, so the
     /// backdrops move exactly with the finger.
     private var pullLength: CGFloat { max(400, windowHeight) }
@@ -1894,6 +1900,15 @@ struct ContentView: View {
     /// The panel arrangements in a menu, for anyone who'd rather pick than drag.
     private var arrangeMenu: some View {
         Menu {
+            // Ready-made layouts (owner, 25 Oct 2026: a few more options now there's more UI).
+            Section {
+                Button("Best for This Window", systemImage: "wand.and.sparkles", action: arrangeAutomatically)
+                Button("Groups Along the Bottom", systemImage: "rectangle.bottomthird.inset.filled") { arrangeAlongBottom() }
+                Button("Settings Only", systemImage: "sidebar.right") {
+                    arrange(groupsRight: false, settingsLeft: false)
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.4)) { showsSidebar = false }
+                }
+            }
             Button("Groups Left, Settings Right", systemImage: "rectangle.split.3x1") { arrange(groupsRight: false, settingsLeft: false) }
             Button("Settings Left, Groups Right", systemImage: "arrow.left.arrow.right") { arrange(groupsRight: true, settingsLeft: true) }
             Button("Both on the Left", systemImage: "rectangle.lefthalf.inset.filled") { arrange(groupsRight: false, settingsLeft: true) }
@@ -1909,8 +1924,29 @@ struct ContentView: View {
             settingsLeading = settingsLeft
             groupsBelow = false
             groupsAttachment = .none
+            // Off the top or bottom edge too, or a pick from the menu left the pill lying there.
+            groupsAlongBottom = false
+            groupsAlongTop = false
             showsSidebar = true
             showsInspector = true
+        }
+    }
+
+    /// Settings on the right with the groups lying along the bottom, leaving the widget the
+    /// most room in a narrow window.
+    private func arrangeAlongBottom() {
+        arrange(groupsRight: false, settingsLeft: false)
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+            groupsAlongBottom = true
+        }
+    }
+
+    /// Side by side when the window is wide, the groups along the bottom when it isn't.
+    private func arrangeAutomatically() {
+        if windowWidth >= 1100 {
+            arrange(groupsRight: false, settingsLeft: false)
+        } else {
+            arrangeAlongBottom()
         }
     }
 
@@ -2992,7 +3028,7 @@ struct ContentView: View {
             // of the backdrop itself, so there's never a hard black edge. Only while a backdrop
             // moves: a full-screen blur left under a still backdrop kept the GPU busy for
             // nothing, and the iPad froze with Glass Clock open (SpringBoard hang, 25 Oct 2026).
-            if pulledBackdrop != nil || backdropSettling {
+            if pulledBackdrop != nil || (backdropSettling && !quietBackdrop) {
                 backdropFill(backdrop)
                     .blur(radius: 40)
                     .scaleEffect(1.2)
@@ -3016,10 +3052,10 @@ struct ContentView: View {
                 // (which keeps its last value while it animates away) stays on top and lifts off
                 // like a sheet, rather than sliding unseen underneath.
                 .zIndex(-ProcessInfo.processInfo.systemUptime)
-                .transition(reduceMotion ? AnyTransition.opacity
+                .transition(reduceMotion || quietBackdrop ? AnyTransition.opacity
                             : AnyTransition(GlassSheetTransition(upward: backdropTravel == .bottom)))
         }
-        .animation(.smooth(duration: 0.7), value: backdrop)
+        .animation(quietBackdrop ? .easeOut(duration: 0.3) : .smooth(duration: 0.7), value: backdrop)
         .clipped()
         .onChange(of: backdrop) { backdropSettling = true }
         .task(id: backdrop) {
@@ -3150,13 +3186,14 @@ struct ContentView: View {
     /// Plain is white or black, so the card looks as it will on a plain Home Screen; Clear and
     /// Tinted need a wallpaper for their white content to show up.
     private func backdropFill(_ backdrop: PreviewBackdrop) -> some View {
-        BackdropFill(backdrop: backdrop, homeScreen: homeScreen, lifted: liftsBackdrops, photo: backdropPhoto,
+        BackdropFill(backdrop: backdrop, homeScreen: homeScreen, tone: backdropTone, photo: backdropPhoto,
                      custom: backdrop == .custom ? customBackdrop.wrappedValue : nil)
     }
 
-    /// Gradient and mesh backdrops turn pastel in Light (see `BackdropFill`).
-    private var liftsBackdrops: Bool {
-        (appColorScheme ?? systemColorScheme) == .light && homeScreen.accent == nil
+    /// Gradient and mesh backdrops turn pastel in Light and deep in Dark (see `BackdropFill`).
+    private var backdropTone: BackdropTone {
+        guard homeScreen.accent == nil else { return .natural }
+        return (appColorScheme ?? systemColorScheme) == .light ? .pastel : .deep
     }
 
     /// A rounded piece of glass for a preview control (glass is for the controls layer, HIG: Materials).
@@ -3189,9 +3226,15 @@ struct ContentView: View {
     /// feedback, 2026-10-21: consistency).
     @ViewBuilder
     private func bubbleBacking(_ shape: some Shape) -> some View {
-        // Nothing: the small pieces are pure Liquid Glass, like the text-size bubble, which
-        // keeps its content readable by itself (owner, 22 Oct 2026).
-        EmptyView()
+        // Otherwise pure Liquid Glass, like the text-size bubble (owner, 22 Oct 2026). Over the
+        // pastel backdrops in Light, clear glass looked blown out, so it gets a faint white body
+        // and a hairline edge there: no blur, so it costs nothing (owner, 25 Oct 2026).
+        if controlScheme == .light {
+            ZStack {
+                shape.fill(.white.opacity(0.4))
+                shape.stroke(.black.opacity(0.1), lineWidth: 0.5)
+            }
+        }
     }
 
     /// Under the Home Screen picker: a question until the person says which style they use,
@@ -3561,8 +3604,11 @@ struct ContentView: View {
             .padding(.vertical, 4)
 
             groupLabel("Moods")
+            Text("Experimental: Moods are still being tuned, so they may feel a little slow.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             if !StressTest.noMoods { MoodRow(style: style, locked: lockedParts, backdrop: backdrop, homeScreen: homeScreen,
-                    liftsBackdrops: liftsBackdrops, apply: applyMood)
+                    tone: backdropTone, apply: applyMood)
             .equatable() }
 
             lockChips
@@ -3762,8 +3808,21 @@ struct ContentView: View {
     private func applyMood(_ mood: ClockStyle, on scene: PreviewBackdrop) {
         // No "try a font" hint here: it popped up under the picker on every tap and pushed the
         // preview about, and a mood has already chosen the font.
-        withAnimation(reduceMotion ? nil : .smooth) { style = mood }
-        withAnimation(reduceMotion ? nil : .smooth(duration: 0.55)) { backdrop = scene }
+        guard !moodSettling else { pendingMood = (mood, scene); return }
+        moodSettling = true
+        quietBackdrop = true
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { style = mood }
+        backdrop = scene
+        Task {
+            try? await Task.sleep(for: .seconds(0.45))
+            moodSettling = false
+            if let next = pendingMood {
+                pendingMood = nil
+                applyMood(next.style, on: next.scene)
+            } else {
+                quietBackdrop = false
+            }
+        }
     }
 
     /// Applies a preset, leaving locked parts alone.

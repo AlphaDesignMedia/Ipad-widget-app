@@ -479,6 +479,13 @@ struct ClockStyle: Codable, Equatable {
         return darkText ? .white : .black
     }
 
+    /// The light glow Automatic puts under dark text is kept tighter and fainter than a shadow,
+    /// so the digits stay crisp rather than hazy (owner, 25 Oct 2026: "a tiny bit more subtle").
+    /// Multiplies the blur and the strength.
+    func shadowSoftening(darkScheme: Bool) -> Double {
+        shadowColor == .auto && (color.isDark ?? !darkScheme) ? 0.6 : 1
+    }
+
     // The shadow is held to a soft, natural range so every combination looks good (owner
     // feedback, 2026-10-20): it always keeps some blur, falls a modest distance, softens as it
     // falls further (like a real shadow), only points downwards (45°–135°), and never goes

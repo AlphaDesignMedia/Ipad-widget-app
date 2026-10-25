@@ -304,8 +304,9 @@ struct Painter {
     /// The glow or shadow behind the text, as in `LightLayer`: blurred copies only.
     func light(_ path: CGPath, style: ClockStyle, unit u: CGFloat) {
         if style.shadow {
-            softCopy(path, style.resolvedShadowColor(darkScheme: dark).opacity(style.shadowOpacity), blur: style.shadowBlur(unit: u),
-                     offset: style.shadowOffset(unit: u))
+            let soften = style.shadowSoftening(darkScheme: dark)
+            softCopy(path, style.resolvedShadowColor(darkScheme: dark).opacity(style.shadowOpacity * soften),
+                     blur: style.shadowBlur(unit: u) * soften, offset: style.shadowOffset(unit: u))
         }
         if style.glow {
             softCopy(path, style.resolvedGlowColor.opacity(style.glowStrength), blur: u * (2 + 10 * style.glowSize))
