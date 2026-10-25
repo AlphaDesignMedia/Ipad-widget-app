@@ -1,6 +1,13 @@
 # Glass Clock — handoff (paste into a new chat to carry on)
 
-_Updated 25 Oct 2026, 6:00 pm_
+_Updated 25 Oct 2026, 8:10 pm_
+
+**8:10 pm update (since `friend-test-25oct-4`, all pushed on `from-415`, not yet tagged; check whether the iPad has them):**
+- **Hold-to-edit:** Home Screen style jiggle (uneven rock and bob), now off by default; a Liquid Glass rim around the held widget, which grows a little; quicker hold.
+- **Contrast first:** firmer wash behind text, Dark lift for app colours raised to 0.24 (Blue and Purple now pass), Increase Contrast respected.
+- **Tour:** asks your favourite colour, Learn More on each step, draggable card, repeat tours skip first-time steps. Developer mode has Start Fresh.
+- **Figma:** accessibility board on the Screens page (node 9-4) with new tweak/, effect/, a11y/, wash/, outline/ variables.
+- **Next up (IDEAS.md):** Outline everything, harder (bolder lines reaching the widget, panels, cards, buttons, toolbar). Then theme colour on the widget's outlines.
 
 **Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** `friend-test-25oct-4` (6:45 pm), the build for the friend's test. GitHub opens on `main`, which is older: the friend should clone the `friend-test-25oct-4` tag (or branch `from-415`). It adds Outline everything (Accessibility, with a width slider) and a calm adaptive blue as the default app colour.
 
