@@ -10,6 +10,7 @@ _Last updated 21 Oct 2026._
 ## In focus now
 
 - [ ] **Theme colour on the widget's outlines** (owner, 25 Oct 2026, message cut off mid-sentence): the backdrop's colour carried into the edges of the bubbles around the widget (only those), in Light and maybe Dark. Small: tint the new hairline edge with the backdrop's colour. Waiting until after the friend test.
+- [ ] **Outline everything, harder** (owner, 25 Oct 2026): the outline mode should be bolder (thicker, firmer lines) and reach every part: the widget, the panels, cards, buttons and the toolbar, not just some of the glass. Next session.
 - [ ] **Your own two-tone theme** (owner, 25 Oct 2026): pastels in Light and deeps in Dark now mirror each other automatically; next, let people pick their own colour pair, like Google's one-colour and two-colour themes.
 - [ ] **"Your colour" as a headline feature** (owner, 25 Oct 2026). One plan, four parts:
   1. The tour asks for your favourite colour and sets it up.
