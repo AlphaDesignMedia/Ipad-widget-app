@@ -192,3 +192,8 @@ you. The other option is to send screenshots with scribbles on them, which works
 
 ## Developer mode (built 25 Oct 2026)
 - Switch at the bottom of App and Widget. Hides Design Tweaks unless on. Move other test tools behind it as they come up.
+
+## Figma accessibility board (25 Oct 2026)
+- Board on the Screens page of the design-system file: https://www.figma.com/design/O6eLeKQKkIxgYTAc2LmkyT/?node-id=9-4
+- Contrast finding: with Adjust for contrast, every preset reaches 4.5:1 in Light. In Dark, Blue (4.2) and Purple (4.1) still fall just short, so the Dark lift target (0.18) should go up a little, to about 0.22. Small fix, worth doing next.
+- New variables: tweak/* (Design Tweaks spacing), effect/* (Effects collection), a11y/outline-width, wash/*, outline/*, and dark/… partners. The app can read these from an export later (the Figma value list task).
