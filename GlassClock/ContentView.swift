@@ -801,7 +801,7 @@ struct ContentView: View {
     /// across the top, so the settings keep most of the height.
     @ViewBuilder
     private func groupsPanel(asStrip: Bool) -> some View {
-        if asStrip { groupsPill(upright: false) } else if groupsCollapsed { groupsPill(upright: true) } else { groupsList }
+        if asStrip { groupsFlatRail } else if groupsCollapsed { groupsPill(upright: true) } else { groupsList }
     }
 
     /// The groups as one pill of glass with each icon in a circle (owner, 22 Oct 2026): upright
@@ -839,6 +839,59 @@ struct ContentView: View {
         .appGlass(.capsule, panel: true)
         .frame(maxWidth: .infinity)
         .animation(.snappy, value: selectedSection)
+    }
+
+    /// The groups lying flat (along the top or bottom, or above or below the settings) in the
+    /// folded rail's style: one bar of glass with each icon and its name, icons only when the
+    /// names don't fit or are switched off (owner, 25 Oct 2026: the pill of circles along the
+    /// top was the old style; "swap that completely over for the new style").
+    private var groupsFlatRail: some View {
+        ViewThatFits(in: .horizontal) {
+            if railNames { groupsFlatRow(labelled: true) }
+            groupsFlatRow(labelled: false)
+        }
+        .frame(height: SettingsRail.width)
+        .appGlass(.capsule, interactive: true)
+        .contentShape(.capsule)
+        .frame(maxWidth: .infinity)
+        .animation(.snappy, value: selectedSection)
+    }
+
+    private func groupsFlatRow(labelled: Bool) -> some View {
+        HStack(spacing: labelled ? 8 : 2) {
+            ForEach(SettingsSection.allCases) { section in
+                let selected = selectedSection == section
+                Button { focus(section) } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: section.icon)
+                            .font(.body.weight(.medium))
+                        if labelled {
+                            Text(section.title)
+                                .font(.caption.weight(.semibold))
+                                .fixedSize()
+                        }
+                    }
+                    .padding(.horizontal, labelled ? 10 : 8)
+                    .frame(height: SettingsRail.width - 8)
+                    // The group in use: the same glossy bead as in the groups list.
+                    .background {
+                        if selected {
+                            GlossyBead(shape: Capsule())
+                                .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                                .matchedGeometryEffect(id: "group selection", in: groupSelection)
+                        }
+                    }
+                    .shimmer(trigger: selected, in: Capsule())
+                    .contentShape(.capsule)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.title)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("groupsList")) } action: { groupFrames[section] = $0 }
+            }
+        }
+        .padding(.horizontal, 6)
+        .coordinateSpace(name: "groupsList")
     }
 
     private var groupsList: some View {
@@ -1408,7 +1461,7 @@ struct ContentView: View {
         // "an outline which is the shape of it and where it's going to land").
         if let landing = target.landing {
             let count = CGFloat(SettingsSection.allCases.count)
-            let size = CGSize(width: count * 44 + (count - 1) * 4 + 12, height: 56)
+            let size = CGSize(width: min(count * 44 + 12, area.width - Space.medium * 2), height: SettingsRail.width)
             let column = settingsLeading ? Space.medium + settingsWidth / 2 : area.width - Space.medium - settingsWidth / 2
             let centre: CGPoint = switch landing {
             case .stacked(let above): CGPoint(x: column, y: above ? Space.small + size.height / 2 : area.height - Space.large - size.height / 2)
