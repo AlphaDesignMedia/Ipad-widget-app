@@ -209,6 +209,15 @@ enum StressTest {
     static var makeBackdrop: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_MAKE_BACKDROP"] != nil }
     /// GLASSCLOCK_CLASSIC=1: opens Classic a few seconds after launch, so it can be screenshotted.
     static var classic: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_CLASSIC"] != nil }
+    /// GLASSCLOCK_STRESS_MOODS=<taps>: taps through the Moods by itself and prints how many
+    /// frames were late (owner report, 25 Oct 2026: Moods slow and glitchy). With
+    /// GLASSCLOCK_STRESS_DRAG=1 it drags the weight slider instead, which redraws the Moods too.
+    static var moodTaps: Int? {
+        ProcessInfo.processInfo.environment["GLASSCLOCK_STRESS_MOODS"].flatMap(Int.init)
+    }
+    static var drag: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_STRESS_DRAG"] != nil }
+    /// GLASSCLOCK_NO_MOODS=1: leaves the Moods out, to compare.
+    static var noMoods: Bool { ProcessInfo.processInfo.environment["GLASSCLOCK_NO_MOODS"] != nil }
 }
 
 /// Counts late frames: any gap between screen refreshes over 1.5 times the expected one.
@@ -243,6 +252,9 @@ extension ClockStyle {
 }
 enum StressTest {
     static var homeTaps: Int? { nil }
+    static var moodTaps: Int? { nil }
+    static var drag: Bool { false }
+    static var noMoods: Bool { false }
     static var idle: Bool { false }
     static var plain: Bool { false }
     static var backdrop: PreviewBackdrop? { nil }

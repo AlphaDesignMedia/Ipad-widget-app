@@ -435,6 +435,25 @@ struct ContentView: View {
                     print("STRESS home taps \(taps): \(meter.stop())")
                 }
             }
+            if let taps = StressTest.moodTaps {
+                Task {
+                    try? await Task.sleep(for: .seconds(4))
+                    let meter = HitchMeter()
+                    meter.start()
+                    for tap in 0..<taps {
+                        if StressTest.idle {
+                        } else if StressTest.drag {
+                            style.fontWeight = 0.3 + Double(tap % 30) / 60
+                        } else {
+                            let mood = MoodRow.moods[tap % MoodRow.moods.count]
+                            applyMood(mood.style, on: mood.scene)
+                        }
+                        try? await Task.sleep(for: .milliseconds(StressTest.drag ? 16 : 700))
+                    }
+                    try? await Task.sleep(for: .seconds(1))
+                    print("STRESS moods \(taps)\(StressTest.drag ? " drag" : ""): \(meter.stop())")
+                }
+            }
             #endif
             if !hasSeenTour && ClockStyle.launchOverride == nil {
                 Task { try? await Task.sleep(for: .seconds(0.8)); showsTour = true }
@@ -3530,13 +3549,9 @@ struct ContentView: View {
             .padding(.vertical, 4)
 
             groupLabel("Moods")
-            MoodRow(style: style, locked: lockedParts, backdrop: backdrop, homeScreen: homeScreen,
-                    liftsBackdrops: liftsBackdrops) { mood, scene in
-                withAnimation(reduceMotion ? nil : .smooth) { style = mood }
-                if !lockedParts.contains(.font) { suggestsFont = true }
-                withAnimation(reduceMotion ? nil : .smooth(duration: 0.55)) { backdrop = scene }
-            }
-            .equatable()
+            if !StressTest.noMoods { MoodRow(style: style, locked: lockedParts, backdrop: backdrop, homeScreen: homeScreen,
+                    liftsBackdrops: liftsBackdrops, apply: applyMood)
+            .equatable() }
 
             lockChips
 
@@ -3729,6 +3744,14 @@ struct ContentView: View {
         withAnimation(reduceMotion ? nil : .smooth) {
             style = style.taking(parts.subtracting(lockedParts), from: .lucky(from: style))
         }
+    }
+
+    /// A mood's style (already with locked parts kept) and its backdrop.
+    private func applyMood(_ mood: ClockStyle, on scene: PreviewBackdrop) {
+        // No "try a font" hint here: it popped up under the picker on every tap and pushed the
+        // preview about, and a mood has already chosen the font.
+        withAnimation(reduceMotion ? nil : .smooth) { style = mood }
+        withAnimation(reduceMotion ? nil : .smooth(duration: 0.55)) { backdrop = scene }
     }
 
     /// Applies a preset, leaving locked parts alone.

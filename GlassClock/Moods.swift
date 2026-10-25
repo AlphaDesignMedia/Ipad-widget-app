@@ -23,7 +23,7 @@ struct MoodRow: View, Equatable {
     private static let scenes: [String: PreviewBackdrop] = [
         "Bold glass": .aurora, "Lock Screen": .ocean, "Neon": .midnight, "Minimal": .dune, "Stacked serif": .sunset,
     ]
-    private static let moods = ClockStyle.presets.map { (name: $0.name, style: $0.style, scene: scenes[$0.name] ?? .aurora) }
+    static let moods = ClockStyle.presets.map { (name: $0.name, style: $0.style, scene: scenes[$0.name] ?? .aurora) }
         + [(name: "Not in the mood", style: ClockStyle(), scene: .plain)]
     /// The pictures show 10:09 rather than the time, so they never need redrawing to tick.
     private static let shownTime = Calendar.current.date(bySettingHour: 10, minute: 9, second: 0, of: .now) ?? .now
