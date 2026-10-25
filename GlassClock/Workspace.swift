@@ -1356,8 +1356,9 @@ struct SettingsRail: View {
         .offset(carried ?? .zero)
         .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8), value: carried == nil)
         .sensoryFeedback(.impact(weight: .medium), trigger: carried == nil)
-        // A quick tap still reaches the headings: the hold only wins after a moment.
-        .highPriorityGesture(LongPressGesture(minimumDuration: 0.3)
+        // Alongside the headings' own taps, not over them: as a high-priority gesture it
+        // swallowed every tap (owner, 25 Oct 2026: the buttons stopped opening anything).
+        .simultaneousGesture(LongPressGesture(minimumDuration: 0.3)
             .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
             .updating($carried) { value, state, _ in
                 guard moved != nil, case .second(true, let drag) = value else { return }

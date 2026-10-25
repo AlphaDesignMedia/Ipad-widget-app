@@ -2,11 +2,10 @@
 
 _Updated 25 Oct 2026_
 
-**On the iPad:** 91f5abb (tag `ipad-25oct-1411`) — rail card is its own Liquid Glass, one menu at a time.
+**On the iPad:** d39f8ee (tag `ipad-25oct-1442`): drag the folded rail to any edge, and it keeps its side when the iPad turns.
 
-**Built, not yet on the iPad:** the folded rail keeps its physical side when the iPad turns, laid flat and readable along the top or bottom. Compiles; not tried on a device.
 
-**Built 25 Oct, not on the iPad yet:** hold the folded rail and drag it to any edge. It lies flat at the top or bottom (portrait docking), and feathers and fades into its new place. The Simulator build passes.
+**New in this build:** hold the folded rail and drag it to any edge. It lies flat at the top or bottom (portrait docking), and feathers and fades into its new place. Not yet tried by you.
 
 **Ideas (💤 in IDEAS.md):**
 - Tinted mode: cards by the collapsed left menu lose their glass. Fix it to match Glass mode; the backed look could become an accessibility setting
