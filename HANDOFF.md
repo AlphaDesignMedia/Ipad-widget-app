@@ -1,8 +1,8 @@
 # Glass Clock — handoff (paste into a new chat to carry on)
 
-_Updated 25 Oct 2026, 3:55 pm_
+_Updated 25 Oct 2026, 3:45 pm_
 
-**On the iPad:** 44b6c5b (tag `ipad-25oct-1550`).
+**On the iPad:** fbd28ed (tag `ipad-25oct-1545`).
 
 **Done today:**
 - Hold and drag the folded rail to any edge. It lies flat at the top or bottom (portrait docking), feathers into its new place, and keeps its side when the iPad turns.
@@ -12,6 +12,7 @@ _Updated 25 Oct 2026, 3:55 pm_
 - The widget steps aside for a rail card with the same spring, stays on screen, and comes back when the card closes. Going from one group to the next it now stays put (it wobbled before).
 - **Crash:** iOS saved no crash log for today's crash (newest Glass Clock log is 21 Oct). Likely cause found and fixed: the widget worked out its step aside from where it had already stepped to, so as the rail card opened it could flip back and forth every frame, a loop that can hang or crash SwiftUI. It now works from its resting place. The app also now keeps iOS's crash and hang reports itself (MetricKit, in its Documents/Diagnostics), so the next one leaves a report Claude can copy off the iPad.
 - **Groups landing:** dropped near the top or bottom of the settings (or just past them), the groups lie flat above or below them on that side, rather than going to the middle of the bottom. Dropping in the middle of the screen's bottom or top edge still lays them along it. While carrying, the outline is the pill's own shape, where it will land.
+- **Groups lying flat use the new rail style:** along the top or bottom, or above or below the settings, the groups are one glass bar with icons and names (icons only when names don't fit, or when names are off in App > Panels), like the folded rail. The old pill of circles is gone. The group in use keeps its glossy bead.
 - **Light-mode text shadow:** Automatic shadow follows the text colour: dark text gets a soft light glow, light text a dark shadow, in the app and the widget. A shadow colour you pick stays.
 
 **Roles:** the owner is the designer and creative lead (tweaks the design system by hand in Figma). Claude is the development agent: sets the build order, suggests proactively, builds, and keeps this file and the dashboard current.
@@ -19,7 +20,7 @@ _Updated 25 Oct 2026, 3:55 pm_
 **Priority order (Claude's call, owner can reorder):**
 1. **Stability:** if it crashes again, copy Documents/Diagnostics off the iPad (command in GlassClock/CrashReports.swift) and fix the cause. A crash beats any new feature.
 2. **Check on the iPad (owner):** rail card open and switch groups (widget should step aside once, no flicker); Light mode with dark text and Automatic shadow (soft light glow); carry the groups to the bottom of the settings and watch the outline.
-   **Open question:** "the top menu is sometimes the old style, without the panel". Which one? Candidates: the groups lying flat along the top (icons-only pill), or the groups list with names. A screenshot settles it; then swap it for the new rail style everywhere.
+   Also: drop the groups along the top and check the new rail-style bar.
 3. **Rail card wider** so it sits with the rest of the layout. Small.
 4. **Grab the rail card and move it aside,** as in Classic. Medium; the signature interaction.
 5. **Flick through group cards** with an elastic snap. Medium.
