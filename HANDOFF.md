@@ -15,6 +15,10 @@ _Updated 25 Oct 2026, 3:45 pm_
 - **Groups lying flat use the new rail style:** along the top or bottom, or above or below the settings, the groups are one glass bar with icons and names (icons only when names don't fit, or when names are off in App > Panels), like the folded rail. The old pill of circles is gone. The group in use keeps its glossy bead.
 - **Light-mode text shadow:** Automatic shadow follows the text colour: dark text gets a soft light glow, light text a dark shadow, in the app and the widget. A shadow colour you pick stays.
 
+- **Moods are back** (they were lost when this branch went back to the 22 Oct 4:15 pm build), rebuilt lighter in GlassClock/Moods.swift: still pictures, and the row only redraws when the style or backdrop changes.
+- **Light backdrops:** dark gradients and mesh (Midnight, Graphite, Ocean) turn pastel in Light rather than getting a grey white wash.
+- From main: status-bar wash and the Extra Large blank-screen fix. Code tidied for the developer review (no warnings, unused code removed).
+
 **Roles:** the owner is the designer and creative lead (tweaks the design system by hand in Figma). Claude is the development agent: sets the build order, suggests proactively, builds, and keeps this file and the dashboard current.
 
 **Priority order (Claude's call, owner can reorder):**
@@ -39,5 +43,43 @@ _Updated 25 Oct 2026, 3:45 pm_
 - While the owner is away, carry on without asking for approval; commit, tag and put builds on the iPad
 - Dashboard updates come from this file, on request
 - A fresh chat per task or two: paste this file to start; compact when a chat gets long
+
+## Current workspace understanding
+
+The two main priorities are the **dashboard** and **Glass Clock**. This repository contains the Glass Clock app and notes; project notes describe the dashboard as a Claude artifact, not as a file in this repository.
+
+The owner is moving work toward VS Code on the big computer and exploring the cloud app and VS Code on iPad. How these screens, files and chats connect is still being worked out. Do not assume changes sync between them, or that the old Claude commit/push/iPad-install routine applies to Copilot. When it matters, first establish which device or workspace is open and what action will affect it.
+
+```text
+Dashboard: interface + project overview    Glass Clock: app + code in this workspace
+                  \                              /
+                   \\---- shared priorities ----/
+
+Big computer: current project workspace
+iPad / cloud VS Code: access and workflow still being mapped
+```
+
+## VS Code quick guide (for the dashboard)
+
+You are the creative lead. The AI helps turn your direction into a small next step; you review the result and decide what feels right.
+
+```text
+Your design intent → AI helps with one task → inspect the change → try it → decide what to keep
+```
+
+**A useful first prompt:**
+> Read this handoff and tell me the single next task. Explain which files it touches and how I can check the result. Don't edit anything yet.
+
+That prompt gives the assistant project context, asks for a manageable step, and lets you understand the plan before work begins. When ready, follow with: “Go ahead with that task. Keep the change focused and run the most relevant check.”
+
+| VS Code area | Think of it as | Use it to |
+|---|---|---|
+| Explorer | Project folders on your desk | Find and open `HANDOFF.md`, Swift files, and design notes |
+| Copilot Chat + Studio Guide | A project-aware AI conversation | Ask questions, plan a small task, or work through a change |
+| Source Control | A change review table | See which files changed and inspect the before/after diff |
+| Terminal | A command box | Run a build or script when you mean to; device scripts can install on the iPad |
+| Problems | An error list | Find compiler and editor issues, often linked to the relevant line |
+
+**Small learning loop:** ask what the next step is → make or review one change → check it → note what you learned. Experiments that do not work are still useful information; keep the next action small and return to the handoff whenever the thread gets crowded.
 
 **Next up:** 3 (rail card wider), then 4.
