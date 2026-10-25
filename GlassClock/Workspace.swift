@@ -1239,25 +1239,49 @@ struct GlossyBead<S: Shape>: View {
             .shadow(.inner(color: .black.opacity(0.12), radius: 2, y: -1))
             // Kept tight, so it doesn't spill past the edge of the switch it sits in.
             .shadow(.drop(color: .black.opacity(0.2), radius: 2, y: 1)))
+            // A faint grain on the glass, so it reads as a material rather than flat paint
+            // (owner, 25 Oct 2026: "tone it down and add some grain").
+            .overlay {
+                Image(uiImage: BeadGrain.tile)
+                    .resizable(resizingMode: .tile)
+                    .blendMode(.overlay)
+                    .opacity(0.35)
+                    .clipShape(shape)
+                    .allowsHitTesting(false)
+            }
             // A quiet glassy pulse as it lands (owner, 22 Oct 2026: "a really subtle attention
             // animation… something glassy"): the glass brightens from its top edge and glows,
-            // twice, then rests (no swell: it would reach the switch's edge). Once only, never looping.
+            // once, then rests (no swell: it would reach the switch's edge). Once only, never looping.
+            // Toned down on 25 Oct 2026 (owner: "tone it down"): one softer glow instead of two bright ones.
             .keyframeAnimator(initialValue: 0.0, trigger: landed) { bead, glow in
                 bead
                     .overlay {
-                        shape.fill(LinearGradient(colors: [.white.opacity(0.45 * glow), .white.opacity(0.05 * glow)],
+                        shape.fill(LinearGradient(colors: [.white.opacity(0.22 * glow), .white.opacity(0.03 * glow)],
                                                   startPoint: .top, endPoint: .bottom))
                             .blendMode(.plusLighter)
                     }
-                    .shadow(color: .white.opacity(0.35 * glow), radius: 6 * glow)
+                    .shadow(color: .white.opacity(0.15 * glow), radius: 4 * glow)
             } keyframes: { _ in
-                CubicKeyframe(1, duration: 0.32)
-                CubicKeyframe(0.25, duration: 0.38)
-                CubicKeyframe(0.6, duration: 0.34)
-                CubicKeyframe(0, duration: 0.6)
+                CubicKeyframe(1, duration: 0.3)
+                CubicKeyframe(0, duration: 0.7)
             }
             .onAppear { if !(systemReduceMotion || simpleMotion) { landed = true } }
     }
+}
+
+/// A small tile of fine grey noise, made once and tiled over the bead as grain.
+enum BeadGrain {
+    static let tile: UIImage = {
+        let side = 64
+        var generator = SystemRandomNumberGenerator()
+        var pixels = (0..<side * side).map { _ in UInt8.random(in: 96...160, using: &generator) }
+        let image = pixels.withUnsafeMutableBytes { bytes -> CGImage? in
+            CGContext(data: bytes.baseAddress, width: side, height: side, bitsPerComponent: 8,
+                      bytesPerRow: side, space: CGColorSpaceCreateDeviceGray(),
+                      bitmapInfo: CGImageAlphaInfo.none.rawValue)?.makeImage()
+        }
+        return image.map { UIImage(cgImage: $0, scale: 2, orientation: .up) } ?? UIImage()
+    }()
 }
 
 /// A segmented switch in glass: the chosen option sits in a glossy bead that glides between
