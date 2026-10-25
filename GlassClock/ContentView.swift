@@ -201,6 +201,8 @@ struct ContentView: View {
     @State private var settingsCarried = false
     /// The groups were showing when the settings folded into the rail, so they come back with them.
     @State private var railHidGroups = false
+    /// The group opened from the folded rail, shown in a card beside it.
+    @State private var railBubble: SettingsSection?
 
     private func reopenFromRail() {
         showsInspector = true
@@ -593,11 +595,17 @@ struct ContentView: View {
                 }
                 .overlay(alignment: settingsLeading ? .leading : .trailing) {
                     if !showsInspector {
-                        SettingsRail(leading: settingsLeading, sections: SettingsSection.allCases,
-                                     open: { withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { reopenFromRail() } },
-                                     go: { section in withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { reopenFromRail() }; focus(section) })
-                            .padding(.horizontal, Space.small)
-                            .transition(.move(edge: settingsLeading ? .leading : .trailing).combined(with: .opacity))
+                        HStack(spacing: Space.small) {
+                            if !settingsLeading, let railBubble { railBubbleCard(railBubble, height: geometry.size.height) }
+                            SettingsRail(leading: settingsLeading, sections: SettingsSection.allCases,
+                                         open: { withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { railBubble = nil; reopenFromRail() } },
+                                         // A heading opens just that group in a card beside the rail;
+                                         // tapping it again closes it.
+                                         go: { section in withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { railBubble = railBubble == section ? nil : section } })
+                            if settingsLeading, let railBubble { railBubbleCard(railBubble, height: geometry.size.height) }
+                        }
+                        .padding(.horizontal, Space.small)
+                        .transition(.move(edge: settingsLeading ? .leading : .trailing).combined(with: .opacity))
                     }
                 }
             }
@@ -605,7 +613,7 @@ struct ContentView: View {
             .sensoryFeedback(.impact(weight: .light), trigger: showsSidebar)
             // A panel opened over the widget: the widget steps out to the free space, so it's
             // never hidden (owner, 22 Oct 2026: the widget is what you want to look at).
-            .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels() } }
+            .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels(); railBubble = nil } }
             .modifier(SavesPanelPlaces(settingsLeading: settingsLeading, groupsTrailing: groupsTrailing,
                                        groupsTop: groupsTop, groupsAlongBottom: groupsAlongBottom, groupsAlongTop: groupsAlongTop))
             // Using a control keeps them up a while longer.
@@ -987,6 +995,25 @@ struct ContentView: View {
         // into view at it, even when they're tucked aside (owner, 22 Oct 2026).
         withAnimation(.snappy) { showsInspector = true; settingsPeeking = false }
         focusRequest += 1
+    }
+
+    /// One group, opened from the folded rail, as a glass card beside it. The full settings and
+    /// the groups stay away, so there's only ever one menu on screen (owner, 25 Oct 2026: "it
+    /// could just be a bubble next to it").
+    private func railBubbleCard(_ section: SettingsSection, height: CGFloat) -> some View {
+        let card = AnyView(SettingsCard(title: section.title, icon: section.icon, footer: section.footer) {
+            sectionContent(section)
+        })
+        .padding(Space.small)
+        return ViewThatFits(in: .vertical) {
+            card
+            ScrollView { card }.scrollBounceBehavior(.basedOnSize)
+        }
+        .frame(width: 360)
+        .frame(maxHeight: min(height * 0.75, 640))
+        .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
+        .transition(.scale(scale: 0.94, anchor: settingsLeading ? .leading : .trailing).combined(with: .opacity))
+        .id(section)
     }
 
     /// A little glass tab on the edge of the preview, where a tucked-away panel lives. Tap it,
@@ -2855,17 +2882,27 @@ struct ContentView: View {
         case _ where backdrop.isPattern:
             PatternBackdrop(kind: backdrop, custom: backdrop == .custom ? customBackdrop.wrappedValue : nil)
         default:
-            if let mesh = backdrop.mesh {
-                // The middle points sit off-centre, so the colours flow rather than form a grid.
-                MeshGradient(width: 3, height: 3, points: [
-                    [0, 0], [0.5, 0], [1, 0],
-                    [0, 0.45], [0.62, 0.42], [1, 0.55],
-                    [0, 1], [0.4, 1], [1, 1],
-                ], colors: mesh, smoothsColors: true)
-            } else {
-                LinearGradient(colors: backdrop.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+            ZStack {
+                if let mesh = backdrop.mesh {
+                    // The middle points sit off-centre, so the colours flow rather than form a grid.
+                    MeshGradient(width: 3, height: 3, points: [
+                        [0, 0], [0.5, 0], [1, 0],
+                        [0, 0.45], [0.62, 0.42], [1, 0.55],
+                        [0, 1], [0.4, 1], [1, 1],
+                    ], colors: mesh, smoothsColors: true)
+                } else {
+                    LinearGradient(colors: backdrop.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+                }
+                // In Light the panels are pale, and the deep gradients clashed with them (owner,
+                // 25 Oct 2026), so they're washed lighter, as the patterns already are.
+                Color.white.opacity(backdropLightWash)
             }
         }
+    }
+
+    /// How much white goes over a gradient or mesh backdrop: some in Light, none in Dark.
+    private var backdropLightWash: Double {
+        (appColorScheme ?? systemColorScheme) == .light && homeScreen.accent == nil ? 0.38 : 0
     }
 
     /// A rounded piece of glass for a preview control (glass is for the controls layer, HIG: Materials).
