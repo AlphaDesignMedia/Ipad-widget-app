@@ -9,6 +9,9 @@ _Last updated 21 Oct 2026._
 
 ## In focus now
 
+- [ ] **Theme colour on the widget's outlines** (owner, 25 Oct 2026, message cut off mid-sentence): the backdrop's colour carried into the edges of the bubbles around the widget (only those), in Light and maybe Dark. Small: tint the new hairline edge with the backdrop's colour. Waiting until after the friend test.
+- [ ] **Your own two-tone theme** (owner, 25 Oct 2026): pastels in Light and deeps in Dark now mirror each other automatically; next, let people pick their own colour pair, like Google's one-colour and two-colour themes.
+
 | Idea | Status | Notes |
 |---|---|---|
 | Glass theme: every box is its own layer of glass on top of the panel | 🟡 | First version is on the iPad. Needs your eye. |

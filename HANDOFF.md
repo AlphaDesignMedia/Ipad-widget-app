@@ -2,7 +2,9 @@
 
 _Updated 25 Oct 2026, 6:00 pm_
 
-**Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** stable-ipad-25oct-1755.
+**Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** `friend-test-25oct` (6:37 pm), the build for the friend's test. GitHub opens on `main`, which is older: the friend should clone the `friend-test-25oct` tag (or branch `from-415`).
+
+**6:40 pm update:** Moods cross-fade with no blur and queue fast taps (the likely cause of the tapping stalls), with an Experimental note. Panels Arrange menu: Best for This Window, Groups Along the Bottom, Settings Only. The tour lets you try each move and has "I'll explore myself". Light: subtler glow under dark text, and the bubbles around the widget are more defined. Dark: backdrops turn deep, mirroring Light's pastels. Not yet checked on the iPad: whether Moods still stall. Figma value list: plan agreed in chat, waiting for "go".
 
 **Done this session:**
 - **Freeze fix + stable build** `stable-ipad-25oct-1755` (on the iPad, pushed). The `on-ipad` tag still points at e94dfe9: moving it needs a force-push, which the safety check blocks, so ask the owner first.
