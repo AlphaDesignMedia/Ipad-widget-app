@@ -571,7 +571,8 @@ struct ContentView: View {
 
                     // While a panel is carried, a soft outline shows where it will settle.
                     if let dropHint = panelDropHint(in: geometry.size, settingsWidth: settingsWidth) {
-                        RoundedRectangle(cornerRadius: Corner.panel, style: .continuous)
+                        // Round-ended for the flat groups pill, so it's the pill's own shape.
+                        RoundedRectangle(cornerRadius: min(Corner.panel, dropHint.height / 2), style: .continuous)
                             .fill(.white.opacity(0.12))
                             .strokeBorder(.white.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [10, 8]))
                             .frame(width: dropHint.width, height: dropHint.height)
@@ -1380,10 +1381,14 @@ struct ContentView: View {
         let byFinger = groups ? nil : finger
         let x = byFinger?.x ?? base.midX + move.width
         let y = byFinger?.y ?? base.minY + (groups ? 0 : 40) + move.height
+        // The groups go by the finger for lying flat and sticking on, as when they're let go.
+        let landing = groups ? finger.flatMap { groupsLanding(at: $0, in: area) } : nil
+        let stacked = if case .stacked? = landing { true } else { false }
         return CarryTarget(groups: groups,
                            leading: x < area.width / 2,
                            top: y < other.midY,
-                           attach: groups ? finger.flatMap { attachmentTarget(at: $0) } : nil)
+                           attach: groups && !stacked ? finger.flatMap { attachmentTarget(at: $0) } : nil,
+                           landing: landing)
     }
 
     /// Keeps the carry target, only when it changes (so a drag redraws the screen rarely).
@@ -1399,6 +1404,19 @@ struct ContentView: View {
         guard let target = carryTarget else { return nil }
         let carryingGroups = target.groups
         let base = carryingGroups ? sidebarRect : inspectorRect
+        // Lying flat: the outline is the pill itself, where it will land (owner, 25 Oct 2026:
+        // "an outline which is the shape of it and where it's going to land").
+        if let landing = target.landing {
+            let count = CGFloat(SettingsSection.allCases.count)
+            let size = CGSize(width: count * 44 + (count - 1) * 4 + 12, height: 56)
+            let column = settingsLeading ? Space.medium + settingsWidth / 2 : area.width - Space.medium - settingsWidth / 2
+            let centre: CGPoint = switch landing {
+            case .stacked(let above): CGPoint(x: column, y: above ? Space.small + size.height / 2 : area.height - Space.large - size.height / 2)
+            case .alongTop: CGPoint(x: area.width / 2, y: Space.small + size.height / 2)
+            case .alongBottom: CGPoint(x: area.width / 2, y: area.height - Space.medium - size.height / 2)
+            }
+            return CGRect(x: centre.x - size.width / 2, y: centre.y - size.height / 2, width: size.width, height: size.height)
+        }
         // Over the widget or the settings: where it would stick on.
         if let attach = target.attach {
             let frame = railFrame(for: attach, size: railSize)
@@ -1501,6 +1519,18 @@ struct ContentView: View {
             }
             return
         }
+        // Near the top or bottom of the settings, it lies flat above or below them, before
+        // anything else: let go towards the bottom it went to the middle (owner, 25 Oct 2026).
+        if case .stacked(let above)? = groupsLanding(at: finger, in: area) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+                groupsAttachment = .none
+                groupsAlongBottom = false
+                groupsAlongTop = false
+                groupsTrailing = !settingsLeading
+                groupsBelow = !above
+            }
+            return
+        }
         // Dropped onto the widget or the settings: it sticks to them.
         if let target = attachmentTarget(at: finger) {
             withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8)) {
@@ -1511,8 +1541,9 @@ struct ContentView: View {
         }
         // Near the bottom of the window it lies along the bottom; anywhere else it goes to that
         // side, at the height it was dropped.
-        let alongBottom = finger.y - panelsOrigin.y > area.height - 160
-        let alongTop = !alongBottom && finger.y - panelsOrigin.y < 90
+        let landing = groupsLanding(at: finger, in: area)
+        let alongBottom = landing == .alongBottom
+        let alongTop = landing == .alongTop
         if alongBottom || alongTop || groupsOnEdge {
             withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
                 groupsAlongBottom = alongBottom
@@ -1542,6 +1573,21 @@ struct ContentView: View {
             try? await Task.sleep(for: .milliseconds(700))
             panelSwap = false
         }
+    }
+
+    /// Where the groups would lie flat if let go at `point` (in the window): above or below the
+    /// settings when it's at their top or bottom (or just past them), otherwise along the top
+    /// or bottom of the window when it's near there; nil anywhere else.
+    private func groupsLanding(at point: CGPoint, in area: CGSize) -> GroupsLanding? {
+        if showsInspector, interface == .panels, inspectorRect != .zero,
+           point.x > inspectorRect.minX - 60, point.x < inspectorRect.maxX + 60 {
+            if point.y < inspectorRect.minY + 120 { return .stacked(above: true) }
+            if point.y > inspectorRect.maxY - 160 { return .stacked(above: false) }
+        }
+        let y = point.y - panelsOrigin.y
+        if y > area.height - 160 { return .alongBottom }
+        if y < 90 { return .alongTop }
+        return nil
     }
 
     /// What the groups would stick to if let go at `point` (in the window).

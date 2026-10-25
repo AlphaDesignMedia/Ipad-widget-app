@@ -1199,6 +1199,13 @@ struct CarryTarget: Equatable {
     var leading: Bool
     var top: Bool
     var attach: GroupsAttachment?
+    /// For the groups: lying flat above or below the settings, or along the top or bottom.
+    var landing: GroupsLanding? = nil
+}
+
+/// Where the groups lie flat when they're let go.
+enum GroupsLanding: Equatable {
+    case stacked(above: Bool), alongTop, alongBottom
 }
 
 /// The app's selection mark: a glossy bead of glass lit from above, with an inner highlight
