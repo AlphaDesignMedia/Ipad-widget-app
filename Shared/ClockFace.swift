@@ -358,6 +358,7 @@ private struct OutlineShape: Shape {
 /// The glow or shadow behind the text, drawn from blurred copies of the outline so it stays
 /// strong even when the text itself is see-through.
 private struct LightLayer: View {
+    @Environment(\.colorScheme) private var colorScheme
     var artwork: ClockArtwork
     var style: ClockStyle
 
@@ -366,7 +367,9 @@ private struct LightLayer: View {
         let u = artwork.unit
         ZStack {
             if style.shadow {
-                shape.fill(style.resolvedShadowColor)
+                // Automatic is a soft white in Light: a dark shadow under the digits on a pale
+                // card read as blurry text (owner, 25 Oct 2026). Black in Dark, as before.
+                shape.fill(style.shadowColor == .auto && colorScheme == .light ? Color.white : style.resolvedShadowColor)
                     .blur(radius: style.shadowBlur(unit: u))
                     .offset(style.shadowOffset(unit: u))
                     .opacity(style.shadowOpacity)

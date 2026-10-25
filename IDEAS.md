@@ -43,6 +43,7 @@ _Last updated 21 Oct 2026._
 
 | Idea | Status | Notes |
 |---|---|---|
+| Rail cards that swap sides (owner, 25 Oct 2026) | 💤 | From trying the rail card: tapping on the other side sent the card into the other panel, which clashed a little but felt great. Worth an alternative layout where cards can live on either side. |
 | Rail stays put when the iPad turns (owner, 25 Oct 2026) | 💤 | The folded headings rail, with its sideways text, keeps its place on screen when you turn the iPad to read it, and everything else moves round it. Parked to save usage. |
 | Classic (simple) and Panels (customisable) interfaces, quick switch | ✅ | Classic stays plain and functional. |
 | Smooth animation between Classic and Panels: panels glide and reshape instead of jumping | ⬜ | For the future. |

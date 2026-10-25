@@ -614,6 +614,15 @@ struct ContentView: View {
             // A panel opened over the widget: the widget steps out to the free space, so it's
             // never hidden (owner, 22 Oct 2026: the widget is what you want to look at).
             .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels(); railBubble = nil } }
+            // The rail and the groups list the same headings, so they're never on screen
+            // together, however the settings were put away (owner, 25 Oct 2026). The groups
+            // step aside for the rail and come back with the settings.
+            .onChange(of: showsInspector) { _, shown in
+                if !shown, showsSidebar { railHidGroups = true; showsSidebar = false }
+            }
+            .onChange(of: showsSidebar) { _, shown in
+                if shown, !showsInspector { railBubble = nil; showsInspector = true }
+            }
             .modifier(SavesPanelPlaces(settingsLeading: settingsLeading, groupsTrailing: groupsTrailing,
                                        groupsTop: groupsTop, groupsAlongBottom: groupsAlongBottom, groupsAlongTop: groupsAlongTop))
             // Using a control keeps them up a while longer.
@@ -2297,7 +2306,9 @@ struct ContentView: View {
     /// The app's Light or Dark: from Appearance, or from the Home Screen being matched (Dark
     /// and Tinted Home Screens are dark; Clear follows Appearance).
     private var appColorScheme: ColorScheme? {
-        guard appTheme == .home else { return appAppearance.colorScheme }
+        // Automatic follows the widget in every theme, so the interface goes dark with it
+        // (owner, 25 Oct 2026); only a chosen Light or Dark holds still.
+        guard appTheme == .home || appAppearance == .automatic else { return appAppearance.colorScheme }
         switch settledHomeScreen {
         case .light: return .light
         case .dark, .tinted: return .dark
