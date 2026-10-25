@@ -664,6 +664,8 @@ struct ContentView: View {
             .onChange(of: showsSidebar) { _, shown in
                 if shown, !showsInspector { railBubble = nil; showsInspector = true }
             }
+            // The widget comes back as the card closes, not once it has finished fading.
+            .onChange(of: railBubble) { _, open in if open == nil { stepWidgetAside(from: nil) } }
             .modifier(SavesPanelPlaces(settingsLeading: settingsLeading, groupsTrailing: groupsTrailing,
                                        groupsTop: groupsTop, groupsAlongBottom: groupsAlongBottom, groupsAlongTop: groupsAlongTop))
             // Using a control keeps them up a while longer.
@@ -1155,7 +1157,9 @@ struct ContentView: View {
         .contentShape(Rectangle())
         // The widget steps out of its way, and comes back when it closes.
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { stepWidgetAside(from: $0) }
-        .onDisappear { stepWidgetAside(from: nil) }
+        // Only once no card is open: going from one group to the next, the widget stays put
+        // rather than sliding back and out again (owner, 25 Oct 2026: it wobbled).
+        .onDisappear { if railBubble == nil { stepWidgetAside(from: nil) } }
         .transition(.scale(scale: 0.94, anchor: railEdge == .top ? .top : railEdge == .bottom ? .bottom : railEdge == .leading ? .leading : .trailing).combined(with: .opacity))
         .id(section)
     }
@@ -2774,7 +2778,9 @@ struct ContentView: View {
                 nudge.height = min(max(nudge.height, layerRect.minY - widgetRect.minY), layerRect.maxY - widgetRect.maxY)
             }
         }
-        guard nudge != widgetNudge else { return }
+        // Small changes as the card settles aren't worth a move.
+        guard abs(nudge.width - widgetNudge.width) > 4 || abs(nudge.height - widgetNudge.height) > 4 || nudge == .zero,
+              nudge != widgetNudge else { return }
         withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { widgetNudge = nudge }
     }
 
