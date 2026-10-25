@@ -95,62 +95,27 @@ enum ClockRaster {
         } }
     }
 
-    /// The card, filling the whole widget when stretched with `cardInsets`. The system rounds
-    /// the corners.
+    /// The card, filling the whole widget. The system rounds the corners.
     static func card(style: ClockStyle, size: CGSize, dark: Bool) -> UIImage {
         // Tiny, stretched to fit: it's stored with every minute of the timeline, and a 0.5×
         // glass card was the biggest part of a rejected archive (observed 2026-10-20). So a kept
         // glass card is its colour wash only, without the thin rim.
-        guard style.background == .glass else {
-            let scale: CGFloat = 8 / max(size.width, size.height)
-            return cached(key(style, scale: scale, dark: dark, "card|\(size)")) { render(size: size, scale: scale) { ctx in
-                let rect = CGRect(origin: .zero, size: size)
-                Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect, area: rect)
-                    .fill(CGPath(rect: rect, transform: nil), style.solidFill.opacity(style.cardOpacity))
-            } }
-        }
-        // The wash sits on top of the system's own Liquid Glass, so it fades out towards the
-        // edges, where that glass bends the wallpaper and catches the light. Edge to edge at
-        // 30–75% it hid both and looked like paint beside Apple's widgets, and with no colour
-        // chosen even an 8% white middle read as a lighter patch (Clear Home Screen,
-        // 2026-10-22), so then there's no wash: Apple's glass is the card. It's still stronger
-        // than `GlassCardBackground`'s 5–25%, which was too faint to see on top of the system's
-        // glass (user test, 2026-10-20). Drawn once at 2 points a pixel, and only its middle
-        // stretches, so the fade keeps its width at any size.
-        let side = 2 * glassEdge + 2
-        let scale: CGFloat = 0.5
-        return cached(key(style, scale: scale, dark: dark, "glass card")) { render(size: CGSize(width: side, height: side), scale: scale) { ctx in
-            guard style.cardOpacity > 0, let tint = style.cardTint else { return }
-            let rect = CGRect(x: 0, y: 0, width: side, height: side)
-            let color = Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect, area: rect).cg(tint)
-            let strength = 0.15 + 0.3 * style.cardOpacity
-            let corner: CGFloat = 24   // about the widget's own corner radius
-            let pixel = 1 / scale
-            ctx.setShouldAntialias(false)
-            for row in 0..<Int(side * scale) {
-                for column in 0..<Int(side * scale) {
-                    // How far inside the card's rounded edge the middle of this pixel is.
-                    let x = (CGFloat(column) + 0.5) * pixel, y = (CGFloat(row) + 0.5) * pixel
-                    let dx = min(x, side - x), dy = min(y, side - y)
-                    let depth = dx < corner && dy < corner ? corner - hypot(corner - dx, corner - dy) : min(dx, dy)
-                    // Clear for the outer 4 points, easing in to full strength 28 points in.
-                    let t = min(1, max(0, (depth - 4) / 24))
-                    ctx.setFillColor(color.copy(alpha: color.alpha * strength * t * t * (3 - 2 * t)) ?? color)
-                    ctx.fill(CGRect(x: CGFloat(column) * pixel, y: CGFloat(row) * pixel, width: pixel, height: pixel))
-                }
+        let scale: CGFloat = 8 / max(size.width, size.height)
+        return cached(key(style, scale: scale, dark: dark, "card|\(size)")) { render(size: size, scale: scale) { ctx in
+            let rect = CGRect(origin: .zero, size: size)
+            let painter = Painter(ctx: ctx, scale: scale, dark: dark, bounds: rect, area: rect)
+            switch style.background {
+            case .solid:
+                painter.fill(CGPath(rect: rect, transform: nil), style.solidFill.opacity(style.cardOpacity))
+            case .glass:
+                // Stronger than `GlassCardBackground`'s 5–25% wash: here it sits on top of the
+                // system's own glass, where that wash was too faint to see (user test, 2026-10-20).
+                guard style.cardOpacity > 0 else { return }
+                painter.fill(CGPath(rect: rect, transform: nil),
+                             (style.cardTint ?? .white).opacity(style.cardTint == nil ? 0.15 : 0.3 + 0.45 * style.cardOpacity))
             }
         } }
     }
-
-    /// How much of each side of `card` keeps its size when it's stretched: a glass card's
-    /// fading edge.
-    static func cardInsets(_ style: ClockStyle) -> EdgeInsets {
-        let edge = style.background == .glass ? glassEdge : 0
-        return EdgeInsets(top: edge, leading: edge, bottom: edge, trailing: edge)
-    }
-
-    /// Room for a glass card's fading edge, rounded corners included.
-    private static let glassEdge: CGFloat = 32
 
     private static func render(size: CGSize, scale: CGFloat, draw: (CGContext) -> Void) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
@@ -200,7 +165,7 @@ struct Painter {
 
     /// Draws a blurred copy of `path`, as a Core Graphics shadow. `blur` is a SwiftUI-style
     /// radius in points. With `knockout` the sharp copy that casts the shadow is erased again,
-    /// leaving only the soft part outside the path (`softCopy` keeps the inside too).
+    /// leaving only the soft part (for glows and shadows behind see-through text).
     func blurredCopy(_ path: CGPath, _ color: Color, blur: CGFloat, offset: CGSize = .zero,
                      evenOdd: Bool = false, knockout: Bool = true) {
         var shift = CGAffineTransform(translationX: offset.width, y: offset.height)
@@ -225,40 +190,6 @@ struct Painter {
             low.castShadow(moved, rule: rule, color: color, blur: blur * 2 * pixelsPerPoint, knockout: knockout)
         }
         soft.draw(in: area)
-    }
-
-    /// Draws a blurred copy of `path` and nothing else, as SwiftUI's `.blur` does to a filled
-    /// shape. A Core Graphics shadow always comes with the sharp shape that casts it, so the
-    /// shape goes beside `area`, in a canvas twice as wide, and casts its shadow back across.
-    /// (Keeping the sharp copy showed the date line twice, crisp where its shadow falls,
-    /// 2026-10-22; erasing it left a blocky hole showing through see-through text, 2026-10-20.)
-    func softCopy(_ path: CGPath, _ color: Color, blur: CGFloat, offset: CGSize = .zero) {
-        var shift = CGAffineTransform(translationX: offset.width + area.width, y: offset.height)
-        guard let beside = path.copy(using: &shift) else { return }
-        // Low resolution for wide blurs, as in `blurredCopy`.
-        let pixelsPerPoint = min(scale, max(0.1, 10 / blur))
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = pixelsPerPoint
-        format.preferredRange = .standard
-        let canvas = CGSize(width: area.width * 2, height: area.height)
-        let soft = UIGraphicsImageRenderer(size: canvas, format: format).image { context in
-            let c = context.cgContext
-            c.translateBy(x: -area.minX, y: -area.minY)
-            // Shadows are measured in pixels. Sideways isn't flipped, so negative is left.
-            c.setShadow(offset: CGSize(width: -area.width * pixelsPerPoint, height: 0),
-                        blur: blur * 2 * pixelsPerPoint, color: cg(color))
-            c.addPath(beside)
-            c.setFillColor(cg(.black))
-            c.fillPath()
-        }
-        // The left half holds the blur, where the shape would have been.
-        guard let image = soft.cgImage,
-              let left = image.cropping(to: CGRect(x: 0, y: 0, width: (area.width * pixelsPerPoint).rounded(),
-                                                   height: CGFloat(image.height)))
-        else { return }
-        UIImage(cgImage: left, scale: pixelsPerPoint, orientation: .up)
-            .draw(in: CGRect(x: area.minX, y: area.minY, width: CGFloat(left.width) / pixelsPerPoint,
-                             height: CGFloat(left.height) / pixelsPerPoint))
     }
 
     /// A Core Graphics shadow of `path` with `blur` in pixels, optionally without the path itself.
@@ -301,15 +232,17 @@ struct Painter {
         ctx.restoreGState()
     }
 
-    /// The glow or shadow behind the text, as in `LightLayer`: blurred copies only.
+    /// The glow or shadow behind the text, as in `LightLayer`.
     func light(_ path: CGPath, style: ClockStyle, unit u: CGFloat) {
+        // Not knocked out: the text is drawn on top, and erasing the part under it left a
+        // blocky hole showing through see-through text (user feedback, 2026-10-20).
         if style.shadow {
-            softCopy(path, style.resolvedShadowColor.opacity(style.shadowOpacity), blur: style.shadowBlur(unit: u),
-                     offset: style.shadowOffset(unit: u))
+            blurredCopy(path, style.resolvedShadowColor.opacity(style.shadowOpacity), blur: style.shadowBlur(unit: u),
+                        offset: style.shadowOffset(unit: u), knockout: false)
         }
         if style.glow {
-            softCopy(path, style.resolvedGlowColor.opacity(style.glowStrength), blur: u * (2 + 10 * style.glowSize))
-            softCopy(path, style.resolvedGlowColor.opacity(0.8 * style.glowStrength), blur: u * (8 + 40 * style.glowSize))
+            blurredCopy(path, style.resolvedGlowColor.opacity(style.glowStrength), blur: u * (2 + 10 * style.glowSize), knockout: false)
+            blurredCopy(path, style.resolvedGlowColor.opacity(0.8 * style.glowStrength), blur: u * (8 + 40 * style.glowSize), knockout: false)
         }
     }
 

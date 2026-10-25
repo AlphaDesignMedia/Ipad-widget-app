@@ -49,7 +49,7 @@ struct GlassClockWidgetView: View {
                 GeometryReader { geometry in
                     Image(uiImage: ClockRaster.card(style: entry.style, size: geometry.size,
                                                     dark: colorScheme == .dark))
-                        .resizable(capInsets: ClockRaster.cardInsets(entry.style))
+                        .resizable()
                         .widgetAccentedRenderingMode(.fullColor)
                         // Cropped to the widget's shape, the same way the kept time is, which
                         // is what kept its colour on iPadOS 27 (2026-10-20).

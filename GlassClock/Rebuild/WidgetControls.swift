@@ -19,6 +19,7 @@ struct WidgetControls: View {
     /// Out on launch, so they're found, then tucked away after the first wait.
     @State private var shown = true
     @State private var tuck: Task<Void, Never>?
+    @Namespace private var lift
 
     /// Your photo and Make your own need pickers of their own, so they wait for a later step.
     static let backdrops = PreviewBackdrop.allCases.filter { $0 != .photo && $0 != .custom }
@@ -52,6 +53,7 @@ struct WidgetControls: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .capsule)
+        .matchedGeometryEffect(id: "controls", in: lift)
         .accessibilityLabel("Preview controls")
         .accessibilityHint("Shows the Home Screen look, widget size and backdrop")
         .transition(.opacity)
@@ -80,6 +82,7 @@ struct WidgetControls: View {
         }
         .modifier(ClearGlass(on: glassy, shape: shape))
         .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+        .matchedGeometryEffect(id: "controls", in: lift)
         // Touching them at all keeps them out a while longer.
         .simultaneousGesture(TapGesture().onEnded { restartTuck() })
         .accessibilityElement(children: .contain)

@@ -42,7 +42,6 @@ struct ContentView: View {
     @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
     @AppStorage("appAppearance") private var appAppearance = AppAppearance.automatic
-    @AppStorage("railNames") private var railNames = true
     @Environment(\.scenePhase) private var scenePhase
     @State private var customPresets = StyleLibrary.loadPresets()
     /// Parts of the style that presets and Lucky leave alone. Clear and Tinted starts locked,
@@ -115,11 +114,7 @@ struct ContentView: View {
     /// The size a pinch started from, while pinching.
     @State private var pinchStartSize: PreviewSize?
     /// The spring the widget settles with after a drag or pinch.
-    /// Barely any bounce: things glide into place rather than pop (owner, 22 Oct 2026).
-    static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.94)
-    /// The spring a dropped widget lands with: no overshoot, so it glides into its slot and
-    /// stops, rather than passing it and pulling back (owner, 22 Oct 2026).
-    static let cardLand = Animation.spring(response: 0.42, dampingFraction: 1)
+    static let cardSettle = Animation.spring(response: 0.38, dampingFraction: 0.82)
     @State private var draggingCard = false
     /// Like editing the Home Screen: a long press makes the widget wiggle, and a handle on its
     /// corner resizes it (owner idea, 2026-10-21).
@@ -179,36 +174,17 @@ struct ContentView: View {
     /// Where the panels go (owner idea, 2026-10-21): the groups on the right instead of the
     /// left, the settings on the left instead of the right, and when both share a side, whether
     /// the groups sit below the settings. Drag a panel to put it somewhere else.
-    /// Which side the groups are on, how far down, and whether along the bottom: plain view
-    /// state saved by hand, like `settingsLeading`, so a drop lands in the same frame.
-    @State private var groupsTrailing = UserDefaults.standard.bool(forKey: "groupsTrailing")
-    /// Which side the settings are on. Plain view state, saved by hand: @AppStorage's update
-    /// reached the screen a frame late, so a panel put down on the other side drew once in its
-    /// old column before swapping, and visibly slid back first (simulator frames, 22 Oct 2026).
-    @State private var settingsLeading = UserDefaults.standard.bool(forKey: "settingsLeading")
+    @AppStorage("groupsTrailing") private var groupsTrailing = false
+    @AppStorage("settingsLeading") private var settingsLeading = false
     @AppStorage("groupsBelow") private var groupsBelow = false
     /// The groups pill on its own side sits where it was dropped, top to bottom, or lies along
     /// the bottom of the window (owner, 22 Oct 2026: "move this panel up and down… pull it to
     /// the bottom").
-    @State private var groupsTop = UserDefaults.standard.double(forKey: "groupsTop")
-    @State private var groupsAlongBottom = UserDefaults.standard.bool(forKey: "groupsAlongBottom")
-    /// Or lying along the top, just under the top bar (owner idea, 22 Oct 2026).
-    @State private var groupsAlongTop = UserDefaults.standard.bool(forKey: "groupsAlongTop")
-    /// Lying flat along the top or the bottom, rather than standing on a side.
-    private var groupsOnEdge: Bool { groupsAlongBottom || groupsAlongTop }
+    @AppStorage("groupsTop") private var groupsTop = 0.0
+    @AppStorage("groupsAlongBottom") private var groupsAlongBottom = false
     @AppStorage("panelsMakeWay") private var panelsMakeWay = PanelsMakeWay.moveAside
     /// The settings being carried by a card's title bar (see `PanelCarry`).
     @State private var settingsCarried = false
-    /// The groups were showing when the settings folded into the rail, so they come back with them.
-    @State private var railHidGroups = false
-
-    private func reopenFromRail() {
-        showsInspector = true
-        if railHidGroups { showsSidebar = true; railHidGroups = false }
-    }
-
-    /// True for a moment after a panel is put down on the other side (see `panelTransition`).
-    @State private var panelSwap = false
     /// The settings tucked aside: turned, mostly off the edge, still in view (see `Peek`).
     @State private var settingsPeeking = false
     @GestureState private var groupsHeld = false
@@ -436,23 +412,25 @@ struct ContentView: View {
                 ZStack {
                     backdropView
                         .ignoresSafeArea()
-                    StatusScrim()
-                    if arrangement == .previewOnly {
-                        previewStage()
-                    } else {
-                        // Beside or below in one layout that changes shape, so the preview and the
-                        // settings glide to their new places. Two separate stacks were two
-                        // different views: a size change that moved the settings below (Extra
-                        // Large) or back beside them faded the whole screen out and in, and taps
-                        // in that moment were lost (simulator, 22 Oct 2026).
-                        let stacked = arrangement != .sideBySide
-                        let arrange = stacked ? AnyLayout(VStackLayout(spacing: Space.medium))
-                                              : AnyLayout(HStackLayout(spacing: Space.medium))
-                        arrange {
+                    switch arrangement {
+                    case .sideBySide:
+                        HStack(spacing: Space.medium) {
                             previewStage()
-                                .frame(height: stacked ? (compact ? size.height * 0.58 : min(stageHeight, max(300, size.height - 280))) : nil)
                             settingsPanel
-                                .frame(width: stacked ? nil : min(480, max(340, besideRoom)))
+                                .frame(width: min(480, max(340, besideRoom)))
+                        }
+                        // The same gap under the top bar as at the sides, so the panel doesn't
+                        // crowd the toolbar (owner, breathing room, 21 Oct).
+                        .padding(.horizontal, Space.medium)
+                        .padding(.top, Space.medium)
+                        .padding(.bottom, Space.large)
+                    case .previewOnly:
+                        previewStage()
+                    default:
+                        VStack(spacing: Space.medium) {
+                            previewStage()
+                                .frame(height: compact ? size.height * 0.58 : min(stageHeight, max(300, size.height - 280)))
+                            settingsPanel
                         }
                         // The same gap under the top bar as at the sides, so the panel doesn't
                         // crowd the toolbar (owner, breathing room, 21 Oct).
@@ -501,7 +479,6 @@ struct ContentView: View {
                     ZStack {
                         AnyView(backdropView)
                             .ignoresSafeArea()
-                        StatusScrim()
                         AnyView(previewStage(showsChrome: false))
                             .padding(.leading, panelInset(leading: true, settingsWidth: settingsWidth))
                             .padding(.trailing, panelInset(leading: false, settingsWidth: settingsWidth))
@@ -557,7 +534,7 @@ struct ContentView: View {
                     // More room below than at the sides (owner feedback, 2026-10-21), and room for
                     // the groups when they lie along the bottom.
                     .padding(.horizontal, Space.medium)
-                    .padding(.top, showsSidebar && groupsFree && groupsAlongTop ? 56 + Space.small * 2 : Space.small)
+                    .padding(.top, Space.small)
                     .padding(.bottom, showsSidebar && groupsFree && groupsAlongBottom ? 56 + Space.medium * 2 : Space.large)
                     // Kept to the top, so one panel stays put when the other tucks away.
                     .frame(maxHeight: .infinity, alignment: .top)
@@ -569,10 +546,8 @@ struct ContentView: View {
                 // Screen (owner, 22 Oct 2026: "you should be able to tap away").
                 .simultaneousGesture(TapGesture().onEnded { if editingWidget { setEditingWidget(false) } }, isEnabled: editingWidget)
                 .overlay {
-                    // Not while the settings rail is up: the rail already lists every group.
-                    if !showsSidebar && showsInspector { AnyView(groupsDock(in: geometry.size)) }
+                    if !showsSidebar { AnyView(groupsDock(in: geometry.size)) }
                 }
-                .overlay(alignment: .bottom) { AnyView(backdropNameOverlay) }
                 // Dropped along the bottom: the same pill, lying flat.
                 .overlay(alignment: .bottom) {
                     if showsSidebar && groupsFree && groupsAlongBottom {
@@ -580,23 +555,12 @@ struct ContentView: View {
                             .padding(.bottom, Space.medium)
                     }
                 }
-                // Or along the top, under the top bar, so nothing up there is covered.
-                .overlay(alignment: .top) {
-                    if showsSidebar && groupsFree && groupsAlongTop {
-                        AnyView(groupsColumnPanel(leading: true, area: geometry.size, width: geometry.size.width, strip: true))
-                            .padding(.top, Space.small)
-                    }
-                }
                 .overlay(alignment: .topLeading) {
                     if showsSidebar && !groupsFree { AnyView(attachedGroups(in: geometry.size)) }
                 }
                 .overlay(alignment: settingsLeading ? .leading : .trailing) {
                     if !showsInspector {
-                        SettingsRail(leading: settingsLeading, sections: SettingsSection.allCases,
-                                     open: { withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { reopenFromRail() } },
-                                     go: { section in withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { reopenFromRail() }; focus(section) })
-                            .padding(.horizontal, Space.small)
-                            .transition(.move(edge: settingsLeading ? .leading : .trailing).combined(with: .opacity))
+                        edgeHandle("Show settings") { withAnimation(.snappy) { showsInspector = true } }
                     }
                 }
             }
@@ -605,8 +569,6 @@ struct ContentView: View {
             // A panel opened over the widget: the widget steps out to the free space, so it's
             // never hidden (owner, 22 Oct 2026: the widget is what you want to look at).
             .onChange(of: showsInspector) { _, shown in if shown { clearWidgetFromPanels() } }
-            .modifier(SavesPanelPlaces(settingsLeading: settingsLeading, groupsTrailing: groupsTrailing,
-                                       groupsTop: groupsTop, groupsAlongBottom: groupsAlongBottom, groupsAlongTop: groupsAlongTop))
             // Using a control keeps them up a while longer.
             .onChange(of: homeScreen) { showExtras() }
             .onChange(of: previewSize) { if extrasShown { showExtras() } }
@@ -725,10 +687,7 @@ struct ContentView: View {
 
     /// Panels slide in from their own edge, or fade when Reduce Motion is on.
     private func panelTransition(_ edge: Edge) -> AnyTransition {
-        // A panel carried to the other side swaps columns without any transition: it's put
-        // down exactly where the finger left it and glides home from there (`panelSwap`).
-        if panelSwap { return .identity }
-        return reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
+        reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
     }
 
     /// The settings groups on a glass panel: a tap glides the settings to that group. It folds
@@ -937,12 +896,6 @@ struct ContentView: View {
                 try? await Task.sleep(for: .seconds(1.4))
                 withAnimation(.easeInOut(duration: 0.6)) { highlighted = nil }
             }
-            // Switching the look (Reduce glass, the app look) redraws every card, which threw
-            // the list back to the top (owner, 22 Oct 2026). It goes back to the card in use.
-            .onChange(of: reducesGlass) { returnTo(.accessibility, anchor: .bottom, proxy) }
-            // Text size changes by pinching anywhere too, so it goes back to the card in use.
-            .onChange(of: textSizeStep) { returnTo(focusedSection ?? .accessibility, anchor: .center, proxy) }
-            .onChange(of: appTheme) { returnTo(.widget, anchor: .top, proxy) }
         }
     }
 
@@ -970,21 +923,9 @@ struct ContentView: View {
     }
 
     /// Opens the settings and glides them to a group.
-    /// Back to the group whose setting was just changed, once the list has redrawn.
-    private func returnTo(_ section: SettingsSection, anchor: UnitPoint, _ proxy: ScrollViewProxy) {
-        // The rebuilt list replays its last jump to the selected group, so that points here too.
-        selectedSection = section
-        Task {
-            try? await Task.sleep(for: .milliseconds(320))
-            proxy.scrollTo(section, anchor: anchor)
-        }
-    }
-
     private func focus(_ section: SettingsSection) {
         selectedSection = section
-        // The groups and the settings work as one: picking a group always brings the settings
-        // into view at it, even when they're tucked aside (owner, 22 Oct 2026).
-        withAnimation(.snappy) { showsInspector = true; settingsPeeking = false }
+        withAnimation(.snappy) { showsInspector = true }
         focusRequest += 1
     }
 
@@ -1012,14 +953,13 @@ struct ContentView: View {
 
     /// Which side each panel is on, and which is on top when they share a side.
     private var panelsStacked: Bool { groupsTrailing != settingsLeading }
-    private var panelLayoutKey: String { "\(groupsTrailing)\(settingsLeading)\(groupsBelow)\(groupsAlongBottom)\(groupsAlongTop)" }
+    private var panelLayoutKey: String { "\(groupsTrailing)\(settingsLeading)\(groupsBelow)\(groupsAlongBottom)" }
 
     /// How much room the panels on one side take from the preview.
     private func panelInset(leading: Bool, settingsWidth: CGFloat) -> CGFloat {
-        let groupsHere = showsSidebar && sidebarAlongside && !groupsOnEdge && groupsTrailing != leading
+        let groupsHere = showsSidebar && sidebarAlongside && !groupsAlongBottom && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if settingsHere { return settingsPeeking ? Peek.showing + Space.medium : settingsWidth + Space.medium }
-        if !showsInspector && settingsLeading == leading { return SettingsRail.width + Space.small * 2 }
         return groupsHere ? groupsWidth + Space.medium : 0
     }
 
@@ -1027,7 +967,7 @@ struct ContentView: View {
     /// settings taking the rest).
     @ViewBuilder
     private func panelColumn(leading: Bool, area: CGSize, settingsWidth: CGFloat) -> some View {
-        let groupsHere = showsSidebar && groupsFree && !groupsOnEdge && groupsTrailing != leading
+        let groupsHere = showsSidebar && groupsFree && !groupsAlongBottom && groupsTrailing != leading
         let settingsHere = showsInspector && settingsLeading == leading
         if groupsHere || settingsHere {
             VStack(spacing: Space.medium) {
@@ -1107,27 +1047,8 @@ struct ContentView: View {
             .shadow(color: .black.opacity(settingsCarried ? 0.2 : 0), radius: 22, y: 12)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: settingsCarried)
             .modifier(LiveOffset(motion: motion, path: \.settingsMove))
-            .modifier(Peek(on: settingsPeeking, towardsLeading: leading, width: width, simple: reduceMotion, wake: {
+            .modifier(Peek(on: settingsPeeking, towardsLeading: leading, width: width, simple: reduceMotion) {
                 withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { settingsPeeking = false }
-            }, further: {
-                // Pushed again: it folds into the rail of headings at the edge.
-                withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.85)) {
-                    settingsPeeking = false
-                    showsInspector = false
-                    // The rail lists the same headings as the groups, so the groups step away
-                    // too: one menu on screen, never two saying the same thing (owner, 22 Oct 2026).
-                    railHidGroups = showsSidebar
-                    showsSidebar = false
-                }
-            }))
-            // A sideways swipe on the panel itself, towards its edge, tucks it aside (owner,
-            // 22 Oct 2026: "when your finger touches the panel itself and slides"). Up and down
-            // still scroll.
-            .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { drag in
-                let dx = drag.predictedEndTranslation.width
-                guard !settingsCarried, !settingsPeeking, abs(dx) > 140,
-                      abs(drag.translation.width) > abs(drag.translation.height) * 1.6 else { return }
-                if (dx < 0) == leading { flickSettings(towardsLeading: leading, in: area) }
             })
             .zIndex(settingsCarried ? 1 : 0)
             .environment(\.panelCarry, PanelCarry(
@@ -1139,37 +1060,14 @@ struct ContentView: View {
                 },
                 ended: { moved in
                     if let moved {
-                        let finger = settingsFinger(moved)
-                            ?? CGPoint(x: inspectorRect.midX + moved.width, y: inspectorRect.minY + 40 + moved.height)
-                        let wasLeading = settingsLeading, before = inspectorRect
-                        // Swapping sides moves the panel to the other column, which SwiftUI sees
-                        // as a new panel: it faded out, slid in from the edge and the rest of the
-                        // screen jumped (simulator frames, 22 Oct 2026). Instead it's put down in
-                        // its new column exactly where the finger left it, with no transition,
-                        // and glides home from there.
-                        panelSwap = true
-                        var still = Transaction()
-                        still.disablesAnimations = true
-                        withTransaction(still) {
-                            placePanel(groups: false, at: finger, in: area, animated: false)
-                            if settingsLeading != wasLeading {
-                                let home = settingsLeading ? panelsOrigin.x + Space.medium
-                                    : panelsOrigin.x + area.width - Space.medium - before.width
-                                motion.settingsMove = CGSize(width: moved.width - (home - before.minX), height: moved.height)
-                            }
-                        }
+                        placePanel(groups: false, at: settingsFinger(moved)
+                                   ?? CGPoint(x: inspectorRect.midX + moved.width, y: inspectorRect.minY + 40 + moved.height), in: area)
                     }
                     settingsGrab = nil
                     carryTarget = nil
-                    withAnimation(reduceMotion ? nil : Self.cardLand) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                         motion.settingsMove = .zero
                         settingsCarried = false
-                    }
-                    // The widget steps out from under it as it lands, not half a second later.
-                    clearWidgetFromPanels(after: 60)
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(700))
-                        panelSwap = false
                     }
                 },
                 flicked: { towardsLeading in flickSettings(towardsLeading: towardsLeading, in: area) }))
@@ -1184,9 +1082,9 @@ struct ContentView: View {
 
     /// Puts a panel down: on the side it's dropped, sharing that side if the other panel is
     /// already there (above or below it, by where it was dropped).
-    private func placePanel(groups: Bool, at point: CGPoint, in area: CGSize, animated: Bool = true) {
+    private func placePanel(groups: Bool, at point: CGPoint, in area: CGSize) {
         let leading = point.x < area.width / 2
-        withAnimation(reduceMotion || !animated ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
             if groups { groupsTrailing = !leading } else { settingsLeading = leading }
             if panelsStacked {
                 let other = groups ? inspectorRect : sidebarRect
@@ -1274,7 +1172,7 @@ struct ContentView: View {
     /// Lets go of the groups: they glide from under the finger to where they've settled.
     private func dropGroups() {
         carryTarget = nil
-        withAnimation(reduceMotion ? nil : Self.cardLand) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.8)) {
             motion.groupsMove = .zero
             groupsCarried = false
         }
@@ -1336,36 +1234,13 @@ struct ContentView: View {
         // Near the bottom of the window it lies along the bottom; anywhere else it goes to that
         // side, at the height it was dropped.
         let alongBottom = finger.y - panelsOrigin.y > area.height - 160
-        let alongTop = !alongBottom && finger.y - panelsOrigin.y < 90
-        if alongBottom || alongTop || groupsOnEdge {
-            withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
-                groupsAlongBottom = alongBottom
-                groupsAlongTop = alongTop
+        withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.82)) {
+            groupsAlongBottom = alongBottom
+            if !alongBottom {
+                groupsTop = max(0, Double(sidebarRect.minY - panelsOrigin.y + drag.translation.height - Space.small))
             }
-            if !alongBottom && !alongTop { placePanel(groups: true, at: end, in: area) }
-            return
         }
-        // Put down where the finger let go, then glides home: the new place is set at once,
-        // and the distance carried is swapped for what's left between there and here, so the
-        // pill never jumps or slides in from an edge (as the settings panel, 22 Oct 2026).
-        let before = sidebarRect
-        panelSwap = true
-        var still = Transaction()
-        still.disablesAnimations = true
-        withTransaction(still) {
-            let top = max(0, min(Double(sidebarRect.minY - panelsOrigin.y + drag.translation.height - Space.small),
-                                 Double(area.height - sidebarRect.height - Space.large)))
-            groupsTop = top
-            placePanel(groups: true, at: end, in: area, animated: false)
-            let homeX = groupsTrailing ? panelsOrigin.x + area.width - Space.medium - before.width : panelsOrigin.x + Space.medium
-            let homeY = panelsOrigin.y + Space.small + CGFloat(top)
-            motion.groupsMove = CGSize(width: before.minX + drag.translation.width - homeX,
-                                       height: before.minY + drag.translation.height - homeY)
-        }
-        Task {
-            try? await Task.sleep(for: .milliseconds(700))
-            panelSwap = false
-        }
+        if !alongBottom { placePanel(groups: true, at: end, in: area) }
     }
 
     /// What the groups would stick to if let go at `point` (in the window).
@@ -1705,15 +1580,6 @@ struct ContentView: View {
             // the rest of the screen redraws just when the landing slot changes.
             .onChanged { value in
                 if value.first == nil, value.second != nil, !draggingCard {
-                    // Pins the widget to the slot it's in before anything moves. Until it's been
-                    // placed it follows the space between the panels, so a panel making room
-                    // mid-drag shifted that space and the widget leapt ahead of the finger
-                    // (simulator frames, 22 Oct 2026).
-                    if widgetColumn < 0 {
-                        let here = grid.nearest(to: CGPoint(x: home.midX, y: home.midY), span: span)
-                        widgetColumn = here.column
-                        widgetRow = here.row
-                    }
                     withAnimation(.snappy) { draggingCard = true }
                 }
                 if activePanel != .widget { markActive(.widget) }
@@ -1750,11 +1616,10 @@ struct ContentView: View {
                     if let drag = value.second {
                         let end = CGPoint(x: home.midX + drag.translation.width, y: home.midY + drag.translation.height)
                         let target = grid.nearest(to: end, span: next.span)
-                        withAnimation(Self.cardLand) {
+                        withAnimation(Self.cardSettle) {
                             widgetColumn = target.column
                             widgetRow = target.row
                         }
-                        makeRoom(for: grid.frame(column: target.column, row: target.row, span: next.span))
                     }
                     withAnimation(Self.cardSettle) {
                         motion.clockPinch = 1
@@ -1766,16 +1631,12 @@ struct ContentView: View {
                     let target = grid.nearest(to: end, span: span)
                     // The distance springs back to zero with the same spring that moves the widget
                     // to its new slot, so the two cancel out and it glides on from under the finger.
-                    withAnimation(reduceMotion ? nil : Self.cardLand) {
+                    withAnimation(reduceMotion ? nil : Self.cardSettle) {
                         widgetColumn = target.column
                         widgetRow = target.row
                         motion.cardDrag = .zero
                         draggingCard = false
                     }
-                    // A quick drag can change slot in the same moment it's let go, before the
-                    // panels heard about it, so they make room here too (simulator, 22 Oct 2026:
-                    // the widget landed under the settings).
-                    makeRoom(for: grid.frame(column: target.column, row: target.row, span: span))
                 } else {
                     withAnimation(Self.cardSettle) {
                         motion.clockPinch = 1
@@ -1841,15 +1702,8 @@ struct ContentView: View {
     private func cardFace(card: CGSize, scale: CGFloat) -> some View {
         let lift: CGFloat = draggingCard && !reduceMotion ? 1.04 : 1
         let face = TimelineView(.everyMinute) { context in
-            // The clock fades from one size's layout to the next while the card reshapes around
-            // it, as widgets do on the iPad's Home Screen (owner, 22 Oct 2026), rather than its
-            // text jumping when the size snaps.
-            ZStack {
-                ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
-                          simulatesClear: !homeScreen.showsKeptColours)
-                    .id(previewSize)
-                    .transition(.opacity)
-            }
+            ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
+                      simulatesClear: !homeScreen.showsKeptColours)
                 .padding(16 * scale)
                 .frame(width: card.width * scale, height: card.height * scale)
                 .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28 * scale), homeScreen: homeScreen))
@@ -1871,11 +1725,7 @@ struct ContentView: View {
         return face
             // Lifts while it's being moved, like a widget on the Home Screen.
             .scaleEffect(lift)
-            // The lifted shadow sits only outside the card: a plain shadow showed through the
-            // clear glass and turned the whole widget dark while it was carried, and for a
-            // moment after it landed (simulator frames, 22 Oct 2026).
-            // Only drawn while carried, so a resting widget costs nothing extra.
-            .background { if draggingCard { LiftShadow(radius: 28 * scale, shown: true).transition(.opacity) } }
+            .shadow(color: .black.opacity(draggingCard ? 0.28 : 0), radius: 28, y: 14)
             // The lean: a soft tilt towards where it's going and a slight stretch along the way.
             .modifier(LiveLean(motion: motion, strength: CGFloat(tweakLean), still: reduceMotion))
             .scaleEffect(x: resizeStretch.width, y: resizeStretch.height, anchor: resizeCorner.opposite)
@@ -2365,12 +2215,8 @@ struct ContentView: View {
     /// Horizontal swipes across the preview bring the panels in and out: a swipe right shows
     /// the groups list (or hides the settings), a swipe left shows the settings (or hides the list).
     private var panelSwipe: some Gesture {
-        DragGesture(minimumDistance: 24, coordinateSpace: .global)
+        DragGesture(minimumDistance: 24)
             .onChanged { drag in
-                // A drag that starts on the widget moves the widget, never the backdrop: the
-                // next backdrop was sliding in behind a widget being dragged down (simulator,
-                // 22 Oct 2026).
-                guard !startsOnWidget(drag) else { return }
                 // Leans only for sideways drags, so scrolling up and down doesn't wobble, and not
                 // while the widget itself is being moved or pinched.
                 if !draggingCard, !editingWidget, motion.clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) {
@@ -2386,10 +2232,6 @@ struct ContentView: View {
             }
             .onEnded { drag in
                 if motion.panelPull != 0 { withAnimation(.bouncy) { motion.panelPull = 0 } }
-                if startsOnWidget(drag) {
-                    if pulledBackdrop != nil { finishBackdropPull(predicted: 0) }
-                    return
-                }
                 if pulledBackdrop != nil {
                     finishBackdropPull(predicted: drag.predictedEndTranslation.height / pullLength)
                     return
@@ -2409,10 +2251,6 @@ struct ContentView: View {
                 guard abs(dx) > 60, abs(dx) > abs(drag.translation.height) * 1.5 else { return }
                 swipePanels(right: dx > 0)
             }
-    }
-
-    private func startsOnWidget(_ drag: DragGesture.Value) -> Bool {
-        interface == .panels && widgetRect.insetBy(dx: -12, dy: -12).contains(drag.startLocation)
     }
 
     /// The card with glass bubbles floating around it: the Home Screen style above, widget
@@ -2459,13 +2297,10 @@ struct ContentView: View {
                             .position(x: frame.midX, y: frame.midY)
                     }
                     let target = grid.frame(column: landing.column, row: landing.row, span: span)
-                    // The widget's own shape, a little larger all round, so it reads as an outline
-                    // of where it'll land and small differences don't show (owner, 22 Oct 2026).
-                    let ring: CGFloat = 8
-                    RoundedRectangle(cornerRadius: 28 * scale + ring, style: .continuous)
-                        .fill(.white.opacity(0.14))
+                    RoundedRectangle(cornerRadius: 28 * scale)
+                        .fill(.white.opacity(0.18))
                         .strokeBorder(.white.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                        .frame(width: card.width * scale + ring * 2, height: card.height * scale + ring * 2)
+                        .frame(width: target.width, height: target.height)
                         .position(x: target.midX, y: target.midY)
                         .animation(.snappy, value: landing.column)
                         .animation(.snappy, value: landing.row)
@@ -2526,12 +2361,6 @@ struct ContentView: View {
                         .animation(.smooth, value: controlsSplit)
                         .animation(.smooth, value: controlsAbove)
                 .position(x: centre.x, y: centre.y)
-                // The slot is saved with @AppStorage, whose changes can arrive without the
-                // drop's animation: then the widget jumped to its new slot while the finger's
-                // distance sprang back, so it shot past the slot and pulled back (owner, 22 Oct
-                // 2026; seen frame by frame in the simulator). Animating the position itself with
-                // the same spring keeps the two in step: one glide from the finger into the slot.
-                .animation(reduceMotion ? nil : Self.cardLand, value: centre)
                 .modifier(LiveOffset(motion: motion, path: \.cardDrag))
                 // The resize handle sits beside the widget rather than on it, so the
                 // widget's own drag doesn't take its touches.
@@ -2568,9 +2397,9 @@ struct ContentView: View {
 
     /// Once a newly opened panel has settled, moves the widget back to the middle of the free
     /// space if the panel covers it.
-    private func clearWidgetFromPanels(after delay: Int = 450) {
+    private func clearWidgetFromPanels() {
         Task {
-            try? await Task.sleep(for: .milliseconds(delay))
+            try? await Task.sleep(for: .milliseconds(450))
             let card = widgetRect.insetBy(dx: 12, dy: 12)
             let covered = (showsInspector && card.intersects(inspectorRect))
                 || (showsSidebar && groupsFree && card.intersects(sidebarRect))
@@ -2665,14 +2494,41 @@ struct ContentView: View {
             .padding(.horizontal, controlsFollowWidget || compact ? Space.small : Space.large)
             .padding(.top, compact ? Space.small : Space.medium)
             .padding(.bottom, compact ? Space.small : Space.large)
-            // In Classic the backdrop's name shows over the preview; in Panels it sits at the
-            // bottom middle of the window instead, where it's easy to find (`backdropNameOverlay`).
             .overlay(alignment: .top) {
-                if showsChrome, interface == .classic, let backdropToast {
-                    backdropNameCard(backdropToast)
-                        .padding(.top, Space.small)
-                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)))
-                        .accessibilityHidden(true)
+                if showsChrome, let backdropToast {
+                    VStack(spacing: 4) {
+                        // Which family the swipe has reached, with a dot per backdrop in it, so
+                        // it's clear when the swipe moves from Gradients into Mesh and so on.
+                        if let kind = backdrop.kind {
+                            Text(kind.title.uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(backdropToast)
+                            .font(.headline)
+                        if let kind = backdrop.kind {
+                            HStack(spacing: 5) {
+                                // The current one is a longer pill, so it reads by shape as
+                                // well as by shade.
+                                ForEach(kind.backdrops) { item in
+                                    Capsule()
+                                        .fill(item == backdrop ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                                        .frame(width: item == backdrop ? 16 : 6, height: 6)
+                                }
+                            }
+                            .padding(.top, 2)
+                        }
+                    }
+                    .padding(.horizontal, Space.medium)
+                    .padding(.vertical, Space.small)
+                    // Rounds to a capsule when it's one line (Your Photo), a soft card when three.
+                    // Frosted like the bubbles, so it reads on dark patterns too.
+                    .background { bubbleBacking(.rect(cornerRadius: 20)) }
+                    .appGlass(.rect(cornerRadius: 20))
+                    .environment(\.colorScheme, controlScheme)
+                    .padding(.top, Space.small)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.8)))
+                    .accessibilityHidden(true)
                 }
             }
     }
@@ -2754,79 +2610,12 @@ struct ContentView: View {
         }
     }
 
-    /// The backdrop's name, its kind above, and a dot for each backdrop of that kind.
-    private func backdropNameCard(_ name: String) -> some View {
-                    VStack(spacing: 4) {
-                        // Which family the swipe has reached, with a dot per backdrop in it, so
-                        // it's clear when the swipe moves from Gradients into Mesh and so on.
-                        if let kind = backdrop.kind {
-                            Text(kind.title.uppercased())
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(name)
-                            .font(.headline)
-                        if let kind = backdrop.kind {
-                            HStack(spacing: 5) {
-                                // The current one is a longer pill, so it reads by shape as
-                                // well as by shade.
-                                ForEach(kind.backdrops) { item in
-                                    Capsule()
-                                        .fill(item == backdrop ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                                        .frame(width: item == backdrop ? 16 : 6, height: 6)
-                                }
-                            }
-                            .padding(.top, 2)
-                        }
-                    }
-                    .padding(.horizontal, Space.medium)
-                    .padding(.vertical, Space.small)
-                    // Rounds to a capsule when it's one line (Your Photo), a soft card when three.
-                    // Frosted like the bubbles, so it reads on dark patterns too.
-                    .background { bubbleBacking(.rect(cornerRadius: 20)) }
-                    .appGlass(.rect(cornerRadius: 20))
-                    .environment(\.colorScheme, controlScheme)
-    }
-
-    /// Panels: the backdrop's name at the bottom middle, in line with the panels rather than
-    /// floating over the widget (owner, 22 Oct 2026). Swipe across it for the next or previous
-    /// backdrop, or tap a dot to jump to one; it stays up while it's being used.
-    private var backdropNameOverlay: some View {
-        Group {
-            if let backdropToast {
-                backdropNameCard(backdropToast)
-                    .contentShape(.rect(cornerRadius: 20))
-                    .gesture(DragGesture(minimumDistance: 12).onEnded { drag in
-                        let dx = drag.translation.width
-                        guard abs(dx) > 30, abs(dx) > abs(drag.translation.height) else { return }
-                        stepBackdrop(forward: dx < 0)
-                    })
-                    .onTapGesture(coordinateSpace: .local) { _ in stepBackdrop(forward: true) }
-                    .padding(.bottom, Space.large + (showsSidebar && groupsFree && groupsAlongBottom ? 64 : 0))
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)).combined(with: .scale(scale: 0.85)))
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Backdrop: \(backdropToast)")
-                    .accessibilityAdjustableAction { direction in stepBackdrop(forward: direction == .increment) }
-            }
-        }
-    }
-
-    /// The next or previous backdrop, sliding in the way a swipe on the preview does.
-    private func stepBackdrop(forward: Bool) {
-        let options = availableBackdrops
-        let index = options.firstIndex(of: backdrop) ?? 0
-        backdropTravel = forward ? .bottom : .top
-        withAnimation(.smooth(duration: 0.55)) {
-            backdrop = options[(index + (forward ? 1 : options.count - 1)) % options.count]
-        }
-    }
-
     /// Briefly shows the new backdrop's name over the preview.
     private func showBackdropName() {
         let name = backdrop.label
         withAnimation(.snappy) { backdropToast = name }
         Task {
-            try? await Task.sleep(for: .seconds(interface == .panels ? 2.4 : 1.3))
+            try? await Task.sleep(for: .seconds(1.3))
             // Kept up for screenshots when a backdrop was passed in for testing.
             if backdropToast == name, StressTest.backdrop == nil { withAnimation(.easeOut(duration: 0.4)) { backdropToast = nil } }
             backdropTravel = .bottom
@@ -2877,10 +2666,9 @@ struct ContentView: View {
     }
 
     private func bubble(@ViewBuilder content: () -> some View) -> some View {
-        // The same gap all the way round, so a capsule inside (the size switch) runs parallel
-        // to this one at its ends (owner, 22 Oct 2026: the edges didn't quite line up on iPad).
         content()
-            .padding(tweakBubble)
+            .padding(.horizontal, tweakBubble)
+            .padding(.vertical, tweakBubble * 0.8)
             .background { bubbleBacking(.capsule) }
             .appGlass(.capsule)
             .environment(\.colorScheme, controlScheme)
@@ -3059,7 +2847,7 @@ struct ContentView: View {
     private var sizeBubble: some View {
         bubble {
             GlassPicker("Widget size", selection: $previewSize, options: PreviewSize.allCases, large: true) { compact && $0 == .extraLarge ? "XL" : $0.rawValue }
-            .fixedSize()
+            .frame(maxWidth: 480)
         }
     }
 
@@ -3279,8 +3067,14 @@ struct ContentView: View {
             }
             .padding(.vertical, 4)
 
-            groupLabel("Moods")
-            moodTiles
+            groupLabel("Starter styles")
+            FlowLayout(spacing: 10) {
+                ForEach(ClockStyle.presets, id: \.name) { preset in
+                    Button(preset.name) { use(preset.style) }
+                        .readableChip()
+                }
+            }
+            .padding(.vertical, 4)
 
             lockChips
 
@@ -3435,7 +3229,6 @@ struct ContentView: View {
             Picker("When the widget is moved under a panel", selection: $panelsMakeWay) {
                 ForEach(PanelsMakeWay.allCases) { Text($0.label).tag($0) }
             }
-            Toggle("Names on the folded rail", isOn: $railNames)
             Button("Design Tweaks…") {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showsTweaks = true }
             }
@@ -3475,110 +3268,6 @@ struct ContentView: View {
         }
     }
 
-    /// Moods (owner, 22 Oct 2026): each starting style with a backdrop that suits it, picked
-    /// from small pictures of the widget on that backdrop. Simple presets: a tap applies both.
-    private static let moodBackdrops: [String: PreviewBackdrop] = [
-        "Bold glass": .aurora, "Lock Screen": .ocean, "Neon": .midnight, "Minimal": .dune, "Stacked serif": .sunset,
-    ]
-
-    private var moodTiles: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(ClockStyle.presets, id: \.name) { mood in
-                    let scene = Self.moodBackdrops[mood.name] ?? .aurora
-                    // What a tap would give, locks and all, so the picture matches the result
-                    // and the mood in use reads as chosen.
-                    let result = style.taking(Set(StylePart.allCases).subtracting(lockedParts), from: mood.style)
-                    let chosen = style == result && backdrop == scene
-                    Button {
-                        use(mood.style)
-                        if !reduceMotion { withAnimation(.smooth(duration: 0.55)) { backdrop = scene } } else { backdrop = scene }
-                    } label: {
-                        VStack(spacing: 6) {
-                            moodPicture(result, on: scene)
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .strokeBorder(.white.opacity(chosen ? 0.9 : 0.25), lineWidth: chosen ? 2.5 : 1)
-                                }
-                                .shadow(color: .black.opacity(chosen ? 0.25 : 0.12), radius: chosen ? 8 : 4, y: chosen ? 4 : 2)
-                                .scaleEffect(chosen ? 1 : 0.96)
-                                .shimmer(trigger: chosen, in: .rect(cornerRadius: 16, style: .continuous))
-                            Text(mood.name)
-                                .font(.footnote.weight(chosen ? .semibold : .regular))
-                                .foregroundStyle(chosen ? .primary : .secondary)
-                                .lineLimit(1)
-                        }
-                        .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(mood.name + " mood")
-                    .accessibilityAddTraits(chosen ? .isSelected : [])
-                    .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: chosen)
-                }
-                notInTheMood
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 2)
-        }
-        .scrollClipDisabled()
-        .sensoryFeedback(.selection, trigger: backdrop)
-    }
-
-    /// The way out (owner, 22 Oct 2026: "a not in the mood which will reset to default"): the
-    /// default style, every part of it, locks or not, on the Plain backdrop.
-    private var notInTheMood: some View {
-        let plain = style.taking(Set(StylePart.allCases), from: ClockStyle())
-        let chosen = style == plain && backdrop == .plain
-        return Button {
-            withAnimation(reduceMotion ? nil : .smooth) { style = plain }
-            if !reduceMotion { withAnimation(.smooth(duration: 0.55)) { backdrop = .plain } } else { backdrop = .plain }
-        } label: {
-            VStack(spacing: 6) {
-                moodPicture(plain, on: .plain)
-                    .overlay(alignment: .topTrailing) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.caption.weight(.bold))
-                            .padding(6)
-                            .background(.ultraThinMaterial, in: .circle)
-                            .padding(6)
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(chosen ? AnyShapeStyle(.primary.opacity(0.55)) : AnyShapeStyle(.secondary.opacity(0.5)),
-                                          style: StrokeStyle(lineWidth: chosen ? 2.5 : 1, dash: chosen ? [] : [5, 4]))
-                    }
-                    .scaleEffect(chosen ? 1 : 0.96)
-                Text("Not in the mood")
-                    .font(.footnote.weight(chosen ? .semibold : .regular))
-                    .foregroundStyle(chosen ? .primary : .secondary)
-                    .lineLimit(1)
-            }
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Not in the mood: back to the default style and the Plain backdrop")
-        .accessibilityAddTraits(chosen ? .isSelected : [])
-        .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: chosen)
-    }
-
-    /// A small picture of a mood: its backdrop with a small widget in that style on it.
-    private func moodPicture(_ mood: ClockStyle, on scene: PreviewBackdrop) -> some View {
-        backdropFill(scene)
-            .frame(width: 104, height: 104)
-            .overlay {
-                ClockFace(date: .now, style: mood, simulatedAccent: homeScreen.accent,
-                          simulatesClear: !homeScreen.showsKeptColours)
-                    .padding(14)
-                    .frame(width: 150, height: 150)
-                    .modifier(ClockCard(style: mood, shape: .rect(cornerRadius: 26), homeScreen: homeScreen))
-                    .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
-                    .scaleEffect(0.5)
-                    .frame(width: 75, height: 75)
-                    .allowsHitTesting(false)
-            }
-            .clipShape(.rect(cornerRadius: 16, style: .continuous))
-    }
-
     /// Applies a preset, leaving locked parts alone.
     private func use(_ preset: ClockStyle) {
         withAnimation(reduceMotion ? nil : .smooth) {
@@ -3613,7 +3302,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(locked ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-                    .modifier(ChipSurface(selected: locked))
+                    .background(locked ? AnyShapeStyle(AppColor.chosen(appColor)) : AnyShapeStyle(.quaternary), in: .capsule)
                     .fixedSize()
                     .accessibilityLabel("\(part.label), \(locked ? "locked" : "unlocked")")
                     .accessibilityHint("Locked parts keep their settings when you use a preset or Lucky")
@@ -3663,57 +3352,26 @@ struct ContentView: View {
     }
 
     /// Swatches wrap onto more rows when the window is narrow.
-    /// Colours in three labelled rows, so there's an easy default to pick (owner, 22 Oct 2026):
-    /// the standard set, soft pastels and deep, rich shades, then the wheel for any colour.
     private func swatchRow(selection: Binding<ClockColor>) -> some View {
-        let chosen = selection.wrappedValue
-        let inPalette = ClockColor.allCases.contains(chosen) || ColourPalette.all.contains { $0.colour == chosen }
-        return VStack(alignment: .leading, spacing: 6) {
-            swatchLabel("Standard")
-            swatchGrid {
-                ForEach(ClockColor.allCases) { option in colorSwatch(option, selection: selection) }
+        swatchGrid {
+            ForEach(ClockColor.allCases) { option in
+                colorSwatch(option, selection: selection)
             }
-            swatchLabel("Pastel")
-            swatchGrid {
-                ForEach(ColourPalette.pastel) { item in colorSwatch(item.colour, name: item.name, selection: selection) }
+            // A colour from the wheel shows as its own swatch, then the wheel itself: any colour
+            // at all (owner, 22 Oct 2026).
+            if selection.wrappedValue.isCustom {
+                colorSwatch(selection.wrappedValue, selection: selection)
             }
-            swatchLabel("Deep")
-            swatchGrid {
-                ForEach(ColourPalette.deep) { item in colorSwatch(item.colour, name: item.name, selection: selection) }
-                // A colour from the wheel shows as its own swatch, then the wheel itself.
-                if chosen.isCustom && !inPalette { colorSwatch(chosen, selection: selection) }
-                colourWheel(selection: selection)
-            }
+            ColorPicker("Any colour", selection: Binding(
+                get: { selection.wrappedValue.color },
+                set: { picked in
+                    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                    UIColor(picked).getRed(&r, green: &g, blue: &b, alpha: &a)
+                    selection.wrappedValue = ClockColor(red: r, green: g, blue: b)
+                }), supportsOpacity: false)
+                .labelsHidden()
+                .frame(width: 44, height: 44)
         }
-    }
-
-    private func swatchLabel(_ title: String) -> some View {
-        Text(title)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-    }
-
-    /// The system colour picker, dressed as a spectrum with an eyedropper rather than its ring
-    /// around a dot (owner, 22 Oct 2026). The picker sits underneath and takes the tap.
-    private func colourWheel(selection: Binding<ClockColor>) -> some View {
-        ColorPicker("Any colour", selection: Binding(
-            get: { selection.wrappedValue.color },
-            set: { picked in
-                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                UIColor(picked).getRed(&r, green: &g, blue: &b, alpha: &a)
-                selection.wrappedValue = ClockColor(red: r, green: g, blue: b)
-            }), supportsOpacity: false)
-            .labelsHidden()
-            .frame(width: 44, height: 44)
-            .overlay {
-                Circle()
-                    .fill(AngularGradient(colors: [.red, .orange, .yellow, .green, .mint, .blue, .purple, .pink, .red], center: .center))
-                    .overlay { Image(systemName: "eyedropper.halffull").font(.footnote.weight(.bold)).foregroundStyle(.white).shadow(radius: 1.5) }
-                    .overlay { Circle().strokeBorder(.white.opacity(0.5), lineWidth: 1) }
-                    .frame(width: 34, height: 34)
-                    .allowsHitTesting(false)
-            }
-            .accessibilityLabel("Any colour")
     }
 
     private func swatchGrid(@ViewBuilder content: () -> some View) -> some View {
@@ -3723,7 +3381,7 @@ struct ContentView: View {
         .padding(.vertical, 4)
     }
 
-    private func colorSwatch(_ option: ClockColor, name: String? = nil, selection: Binding<ClockColor>) -> some View {
+    private func colorSwatch(_ option: ClockColor, selection: Binding<ClockColor>) -> some View {
         Button {
             selection.wrappedValue = option
         } label: {
@@ -3745,32 +3403,8 @@ struct ContentView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(option == .auto ? "Automatic colour" : name ?? option.name)
+        .accessibilityLabel(option == .auto ? "Automatic colour" : option.name)
     }
-}
-
-/// The extra colour rows: soft pastels and deep, rich shades.
-enum ColourPalette {
-    struct Item: Identifiable {
-        let name: String
-        let colour: ClockColor
-        var id: String { colour.rawValue }
-        init(_ name: String, _ hex: String) { self.name = name; colour = ClockColor(rawValue: hex) ?? .auto }
-    }
-
-    static let pastel: [Item] = [
-        Item("Blush", "#F6C1CC"), Item("Peach", "#FBD3B0"), Item("Butter", "#F7EBA8"),
-        Item("Pistachio", "#CFE8C0"), Item("Seafoam", "#BDE7DF"), Item("Sky", "#BFDDF5"),
-        Item("Periwinkle", "#C9CFF5"), Item("Lavender", "#DCCCF2"), Item("Rose", "#F2C6E4"),
-    ]
-
-    static let deep: [Item] = [
-        Item("Crimson", "#A8132B"), Item("Rust", "#B5501C"), Item("Gold", "#C9971C"),
-        Item("Olive", "#5F6B1F"), Item("Forest", "#1F6B45"), Item("Teal", "#0F7177"),
-        Item("Navy", "#1C3A8A"), Item("Plum", "#6B2C7A"), Item("Espresso", "#4A3428"),
-    ]
-
-    static let all = pastel + deep
 }
 
 #Preview {
@@ -3890,33 +3524,15 @@ struct Peek: ViewModifier {
     var width: CGFloat
     var simple: Bool
     var wake: () -> Void
-    /// Pushed towards the edge again: folds away into the rail.
-    var further: () -> Void = {}
 
     func body(content: Content) -> some View {
         let away: CGFloat = towardsLeading ? -1 : 1
         content
             .allowsHitTesting(!on)
-            // Squeezed narrower and a little shorter rather than turned in 3D: Liquid Glass in a
-            // 3D turn can't see the backdrop and went solid black (simulator, 22 Oct 2026).
-            // The squeeze still reads as a window turned away, like Stage Manager.
-            .scaleEffect(x: on && !simple ? 0.8 : 1, y: on && !simple ? 0.9 : 1,
-                         anchor: towardsLeading ? .trailing : .leading)
+            .rotation3DEffect(.degrees(on && !simple ? Double(-away) * 24 : 0), axis: (x: 0, y: 1, z: 0),
+                              anchor: towardsLeading ? .trailing : .leading, perspective: 0.45)
+            .scaleEffect(on && !simple ? 0.9 : 1, anchor: towardsLeading ? .trailing : .leading)
             .offset(x: on ? away * (width - Self.showing) : 0)
-            // A soft bump against the edge (owner, dashboard 22 Oct 2026): as it arrives, the
-            // panel gives a little against the screen's edge, squashing towards it, then
-            // springs back to rest, like something with weight meeting a wall.
-            .keyframeAnimator(initialValue: 0.0, trigger: on) { panel, bump in
-                panel.scaleEffect(x: 1 - 0.06 * bump, y: 1 + 0.015 * bump, anchor: towardsLeading ? .leading : .trailing)
-            } keyframes: { _ in
-                if on && !simple {
-                    LinearKeyframe(0, duration: 0.24)
-                    CubicKeyframe(1, duration: 0.08)
-                    SpringKeyframe(0, duration: 0.5, spring: .init(response: 0.32, dampingRatio: 0.55))
-                } else {
-                    LinearKeyframe(0, duration: 0.01)
-                }
-            }
             .opacity(on && simple ? 0.6 : 1)
             .overlay {
                 if on {
@@ -3924,7 +3540,7 @@ struct Peek: ViewModifier {
                         .contentShape(.rect)
                         .onTapGesture(perform: wake)
                         .gesture(DragGesture(minimumDistance: 10).onEnded { drag in
-                            if drag.translation.width * away < 0 { wake() } else if abs(drag.translation.width) > 30 { further() }
+                            if drag.translation.width * away < 0 { wake() }
                         })
                         .offset(x: away * (width - Self.showing))
                         .accessibilityLabel("Bring the settings back")

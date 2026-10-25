@@ -440,25 +440,12 @@ enum AppColor {
 /// white (Show Mine, Copy Values; tap check, 2026-10-21).
 struct ProminentButton: ViewModifier {
     @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
-    @AppStorage("appTheme") private var theme = AppTheme.home
-    @AppStorage("reduceGlass") private var reducesGlass = false
-    @Environment(\.homeLook) private var homeLook
-    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
 
     func body(content: Content) -> some View {
-        // Coloured glass in the Glass and Home looks (owner, 22 Oct 2026: "even the I'm Feeling
-        // Lucky button, maybe we could make that glass"); solid elsewhere.
-        if theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
-            content
-                .buttonStyle(.glassProminent)
-                .tint(AppColor.chosen(appColor))
-                .foregroundStyle(.white)
-        } else {
-            content
-                .buttonStyle(.borderedProminent)
-                .tint(AppColor.chosen(appColor))
-                .foregroundStyle(.white)
-        }
+        content
+            .buttonStyle(.borderedProminent)
+            .tint(AppColor.chosen(appColor))
+            .foregroundStyle(.white)
     }
 }
 
@@ -486,47 +473,16 @@ struct GlassChipStyle: ButtonStyle {
             .foregroundStyle(dark ? Color.white : .black.opacity(0.85))
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .modifier(ChipSurface(pressed: configuration.isPressed))
-            .opacity(isEnabled ? 1 : 0.5)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
-    }
-}
-
-/// A chip's surface: light Liquid Glass in the Glass and Home looks (coloured when chosen), a
-/// solid bead everywhere else and with Reduce glass.
-struct ChipSurface: ViewModifier {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.homeLook) private var homeLook
-    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
-    @AppStorage("reduceGlass") private var reducesGlass = false
-    @AppStorage("appTheme") private var theme = AppTheme.home
-    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
-    var pressed = false
-    /// A chosen chip (a lock that's on): glass tinted with the app colour.
-    var selected = false
-
-    func body(content: Content) -> some View {
-        let dark = scheme == .dark
-        if selected && theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
-            // A lock that's on is glass tinted with the app colour. One that's off is lighter
-            // glass: clear glass on a glass panel lost its contrast (owner, 22 Oct 2026).
-            content.glassEffect(.regular.tint(AppColor.chosen(appColor)).interactive(), in: .capsule)
-        } else if theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
-            // Lighter glass (owner, dashboard 22 Oct 2026): regular glass, which softens what's
-            // behind it, under a strong light or dark wash, so the label keeps its contrast.
-            content.glassEffect(.regular.tint(dark ? .black.opacity(0.28) : .white.opacity(0.6)).interactive(), in: .capsule)
-        } else if selected {
-            content.background(AppColor.chosen(appColor), in: .capsule)
-        } else {
-            content.background {
+            .background {
                 Capsule().fill(LinearGradient(
                     colors: dark ? [.white.opacity(0.26), .white.opacity(0.12)] : [.white.opacity(0.95), .white.opacity(0.75)],
                     startPoint: .top, endPoint: .bottom)
                     .shadow(.inner(color: .white.opacity(dark ? 0.35 : 0.9), radius: 1, y: 1))
                     .shadow(.drop(color: .black.opacity(dark ? 0.3 : 0.14), radius: 3, y: 1.5)))
             }
-        }
+            .opacity(isEnabled ? 1 : 0.5)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
     }
 }
 
@@ -720,33 +676,7 @@ struct SettingsCard<Content: View>: View {
         // rather than a wash of colour (owner direction, 2026-10-21).
         // (No drawn rim, owner 22 Oct 2026: it looked glitched at the edges. The glass keeps its
         // own edge, and the sweep of light marks a card jumped to.)
-        // The whole card is one Form row, so a tap on its plain text or empty space went to the
-        // row and opened a picker in it (Appearance, in the App card). The card keeps those taps
-        // for itself; switches, pickers and buttons still answer their own.
-        .background { shape.fill(.clear).contentShape(shape).onTapGesture {} }
         .shimmer(trigger: highlighted, in: shape)
-        // The same glassy glow as a choice landing in a menu (owner, 22 Oct 2026: "also the card
-        // I jump to"): the card brightens from its top edge and glows twice as it's reached.
-        .keyframeAnimator(initialValue: 0.0, trigger: highlighted) { card, glow in
-            card
-                .overlay {
-                    shape.fill(LinearGradient(colors: [.white.opacity(0.22 * glow), .white.opacity(0.02 * glow)],
-                                              startPoint: .top, endPoint: .center))
-                        .blendMode(.plusLighter)
-                        .allowsHitTesting(false)
-                }
-                // On a light card a white glow can't show, so it glows in the app colour there.
-                .shadow(color: (colorScheme == .dark ? Color.white : tint).opacity(0.35 * glow), radius: 16 * glow)
-        } keyframes: { _ in
-            if highlighted && !reduceMotion {
-                CubicKeyframe(1, duration: 0.32)
-                CubicKeyframe(0.25, duration: 0.38)
-                CubicKeyframe(0.6, duration: 0.34)
-                CubicKeyframe(0, duration: 0.6)
-            } else {
-                LinearKeyframe(0, duration: 0.01)
-            }
-        }
         .modifier(CardGlass(on: glassy, shape: shape))
         .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
         // Like a carousel: cards grow as they near the middle of the list and shrink away
@@ -1176,15 +1106,11 @@ struct LiveLean: ViewModifier {
         let turn = Double(lean.width * strength) * 7, tip = Double(-lean.height * strength) * 7
         let stretchX = 1 + (abs(lean.width) * 0.035 - abs(lean.height) * 0.015) * strength
         let stretchY = 1 + (abs(lean.height) * 0.035 - abs(lean.width) * 0.015) * strength
-        // A flat lean rather than a 3D turn: Liquid Glass inside a 3D turn can't see the backdrop
-        // behind it, so the widget went dark the whole time it was carried (simulator frames,
-        // 22 Oct 2026). A slight roll towards where it's heading reads the same and keeps it clear.
         content
-            .rotationEffect(.degrees((turn - tip * 0.4) * 0.35))
+            .rotation3DEffect(.degrees(turn), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+            .rotation3DEffect(.degrees(tip), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
             .scaleEffect(x: stretchX, y: stretchY)
-            // Lively while moving, but it eases back upright without a wobble when let go, so
-            // the landing reads as one calm motion (owner, 22 Oct 2026).
-            .animation(lean == .zero ? .smooth(duration: 0.4) : .interactiveSpring(response: 0.32, dampingFraction: 0.62), value: lean)
+            .animation(.interactiveSpring(response: 0.32, dampingFraction: 0.62), value: lean)
     }
 }
 
@@ -1227,36 +1153,13 @@ struct CarryTarget: Equatable {
 /// and a soft shadow, rather than an outline (owner, 22 Oct 2026: "go full glass").
 struct GlossyBead<S: Shape>: View {
     var shape: S
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @AppStorage("simpleMotion") private var simpleMotion = false
-    /// Goes up once as the bead lands on a choice, so it plays its pulse.
-    @State private var landed = false
 
     var body: some View {
         shape.fill(LinearGradient(colors: [.white.opacity(0.34), .white.opacity(0.08)],
                                   startPoint: .top, endPoint: .bottom)
             .shadow(.inner(color: .white.opacity(0.45), radius: 1, y: 1))
             .shadow(.inner(color: .black.opacity(0.12), radius: 2, y: -1))
-            // Kept tight, so it doesn't spill past the edge of the switch it sits in.
-            .shadow(.drop(color: .black.opacity(0.2), radius: 2, y: 1)))
-            // A quiet glassy pulse as it lands (owner, 22 Oct 2026: "a really subtle attention
-            // animation… something glassy"): the glass brightens from its top edge and glows,
-            // twice, then rests (no swell: it would reach the switch's edge). Once only, never looping.
-            .keyframeAnimator(initialValue: 0.0, trigger: landed) { bead, glow in
-                bead
-                    .overlay {
-                        shape.fill(LinearGradient(colors: [.white.opacity(0.45 * glow), .white.opacity(0.05 * glow)],
-                                                  startPoint: .top, endPoint: .bottom))
-                            .blendMode(.plusLighter)
-                    }
-                    .shadow(color: .white.opacity(0.35 * glow), radius: 6 * glow)
-            } keyframes: { _ in
-                CubicKeyframe(1, duration: 0.32)
-                CubicKeyframe(0.25, duration: 0.38)
-                CubicKeyframe(0.6, duration: 0.34)
-                CubicKeyframe(0, duration: 0.6)
-            }
-            .onAppear { if !(systemReduceMotion || simpleMotion) { landed = true } }
+            .shadow(.drop(color: .black.opacity(0.22), radius: 4, y: 2)))
     }
 }
 
@@ -1290,13 +1193,10 @@ struct GlassPicker<T: Hashable>: View {
                     Text(label(option))
                         .font((large ? Font.body : .subheadline).weight(chosen ? .semibold : .regular))
                         .lineLimit(1)
-                        // Large switches show every word in full, each option as wide as its
-                        // word (owner, 22 Oct 2026: "Extra L…" read as broken).
-                        .fixedSize(horizontal: large, vertical: false)
-                        .minimumScaleFactor(large ? 1 : 0.8)
+                        .minimumScaleFactor(0.8)
                         .foregroundStyle(chosen ? .primary : .secondary)
-                        .padding(.horizontal, large ? 14 : 6)
-                        .frame(maxWidth: large ? nil : .infinity, minHeight: large ? 44 : 32)
+                        .padding(.horizontal, large ? 10 : 6)
+                        .frame(maxWidth: .infinity, minHeight: large ? 44 : 32)
                         .background {
                             if chosen {
                                 GlossyBead(shape: Capsule())
@@ -1313,130 +1213,5 @@ struct GlassPicker<T: Hashable>: View {
         .background(Capsule().fill(.primary.opacity(0.08)))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
-    }
-}
-
-/// A soft shadow under a lifted card, cut away inside the card's shape so it never darkens
-/// clear glass from behind.
-struct LiftShadow: View {
-    var radius: CGFloat
-    var shown: Bool
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        shape.fill(.black)
-            .shadow(color: .black.opacity(shown ? 0.3 : 0), radius: 28, y: 14)
-            .mask {
-                Rectangle().padding(-80)
-                    .overlay { shape.blendMode(.destinationOut) }
-                    .compositingGroup()
-            }
-            .opacity(shown ? 1 : 0)
-            .allowsHitTesting(false)
-    }
-}
-
-/// Saves where the panels were put. They're plain view state rather than @AppStorage, whose
-/// updates reached the screen a frame late and made a dropped panel slide back first.
-struct SavesPanelPlaces: ViewModifier {
-    var settingsLeading: Bool
-    var groupsTrailing: Bool
-    var groupsTop: Double
-    var groupsAlongBottom: Bool
-    var groupsAlongTop: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .onChange(of: settingsLeading) { _, value in UserDefaults.standard.set(value, forKey: "settingsLeading") }
-            .onChange(of: groupsTrailing) { _, value in UserDefaults.standard.set(value, forKey: "groupsTrailing") }
-            .onChange(of: groupsTop) { _, value in UserDefaults.standard.set(value, forKey: "groupsTop") }
-            .onChange(of: groupsAlongBottom) { _, value in UserDefaults.standard.set(value, forKey: "groupsAlongBottom") }
-            .onChange(of: groupsAlongTop) { _, value in UserDefaults.standard.set(value, forKey: "groupsAlongTop") }
-    }
-}
-
-/// The settings folded away: a slim glass rail down the edge with every group's heading
-/// running along it, so it's clear the panel is there and what's in it (owner, 22 Oct 2026).
-/// Tap a heading to open the settings at it, or swipe the rail inwards to bring them back.
-struct SettingsRail: View {
-    static let width: CGFloat = 44
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    var leading: Bool
-    var sections: [SettingsSection]
-    var open: () -> Void
-    var go: (SettingsSection) -> Void
-    /// Names down the rail, or icons only (owner, 22 Oct 2026: "try both"; a switch in Panels).
-    @AppStorage("railNames") private var showsNames = true
-
-    var body: some View {
-        ViewThatFits(in: .vertical) {
-            if showsNames { rail(labelled: true) }
-            rail(labelled: false)
-        }
-        .frame(width: Self.width)
-        .appGlass(.capsule, interactive: true)
-        .contentShape(.capsule)
-        .gesture(DragGesture(minimumDistance: 10).onEnded { drag in
-            let inwards = leading ? drag.translation.width > 30 : drag.translation.width < -30
-            if inwards { open() }
-        })
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Settings, folded away")
-        .accessibilityAction(named: "Show settings", open)
-    }
-
-    /// Each heading's icon, with its name turned to run down the rail when there's room.
-    private func rail(labelled: Bool) -> some View {
-        VStack(spacing: labelled ? 14 : 10) {
-            ForEach(sections) { section in
-                Button { go(section) } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: section.icon)
-                            .font(.body.weight(.medium))
-                        if labelled {
-                            Text(section.title)
-                                .font(.caption.weight(.semibold))
-                                .fixedSize()
-                                .rotationEffect(.degrees(leading ? -90 : 90))
-                                .frame(width: 16, height: section.title.size(withFont: 12) + 2)
-                        }
-                    }
-                    .frame(width: Self.width)
-                    .padding(.vertical, 4)
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(section.title)
-            }
-        }
-        .padding(.vertical, 14)
-    }
-}
-
-private extension String {
-    /// Roughly how long this reads in a semibold caption of `size`, for laying it out turned.
-    func size(withFont size: CGFloat) -> CGFloat {
-        (self as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: .semibold)]).width
-    }
-}
-
-/// A soft wash behind the status bar (owner, dashboard 22 Oct 2026: the clock and battery were
-/// faint on pale backdrops). Dark behind the white status text in Dark, light behind the black
-/// text in Light, fading out just below it, so they read on any backdrop.
-struct StatusScrim: View {
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                LinearGradient(colors: [(colorScheme == .dark ? Color.black : .white).opacity(0.42), .clear],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: geometry.safeAreaInsets.top + 28)
-                Spacer(minLength: 0)
-            }
-            .ignoresSafeArea(edges: .top)
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
