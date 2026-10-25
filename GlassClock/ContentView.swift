@@ -307,6 +307,9 @@ struct ContentView: View {
     /// the finger, stretch a little, and cancel if let go early).
     @State private var backdropPull: CGFloat = 0
     @State private var pulledBackdrop: PreviewBackdrop?
+    /// True for the moment a backdrop picked from the menu slides in, so the blurred stage
+    /// behind it is only drawn while it can be seen.
+    @State private var backdropSettling = false
     /// How far a finger travels to pull a backdrop all the way in: the window's height, so the
     /// backdrops move exactly with the finger.
     private var pullLength: CGFloat { max(400, windowHeight) }
@@ -2986,11 +2989,15 @@ struct ContentView: View {
             // While a new backdrop is being pulled in, it waits underneath, settling from
             // slightly zoomed as the old one lifts away.
             // The stage the backdrops slide across, seen in the gap between them: a soft blur
-            // of the backdrop itself, so there's never a hard black edge.
-            backdropFill(backdrop)
-                .blur(radius: 40)
-                .scaleEffect(1.2)
-                .zIndex(-2e12)
+            // of the backdrop itself, so there's never a hard black edge. Only while a backdrop
+            // moves: a full-screen blur left under a still backdrop kept the GPU busy for
+            // nothing, and the iPad froze with Glass Clock open (SpringBoard hang, 25 Oct 2026).
+            if pulledBackdrop != nil || backdropSettling {
+                backdropFill(backdrop)
+                    .blur(radius: 40)
+                    .scaleEffect(1.2)
+                    .zIndex(-2e12)
+            }
             // While a new backdrop is being pulled in, it slides in from the edge alongside the
             // current one, growing to full size, like the next card on a carousel.
             if let pulledBackdrop {
@@ -3014,6 +3021,11 @@ struct ContentView: View {
         }
         .animation(.smooth(duration: 0.7), value: backdrop)
         .clipped()
+        .onChange(of: backdrop) { backdropSettling = true }
+        .task(id: backdrop) {
+            try? await Task.sleep(for: .seconds(0.8))
+            if !Task.isCancelled { backdropSettling = false }
+        }
     }
 
     /// The backdrop after (upwards) or before this one, skipping Your Photo until there is one.

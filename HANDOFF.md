@@ -2,7 +2,7 @@
 
 _Updated 25 Oct 2026, 5:45 pm_
 
-**Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** e94dfe9.
+**Branch:** `from-415` (the stable base, owner's choice: build from today's branch). **On the iPad:** stable-ipad-25oct-1755.
 
 **Done this session:**
 - **Moods are back**, rebuilt lighter in GlassClock/Moods.swift: still pictures at 10:09, and the row only redraws when the style or backdrop changes. No "try a font" hint on every tap.
@@ -12,7 +12,7 @@ _Updated 25 Oct 2026, 5:45 pm_
 
 **What we found:**
 - **Moods feel slow** because ContentView (about 4,200 lines) redraws in full on every change, not because of the Moods. Drag test: 166 of 224 frames late with Moods, 172 of 230 without. The simulator draws glass in software, so measure speed on the iPad (`run-on-ipad.sh --meter`).
-- **Crashes:** no evidence. The MetricKit files from today are empty, and there are no .ips or jetsam logs since 21 Oct. It may be freezing rather than crashing. Waiting on the owner (dashboard decision `crash-kind`): does the app vanish to the Home Screen, or freeze?
+- **Crashes (found, 25 Oct 5:50 pm):** not an app crash. iOS logged a SpringBoard hang at 5:13 pm: with Glass Clock open, the GPU stalled, the whole iPad froze for 60 s, then SpringBoard was killed (everything vanishes to the Lock/Home Screen). Chain: Glass Clock's SwiftUI renderer (RenderBox) → backboardd's display thread stuck in the GPU → SpringBoard. Likely trigger: a full-screen 40 pt blur of the backdrop kept under the backdrop at all times. Fixed: that blur is drawn only while a backdrop moves. Tagged `stable-ipad-25oct-1755`. Check for new `SpringBoard-*.ips` or `GlassClock-*.ips` with `xcrun devicectl device info files --device <id> --domain-type systemCrashLogs`.
 - **For the developer review:** the huge ContentView, the unused GlassClock/Rebuild folder (1,675 lines), `main` and `from-415` have split apart, about 300 MB of images in git, no tests, 21 uses of `AnyView`, and the backdrop drawn twice.
 
 **Bug reports from the owner:** AirDrop screenshots to the Mac and drag them into the chat with one line each. Claude can't watch video.
@@ -20,7 +20,7 @@ _Updated 25 Oct 2026, 5:45 pm_
 **Roles:** the owner is the designer and creative lead (tweaks the design system by hand in Figma). Claude is the development agent: sets the build order, suggests proactively, builds, and keeps this file and the dashboard current.
 
 **Priority order (Claude's call, owner can reorder):**
-1. **Crash check:** get the owner's answer (vanish or freeze), copy Documents/Diagnostics off the iPad (command in CrashReports.swift), and fix the cause.
+1. **Crash check:** done (see above). If it freezes again, pull the newest SpringBoard/GlassClock .ips the same way.
 2. **Stable build:** tag today's branch once it holds up. Then bring earlier features back one build at a time, each tested before it's tagged stable.
 3. **Figma design rules:** a named list of every Design Tweaks value (shadow, radii, spacing) for Figma Variables. Then the app reads the exported token JSON, so new features follow the owner's rules.
 4. **Speed:** split ContentView so a change redraws only its own part. Decide with the developer friend, and decide whether to finish or delete GlassClock/Rebuild.
@@ -75,4 +75,4 @@ That prompt gives the assistant project context, asks for a manageable step, and
 
 **Small learning loop:** ask what the next step is → make or review one change → check it → note what you learned. Experiments that do not work are still useful information; keep the next action small and return to the handoff whenever the thread gets crowded.
 
-**Next up:** 1 (crash check), then 3 (Figma value list). Update the dashboard once, at the end of each chunk.
+**Next up:** 3 (Figma value list). Update the dashboard once, at the end of each chunk.
