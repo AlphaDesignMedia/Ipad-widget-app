@@ -529,7 +529,7 @@ enum AppColor {
         guard UserDefaults.standard.object(forKey: keepsReadableKey) as? Bool ?? true else { return color }
         return Color(UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(color.lifted(to: 0.18).deepened(to: 0.3))
+                ? UIColor(color.lifted(to: 0.24).deepened(to: 0.34))
                 : UIColor(color.deepened(to: 0.16))
         })
     }
@@ -736,14 +736,14 @@ struct AppGlass<S: Shape>: ViewModifier {
     }
 
     private var dim: Color {
-        colorScheme == .dark ? .black.opacity(panel ? 0.38 : 0.4) : .white.opacity(panel ? 0.5 : 0.55)
+        colorScheme == .dark ? .black.opacity(panel ? 0.46 : 0.5) : .white.opacity(panel ? 0.6 : 0.65)
     }
 
     private var clearAndSmall: Bool { theme.isGlassy && tint == nil && !panel && homeLook != .tinted }
 
     private var halo: Color {
         guard clearAndSmall else { return .clear }
-        return colorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.7)
+        return colorScheme == .dark ? .black.opacity(0.6) : .white.opacity(0.85)
     }
 }
 
@@ -1037,13 +1037,17 @@ private struct GlassBacking<S: Shape>: View {
     var amount: Double
     var shape: S
 
+    @Environment(\.colorSchemeContrast) private var contrast
+
     var body: some View {
         ZStack {
             // No frost any more (owner, 22 Oct 2026): clear glass with a dimming wash, darker
             // in Dark and lighter in Light, so text stands off the backdrop. The Glass slider
             // sets how strong the wash is.
             shape.fill(colorScheme == .dark ? Color.black : .white)
-                .opacity((colorScheme == .dark ? 0.3 : 0.42) + 0.3 * (1 - amount))
+                // A firmer wash (owner, 25 Oct 2026: things mustn't get lost, even at some cost
+                // to the look), and firmer still with Increase Contrast on in the iPad's Settings.
+                .opacity((colorScheme == .dark ? 0.4 : 0.52) + 0.3 * (1 - amount) + (contrast == .increased ? 0.15 : 0))
             // A Tinted Home Screen's glass carries the tint all through.
             if homeLook == .tinted {
                 shape.fill(AppColor.chosen(appColor).opacity(0.32))

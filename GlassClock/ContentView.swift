@@ -2231,7 +2231,7 @@ struct ContentView: View {
                     .transition(.scale(scale: 0.96).combined(with: .opacity))
             }
         }
-        .animation(.snappy(duration: 0.25), value: editingWidget && !draggingCard)
+        .animation(.snappy(duration: 0.15), value: editingWidget && !draggingCard)
         .modifier(Wiggle(active: editingWidget && !draggingCard && resizeStart == nil && !reduceMotion && tweakWiggle > 0 && !Essentials.on, degrees: tweakWiggle))
         // Trying out instead of the wiggle (owner, 22 Oct 2026: "similar but different"): while
         // held for editing it breathes, swelling a touch and settling, slowly.
@@ -2836,7 +2836,7 @@ struct ContentView: View {
                         }
                         // Hold it and it lifts with a gentle wiggle; then pinch or drag it. No
                         // corner handles or glass corners any more (owner, 22 Oct 2026).
-                        .onLongPressGesture(minimumDuration: 0.3) {
+                        .onLongPressGesture(minimumDuration: 0.2) {
                             if interface == .panels, !editingWidget { setEditingWidget(true) }
                             showExtras()
                         } onPressingChanged: { pressing in

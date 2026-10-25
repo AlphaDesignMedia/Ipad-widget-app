@@ -53,7 +53,7 @@ enum Tweak: String, CaseIterable, Identifiable {
         case .rim: 0.9
         case .frost: 1.75
         case .focus: 2.0
-        case .wiggle: 1.2
+        case .wiggle: 0
         case .lean: 1.2
         }
     }
