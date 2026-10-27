@@ -32,20 +32,23 @@
   setInterval(() => nodes.f_wed && renderW("f_wed"), 60000);
 
   // 2. Idea vault: your longer notes as cards you can sort (Love it / Park / Later)
-  let tagFilter = "all";
+  let tagFilter = "all"; const open = {};
   W.f_ideas = { t: "Idea vault", deps: ["notes"], peek: () => ideas().length + " ideas", render(b) {
     b.replaceChildren(); const t = F().tags, list = ideas();
     const bar = el("div", "fr-row"); [["all", "All"], ["love", "Love it"], ["soon", "Soon"], ["park", "Parked"]].forEach(([k, l]) => { const c = btn("fr-chip", l, () => { tagFilter = k; renderW("f_ideas"); }); c.setAttribute("aria-pressed", tagFilter === k); bar.append(c); });
     b.append(bar);
     list.filter((n) => tagFilter === "all" || t[n.id] === tagFilter).forEach((n) => {
-      const c = el("div", "card"), first = String(n.text).split("\n").find((x) => x.trim()) || "";
-      c.append(el("b", null, clip(first.replace(/^#+\s*/, ""), 70)), el("p", "status", clip(String(n.text).slice(first.length), 150)));
+      const c = el("div", "card"), first = String(n.text).split("\n").find((x) => x.trim()) || "", top = el("div", "fr-row");
+      top.append(el("b", null, n.title || clip(first.replace(/^#+\s*/, ""), 60))); if (n.tag) top.append(el("span", "fr-badge", n.tag));
+      c.append(top, el("p", "status", n.idea || clip(String(n.text).slice(first.length), 150)));
+      if (open[n.id]) c.append(el("p", "fr-tag", clip(n.text, 1500)));
       const r = el("div", "fr-row"); [["love", "Love it"], ["soon", "Soon"], ["park", "Park"]].forEach(([k, l]) => { const x = btn("fr-chip", l, () => { if (t[n.id] === k) delete t[n.id]; else t[n.id] = k; saveDesk(); renderW("f_ideas"); }); x.setAttribute("aria-pressed", t[n.id] === k); r.append(x); });
+      if (n.idea) r.append(btn("fr-chip", open[n.id] ? "Hide" : "Your words", () => { open[n.id] = !open[n.id]; renderW("f_ideas"); }));
       c.append(r); b.append(c);
     });
     if (!b.querySelector(".card")) b.append(el("p", "empty", "Nothing in this pile."));
   } };
-  const ideas = () => S.notes.filter((n) => n.flagged || String(n.text || "").length > 300).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 12);
+  const ideas = () => S.notes.filter((n) => n.title || n.flagged || String(n.text || "").length > 300).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 12);
 
   // 3. Look code: your Look settings as a short code to send to a friend (the cheat-code idea, tried on the desk)
   const LOOKS = { theme: ["match", "light", "dark"], glass: ["solid", "frost", "clear"], space: ["s", "m", "l"], bg: ["bloom", "dusk", "sea", "plain"], text: ["s", "m", "l"] };
