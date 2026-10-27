@@ -66,13 +66,13 @@
   } };
 
   // 4. Inspiration: loose ideas and pictures (AI-made are welcome), clearly marked as not for the final design
-  let rmMode = false;
+  let rmMode = false, sendMode = false;
   W.f_insp = { t: "Inspiration (AI welcome)", deps: [], render(b) {
     b.replaceChildren(); const f = F();
     b.append(el("span", "fr-badge", "Inspiration only. Textures, shapes, colours. Never the final look."));
     const imgs = f.insp.filter((x) => x.img), list = imgs.map((x) => ({ id: x.img, url: x.img, caption: "Inspiration (AI welcome). Not the creative direction." }));
     if (imgs.length) { const g = el("div", "fr-thumbs"); imgs.forEach((x, n) => { const i = el("img"); i.src = x.img; i.alt = x.t || "Inspiration"; i.loading = "lazy";
-      i.addEventListener("click", () => { if (rmMode) { f.insp = f.insp.filter((o) => o !== x); saveDesk(); renderW("f_insp"); } else openShot(list[n], list); }); g.append(i); }); b.append(g); }
+      i.addEventListener("click", async () => { if (sendMode) { try { await db.collection("shots").add({ url: x.img, caption: "AI inspiration: details only, not our direction", at: new Date().toISOString(), from: "you", ai: true }); toast("On the mood board, labelled AI"); } catch (e) { toast("Couldn't add it. Try again."); } } else if (rmMode) { f.insp = f.insp.filter((o) => o !== x); saveDesk(); renderW("f_insp"); } else openShot(list[n], list); }); g.append(i); }); b.append(g); }
     f.insp.filter((x) => !x.img).forEach((x) => { const c = el("div", "card"); c.append(el("span", null, x.t), btn("fr-chip", "Remove", () => { f.insp = f.insp.filter((o) => o !== x); saveDesk(); renderW("f_insp"); })); b.append(c); });
     const row = el("div", "fr-row"), pick = el("label", "fr-chip"), file = el("input"); file.type = "file"; file.accept = "image/*"; file.multiple = true; file.hidden = true;
     pick.append("Add pictures", file);
@@ -82,9 +82,11 @@
       let n = 0; for (const x of fs.slice(0, 12)) { try { toast("Adding " + (++n) + " of " + fs.length + "…"); const up = await assets.upload(await shrink(x, 1000, 0.7)); f.insp.unshift({ img: up.url, at: new Date().toISOString() }); } catch (e) { toast("One picture didn't upload."); } }
       saveDesk(); renderW("f_insp"); toast("Added");
     });
-    const rm = btn("fr-chip", "Remove pictures", () => { rmMode = !rmMode; renderW("f_insp"); }); rm.setAttribute("aria-pressed", rmMode);
-    row.append(pick); if (imgs.length) row.append(rm); b.append(row);
+    const rm = btn("fr-chip", "Remove pictures", () => { rmMode = !rmMode; sendMode = false; renderW("f_insp"); }); rm.setAttribute("aria-pressed", rmMode);
+    const sd = btn("fr-chip", "To mood board (as AI)", () => { sendMode = !sendMode; rmMode = false; renderW("f_insp"); }); sd.setAttribute("aria-pressed", sendMode);
+    row.append(pick); if (imgs.length) row.append(sd, rm); b.append(row);
     if (rmMode) b.append(el("p", "status", "Tap a picture to remove it."));
+    if (sendMode) b.append(el("p", "status", "Tap a picture to put it on the mood board, labelled AI. Crop it to the part you like in Photos first."));
     const inp = el("input", "fr-in"); inp.placeholder = "A thought, or a picture link (https://…), then Enter"; inp.setAttribute("aria-label", "Add inspiration");
     inp.addEventListener("keydown", (e) => { const v = inp.value.trim(); if (e.key !== "Enter" || !v) return; f.insp.unshift(/^https:\/\/\S+$/.test(v) ? { img: v } : { t: v }); saveDesk(); renderW("f_insp"); });
     b.append(inp);
