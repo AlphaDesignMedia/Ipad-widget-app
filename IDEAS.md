@@ -198,3 +198,9 @@ you. The other option is to send screenshots with scribbles on them, which works
 - Board on the Screens page of the design-system file: https://www.figma.com/design/O6eLeKQKkIxgYTAc2LmkyT/?node-id=9-4
 - Contrast finding: with Adjust for contrast, every preset reaches 4.5:1 in Light. In Dark, Blue (4.2) and Purple (4.1) still fall just short, so the Dark lift target (0.18) should go up a little, to about 0.22. Done 25 Oct: lift raised to 0.24, and the wash behind text firmed up (more again with Increase Contrast on).
 - New variables: tweak/* (Design Tweaks spacing), effect/* (Effects collection), a11y/outline-width, wash/*, outline/*, and dark/… partners. The app can read these from an export later (the Figma value list task).
+
+## Dashboard next (27 Oct 2026, after the tune layer)
+- **Notes everywhere:** better sticky notes, then link them to Notion and Apple Notes so a note an AI chat updates shows on the dashboard. Needs a Notion sign-in; plan after the 28 Oct reset.
+- **First-open experience:** on a fresh install, ask for a look code or JSON before showing anything, so the dashboard is yours from the first second.
+- **Moving data:** try My data export/import between phone and iPad and fix what breaks.
+- **Future (parked on purpose):** iPad Home Screen widgets fed by this dashboard's data (notes, game, reset timer). Keep data in one shape so widgets can read it later.

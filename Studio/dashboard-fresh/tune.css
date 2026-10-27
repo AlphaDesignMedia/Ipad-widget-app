@@ -1,0 +1,12 @@
+/* Tune layer (27 Oct 2026): side margin, layout lock, corner grab, phone scrolling. */
+.shell { padding-left: max(var(--side, 16px), env(safe-area-inset-left, 0px)); padding-right: max(var(--side, 16px), env(safe-area-inset-right, 0px)); }
+/* Phone: titles must not swallow a swipe, and a widget's own scroll hands over to the page at its ends. */
+.desk.stack .w-head { touch-action: pan-y !important; cursor: default !important; }
+.desk.stack .w-body { overscroll-behavior: auto; }
+/* Locked: nothing can be dragged or resized, so touch scrolls freely everywhere. */
+body.locked .w-head { touch-action: auto !important; cursor: default !important; }
+body.locked .w-corner { display: none !important; }
+/* Corner grab without Arrange: a quiet handle in the corner of every widget. */
+.desk:not(.stack):not(.arranging) .w:not(.folded) .w-corner { display: block; width: 34px; height: 34px; right: 2px; bottom: 2px; opacity: .4; transition: opacity .15s; }
+.desk:not(.stack):not(.arranging) .w:not(.folded):hover .w-corner, .desk:not(.stack) .w.lift .w-corner { opacity: 1; }
+.desk:not(.stack):not(.arranging) .w-corner::before { right: 10px; bottom: 10px; }
