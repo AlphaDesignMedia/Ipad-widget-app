@@ -87,13 +87,19 @@
   ];
   let i = Math.floor(Math.random() * BASE.length);
   W.f_dark = { t: "The other side", deps: [], peek: () => "kept in mind, not in charge", render(b) {
-    const d = (desk.dark = desk.dark || []), all = BASE.concat(d), c = el("div", "card");
+    b.replaceChildren(); const d = (desk.dark = desk.dark || []), all = BASE.concat(d), c = el("div", "card");
     const p = el("p", null, all[i % all.length]); p.style.cssText = "font:600 1.05rem/1.45 var(--body);margin:0 0 8px";
     c.append(p); b.append(c);
     const r = el("div", "row"); r.append(btn("btn small", "Another", () => { i = (i + 1) % all.length; renderW("f_dark"); }));
     const inp = el("input", "inp"); inp.placeholder = "Add your own worry, then Enter"; inp.maxLength = 200;
     inp.addEventListener("keydown", (e) => { const v = inp.value.trim(); if (e.key !== "Enter" || !v) return; d.push(v); i = BASE.length + d.length - 1; saveDesk(); renderW("f_dark"); toast("Added"); });
     b.append(r, inp);
+    const imgs = ((desk.fresh && desk.fresh.insp) || []).filter((x) => x.img);
+    if (imgs.length) {
+      const cap = el("span", "fr-badge", "Your AI pictures. Details only, never the direction."), g = el("div", "fr-thumbs");
+      imgs.forEach((x) => { const im = el("img"); im.src = x.img; im.alt = "AI inspiration"; im.loading = "lazy"; im.style.cursor = "zoom-in"; im.addEventListener("click", () => window.open(x.img, "_blank")); g.append(im); });
+      b.append(cap, g);
+    }
   } };
   DEF_LAY.f_dark = [0, 90, 4, 8]; WINFO.f_dark = "A quiet reminder of the AI dark side";
   ALL.push("f_dark");
