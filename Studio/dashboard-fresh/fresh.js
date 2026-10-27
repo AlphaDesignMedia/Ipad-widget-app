@@ -8,16 +8,25 @@
   const dayKey = () => new Date().toDateString();
 
   // 1. Until Wednesday: one glance answers "can I carry on?"
-  W.f_wed = { t: "Until the reset", deps: ["usage"], peek: () => { const w = wk(); return w ? w.percentUsed + "% used" : ""; }, render(b) {
-    b.replaceChildren(); const w = wk();
-    if (!w) { b.append(el("p", "empty", "No weekly reading yet. Run an Update.")); return; }
-    const ms = new Date(w.resetsAt) - Date.now(), h = Math.max(0, Math.floor(ms / 3600000)), m = Math.max(0, Math.floor(ms / 60000) % 60);
-    const p = w.percentUsed, verdict = p >= 90 ? "Keep it tiny: notes, ideas, no builds." : p >= 70 ? "Small jobs only." : "Plenty of room.";
-    const bar = el("div", "fr-bar"), i = el("i"); i.style.width = p + "%"; i.style.background = pctColour(p); bar.append(i);
-    b.append(el("div", "fr-big", ms > 0 ? h + "h " + m + "m" : "Reset is here"), bar, el("p", "status", verdict));
-    const row = el("div", "fr-row"); row.append(el("span", "fr-tag", "Before a big job:"));
-    [["Proceed fully", "Proceed fully."], ["Reduce scope", "Reduce scope to the smallest useful version."], ["Wait", "Defer until after the Wednesday reset."]].forEach(([l, t]) => row.append(btn("fr-chip", l, async () => { await copyText(t); toast("Copied: " + t); })));
-    b.append(row);
+  // Your own reading wins when it is newer than the last one Claude saved, so this stays right without spending credits.
+  const reading = () => { const w = wk(), m = F().pct; if (m && (!w || !S.usage || new Date(m.at) > new Date(S.usage.at))) return { percentUsed: m.v, resetsAt: (w && w.resetsAt) || "2026-10-28T14:00:00Z", own: true }; return w; };
+  const TIPS = [[90, ["Ideas, notes and reading only.", "Write briefs now, build after the reset.", "Let Claude do one small edit at most."]], [70, ["Small edits and one question at a time.", "Batch feedback into one message.", "No research or big builds."]], [0, ["Normal work is fine.", "Still batch feedback.", "Save big builds for a fresh week."]]];
+  W.f_wed = { t: "Until the reset", deps: ["usage"], peek: () => { const w = reading(); return w ? w.percentUsed + "% used" : ""; }, render(b) {
+    b.replaceChildren(); const w = reading();
+    if (!w) { b.append(el("p", "empty", "No weekly reading yet. Type your % below.")); }
+    else {
+      const ms = new Date(w.resetsAt) - Date.now(), h = Math.max(0, Math.floor(ms / 3600000)), m = Math.max(0, Math.floor(ms / 60000) % 60);
+      const p = w.percentUsed, verdict = p >= 90 ? "Keep it tiny: notes, ideas, no builds." : p >= 70 ? "Small jobs only." : "Plenty of room.";
+      const bar = el("div", "fr-bar"), i = el("i"); i.style.width = p + "%"; i.style.background = pctColour(p); bar.append(i);
+      b.append(el("div", "fr-big", ms > 0 ? h + "h " + m + "m" : "Reset is here"), bar, el("p", "status", verdict + (w.own ? " (your reading)" : "")));
+      const tips = el("ul", "fr-tips"); TIPS.find((x) => p >= x[0])[1].forEach((t) => tips.append(el("li", null, t))); b.append(tips);
+    }
+    const row = el("div", "fr-row"), inp = el("input", "fr-in"); inp.type = "number"; inp.min = 0; inp.max = 100; inp.placeholder = "Your % now"; inp.style.width = "110px"; inp.setAttribute("aria-label", "Weekly usage percent");
+    inp.addEventListener("keydown", (e) => { const v = Math.round(Number(inp.value)); if (e.key === "Enter" && inp.value !== "" && v >= 0 && v <= 100) { F().pct = { v, at: new Date().toISOString() }; saveDesk(); renderW("f_wed"); toast("Saved " + v + "%"); } });
+    row.append(inp, el("span", "fr-tag", "press Enter")); b.append(row);
+    const row2 = el("div", "fr-row"); row2.append(el("span", "fr-tag", "Before a big job:"));
+    [["Proceed fully", "Proceed fully."], ["Reduce scope", "Reduce scope to the smallest useful version."], ["Wait", "Defer until after the Wednesday reset."]].forEach(([l, t]) => row2.append(btn("fr-chip", l, async () => { await copyText(t); toast("Copied: " + t); })));
+    b.append(row2);
   } };
   const wk = () => ((S.usage && S.usage.windows) || []).find((x) => /week/i.test(x.label));
   setInterval(() => nodes.f_wed && renderW("f_wed"), 60000);
@@ -36,7 +45,7 @@
     });
     if (!b.querySelector(".card")) b.append(el("p", "empty", "Nothing in this pile."));
   } };
-  const ideas = () => S.notes.filter((n) => String(n.text || "").length > 300).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 12);
+  const ideas = () => S.notes.filter((n) => n.flagged || String(n.text || "").length > 300).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 12);
 
   // 3. Look code: your Look settings as a short code to send to a friend (the cheat-code idea, tried on the desk)
   const LOOKS = { theme: ["match", "light", "dark"], glass: ["solid", "frost", "clear"], space: ["s", "m", "l"], bg: ["bloom", "dusk", "sea", "plain"], text: ["s", "m", "l"] };
