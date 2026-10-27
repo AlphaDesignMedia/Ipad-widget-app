@@ -47,3 +47,30 @@
 
   applyLook();
 }
+
+// Text boxes (28 Oct 2026): Talk is honest, every box can Tidy up, boxes grow and have a "taller" handle.
+(function () {
+  try { voiceBlocked = true; } catch (e) {} // dictation inside the page never starts; the button says Dictate and points at the keyboard mic
+  let busy = false;
+  function fix() {
+    if (busy) return; busy = true;
+    try {
+      document.querySelectorAll("#desk textarea").forEach((t) => {
+        if (t.dataset.tuned) return; t.dataset.tuned = "1";
+        const sticky = t.closest(".w.sticky");
+        const grow = () => { t.style.height = "auto"; t.style.height = Math.min(Math.max(t.scrollHeight + 4, 70), 520) + "px"; };
+        if (!sticky) {
+          t.addEventListener("input", grow); setTimeout(grow, 0);
+          const host = t.parentElement;
+          if (sampler && host && ![...host.querySelectorAll("button")].some((x) => /tidy/i.test(x.textContent))) {
+            const r = el("div", "row"); addTidy(t, r); t.after(r);
+          }
+          const tall = btn("btn small", "Taller", () => { t.style.height = Math.min(t.offsetHeight + 120, 520) + "px"; });
+          (host.querySelector(".row") || host).append(tall);
+        }
+      });
+    } catch (e) {} busy = false;
+  }
+  let q = 0; new MutationObserver(() => { cancelAnimationFrame(q); q = requestAnimationFrame(fix); }).observe(deskEl, { childList: true, subtree: true });
+  fix();
+})();
