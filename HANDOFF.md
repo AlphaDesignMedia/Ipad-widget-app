@@ -1,6 +1,15 @@
 # Glass Clock — handoff (paste into a new chat to carry on)
 
-_Updated 25 Oct 2026, 8:10 pm_
+_Updated 27 Oct 2026, 9:30 pm_
+
+**27 Oct update (dashboard + iPad; read this first):**
+- **Usage:** weekly ~97% until Wed 28 Oct 2 pm. Hold big builds, pricing research and the Moods plan until after the reset. Small dashboard additions are fine.
+- **iPad:** the free sign-in had expired. Signed back into Xcode (ikarosrexx@icloud.com), clean reinstall, trusted. It lasts 7 days, so re-sign by **Tue 3 Nov**. Saved styles were reset by the reinstall. No app code changed.
+- **Dashboard "Fresh" layer** (Studio/dashboard-fresh/: fresh.js, fresh.css; a button in the top bar hides it all, delete the two Fresh tags in index.html to remove it): Until the reset (own % box), Idea vault (summaries + tags), Look code (named looks), Inspiration (AI welcome, can send pictures to the mood board labelled AI), Today's three (confetti), Secret fairy (+ In-app look skin), Stop at 4:04 (+ 24-hour dial), Not found clock (tap to relaunch), Figma link. Widgets pack together by default (Float in Arrange); any title can be dragged without Arrange.
+- **Figma:** a brand board draft is on the Foundations page (file is on the free plan, 3 pages max).
+- **Brand:** Core is six locked rules (brief in Studio/brand-brief.md). Open questions on the dashboard: main icon time (4:04 leads), Glass Clock only or the whole family.
+- **After the reset, ask the owner:** first big build (in-app fairy, pricing + Moods, Notion/Apple Notes link). The in-app fairy must be intentional: found on purpose, Panels become walls, fail collapses to a small high score, off switch, free, no ads.
+- The owner now works in VS Code, struggles with long text: keep replies to a few lines, suggest small playful additions unprompted.
 
 **8:10 pm update (since `friend-test-25oct-4`, all pushed on `from-415`, not yet tagged; check whether the iPad has them):**
 - **Hold-to-edit:** Home Screen style jiggle (uneven rock and bob), now off by default; a Liquid Glass rim around the held widget, which grows a little; quicker hold.
