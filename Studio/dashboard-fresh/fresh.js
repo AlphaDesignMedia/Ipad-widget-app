@@ -2,7 +2,7 @@
 // The header "Fresh" button hides or shows them all. Their data lives in desk.fresh (your private desk doc).
 "use strict";
 {
-  const FR = ["f_wed", "f_ideas", "f_code", "f_insp", "f_three", "f_fairy"];
+  const FR = ["f_figma", "f_wed", "f_ideas", "f_code", "f_insp", "f_three", "f_fairy"];
   const F = () => (desk.fresh = desk.fresh || { tags: {}, insp: [], three: { d: "", items: ["", "", ""], ok: [false, false, false] }, best: 0 });
   const off = () => lsGet("fresh:off") === "1";
   const dayKey = () => new Date().toDateString();
@@ -65,16 +65,39 @@
     b.append(el("p", "status", "Your Look settings as one short code. A locked or personal background is never overwritten."), t, r, inp);
   } };
 
-  // 4. Inspiration: loose ideas and picture links, clearly marked as not for the final design
+  // 4. Inspiration: loose ideas and pictures (AI-made are welcome), clearly marked as not for the final design
+  let rmMode = false;
   W.f_insp = { t: "Inspiration (AI welcome)", deps: [], render(b) {
     b.replaceChildren(); const f = F();
-    b.append(el("span", "fr-badge", "Inspiration only. Never in the final designs."));
-    const imgs = f.insp.filter((x) => x.img);
-    if (imgs.length) { const g = el("div", "fr-thumbs"); imgs.forEach((x) => { const i = el("img"); i.src = x.img; i.alt = x.t || "Inspiration"; i.loading = "lazy"; i.addEventListener("click", () => { f.insp = f.insp.filter((o) => o !== x); saveDesk(); renderW("f_insp"); }); i.title = "Tap to remove"; g.append(i); }); b.append(g); }
+    b.append(el("span", "fr-badge", "Inspiration only. Textures, shapes, colours. Never the final look."));
+    const imgs = f.insp.filter((x) => x.img), list = imgs.map((x) => ({ id: x.img, url: x.img, caption: "Inspiration (AI welcome). Not the creative direction." }));
+    if (imgs.length) { const g = el("div", "fr-thumbs"); imgs.forEach((x, n) => { const i = el("img"); i.src = x.img; i.alt = x.t || "Inspiration"; i.loading = "lazy";
+      i.addEventListener("click", () => { if (rmMode) { f.insp = f.insp.filter((o) => o !== x); saveDesk(); renderW("f_insp"); } else openShot(list[n], list); }); g.append(i); }); b.append(g); }
     f.insp.filter((x) => !x.img).forEach((x) => { const c = el("div", "card"); c.append(el("span", null, x.t), btn("fr-chip", "Remove", () => { f.insp = f.insp.filter((o) => o !== x); saveDesk(); renderW("f_insp"); })); b.append(c); });
+    const row = el("div", "fr-row"), pick = el("label", "fr-chip"), file = el("input"); file.type = "file"; file.accept = "image/*"; file.multiple = true; file.hidden = true;
+    pick.append("Add pictures", file);
+    file.addEventListener("change", async () => {
+      const fs = [...file.files]; file.value = ""; if (!fs.length) return;
+      if (!assets) { toast("Picture upload isn't available in this view."); return; }
+      let n = 0; for (const x of fs.slice(0, 12)) { try { toast("Adding " + (++n) + " of " + fs.length + "…"); const up = await assets.upload(await shrink(x, 1000, 0.7)); f.insp.unshift({ img: up.url, at: new Date().toISOString() }); } catch (e) { toast("One picture didn't upload."); } }
+      saveDesk(); renderW("f_insp"); toast("Added");
+    });
+    const rm = btn("fr-chip", "Remove pictures", () => { rmMode = !rmMode; renderW("f_insp"); }); rm.setAttribute("aria-pressed", rmMode);
+    row.append(pick); if (imgs.length) row.append(rm); b.append(row);
+    if (rmMode) b.append(el("p", "status", "Tap a picture to remove it."));
     const inp = el("input", "fr-in"); inp.placeholder = "A thought, or a picture link (https://…), then Enter"; inp.setAttribute("aria-label", "Add inspiration");
     inp.addEventListener("keydown", (e) => { const v = inp.value.trim(); if (e.key !== "Enter" || !v) return; f.insp.unshift(/^https:\/\/\S+$/.test(v) ? { img: v } : { t: v }); saveDesk(); renderW("f_insp"); });
     b.append(inp);
+  } };
+
+  // 7. Figma: the design file, one tap away
+  const FIG = "https://www.figma.com/design/O6eLeKQKkIxgYTAc2LmkyT";
+  const link = (cls, text, href) => { const a = el("a", cls, text); a.href = href; a.target = "_blank"; a.rel = "noopener"; return a; };
+  W.f_figma = { t: "Figma", deps: [], render(b) {
+    b.replaceChildren();
+    b.append(el("p", "status", "Your Glass Clock design file: design system, screens and the accessibility board."));
+    const r = el("div", "fr-row"); r.append(link("fr-chip fr-solid", "Open Figma file", FIG), link("fr-chip", "Accessibility board", FIG + "?node-id=9-4"));
+    b.append(r, el("p", "fr-tag", "Opens in the Figma app if it is installed, otherwise in Safari."));
   } };
 
   // 5. Today's three
@@ -120,8 +143,8 @@
   } };
 
   // Wiring: sizes, descriptions, and the header switch
-  Object.assign(DEF_LAY, { f_wed: [0, 54, 4, 8], f_ideas: [4, 54, 4, 12], f_code: [8, 54, 4, 8], f_three: [8, 62, 4, 6], f_insp: [0, 62, 4, 8], f_fairy: [4, 66, 4, 10] });
-  Object.assign(WINFO, { f_wed: "Countdown and a can-I-carry-on answer", f_ideas: "Your longer notes, sorted by a tap", f_code: "Share your Look as a short code", f_insp: "Loose ideas, marked not-for-final", f_three: "Three small things, fresh daily", f_fairy: "A tiny hidden game prototype" });
+  Object.assign(DEF_LAY, { f_figma: [8, 70, 4, 4], f_wed: [0, 54, 4, 8], f_ideas: [4, 54, 4, 12], f_code: [8, 54, 4, 8], f_three: [8, 62, 4, 6], f_insp: [0, 62, 4, 8], f_fairy: [4, 66, 4, 10] });
+  Object.assign(WINFO, { f_figma: "Your Figma file, one tap", f_wed: "Countdown and a can-I-carry-on answer", f_ideas: "Your longer notes, sorted by a tap", f_code: "Share your Look as a short code", f_insp: "Loose ideas, marked not-for-final", f_three: "Three small things, fresh daily", f_fairy: "A tiny hidden game prototype" });
   const on = !off(); if (on) ALL.push(...FR);
   const sw = btn("pill", "Fresh", () => {
     const now = off(); lsSet("fresh:off", now ? "0" : "1");
@@ -131,5 +154,6 @@
   });
   sw.id = "bFreshSw"; sw.title = "Show or hide the newest widgets"; sw.setAttribute("aria-pressed", on);
   document.querySelector(".acts").insertBefore(sw, $("bArrange"));
+  const fg = el("a", "pill", "Figma"); fg.href = FIG; fg.target = "_blank"; fg.rel = "noopener"; fg.title = "Open the Glass Clock Figma file"; document.querySelector(".acts").insertBefore(fg, sw);
   if (on) rebuild();
 }

@@ -16,3 +16,6 @@
 .fr-three .fr-in.done { text-decoration: line-through; opacity: .6; }
 .fr-game { width: 100%; max-width: 420px; aspect-ratio: 3/2; border-radius: 16px; background: linear-gradient(#2a2250, #5b4aa8); touch-action: manipulation; display: block; }
 .fr-tips { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+.fr-chip { text-decoration: none; display: inline-flex; align-items: center; }
+.fr-solid { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+a.pill { text-decoration: none; display: inline-flex; align-items: center; }
