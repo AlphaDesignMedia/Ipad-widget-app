@@ -119,11 +119,12 @@
   W.f_fairy = { t: "Secret fairy", deps: [], peek: () => (F().best ? "best " + F().best : ""), render(b) {
     b.replaceChildren(); const cv = el("canvas", "fr-game"); cv.width = 420; cv.height = 280; cv.setAttribute("aria-label", "Fairy game: tap to flap");
     const info = el("p", "status", "Tap or press Space to flap. A prototype for the app's hidden game."); b.append(cv, info);
-    const g = cv.getContext("2d"); let y, v, pipes, score, run = false, t0 = 0, raf = 0;
-    const reset = () => { y = 140; v = 0; pipes = [{ x: 460, gap: 110 }]; score = 0; };
+    const g = cv.getContext("2d"); let y, v, pipes, score, run = false, t0 = 0, raf = 0, trail = [], best0 = 0;
+    const reset = () => { trail = []; best0 = F().best || 0; y = 140; v = 0; pipes = [{ x: 460, gap: 110 }]; score = 0; };
     const flap = () => { if (!run) { reset(); run = true; t0 = performance.now(); loop(); } v = -5.2; };
     const draw = () => {
       g.clearRect(0, 0, 420, 280);
+      trail.forEach((p) => { g.fillStyle = "rgba(255,240,190," + (p.a * 0.5) + ")"; g.beginPath(); g.arc(p.x, p.y, 1 + p.a * 3, 0, 7); g.fill(); });
       g.fillStyle = "rgba(255,255,255,.22)"; pipes.forEach((p) => { g.fillRect(p.x, 0, 46, p.gap - 52); g.fillRect(p.x, p.gap + 52, 46, 280); });
       g.save(); g.translate(80, y); g.rotate(Math.max(-.5, Math.min(.7, v / 9)));
       g.shadowColor = "#ffe9a8"; g.shadowBlur = 18; g.fillStyle = "#fff6d6"; g.beginPath(); g.ellipse(0, 0, 8, 11, 0, 0, 7); g.fill();
@@ -133,10 +134,11 @@
     const loop = () => {
       if (!document.contains(cv)) { run = false; return; }
       v += .28; y += v; pipes.forEach((p) => (p.x -= 2.4));
+      trail.push({ x: 72, y: y + (Math.random() - .5) * 8, a: 1 }); trail.forEach((p) => { p.x -= 2.4; p.a -= 0.025; }); trail = trail.filter((p) => p.a > 0);
       if (pipes[pipes.length - 1].x < 220) pipes.push({ x: 460, gap: 90 + Math.random() * 100 });
       if (pipes[0].x < -50) { pipes.shift(); score++; }
       const p = pipes.find((q) => q.x < 92 && q.x + 46 > 68);
-      if (y < 0 || y > 280 || (p && (y < p.gap - 52 || y > p.gap + 52))) { run = false; const f = F(); if (score > f.best) { f.best = score; saveDesk(); nodes.f_fairy.peek.textContent = "best " + score; } info.textContent = "Score " + score + ". Tap to go again."; draw(); return; }
+      if (y < 0 || y > 280 || (p && (y < p.gap - 52 || y > p.gap + 52))) { run = false; const f = F(); if (score > f.best) { f.best = score; saveDesk(); nodes.f_fairy.peek.textContent = "best " + score; } info.textContent = (score > best0 && score > 0 ? "New best: " : "Score ") + score + ". Tap to go again."; draw(); return; }
       draw(); raf = requestAnimationFrame(loop);
     };
     cv.addEventListener("pointerdown", (e) => { e.preventDefault(); flap(); });
