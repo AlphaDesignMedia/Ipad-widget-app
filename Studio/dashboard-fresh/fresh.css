@@ -19,3 +19,4 @@
 .fr-chip { text-decoration: none; display: inline-flex; align-items: center; }
 .fr-solid { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 a.pill { text-decoration: none; display: inline-flex; align-items: center; }
+.desk:not(.arranging) .w-head { cursor: grab; touch-action: none; }

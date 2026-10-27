@@ -127,10 +127,12 @@
 
   // 8. A quiet joke: the real time, except now and then it is 4:04
   W.f_joke = { t: "Not found", deps: [], render(b) {
-    b.replaceChildren(); const t = el("div", "fr-big", "--:--"), n = el("p", "status", ""); b.append(t, n); let hold = 0;
+    b.replaceChildren(); const t = el("div", "fr-big", "--:--"), n = el("p", "status", ""); t.style.cursor = "pointer"; b.append(t, n); let hold = 0, boot = 0, fixed = 0;
+    t.addEventListener("click", () => { if (hold || t.textContent === "4:04") { hold = 0; boot = 3; fixed = 8; } });
     const tick = () => { if (!document.contains(t)) return; const d = new Date(), real = (d.getHours() % 12 || 12) + ":" + String(d.getMinutes()).padStart(2, "0"), is404 = d.getHours() % 12 === 4 && d.getMinutes() === 4;
-      if (!hold && !is404 && Math.random() < 0.004) hold = 5; if (hold) hold--;
-      t.textContent = is404 || hold ? "4:04" : real; n.textContent = is404 ? "Found you." : hold ? "404: time not found" : "";
+      if (!hold && !boot && !is404 && Math.random() < 0.004) hold = 5; if (hold) hold--;
+      if (boot) { boot--; t.textContent = "--:--"; n.textContent = "Relaunching\u2026"; }
+      else { const odd = fixed > 0 && fixed-- > 5; t.textContent = is404 || hold ? "4:04" : odd ? real.replace(/\d(?=:)/, "4") : real; n.textContent = is404 ? "Found you. Tap to relaunch." : hold ? "404: time not found. Tap to relaunch." : fixed > 0 ? "Fixed. Mostly." : ""; }
       setTimeout(tick, 1000); };
     tick();
   } };
@@ -173,13 +175,16 @@
   } };
 
   // 9. Stop at 4:04: a clock hand sweeps; tap to stop it on the mark. Five rounds, fewer degrees off wins.
-  W.f_stop = { t: "Stop at 4:04", deps: [], peek: () => (F().stopBest != null ? "best " + F().stopBest + "\u00b0 off" : ""), render(b) {
+  const sKey = () => (F().stop24 ? "stopBest24" : "stopBest");
+  W.f_stop = { t: "Stop at 4:04", deps: [], peek: () => (F()[sKey()] != null ? "best " + F()[sKey()] + "\u00b0 off" : ""), render(b) {
     b.replaceChildren(); const cv = el("canvas", "fr-game"); cv.width = 300; cv.height = 300; cv.style.maxWidth = "300px"; cv.style.aspectRatio = "1"; cv.setAttribute("aria-label", "Stop the clock hand on 4:04");
     const info = el("p", "status", "A hand sweeps round. Tap to stop it on the 4:04 mark. Five rounds; fewer degrees off is better."); b.append(cv, info);
-    const g = cv.getContext("2d"), TG = 24; let ang = 0, spd = 2.2, run = false, round = 0, total = 0, last = "";
+    const dial = btn("fr-chip", "24-hour dial", () => { F().stop24 = !F().stop24; saveDesk(); renderW("f_stop"); }); dial.setAttribute("aria-pressed", !!F().stop24); b.append(dial);
+    const g = cv.getContext("2d"), TG = F().stop24 ? 61 : 24; let ang = 0, spd = 2.2, run = false, round = 0, total = 0, last = "";
     const pt = (a, r) => [150 + r * Math.sin(a * Math.PI / 180), 150 - r * Math.cos(a * Math.PI / 180)];
     const draw = () => {
       g.clearRect(0, 0, 300, 300); g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 3; g.beginPath(); g.arc(150, 150, 120, 0, 7); g.stroke();
+      if (F().stop24) { g.fillStyle = "rgba(255,255,255,.6)"; g.font = "600 13px Figtree, sans-serif"; g.textAlign = "center"; for (let i = 0; i < 24; i++) { const q = pt(i * 15, 134); if (i % 6 === 0) g.fillText(String(i), q[0], q[1] + 4); else { g.beginPath(); g.arc(q[0], q[1], 1.5, 0, 7); g.fill(); } } g.textAlign = "left"; }
       const m = pt(TG, 120); g.fillStyle = "#ffe9a8"; g.shadowColor = "#ffe9a8"; g.shadowBlur = 14; g.beginPath(); g.arc(m[0], m[1], 8, 0, 7); g.fill(); g.shadowBlur = 0;
       const h = pt(ang, 104); g.strokeStyle = "#fff"; g.lineWidth = 5; g.lineCap = "round"; g.beginPath(); g.moveTo(150, 150); g.lineTo(h[0], h[1]); g.stroke();
       g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "700 18px Figtree, sans-serif"; g.fillText(run ? "Round " + (round + 1) + " of 5" : "Tap to start", 150, 215); g.font = "500 14px Figtree, sans-serif"; g.fillText(last, 150, 240); g.textAlign = "left";
@@ -188,7 +193,7 @@
     cv.addEventListener("pointerdown", (e) => { e.preventDefault();
       if (!run) { run = true; round = 0; total = 0; spd = 2.2; last = ""; loop(); return; }
       const d = Math.abs(ang - TG), off = Math.min(d, 360 - d); total += off; round++; last = Math.round(off) + "\u00b0 off"; spd += 0.6;
-      if (round >= 5) { run = false; const t = Math.round(total); if (F().stopBest == null || t < F().stopBest) { F().stopBest = t; saveDesk(); nodes.f_stop.peek.textContent = "best " + t + "\u00b0 off"; } info.textContent = "Total " + t + "\u00b0 off. Best " + F().stopBest + "\u00b0. Tap to play again."; draw(); } });
+      if (round >= 5) { run = false; const t = Math.round(total); if (F()[sKey()] == null || t < F()[sKey()]) { F()[sKey()] = t; saveDesk(); nodes.f_stop.peek.textContent = "best " + t + "\u00b0 off"; } info.textContent = "Total " + t + "\u00b0 off. Best " + F()[sKey()] + "\u00b0. Tap to play again."; draw(); } });
     draw();
   } };
 
@@ -219,6 +224,14 @@
   const fl = btn("pill", "Float", () => { F().float = !flt(); fl.setAttribute("aria-pressed", flt()); fl.textContent = flt() ? "Float: on" : "Float: off"; saveDesk(); place(); toast(flt() ? "Widgets can float anywhere" : "Widgets pack together"); });
   fl.title = "Off: widgets always pack together. On: they stay where you put them."; fl.setAttribute("aria-pressed", flt()); fl.textContent = flt() ? "Float: on" : "Float: off";
   document.querySelector(".arr-btns").insertBefore(fl, $("bDone"));
+  // Grab any widget by its title to move it, no Arrange needed. On drop everything packs back together (unless Float is on).
+  let tempArr = false;
+  deskEl.addEventListener("pointerdown", (e) => {
+    if (arranging || mode === "stack") return; const head = e.target.closest(".w-head"); if (!head || e.target.closest("button, a, input, textarea")) return;
+    arranging = true; tempArr = true;
+  }, true);
+  const endTemp = () => { if (!tempArr) return; tempArr = false; setTimeout(() => { if (!drag) { arranging = false; place(); } }, 0); };
+  document.addEventListener("pointerup", endTemp); document.addEventListener("pointercancel", endTemp);
   // One-time: the Fresh widgets go to the top, everything else moves down.
   if (!F().top2) {
     F().top2 = 1; const w = desk.lay.wide || (desk.lay.wide = clone(DEF_LAY));
