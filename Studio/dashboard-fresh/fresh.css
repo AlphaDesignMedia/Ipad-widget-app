@@ -1,0 +1,17 @@
+/* Fresh layer (27 Oct 2026). Remove the two Fresh tags in index.html to go back to the plain desk. */
+.fr-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fr-big { font: 700 30px/1 "Bricolage Grotesque", sans-serif; letter-spacing: -.02em; }
+.fr-bar { height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.fr-bar i { display: block; height: 100%; border-radius: 6px; background: var(--good); }
+.fr-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--pane-2); color: var(--fg); font: 600 13px Figtree, sans-serif; cursor: pointer; min-height: 32px; }
+.fr-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.fr-tag { font-size: 12px; color: var(--faint); }
+.fr-badge { font: 700 11px Figtree, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--warn); }
+.fr-code { width: 100%; box-sizing: border-box; min-height: 56px; font: 500 12px "JetBrains Mono", monospace; border-radius: 12px; border: 1px solid var(--line); background: var(--pane-2); color: var(--fg); padding: 8px; resize: vertical; }
+.fr-in { width: 100%; box-sizing: border-box; font: 500 14px Figtree, sans-serif; border-radius: 12px; border: 1px solid var(--line); background: var(--pane-2); color: var(--fg); padding: 8px 10px; }
+.fr-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.fr-thumbs img { width: 100%; height: 80px; object-fit: cover; border-radius: 12px; }
+.fr-three label { display: flex; gap: 10px; align-items: center; }
+.fr-three input[type=checkbox] { width: 20px; height: 20px; }
+.fr-three .fr-in.done { text-decoration: line-through; opacity: .6; }
+.fr-game { width: 100%; max-width: 420px; aspect-ratio: 3/2; border-radius: 16px; background: linear-gradient(#2a2250, #5b4aa8); touch-action: manipulation; display: block; }

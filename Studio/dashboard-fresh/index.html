@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Glass Clock Progress</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="desk.css">
+<link rel="stylesheet" href="fresh.css"><!-- Fresh layer: delete this line and the fresh.js line to go back -->
+<!-- Desk v2 (25 Oct 2026): a free grid of glass widgets. Style lives in desk.css, behaviour in desk.js.
+     The classic page is kept in the repo at References/dashboard-classic-2026-10-25.html. -->
+<div id="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<div id="grain" aria-hidden="true"></div>
+<div class="shell">
+  <header class="top glass-bar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <b>Glass Clock</b>
+      <span class="live" id="live"><i></i><span>Connecting…</span></span>
+    </div>
+    <nav class="acts" aria-label="Actions">
+      <button type="button" class="pill acc" id="bUpdate" title="Copies Update for the main chat">Update</button>
+      <button type="button" class="pill" id="bQuick" title="Copies a starter for one quick, cheap job: whatever is in the Inbox box">Quick</button>
+      <button type="button" class="pill" id="bFresh" title="Copies a short starter for a fresh, cheap chat">New chat</button>
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" class="pill" id="bArrange" aria-pressed="false">Arrange</button>
+      <button type="button" class="pill" id="bAdd" aria-expanded="false">+ Widget</button>
+      <button type="button" class="pill" id="bLook" aria-expanded="false">Look</button>
+      <button type="button" class="pill" id="bData" aria-expanded="false">My data</button>
+    </nav>
+  </header>
+  <div class="arrbar glass-bar" id="arrbar" hidden>
+    <span>Drag a title to move it · drag the corner to resize · it snaps to the grid</span>
+    <span class="arr-btns">
+      <button type="button" class="pill" id="bUndo" disabled>Undo</button>
+      <button type="button" class="pill" id="bTidy">Close gaps</button>
+      <button type="button" class="pill" id="bReset">Reset layout</button>
+      <button type="button" class="pill acc" id="bDone">Done</button>
+    </span>
+  </div>
+  <div class="pop" id="pop" hidden></div>
+  <main class="desk" id="desk" aria-label="Dashboard"></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog class="lightbox" id="lightbox" aria-label="Screenshot"><button type="button" class="lb-nav lb-prev" id="lbPrev" aria-label="Previous">‹</button><img id="lightImg" alt=""><button type="button" class="lb-nav lb-next" id="lbNext" aria-label="Next">›</button><p id="lightCap"></p></dialog>
+<script src="desk.js"></script>
+<script src="fresh.js"></script>
+
+</body></html>
