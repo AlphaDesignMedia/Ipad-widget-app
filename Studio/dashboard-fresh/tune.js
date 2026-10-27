@@ -74,3 +74,28 @@
   let q = 0; new MutationObserver(() => { cancelAnimationFrame(q); q = requestAnimationFrame(fix); }).observe(deskEl, { childList: true, subtree: true });
   fix();
 })();
+
+// The other side (28 Oct 2026): a quiet counterweight to the AI positivity. Kept in mind, never in charge.
+(function () {
+  const BASE = [
+    "AI slop is real: fast, samey, and nobody cares who made it. Taste is the difference.",
+    "Anyone can copy features. Nobody can copy what you chose to leave out.",
+    "Would you still be proud of this if you had to explain every decision out loud?",
+    "A $10,000 AI website video shows the output, never the hundred 'no, not like that' steps. Those steps are yours.",
+    "AI ideas are for small details only: textures, shapes, colour. Never the final direction.",
+    "If it only works because it is new, it will not last. Make it a joy to find, not a gimmick.",
+  ];
+  let i = Math.floor(Math.random() * BASE.length);
+  W.f_dark = { t: "The other side", deps: [], peek: () => "kept in mind, not in charge", render(b) {
+    const d = (desk.dark = desk.dark || []), all = BASE.concat(d), c = el("div", "card");
+    const p = el("p", null, all[i % all.length]); p.style.cssText = "font:600 1.05rem/1.45 var(--body);margin:0 0 8px";
+    c.append(p); b.append(c);
+    const r = el("div", "row"); r.append(btn("btn small", "Another", () => { i = (i + 1) % all.length; renderW("f_dark"); }));
+    const inp = el("input", "inp"); inp.placeholder = "Add your own worry, then Enter"; inp.maxLength = 200;
+    inp.addEventListener("keydown", (e) => { const v = inp.value.trim(); if (e.key !== "Enter" || !v) return; d.push(v); i = BASE.length + d.length - 1; saveDesk(); renderW("f_dark"); toast("Added"); });
+    b.append(r, inp);
+  } };
+  DEF_LAY.f_dark = [0, 90, 4, 8]; WINFO.f_dark = "A quiet reminder of the AI dark side";
+  ALL.push("f_dark");
+  try { if (!desk.lay || !desk.lay.f_dark) { /* default layout is picked up by place() */ } } catch (e) {}
+})();
