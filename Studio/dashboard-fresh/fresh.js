@@ -155,5 +155,26 @@
   sw.id = "bFreshSw"; sw.title = "Show or hide the newest widgets"; sw.setAttribute("aria-pressed", on);
   document.querySelector(".acts").insertBefore(sw, $("bArrange"));
   const fg = el("a", "pill", "Figma"); fg.href = FIG; fg.target = "_blank"; fg.rel = "noopener"; fg.title = "Open the Glass Clock Figma file"; document.querySelector(".acts").insertBefore(fg, sw);
-  if (on) rebuild();
+  // Apple-style packing: widgets slide up to close gaps unless Float is on (Arrange bar). Dragging stays free until you let go.
+  const flt = () => !!F().float;
+  function pack() {
+    mode = modeNow(); if (mode === "stack" || flt()) return;
+    const lay = L(), placed = [];
+    shownIds().sort((a, b) => lay[a][1] - lay[b][1] || lay[a][0] - lay[b][0]).forEach((id) => {
+      while (lay[id][1] > 0) { lay[id][1]--; if (placed.some((o) => overlap(rect(lay, id), rect(lay, o)))) { lay[id][1]++; break; } }
+      placed.push(id);
+    });
+  }
+  const _place = place; place = function (skip) { if (!skip) pack(); return _place(skip); };
+  const fl = btn("pill", "Float", () => { F().float = !flt(); fl.setAttribute("aria-pressed", flt()); fl.textContent = flt() ? "Float: on" : "Float: off"; saveDesk(); place(); toast(flt() ? "Widgets can float anywhere" : "Widgets pack together"); });
+  fl.title = "Off: widgets always pack together. On: they stay where you put them."; fl.setAttribute("aria-pressed", flt()); fl.textContent = flt() ? "Float: on" : "Float: off";
+  document.querySelector(".arr-btns").insertBefore(fl, $("bDone"));
+  // One-time: the Fresh widgets go to the top, everything else moves down.
+  if (!F().top2) {
+    F().top2 = 1; const w = desk.lay.wide || (desk.lay.wide = clone(DEF_LAY));
+    Object.keys(w).forEach((id) => { if (!FR.includes(id)) w[id][1] += 9; });
+    Object.assign(w, clone({ f_wed: [0, 0, 3, 9], f_ideas: [3, 0, 3, 9], f_insp: [6, 0, 3, 9], f_figma: [9, 0, 3, 3], f_three: [9, 3, 3, 6], f_code: [0, 200, 4, 8], f_fairy: [4, 200, 4, 10] }));
+    delete desk.lay.mid; saveDesk();
+  }
+  if (on) rebuild(); else place();
 }
