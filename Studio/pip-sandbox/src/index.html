@@ -1,0 +1,175 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Pip Sandbox</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,200..800&family=Nunito:wght@200..1000&family=Share+Tech+Mono&family=Silkscreen&family=Pixelify+Sans:wght@400;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="skins.css">
+
+
+<div class="stage" id="stage">
+  <div class="pool" id="pool" aria-hidden="true"></div>
+
+  <div class="card" id="card" role="group" aria-label="Clock. Drag to move, pinch to resize, double-tap for the next font, hold to edit.">
+    <button class="done glass" id="done" hidden>Done</button>
+    <div class="card-in" id="cardIn">
+      <div class="date" id="date">Thu 29 Oct</div>
+      <div class="time" id="time">1:04</div>
+      <div class="err" id="err" hidden><b>404</b><span>Time not found</span><button class="err-skip" id="errSkip">Skip</button></div>
+      <svg class="cracks" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path class="c1" d="M71 0 L63 17 L75 29 L66 60 M63 17 L47 23 L40 19 M75 29 L92 33"/><path class="c2" d="M0 21 L19 26 L29 43 L51 39 L58 60 M19 26 L25 7 M29 43 L16 60 M51 39 L63 17"/></svg>
+    </div>
+  </div>
+
+  <canvas class="trail" id="trail" aria-hidden="true"></canvas>
+  <div id="shards" aria-hidden="true"></div>
+
+  <button class="navi" id="navi" aria-label="Pip, asleep on the clock. Press to wake.">
+    <span class="nb" id="nb">
+      <span class="halo"></span>
+      <span class="wing l"></span><span class="wing r"></span>
+      <span class="orb"></span>
+      <span class="eyes"><span class="eye"></span><span class="eye"></span></span>
+      <span class="skin" aria-hidden="true"></span>
+      <span class="fm clip" aria-hidden="true"><svg viewBox="0 0 40 72"><defs><linearGradient id="clipG" x1="0" x2="1"><stop offset="0" stop-color="#EEF1F4"/><stop offset=".55" stop-color="#9AA1AB"/><stop offset="1" stop-color="#5E646D"/></linearGradient></defs><path d="M26 22 V58 A8 8 0 0 1 10 58 V14 A11 11 0 0 1 32 14 V52 A5 5 0 0 1 22 52 V26" fill="none" stroke="url(#clipG)" stroke-width="3.6" stroke-linecap="round"/><path d="M25.2 24 V57" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1" stroke-linecap="round"/></svg></span>
+      <span class="fm rb" aria-hidden="true"><i class="rb-body"><i class="rb-tread l"></i><i class="rb-tread r"></i><i class="rb-scuff"></i></i><i class="rb-ant"></i></span>
+      <span class="zz">z</span>
+    </span>
+  </button>
+
+  <button class="care glass" id="care" aria-hidden="true" tabindex="-1"><span class="care-item" id="careItem"></span></button>
+  <span class="sip" id="sip" hidden aria-hidden="true"></span>
+  <span class="ghost" id="ghost" aria-hidden="true"><i></i><i></i></span>
+  <span class="lens" id="lens" aria-hidden="true"></span>
+
+  <div id="panels"></div>
+
+  <nav class="rail glass" id="rail" data-edge="left" aria-label="Panels. Hold the rail, then drag it to another edge."></nav>
+
+  <div class="topbar">
+    <div class="tb-left"><div class="tag glass" id="stageTag">Glass Sandbox <b>V2</b> · stage 4.2</div><button class="tag glass look-btn" id="lookBtn" aria-label="Change look"></button></div>
+    <div class="seg glass" role="group" aria-label="Version">
+      <button id="mGround" aria-pressed="true">Grounded</button><button id="mDream" aria-pressed="false">Dream</button>
+    </div>
+    <div class="pill glass"><label for="naviSw" id="naviSwLbl">Pip</label><input type="checkbox" class="switch" id="naviSw" checked></div>
+  </div>
+
+  <div class="bubble glass" id="bubble" role="status" aria-live="polite"></div>
+  <div class="ask glass" id="ask" hidden role="dialog" aria-label="Pip has a question"><p id="askQ"></p><div class="ask-chips" id="askChips"></div></div>
+  <section class="tm" id="tm" aria-label="Time machine">
+    <div class="tm-head">
+      <div class="tm-tabs" role="group" aria-label="Track"><button data-t="build">Build</button><button data-t="story">Story</button></div>
+      <span class="tm-brand">Pane &amp; Sons Temporal Unit</span>
+      <button class="tm-btn" id="tmBodyBtn" aria-label="Show details">i</button>
+      <button class="tm-btn" id="tmMin" aria-label="Collapse time machine">–</button>
+    </div>
+    <div class="tm-rows">
+      <div class="tm-row dest"><span class="tm-lbl">Destination</span><button class="tm-step" id="tmPrev" aria-label="Previous stop">◀</button><output class="led" id="ledDest" aria-live="polite"></output><button class="tm-step" id="tmNext" aria-label="Next stop">▶</button></div>
+      <div class="tm-row pres"><span class="tm-lbl">Present</span><output class="led" id="ledPres"></output></div>
+      <div class="tm-row last"><span class="tm-lbl">Last departed</span><output class="led" id="ledLast"></output></div>
+    </div>
+    <div class="tm-chips" id="tmChips"></div>
+    <div class="tm-body" id="tmBodyEl"></div>
+  </section>
+  <div class="warp" id="warp" aria-hidden="true"></div>
+  <div class="hint" id="hint">Something is asleep on the clock.</div>
+  <div class="toast glass" id="toast" aria-live="polite"></div>
+</div>
+
+<script>
+/* Loader: the app script lives in five files (core, pip, extras, engine, host).
+   They are joined back into one script in this order, exactly as before the split.
+   host.js opens window.PipHost; then each plugin in PLUGINS loads on its own.
+   To add a plugin: drop its file in plugins/ and add a line below. It shows in the Plugins panel.
+   Status lands on <html data-plugins="id:on|off|failed ..."> so plugins can be tested headlessly. */
+(() => {
+  const parts=['core.js','pip.js','extras.js','engine.js','host.js'];
+  const PLUGINS=[
+    {id:'pip-spatial', name:'Pip Spatial', version:'v1', file:'plugins/pip-spatial.js', added:'29 Oct 2026',
+     what:'Bump, think, choose front or behind; emoji bubbles; wings when flying.'},
+    {id:'panel-flap', name:'Panel Flap', version:'v1', file:'plugins/panel-flap.js', added:'29 Oct 2026',
+     what:'The crash game as a flappy orbit around the broken clock.'},
+    {id:'pip-remembers', name:'Pip Remembers', version:'v1', file:'plugins/pip-remembers.js', added:'29 Oct 2026',
+     what:'Notices what changed since your last visit; keeps a notebook.'},
+    {id:'pip-guide', name:'Pip Guide', version:'v1', file:'plugins/pip-guide.js', added:'29 Oct 2026', shelf:'trial', icon:'🗺️',
+     what:'Pip shows you around what’s new: flies to each feature, lights it up and explains it. Follows Chattiness.'},
+    {id:'weather-window', name:'Weather Window', version:'v1', file:'plugins/weather-window.js', added:'29 Oct 2026',
+     what:'Idle panels fog up; draw in the mist and Pip draws back.'},
+    {id:'shadow-puppets', name:'Shadow Puppets', version:'v1', file:'plugins/shadow-puppets.js', added:'29 Oct 2026',
+     what:'A soft shadow under Pip, lit from your finger.'},
+    {id:'night-shift', name:'Night Shift', version:'v1', file:'plugins/night-shift.js', added:'29 Oct 2026',
+     what:'Warm, dim glass after dark; sleepy Pip; morning stretch.'},
+    {id:'postcards', name:'Postcards', version:'v1', file:'plugins/postcards.js', added:'29 Oct 2026',
+     what:'Send your Pip to visit a friend as emoji. Offline.'},
+    {id:'stack-attack', name:'Stack Attack', version:'v1', file:'plugins/stack-attack.js', added:'29 Oct 2026',
+     what:'Drop panels onto each other; Pip climbs and plants a flag.'},
+    {id:'glass-harp', name:'Glass Harp', version:'v1', file:'plugins/glass-harp.js', added:'29 Oct 2026',
+     what:'Panels ring like glass bells, pitched by size.'},
+    {id:'pip-cam', name:'Pip Cam', version:'v1', file:'plugins/pip-cam.js', added:'29 Oct 2026',
+     what:'A photo booth with crayon polaroids.'},
+    {id:'focus-bubble', name:'Focus Bubble', version:'v1', file:'plugins/focus-bubble.js', added:'29 Oct 2026',
+     what:'A focus timer; Pip naps quietly until it is done.'},
+    {id:'era-eggs', name:'Era Easter Eggs', version:'v1', file:'plugins/era-eggs.js', added:'29 Oct 2026',
+     what:'One hidden joke per era.'},
+    {id:'eager-pip', name:'Eager Pip', version:'v1', file:'plugins/eager-pip.js', added:'29 Oct 2026',
+     what:'Maximum enthusiasm: helps with everything, gets distracted, naps, bounces back.'},
+    {id:'dashboard-link', name:'Dashboard Link', version:'v1', file:'plugins/dashboard-link.js', added:'29 Oct 2026',
+     what:'Your progress dashboard inside the sandbox, with Pip as guide. Snapshot plus the live widget headline.'},
+    {id:'glass-lab', name:'Glass Lab', version:'v1.1', file:'plugins/glass-lab.js', added:'29 Oct 2026', shelf:'dream', icon:'🔬',
+     what:'Every dial of the glass, live, plus a Menus tab: rail, plugin bar and card size and spacing.'},
+    {id:'materials', name:'Materials', version:'v1.1', file:'plugins/materials.js', added:'29 Oct 2026', shelf:'dream', icon:'🧱',
+     what:'Panels and menus as glass, liquid, acrylic, metal, paper or jelly, each with its own impact and sound.'},
+    {id:'plugins-panel-plus', name:'Plugins Panel+', version:'v1.1', file:'plugins/plugins-panel-plus.js', added:'29 Oct 2026', shelf:'grounded', icon:'🗂️',
+     what:'This list, grouped by shelf: collapsible, compact rows, tap for details, search.'},
+    {id:'screen-awareness', name:'Screen Awareness', version:'v1', file:'plugins/screen-awareness.js', added:'29 Oct 2026', shelf:'trial', icon:'📐',
+     what:'Pip knows the screen: size, rotation, Pencil or mouse, keyboard, notch, free space. Device previews.'},
+    {id:'adaptive-layout', name:'Adaptive Layout', version:'v1', file:'plugins/adaptive-layout.js', added:'29 Oct 2026', shelf:'grounded', icon:'📱',
+     what:'Fits phones, tablets and desktops: size control, sheets on phones, plugin tray, panels keep their place on rotate.'},
+    {id:'panel-snap', name:'Panel Snap', version:'v1', file:'plugins/panel-snap.js', added:'29 Oct 2026', shelf:'trial', icon:'🧲',
+     what:'Drag panels to edges and corners to snap; magnetic edges; corner grip resizes; three saved layouts.'},
+    {id:'pip-brain', name:'Pip\u2019s Brain', version:'v1', file:'plugins/pip-brain.js', added:'29 Oct 2026', shelf:'grounded', icon:'🧠',
+     what:'Pip remembers you between visits and devices (sandbox database), and teaches lessons Claude writes.'},
+    {id:'clip-on', name:'Clip On', version:'v1', file:'plugins/clip-on.js', added:'29 Oct 2026', shelf:'dream', icon:'📎',
+     what:'Pip clips onto panel edges, swings when you drag them, and drops by with Clippy tips.'},
+    {id:'sketch', name:'Sketch', version:'v1', file:'plugins/sketch.js', added:'29 Oct 2026', shelf:'dream', icon:'✏️',
+     what:'Draw with Apple Pencil; Pip watches, reacts and photobombs your snapshots.'},
+    {id:'ipad-check', name:'iPad Check', version:'v1', file:'plugins/ipad-check.js', added:'29 Oct 2026', shelf:'trial', icon:'🩺',
+     what:'Tests this device (sensors, Pencil, glass, speed) and saves a report Claude can read.'},
+    {id:'oops', name:'untitled plugin (copy) (2) FINAL', version:'v0.0.2', file:'plugins/oops-pib.js', added:'29 Oct 2026', shelf:'dream', icon:'🫠',
+     what:'Installed by accident. Tap × on a panel and it smashes. Bug or feature? Feature.'},
+    {id:'surprise', name:'Surprise me', version:'v1', file:'plugins/surprise.js', added:'29 Oct 2026', shelf:'dream', icon:'🎁',
+     what:'One button, six bits: a design review, gravity off, a 1997 help bubble, bad time-telling, a panel conga, reviews from 2027.'},
+    {id:'pip-link', name:'Pip Link', version:'v1', file:'plugins/pip-link.js', added:'29 Oct 2026', shelf:'dream', icon:'📡',
+     what:'Send emojis and moods between your devices (Mac ⇄ iPad); Pip catches them. Pair codes for friends.'},
+    {id:'game-mode', name:'Game Mode', version:'v1', file:'plugins/game-mode.js', added:'29 Oct 2026', shelf:'trial', icon:'🎮',
+     what:'Quietly balances busyness so the thing you are doing stays smooth.'},
+    {id:'glips', name:'Glips', version:'v1', file:'plugins/glips.js', added:'29 Oct 2026', shelf:'dream', icon:'🫧',
+     what:'Pip\u2019s family, history and personality. Mends cracked glass, morphs into silhouettes, styles emoji. Clip helps.'}
+  ];
+  const root=document.documentElement;
+  let off=[]; try{ off=JSON.parse(localStorage.getItem('gs2-pluginsOff')||'[]'); }catch{}
+  window.PipPlugins=PLUGINS.map(p=>({...p,status:off.includes(p.id)?'off':'loading'}));
+  const changed=()=>{ root.dataset.plugins=PipPlugins.map(p=>p.id+':'+p.status).join(' '); window.dispatchEvent(new Event('pip:plugins')); };
+  window.addEventListener('error',e=>{ root.dataset.errors=((root.dataset.errors||'')+' '+String(e.message)).trim();
+    const p=PipPlugins.find(p=>e.filename&&e.filename.includes(p.file)); if(p){ p.status='failed'; p.error=String(e.message); changed(); } });
+  const fail=e=>{document.body.insertAdjacentHTML('beforeend','<p style="position:fixed;inset:auto 16px 16px;padding:12px;border-radius:12px;background:#fff;color:#c8372f;font:600 14px system-ui">Sandbox failed to load: '+String(e.message).replace(/[<>&]/g,'')+'</p>');};
+  Promise.all(parts.map(p=>fetch(p).then(r=>{if(!r.ok) throw new Error(p+' '+r.status); return r.text();})))
+    .then(src=>{const el=document.createElement('script'); el.textContent='(() => {\n'+src.join('\n')+'\n})();\n//# sourceURL=pip-sandbox.js'; document.body.appendChild(el);
+      root.dataset.host=window.PipHost?'ok':'missing';
+      const count=()=>document.getElementsByTagName('*').length; let mark={n:0,t:0};
+      PipPlugins.filter(p=>p.status==='loading').forEach(p=>{ const s=document.createElement('script'); s.src=p.file; s.async=false;
+        s.onload=()=>{ if(p.status==='loading') p.status='on';
+          /* cost at load: elements it added, time since the one before, file size */
+          const n=count(), t=performance.now(), e=performance.getEntriesByName(s.src)[0];
+          p.nodes=n-mark.n; p.loadMs=t-mark.t; p.bytes=e?(e.decodedBodySize||e.transferSize||null):null; mark={n,t}; changed(); };
+        s.onerror=()=>{ p.status='failed'; p.error='File not found: '+p.file; changed(); };
+        document.body.appendChild(s); });
+      mark={n:count(),t:performance.now()};
+      changed();
+    })
+    .catch(fail);
+})();
+</script>
+
+</body></html>

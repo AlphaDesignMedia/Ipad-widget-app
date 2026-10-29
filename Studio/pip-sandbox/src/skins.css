@@ -1,0 +1,224 @@
+/* =====================================================================
+   ERA WORLDS. Travelling to a year in the Story track restyles everything:
+   sky, panels, title bars, clock, bubble and body. Ported from V1's era skins.
+   :is(.era-X, .face-X) .card-in lets the Clock › Face picker reuse each clock.
+   ===================================================================== */
+.stage.worlds[class*="era-"] .glass{-webkit-backdrop-filter:none;backdrop-filter:none}
+
+/* 1887 · Pane Original: the glassworks */
+.worlds.era-1887{--ink:#3a2a14;--ink2:rgba(58,42,20,.78);--ink3:rgba(58,42,20,.58);--glass:rgba(250,240,215,.86);--glass-strong:#fff7e3;--rim:#b48a45;--rim-in:rgba(255,255,255,.6);--hair:rgba(90,60,20,.2);--wash:rgba(90,60,20,.07);--accent:#9a6a26;--ui:var(--f-serif);--shade:rgba(80,50,10,.25);
+  background:radial-gradient(120% 80% at 50% 0%, #fbf3df, #ead9b2 55%, #cfb27a) !important}
+.worlds.era-1887 .glass{background:#f8eed6;border:1px solid #b48a45;box-shadow:inset 0 0 0 3px #f8eed6, inset 0 0 0 4px #c9a45a, 0 10px 24px rgba(80,50,10,.25)}
+.worlds.era-1887 .panel{border-radius:8px}
+.worlds.era-1887 .ph h2{font-family:var(--f-serif);font-weight:600;font-size:19px}
+:is(.worlds.era-1887,.face-1887) .card-in{background:linear-gradient(#f1e3c0,#d6bb82);border:2px solid #9a6a26;color:#3a2a14;box-shadow:inset 0 0 0 4px #f1e3c0, inset 0 0 0 5px #9a6a26, 0 18px 40px rgba(80,50,10,.3);border-radius:14px}
+:is(.worlds.era-1887,.face-1887) .time{font-family:var(--f-serif);font-weight:500;text-shadow:0 1px 0 rgba(255,255,255,.7), 0 -1px 0 rgba(90,60,20,.25);letter-spacing:0}
+:is(.worlds.era-1887,.face-1887) .date{font-family:var(--f-serif);font-style:italic}
+
+/* 1983 · Glacio: a digital wristwatch */
+.worlds.era-1983{--ink:#e9ece2;--ink2:rgba(233,236,226,.76);--ink3:rgba(233,236,226,.55);--glass:#2b2c2f;--glass-strong:#45474c;--rim:#55575d;--rim-in:rgba(255,255,255,.08);--hair:rgba(255,255,255,.16);--wash:rgba(255,255,255,.06);--accent:#e8622f;--shade:rgba(0,0,0,.5);color-scheme:dark;
+  background:repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px), radial-gradient(120% 90% at 50% 20%, #34363a, #161719) !important}
+.worlds.era-1983 .glass{background:#2b2c2f;border:1px solid #55575d;box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 10px 24px rgba(0,0,0,.5)}
+.worlds.era-1983 .ph h2{font:400 18px/1 "Share Tech Mono", ui-monospace, monospace;letter-spacing:.06em;text-transform:uppercase}
+:is(.worlds.era-1983,.face-1983) .card-in{background:#a8b39a;color:#1b2117;border:12px solid #232427;border-radius:24px;padding:10px 14px 16px;box-shadow:inset 0 3px 8px rgba(0,0,0,.35), 0 0 0 2px #3c3e43, 0 18px 40px rgba(0,0,0,.45);transition:background .3s, box-shadow .3s}
+:is(.worlds.era-1983,.face-1983) .card-in::before{content:"GLACIO  ·  ALARM CHRONO";position:absolute;left:0;right:0;top:-11px;font:700 8px/1 var(--ui);letter-spacing:.24em;color:#c9ccd2;text-align:center}
+:is(.worlds.era-1983,.face-1983) .card-in::after{content:"LIGHT";position:absolute;right:-9px;bottom:-11px;font:700 7px/1 var(--ui);letter-spacing:.16em;color:#e8622f}
+:is(.worlds.era-1983,.face-1983) .card-in.lit{background:#8fe7d9;box-shadow:inset 0 3px 8px rgba(0,0,0,.2), 0 0 0 2px #3c3e43, 0 0 40px rgba(110,240,220,.55)}
+:is(.worlds.era-1983,.face-1983) .date{font:400 min(18px,3.8vw)/1.2 "Share Tech Mono", ui-monospace, monospace;letter-spacing:.12em;text-transform:uppercase}
+:is(.worlds.era-1983,.face-1983) .time{text-shadow:none;transform:none}
+.lcd{display:inline-flex;align-items:center;gap:.06em;height:.82em;color:#1b2117;padding:.06em 0}
+.lcd svg{height:100%;width:auto;overflow:visible;transform:skewX(-6deg)}
+.lcd .s{fill:currentColor;opacity:.08}
+.lcd .s.on{opacity:1}
+.lcd .colon{width:.16em}
+.lcd .colon.off .s{opacity:.08}
+
+/* 1987 · Platinum: two colours, one job */
+.worlds.era-1987{--ink:#000;--ink2:#000;--ink3:#3a3a3a;--glass:#fff;--glass-strong:#000;--rim:#000;--rim-in:#fff;--hair:#000;--wash:#fff;--accent:#000;--knob:#fff;--shade:transparent;--ui:"Pixelify Sans", Geneva, "Helvetica Neue", sans-serif;
+  background:repeating-conic-gradient(#8a8a8a 0 25%, #d0d0d0 0 50%) 0 0/2px 2px !important}
+.worlds.era-1987 .glass{background:#fff;border:2px solid #000;box-shadow:3px 3px 0 #000}
+.worlds.era-1987 .panel,.worlds.era-1987 .rail,.worlds.era-1987 .seg,.worlds.era-1987 .pill,.worlds.era-1987 .tag,.worlds.era-1987 .bubble,.worlds.era-1987 .toast{border-radius:0}
+.worlds.era-1987 .ph{background:repeating-linear-gradient(180deg,#000 0 1px,#fff 1px 3px) 0 8px/100% 16px no-repeat;padding-top:8px}
+.worlds.era-1987 .ph h2{flex:0 1 auto;margin:0 auto;padding:0 8px;background:#fff;font:700 15px/1.2 var(--ui)}
+.worlds.era-1987 .ph h2 .crumb{display:none}
+.worlds.era-1987 .icon-btn,.worlds.era-1987 .drill,.worlds.era-1987 .btn,.worlds.era-1987 .mseg,.worlds.era-1987 .txt{border-radius:0;border:1.5px solid #000;background:#fff}
+.worlds.era-1987 .mseg button[aria-pressed="true"],.worlds.era-1987 .seg button[aria-pressed="true"]{background:#000;color:#fff;box-shadow:none;border-radius:0}
+.worlds.era-1987 .seg button{border-radius:0}
+.worlds.era-1987 .drill[aria-expanded="true"]{background:#000;color:#fff}
+.worlds.era-1987 .switch{border-radius:0;border:1.5px solid #000;background:#fff}.worlds.era-1987 .switch::after{border-radius:0;background:#000;box-shadow:none;top:2px;left:2px}.worlds.era-1987 .switch:checked{background:#000}.worlds.era-1987 .switch:checked::after{background:#fff}
+.worlds.era-1987 .ri[aria-current="true"]{background:#000;color:#fff;border-radius:0}.worlds.era-1987 .ri[aria-current="true"] svg{color:#fff}
+:is(.worlds.era-1987,.face-1987) .card-in{background:#fff;color:#000;border:2px solid #000;border-radius:0;box-shadow:5px 5px 0 #000}
+:is(.worlds.era-1987,.face-1987) .time{font-family:"Silkscreen", "Pixelify Sans", monospace;font-weight:400;text-shadow:none;letter-spacing:0;font-size:min(108px, 22vw)}
+:is(.worlds.era-1987,.face-1987) .date{font-family:"Pixelify Sans", monospace}
+
+/* 1997 · Bevel 97: grey bevels and a paperclip */
+.worlds.era-1997{--ink:#000;--ink2:#1a1a1a;--ink3:#4a4a4a;--glass:#c0c0c0;--glass-strong:#dcdcdc;--rim:#fff;--hair:#808080;--wash:#c0c0c0;--accent:#000080;--shade:transparent;--ui:"Pixelify Sans", Tahoma, Geneva, sans-serif;
+  background:#008080 !important}
+.worlds.era-1997 .glass{background:#c0c0c0;border:0;box-shadow:inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf}
+.worlds.era-1997 .panel,.worlds.era-1997 .rail,.worlds.era-1997 .seg,.worlds.era-1997 .pill,.worlds.era-1997 .tag,.worlds.era-1997 .toast{border-radius:0}
+.worlds.era-1997 .ph{margin:3px 3px 6px;padding:4px 4px 4px 8px;background:linear-gradient(90deg,#000080,#1084d0);color:#fff}
+.worlds.era-1997 .ph > svg{color:#fff}.worlds.era-1997 .ph .crumb{color:#d8d8f0}
+.worlds.era-1997 .ph h2{font:700 14px/1.2 var(--ui)}
+.worlds.era-1997 .icon-btn{width:22px;height:20px;border-radius:0;background:#c0c0c0;color:#000;box-shadow:inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080}
+.worlds.era-1997 .drill,.worlds.era-1997 .btn{border-radius:0;background:#c0c0c0;box-shadow:inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf}
+.worlds.era-1997 .drill[aria-expanded="true"]{background:#dcdcdc;box-shadow:inset 1px 1px 0 #000, inset -1px -1px 0 #fff, inset 2px 2px 0 #808080}
+.worlds.era-1997 .mseg,.worlds.era-1997 .txt{border-radius:0;background:#fff;box-shadow:inset 1px 1px 0 #808080, inset 2px 2px 0 #000}
+.worlds.era-1997 .mseg button,.worlds.era-1997 .seg button{border-radius:0}
+.worlds.era-1997 .mseg button[aria-pressed="true"],.worlds.era-1997 .seg button[aria-pressed="true"]{background:#000080;color:#fff;box-shadow:none}
+.worlds.era-1997 .bubble{background:#ffffe1;color:#000;border-radius:10px;border:0;box-shadow:0 0 0 1px #000, 4px 4px 0 rgba(0,0,0,.18);font-family:Tahoma, "Pixelify Sans", sans-serif}
+:is(.worlds.era-1997,.face-1997) .card-in{background:#c0c0c0;color:#000;border:0;border-radius:0;padding:14px;box-shadow:inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf, 6px 6px 0 rgba(0,0,0,.3)}
+:is(.worlds.era-1997,.face-1997) .time{display:block;background:#000;color:#3cff3c;font-family:"Pixelify Sans", monospace;font-weight:400;text-shadow:0 0 8px rgba(60,255,60,.6);padding:4px 10px;box-shadow:inset 2px 2px 0 #404040;letter-spacing:0;transform:none}
+:is(.worlds.era-1997,.face-1997) .date{font-family:"Pixelify Sans", Tahoma, sans-serif;text-align:left;padding-bottom:4px}
+
+/* 1998 · Dial-Up: under construction, forever */
+.worlds.era-1998{--ink:#ff0;--ink2:#0ff;--ink3:#f6f;--glass:#000;--glass-strong:#ffffcc;--rim:#c0c0c0;--hair:rgba(0,255,255,.45);--wash:rgba(255,255,0,.08);--accent:#f0f;--shade:transparent;--ui:"Comic Neue", "Comic Sans MS", "Chalkboard SE", cursive;color-scheme:dark;
+  background:radial-gradient(1.4px 1.4px at 14px 18px, #fff 50%, transparent 52%) 0 0/56px 56px, radial-gradient(1px 1px at 40px 36px, #fff 50%, transparent 52%) 0 0/56px 56px, radial-gradient(1.2px 1.2px at 30px 6px, #ff0 50%, transparent 52%) 0 0/56px 56px, #000018 !important}
+.worlds.era-1998 .glass{background:#000;border:4px ridge #c0c0c0;box-shadow:none}
+.worlds.era-1998 .panel,.worlds.era-1998 .rail,.worlds.era-1998 .seg,.worlds.era-1998 .pill,.worlds.era-1998 .tag,.worlds.era-1998 .toast,.worlds.era-1998 .bubble{border-radius:0}
+.worlds.era-1998 .ph h2 .ttl{font:700 19px var(--ui);background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.worlds.era-1998 .ph h2::after{content:"NEW!";margin-left:6px;padding:0 4px;font:700 10px/16px var(--ui);color:#fff;background:#f00;animation:geoBlink 1s steps(2) infinite}
+@keyframes geoBlink{50%{opacity:0}}
+.worlds.era-1998 .drill,.worlds.era-1998 .btn{border-radius:0;background:#000;color:#0000ee;background:#c0c0c0;text-decoration:underline;font-weight:700}
+.worlds.era-1998 .seg button[aria-pressed="true"],.worlds.era-1998 .mseg button[aria-pressed="true"]{background:#ffffcc;color:#551a8b;border-radius:0}
+.worlds.era-1998 .bubble{background:#000;color:#0f0;box-shadow:0 0 0 2px #f0f;font:700 15px var(--ui)}
+:is(.worlds.era-1998,.face-1998) .card-in{background:#000;border:5px ridge #c0c0c0;border-radius:0;color:#ff0}
+:is(.worlds.era-1998,.face-1998) .time{font-family:"Comic Neue", "Comic Sans MS", cursive;font-weight:700;background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+:is(.worlds.era-1998,.face-1998) .date{color:#0ff;font-family:"Comic Neue", cursive;font-weight:700}
+:is(.worlds.era-1998,.face-1998) .date::after{content:" · You are visitor 000417";color:#f6f}
+.simpler.worlds.era-1998 .ph h2::after{animation:none}
+
+/* 2001 · Gumdrop: translucent jelly, tangerine */
+.worlds.era-2001{--ink:#1a1a1a;--ink2:#444;--ink3:#777;--glass:rgba(255,255,255,.9);--glass-strong:#fff;--rim:rgba(0,0,0,.25);--hair:rgba(40,90,170,.22);--wash:rgba(40,90,170,.08);--accent:#ff8a00;--ui:"Lucida Grande", "Helvetica Neue", -apple-system, sans-serif;
+  background:radial-gradient(120% 60% at 20% 110%, rgba(255,255,255,.55), transparent 60%), radial-gradient(90% 50% at 90% -10%, rgba(140,200,255,.7), transparent 60%), linear-gradient(160deg, #3c7bd8, #1c4fa8 55%, #5fa3f0) !important}
+.worlds.era-2001 .glass{background:repeating-linear-gradient(0deg,#fff 0 2px,#ebeef3 2px 4px);border:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25), 0 14px 30px -10px rgba(0,0,0,.45)}
+.worlds.era-2001 .panel{border-radius:12px}
+.worlds.era-2001 .ph{background:repeating-linear-gradient(0deg,#f4f4f4 0 1px,#dcdcdc 1px 2px);border-bottom:1px solid rgba(0,0,0,.3);padding-left:62px;margin-bottom:6px}
+.worlds.era-2001 .ph::before{content:"";position:absolute;left:12px;top:50%;width:44px;height:12px;margin-top:-6px;background:radial-gradient(circle at 6px 6px,#ff6159 0 4.6px,#b2392f 5px 5.6px,transparent 6px),radial-gradient(circle at 22px 6px,#ffbf2f 0 4.6px,#b5821a 5px 5.6px,transparent 6px),radial-gradient(circle at 38px 6px,#2acb42 0 4.6px,#1a8a2b 5px 5.6px,transparent 6px)}
+.worlds.era-2001 .ph > svg{display:none}
+.worlds.era-2001 .ph h2{text-align:center;font:600 14px/1.2 var(--ui);text-shadow:0 1px 0 #fff}
+.worlds.era-2001 .seg button[aria-pressed="true"],.worlds.era-2001 .mseg button[aria-pressed="true"],.worlds.era-2001 .drill[aria-expanded="true"]{background:radial-gradient(circle at 50% 120%,#bfe2ff 0 35%,transparent 60%),linear-gradient(#6db3ff,#1268d6);color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.35)}
+.worlds.era-2001 .switch:checked{background:linear-gradient(#6db3ff,#1268d6)}
+:is(.worlds.era-2001,.face-2001) .card-in{background:repeating-linear-gradient(0deg, rgba(255,255,255,.14) 0 2px, transparent 2px 4px), linear-gradient(rgba(255,180,80,.92), rgba(255,120,0,.82));border:1px solid rgba(255,255,255,.9);border-radius:40px;color:#fff;box-shadow:inset 0 -10px 24px rgba(190,70,0,.45), 0 18px 40px rgba(255,120,0,.35)}
+:is(.worlds.era-2001,.face-2001) .card-in::before{content:"";position:absolute;left:10%;right:10%;top:5px;height:40%;border-radius:30px 30px 50% 50%/24px 24px 12px 12px;background:linear-gradient(rgba(255,255,255,.85),rgba(255,255,255,.08));pointer-events:none}
+:is(.worlds.era-2001,.face-2001) .time{text-shadow:0 2px 3px rgba(150,50,0,.5)}
+
+/* 2002 · Meadow: a very green hill */
+.worlds.era-2002{--ink:#000;--ink2:#333;--ink3:#555;--glass:#ece9d8;--glass-strong:#fff;--rim:#0831d9;--hair:rgba(0,60,180,.22);--wash:rgba(0,60,180,.07);--accent:#2b71e3;--ui:"Trebuchet MS", Tahoma, Verdana, sans-serif;
+  background:radial-gradient(140% 55% at 30% 112%, #5db534 0 44%, #3e8e22 52%, transparent 53%), radial-gradient(90% 40% at 92% 100%, #4ba42c 0 40%, transparent 41%), radial-gradient(30% 12% at 70% 22%, rgba(255,255,255,.9), transparent 70%), radial-gradient(22% 8% at 30% 30%, rgba(255,255,255,.8), transparent 70%), linear-gradient(#2f6fe0, #6da5f0 45%, #b9d6f6 60%) !important}
+.worlds.era-2002 .glass{background:#ece9d8;border:0;box-shadow:4px 6px 14px -4px rgba(0,0,0,.45)}
+.worlds.era-2002 .panel{border-radius:8px 8px 0 0;border:3px solid #0831d9;border-top:0}
+.worlds.era-2002 .ph{background:linear-gradient(#0997ff,#0053ee 8%,#0050ee 40%,#06f 88%,#06f 93%,#005bff 95%,#003dd7);color:#fff;border-radius:7px 7px 0 0;margin-bottom:8px;padding:6px 6px 6px 10px}
+.worlds.era-2002 .ph h2{font:700 14px/1.2 var(--ui);text-shadow:1px 1px #0f1089}.worlds.era-2002 .ph .crumb{color:#dde8ff}.worlds.era-2002 .ph > svg{color:#fff}
+.worlds.era-2002 .icon-btn{width:22px;height:22px;border-radius:3px;color:#fff;background:linear-gradient(135deg,#f49b83,#de4b21 60%,#c6331a);box-shadow:inset 0 0 0 1px #fff}
+.worlds.era-2002 .icon-btn[data-back]{background:linear-gradient(#3c8cf0,#1a5bd6)}
+.worlds.era-2002 .seg{background:linear-gradient(#3168d5,#4993e6 10%,#2157d7 20%,#2663e0 90%,#1941a5);border-radius:6px}
+.worlds.era-2002 .seg button{color:#fff;text-shadow:1px 1px rgba(0,0,0,.4)}
+.worlds.era-2002 .seg button[aria-pressed="true"]{background:linear-gradient(#1e4fb5,#2f6ad7);color:#fff;box-shadow:inset 1px 1px 3px rgba(0,0,0,.5)}
+.worlds.era-2002 .drill,.worlds.era-2002 .btn{border-radius:3px;border:1px solid #003c74;background:linear-gradient(#fff,#ecebe6 86%,#d6d0c5)}
+.worlds.era-2002 .bubble{background:#ffffe1;color:#000;border-radius:9px;box-shadow:0 0 0 1px #000, 2px 3px 6px rgba(0,0,0,.35);font:13.5px Tahoma, sans-serif}
+:is(.worlds.era-2002,.face-2002) .card-in{background:#ece9d8;color:#0b3e8c;border:3px solid #0831d9;border-radius:9px 9px 0 0;padding-top:34px;box-shadow:4px 8px 18px -4px rgba(0,0,0,.45)}
+:is(.worlds.era-2002,.face-2002) .card-in::before{content:"Clock";position:absolute;left:-1px;right:-1px;top:-1px;height:26px;border-radius:7px 7px 0 0;background:linear-gradient(#0997ff,#0053ee 8%,#0050ee 40%,#06f 88%,#003dd7);color:#fff;font:700 13px/26px "Trebuchet MS", sans-serif;text-align:left;padding-left:10px;text-shadow:1px 1px #0f1089}
+:is(.worlds.era-2002,.face-2002) .time{background:linear-gradient(#2b71e3,#0b3e8c);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;font-family:"Trebuchet MS", sans-serif}
+
+/* 2004 · Brushed: the shed */
+.worlds.era-2004{--ink:#1c2430;--ink2:#3a4350;--ink3:#5f6875;--glass:#d5d9df;--glass-strong:#fff;--rim:rgba(60,66,76,.5);--hair:rgba(28,36,48,.18);--wash:rgba(28,36,48,.07);--accent:#4a6fa5;--ui:"Lucida Grande", "Helvetica Neue", sans-serif;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 4px), radial-gradient(120% 90% at 50% 10%, #6f757e, #3a3e45) !important}
+.worlds.era-2004 .glass{background:repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,.03) 0 2px, transparent 2px 5px), linear-gradient(160deg, #eef1f4, #a7aeb8);border:0;box-shadow:inset 0 1px 0 #fff, inset 0 0 0 1px rgba(60,66,76,.35), 0 18px 40px -16px rgba(0,0,0,.6)}
+.worlds.era-2004 .ph h2{text-shadow:0 1px 0 rgba(255,255,255,.85)}
+:is(.worlds.era-2004,.face-2004) .card-in{background:repeating-linear-gradient(90deg, rgba(255,255,255,.2) 0 1px, transparent 1px 3px), linear-gradient(160deg, #eef1f4, #9aa1ab);color:#2a3038;border:0;border-radius:18px;box-shadow:inset 0 1px 0 #fff, inset 0 0 0 1px rgba(60,66,76,.45), 0 18px 40px -12px rgba(0,0,0,.6)}
+:is(.worlds.era-2004,.face-2004) .time{text-shadow:0 1px 0 rgba(255,255,255,.8), 0 -1px 0 rgba(0,0,0,.35)}
+
+/* 2007 · Halo Glass: real glass, green glow */
+.worlds.era-2007{--ink:#fff;--ink2:rgba(255,255,255,.85);--ink3:rgba(255,255,255,.62);--glass:rgba(24,52,56,.5);--glass-strong:rgba(255,255,255,.22);--rim:rgba(255,255,255,.55);--hair:rgba(255,255,255,.22);--wash:rgba(255,255,255,.08);--accent:#2fcb5f;--shade:rgba(0,0,0,.6);--ui:"Segoe UI", -apple-system, "Helvetica Neue", sans-serif;color-scheme:dark;
+  background:radial-gradient(70% 28% at 35% 62%, rgba(80,240,140,.55), transparent 70%), radial-gradient(60% 22% at 62% 46%, rgba(40,190,255,.45), transparent 70%), radial-gradient(40% 18% at 75% 70%, rgba(150,255,120,.35), transparent 70%), repeating-linear-gradient(112deg, transparent 0 60px, rgba(140,255,190,.05) 60px 64px), linear-gradient(165deg, #021a12 0%, #06303a 45%, #010810 100%) !important}
+.stage.worlds.era-2007 .glass{background:linear-gradient(180deg, rgba(255,255,255,.34) 0, rgba(255,255,255,.12) 46%, rgba(255,255,255,.02) 47%, rgba(110,255,170,.1) 100%), rgba(24,52,56,.42);border:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.55), 0 0 0 1px rgba(0,0,0,.6), 0 0 26px -2px rgba(70,235,130,.45), 0 16px 34px -12px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(8px) saturate(1.8);backdrop-filter:blur(8px) saturate(1.8)}
+.worlds.era-2007 .panel{border-radius:9px}
+.worlds.era-2007 .ph h2{text-shadow:0 0 10px rgba(255,255,255,.75), 0 1px 1px rgba(0,0,0,.5)}
+.worlds.era-2007 .seg button[aria-pressed="true"],.worlds.era-2007 .mseg button[aria-pressed="true"]{background:radial-gradient(80% 120% at 50% 100%, rgba(90,255,150,.55), rgba(255,255,255,.12));color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6), 0 0 12px rgba(80,255,150,.6)}
+.worlds.era-2007 .bubble{background:linear-gradient(#fff,#e4eef6);color:#111;border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.45), inset 0 0 0 1px #fff, 0 8px 20px -6px rgba(0,0,0,.5)}
+:is(.worlds.era-2007,.face-2007) .card-in{background:linear-gradient(180deg, rgba(255,255,255,.34) 0, rgba(255,255,255,.1) 48%, rgba(255,255,255,.02) 49%, rgba(110,255,170,.12) 100%), rgba(20,48,52,.55);color:#fff;border:0;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6), 0 0 0 1px rgba(0,0,0,.6), 0 0 34px -2px rgba(70,235,130,.55), 0 18px 40px -12px rgba(0,0,0,.7)}
+:is(.worlds.era-2007,.face-2007) .time{background:linear-gradient(#fff 30%, #8cf5b0);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 0 12px rgba(120,255,170,.6))}
+
+/* body picker previews */
+.form-prev{position:relative}
+.fp-orb{background:radial-gradient(circle at 50% 50%, transparent 0 0) !important;background-image:radial-gradient(circle at 40% 35%, #fff 0 8%, color-mix(in srgb, var(--accent) 45%, white) 30%, var(--accent) 70%) !important;border-radius:50% !important;max-width:40px !important}
+.fp-clip{background:#eef1f4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 72'%3E%3Cpath d='M26 22 V58 A8 8 0 0 1 10 58 V14 A11 11 0 0 1 32 14 V52 A5 5 0 0 1 22 52 V26' fill='none' stroke='%237d848e' stroke-width='3.6' stroke-linecap='round'/%3E%3C/svg%3E") center/38% no-repeat !important}
+.fp-robot{background:linear-gradient(#e8c76a,#c99a3c) !important;border-radius:30% 30% 14px 14px !important}
+.fp-fairy{background:radial-gradient(circle at 50% 55%, var(--accent) 0 22%, transparent 23%), radial-gradient(ellipse 30% 40% at 26% 40%, rgba(255,255,255,.95), transparent 70%), radial-gradient(ellipse 30% 40% at 74% 40%, rgba(255,255,255,.95), transparent 70%), color-mix(in srgb, var(--accent) 25%, white) !important}
+
+
+/* ---------- Glass remaster: the era's theme, today's material.
+   Each era gives --surf (panel surface) and --surf2 (clock surface); remaster turns them
+   into translucent glass with blur and a specular rim, and leaves everything else alone. ---------- */
+.worlds.era-1887{--surf:#f8eed6;--surf2:#e6d3a4}
+.worlds.era-1983{--surf:#2b2c2f;--surf2:#a8b39a}
+.worlds.era-1987{--surf:#ffffff;--surf2:#ffffff}
+.worlds.era-1997{--surf:#c0c0c0;--surf2:#c0c0c0}
+.worlds.era-1998{--surf:#000000;--surf2:#000000}
+.worlds.era-2001{--surf:#f4f6fa;--surf2:#ff9a2e}
+.worlds.era-2002{--surf:#ece9d8;--surf2:#ece9d8}
+.worlds.era-2004{--surf:#d5d9df;--surf2:#c3c8cf}
+.stage.remaster.worlds[class*="era-"]:not(.era-2007) .glass{background:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 40%), color-mix(in srgb, var(--surf) 58%, transparent) !important;}
+.stage.eralight.remaster.worlds[class*="era-"] .glass,.stage.eralight.remaster.worlds[class*="era-"] .card-in{background-image:radial-gradient(190px circle at var(--sx,-300px) var(--sy,-300px), rgba(255,255,255,.34), transparent 68%), linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 40%) !important;}
+.stage.remaster.worlds[class*="era-"]:not(.era-2007) .glass{
+  -webkit-backdrop-filter:blur(22px) saturate(1.6) !important;backdrop-filter:blur(22px) saturate(1.6) !important}
+.stage.remaster.worlds[class*="era-"]:not(.era-2007) .panel,.stage.remaster.worlds[class*="era-"]:not(.era-2007) .rail{outline:1px solid rgba(255,255,255,.45);outline-offset:-1px}
+.stage.remaster.worlds[class*="era-"]:not(.era-2007,.era-1983) .card-in{background:linear-gradient(180deg, rgba(255,255,255,.3), rgba(255,255,255,0) 46%), color-mix(in srgb, var(--surf2) 52%, transparent) !important;
+  -webkit-backdrop-filter:blur(24px) saturate(1.7);backdrop-filter:blur(24px) saturate(1.7)}
+.stage.remaster.worlds.era-1983 .card-in{background:color-mix(in srgb, #a8b39a 72%, transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.stage.remaster.worlds.era-1983 .card-in.lit{background:color-mix(in srgb, #8fe7d9 80%, transparent)}
+.stage.remaster.worlds.era-1997 .time{background:color-mix(in srgb, #000 78%, transparent)}
+.stage.remaster.worlds.era-1997 .ph{background:linear-gradient(90deg, color-mix(in srgb, #000080 82%, transparent), color-mix(in srgb, #1084d0 72%, transparent))}
+.stage.remaster.worlds.era-2002 .ph{opacity:.94}
+
+/* ---------- bodies (V1 forms): same personality, different body ---------- */
+.navi .fm{display:none;position:absolute;pointer-events:none}
+.navi.form-clip .orb,.navi.form-clip .halo,.navi.form-clip .wing,.navi.form-robot .wing{display:none}
+.navi.form-clip .clip{display:block;left:50%;top:50%;width:calc(var(--nd) * 1.2);height:calc(var(--nd) * 2.16);transform:translate(-50%,-30%);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+.navi.form-clip .clip svg{width:100%;height:100%;overflow:visible}
+.navi.form-clip .eyes{top:22%;gap:calc(var(--nd) * .1)}
+.navi.form-clip .eyes::before,.navi.form-clip .eyes::after{content:"";position:absolute;top:-30%;width:calc(var(--nd) * .32);height:2px;border-radius:1px;background:#1a1d22}
+.navi.form-clip .eyes::before{left:-6%;transform:rotate(-8deg)}.navi.form-clip .eyes::after{right:-6%;transform:rotate(8deg)}
+.navi.form-clip .eye{width:calc(var(--nd) * .36);height:calc(var(--nd) * .4);border-radius:50%;background:radial-gradient(circle at 50% 60%, #111 0 26%, #fff 32%);box-shadow:0 0 0 1px #222}
+.navi.form-clip.blink .eye,.navi.form-clip.sleep .eye{height:2px;background:#111}
+.navi.form-clip.annoyed .eyes::before{transform:rotate(18deg)}.navi.form-clip.annoyed .eyes::after{transform:rotate(-18deg)}
+.navi.form-robot .orb{inset:6% -16% 26% -16%;border-radius:28% 28% 22% 22%;background:linear-gradient(#e8c76a,#c99a3c);border:0;box-shadow:inset 0 -3px 0 rgba(90,60,10,.35), inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(0,0,0,.3)}
+.navi.form-robot .halo{opacity:.22}
+.navi.form-robot .rb{display:block;inset:0}
+.navi.form-robot .eyes{top:36%}
+.navi.form-robot .eye{width:calc(var(--nd) * .34);height:calc(var(--nd) * .34);border-radius:50%;background:radial-gradient(circle at 50% 45%, #ddf2ff 0 16%, #16303f 22% 44%, #59636e 50%);box-shadow:0 0 0 1.5px #3c444d}
+.navi.form-robot.blink .eye,.navi.form-robot.sleep .eye{height:3px;border-radius:2px}
+.rb-body{position:absolute;left:50%;top:70%;width:calc(var(--nd) * 1.05);height:calc(var(--nd) * .58);transform:translateX(-50%);border-radius:4px;background:linear-gradient(#d9b65c,#a87c2e);box-shadow:inset 0 0 0 1px rgba(70,45,10,.45)}
+.rb-tread{position:absolute;bottom:-28%;width:46%;height:34%;border-radius:4px;background:repeating-linear-gradient(90deg,#4a4f55 0 2px,#2e3236 2px 4px)}
+.rb-tread.l{left:-6%}.rb-tread.r{right:-6%}
+.rb-scuff{position:absolute;left:20%;top:30%;width:40%;height:2px;background:rgba(255,255,255,.4);transform:rotate(-12deg);box-shadow:4px 5px 0 -.5px rgba(60,40,10,.35)}
+.rb-ant{position:absolute;left:56%;top:-34%;width:2px;height:calc(var(--nd) * .44);background:#6b7178;transform-origin:50% 100%;animation:rbWob 1.4s ease-in-out infinite alternate}
+.rb-ant::after{content:"";position:absolute;left:-2.5px;top:-5px;width:7px;height:7px;border-radius:50%;background:#ff6b5a;box-shadow:0 0 6px #ff6b5a}
+@keyframes rbWob{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+.simpler .rb-ant{animation:none}
+.navi.form-fairy .wing{opacity:.85}
+.navi.form-fairy .orb{border-radius:52% 48% 50% 50% / 58% 58% 42% 42%}
+.worlds.era-1998 .navi .skin{display:block;left:50%;top:-34%;width:calc(var(--nd) * .95);height:calc(var(--nd) * .48);transform:translateX(-50%);border-radius:99px 99px 3px 3px;background:repeating-linear-gradient(-45deg,#ffd200 0 4px,#1a1a1a 4px 7px);box-shadow:0 2px 0 -1px #c9a400}
+.worlds.era-2002 .navi .skin{display:block;inset:0}
+.worlds.era-2002 .navi .skin::before,.worlds.era-2002 .navi .skin::after{content:"";position:absolute;top:-22%;width:40%;height:62%;border-radius:50% 50% 60% 60%;background:linear-gradient(#c08a50,#8a5a2a)}
+.worlds.era-2002 .navi .skin::before{left:-16%;transform:rotate(24deg)}.worlds.era-2002 .navi .skin::after{right:-16%;transform:rotate(-24deg)}
+.worlds.era-1983 .navi .orb{background:#a8b39a;border:2px solid #232427;box-shadow:none}
+.worlds.era-1983 .navi .halo{opacity:.12}
+/* ---------- 11.1 polish (Today): calmer corners, crisp glass edges, lighter blur ---------- */
+.liquid .glass{border:0;-webkit-backdrop-filter:blur(14px) saturate(1.8);backdrop-filter:blur(14px) saturate(1.8);
+  background-image:radial-gradient(180px circle at var(--sx,-500px) var(--sy,-500px), rgba(255,255,255,.22), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,0) 32%);
+  box-shadow:inset 1px 1px 0 color-mix(in srgb, var(--lg-rim) 85%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--lg-rim) 30%, transparent), inset 0 0 0 .5px color-mix(in srgb, var(--lg-rim) 40%, transparent), 0 0 0 .5px rgba(0,0,0,.07), 0 10px 28px var(--shade)}
+.liquid .card-in{border:0;background-image:radial-gradient(200px circle at var(--sx,-500px) var(--sy,-500px), rgba(255,255,255,.2), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,0) 40%);
+  box-shadow:inset 1.5px 1.5px 0 rgba(255,255,255,.7), inset -1px -1px 0 rgba(255,255,255,.25), inset 0 0 0 .5px rgba(255,255,255,.4), 0 0 0 .5px rgba(0,0,0,.06), 0 16px 44px var(--shade)}
+.refresh .panel{border-radius:28px}
+.refresh .panel.child{border-radius:24px}
+.refresh .card-in{border-radius:32px}
+.refresh .rail{border-radius:26px;padding:5px}
+.refresh .ri{border-radius:20px}
+.refresh .drill,.refresh .btn{border-radius:14px}
+.refresh .txt{border-radius:10px}
+.refresh .pers,.refresh .nt{border-radius:16px}
+.refresh .sw i,.refresh .lt-view{border-radius:14px}
+.refresh .icon-btn{box-shadow:inset 1px 1px 0 color-mix(in srgb, var(--lg-rim) 80%, transparent), inset 0 0 0 .5px color-mix(in srgb, var(--lg-rim) 40%, transparent)}
+.refresh .drill,.refresh .btn{box-shadow:inset 1px 1px 0 color-mix(in srgb, var(--lg-rim) 55%, transparent)}
+.liquid .bubble,.liquid .ask{border-radius:18px}

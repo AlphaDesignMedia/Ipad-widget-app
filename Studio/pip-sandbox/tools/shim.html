@@ -1,0 +1,5 @@
+<script>window.requestAnimationFrame=f=>setTimeout(()=>f(performance.now()),16);window.cancelAnimationFrame=clearTimeout;
+window.__log=[];['error','warn'].forEach(k=>{const o=console[k];console[k]=(...a)=>{__log.push(k+': '+a.map(String).join(' ').slice(0,200));o(...a);};});
+addEventListener('error',e=>__log.push('ERR '+e.message+' @'+(e.filename||'').split('/').pop()+':'+e.lineno));
+addEventListener('unhandledrejection',e=>__log.push('REJ '+(e.reason&&e.reason.message||e.reason)));
+</script>

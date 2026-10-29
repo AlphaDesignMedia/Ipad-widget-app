@@ -1,0 +1,17 @@
+<script>
+/* Smoke test: every plugin loads, every plugin card opens, Stop/Esc leaves Pip idle, no errors. */
+setTimeout(async()=>{ const out=[], H=window.PipHost, T=ms=>new Promise(r=>setTimeout(r,ms));
+ try{
+  const bad=H.plugins.filter(p=>p.status!=='on'); out.push('plugins '+H.plugins.length+' · not on: '+(bad.map(p=>p.id+':'+p.status).join(',')||'none'));
+  const btns=[...document.querySelectorAll('#plugbar button[aria-label]')]; let opened=0;
+  for(const b of btns){ try{ b.click(); await T(120); opened++; b.click(); await T(60); }catch(e){ out.push('card '+b.getAttribute('aria-label')+': '+e.message); } }
+  out.push('plugin bar buttons opened '+opened+'/'+btns.length);
+  H.wake(); await T(600); window.PipSurprise?.surprise?.(); await T(1500); const was=H.isBusy(); H.interrupt(true); await T(800);
+  out.push('surprise busy='+was+' · after Stop busy='+H.isBusy());
+  H.openPanel('look'); await T(300); H.smash('look'); await T(3000); out.push('smash keeps panel closed='+document.getElementById('p-look').hidden);
+  out.push('game mode '+JSON.stringify(window.PipGame?.get?.()));
+ }catch(e){ out.push('FAIL '+e.message); }
+ out.push('log ('+__log.length+'):'); out.push(...__log.slice(0,25));
+ const pre=document.createElement('pre'); pre.id='OUT'; pre.textContent=out.join('\n'); document.body.append(pre);
+},2500);
+</script>

@@ -2,6 +2,8 @@
 
 _Updated 27 Oct 2026, 9:30 pm_
 
+**Pip Sandbox (29 Oct 2026):** its own handoff is in [Studio/pip-sandbox/HANDOFF.md](Studio/pip-sandbox/HANDOFF.md), with a source snapshot, a smoke test, and [TESTING.md](Studio/pip-sandbox/TESTING.md) for agents on other platforms to test and report.
+
 **27 Oct update (dashboard + iPad; read this first):**
 - **Usage:** weekly ~97% until Wed 28 Oct 2 pm. Hold big builds, pricing research and the Moods plan until after the reset. Small dashboard additions are fine.
 - **iPad:** the free sign-in had expired. Signed back into Xcode (ikarosrexx@icloud.com), clean reinstall, trusted. It lasts 7 days, so re-sign by **Tue 3 Nov**. Saved styles were reset by the reinstall. No app code changed.
