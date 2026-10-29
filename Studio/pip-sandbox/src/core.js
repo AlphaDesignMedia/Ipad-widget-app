@@ -308,7 +308,7 @@ const PANELS={
     wire(el){ el.addEventListener('click',e=>{const b=e.target.closest('.sw'); if(!b) return; S.bd=b.dataset.bd; save(); applyColour(); react('bd');}); },
     sync(el){ const t=resolved(); el.querySelectorAll('.sw').forEach(b=>{b.querySelector('i').style.background=BD[b.dataset.bd][t].bg; b.setAttribute('aria-pressed',b.dataset.bd===S.bd);}); }
   },
-  access:{title:'Accessibility', icon:'access',
+  access:{title:'Accessibility', short:'Access', icon:'access',
     build:()=>`${sw('aSimpler','Simpler effects')}${sw('aClear','Clearer glass')}
       ${sw('aSound','Sounds')}
       <p class="note">Simpler effects follows your device's Reduce Motion until you change it here.</p>
@@ -409,7 +409,7 @@ const PANELS={
       const T=H?.tours||[]; el.querySelector('#plTours').innerHTML=T.length?T.map(t=>`<button class="btn" data-tour="${esc(t.id)}">${esc(t.name)}</button>`).join(''):'<p class="note">No tours yet. A plugin can add one.</p>';
       el.querySelector('#plKv').innerHTML=`<dt>PipHost</dt><dd>${H?'Ready':'Missing'}</dd><dt>Frame hooks</dt><dd>${H?H.frame.length:0}</dd><dt>Bump hooks</dt><dd>${H?H.bump.length:0}</dd>`; }
   },
-  dev:{title:'Developer', icon:'dev',
+  dev:{title:'Developer', short:'Dev', icon:'dev',
     tick(el){ const o=el.querySelector('#devFps'); if(o) o.textContent=FPS.v+' fps'; },
     build:()=>`<div class="lbl">Contrast</div><dl class="kv" id="devKv"></dl>
       ${sw('dOut','Show outlines')}
@@ -731,7 +731,7 @@ function saveLayout(){ clearTimeout(layoutT); layoutT=setTimeout(()=>{
    5. Rail (built from the registry; hold to carry it to another edge)
    ===================================================================== */
 const TOPS=Object.keys(PANELS).filter(k=>!PANELS[k].parent);
-rail.innerHTML=TOPS.map(k=>{const n=k==='pip'?S.name:titleOf(k); return `<button class="ri" data-sec="${k}" aria-label="${esc(n)}">${svg(PANELS[k].icon)}<span>${esc(n)}</span></button>`;}).join('')+
+rail.innerHTML=TOPS.map(k=>{const n=k==='pip'?S.name:titleOf(k), sh=k==='pip'?n:(PANELS[k].short||n); return `<button class="ri" data-sec="${k}" aria-label="${esc(n)}">${svg(PANELS[k].icon)}<span>${esc(sh)}</span></button>`;}).join('')+
   `<div class="rail-sep"></div><button class="ri" id="namesBtn" aria-pressed="false" aria-label="Show names">${svg('names')}<span>Names</span></button>`;
 let railSuppress=false;
 rail.addEventListener('click',e=>{

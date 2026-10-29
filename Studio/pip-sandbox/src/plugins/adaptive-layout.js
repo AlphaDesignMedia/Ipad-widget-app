@@ -75,7 +75,7 @@ const CFG=Object.assign({size:'auto',sheets:true,tray:true,keep:true,fit:true},H
 const saveCfg=()=>H.store.set('ad-cfg',CFG);
 const rail=document.getElementById('rail'), tm=document.getElementById('tm'), panelsEl=document.getElementById('panels');
 const css=document.createElement('style'); css.textContent=`
-:where(.stage.ad-fit) .card-in{width:min(340px, calc(var(--sw,100vw) * .7))}
+:where(.stage.ad-fit) .card-in{width:max-content;min-width:min(340px, calc(var(--sw,100vw) * .7));max-width:calc(var(--sw,100vw) - 24px)}
 :where(.stage.ad-fit) .time{font-size:min(125px, calc(var(--sw,100vw) * .259), calc(var(--sh,100vh) * .26))}
 :where(.stage.ad-fit) .date{font-size:min(17.7px, calc(var(--sw,100vw) * .0364))}
 .stage.scr-compact .topbar .seg{order:-1;flex-basis:100%;justify-content:center;margin-inline:auto;max-width:max-content}
@@ -92,11 +92,14 @@ const css=document.createElement('style'); css.textContent=`
 .stage.ad-sheet .panel.ad-under{opacity:0;pointer-events:none}
 /* plugin tray */
 #plugbar .ad-tog{font-size:20px}
-#plugbar.ad-tray{flex-wrap:wrap-reverse;max-width:min(calc(100% - 32px), 290px)}
+#plugbar.ad-tray{flex-wrap:wrap-reverse;max-width:min(calc(100% - 32px), 304px)}
+/* wide screens: six across, so the open tray stays low and clear of the rail */
+.stage:not(.scr-compact) #plugbar.ad-tray{max-width:min(calc(100% - 32px), 440px)}
+#plugbar .ad-tog{position:relative}
 #plugbar.ad-tray:not(.open)>button:not(.ad-tog){display:none}
-#plugbar.ad-tray.open>button:not(.ad-tog){width:64px;height:60px;display:grid;place-items:center;align-content:center;gap:4px;font-size:22px;border-radius:16px}
-#plugbar.ad-tray.open>button:not(.ad-tog)::after{content:attr(data-l);font:600 10px/1.1 var(--ui);color:var(--ink2);max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#plugbar.ad-tray .ad-tog.has::after{content:"";position:absolute;margin:-22px 0 0 22px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+#plugbar.ad-tray.open>button:not(.ad-tog){width:68px;height:68px;display:grid;place-items:center;align-content:center;gap:4px;font-size:22px;border-radius:16px}
+#plugbar.ad-tray.open>button:not(.ad-tog)::after{content:attr(data-l);font:600 10px/1.1 var(--ui);color:var(--ink2);max-width:64px;overflow:hidden;text-align:center;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal}
+#plugbar.ad-tray .ad-tog.has::after{content:"";position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
 .stage.ad-lift #plugbar{bottom:calc(var(--dock-h,0px) + 4px + env(safe-area-inset-bottom,0px))}
 .stage.ad-lift .plugcard{bottom:calc(var(--dock-h,0px) + 60px + env(safe-area-inset-bottom,0px));max-height:calc(100% - var(--dock-h,0px) - 150px)}
 .stage.ad-lift.ad-trayopen .plugcard{display:none}`;
@@ -154,20 +157,28 @@ function keepPlace(){
 }
 
 /* ---------- plugin tray: the plugin bar folds behind 🧩 when it would crowd the screen ---------- */
+/* it learns: each plugin button counts its taps, and the most used sit nearest 🧩 */
+const USE=H.store.get('ad-use',{});
+function orderBar(bar){ const bs=[...bar.querySelectorAll('button:not(.ad-tog)')];
+  bs.map((b,i)=>[b,USE[b.getAttribute('aria-label')]||0,i]).sort((a,b)=>b[1]-a[1]||a[2]-b[2]).forEach(([b],r)=>{ b.style.order=r+1; }); }
+window.PipUsage=()=>Object.assign({},USE);
 let tog=null;
+/* the dot on 🧩 means a plugin card is open behind it (not that a plugin is switched on) */
+const cardOpen=()=>!!document.querySelector('.plugcard:not([hidden])');
 function trayCheck(){
   const bar=document.getElementById('plugbar'); if(!bar) return;
   if(!tog){ tog=document.createElement('button'); tog.className='ad-tog'; tog.textContent='🧩'; tog.title='Plugins'; tog.setAttribute('aria-label','Plugins'); tog.setAttribute('aria-expanded','false');
     bar.prepend(tog);
     tog.addEventListener('click',e=>{ e.stopPropagation(); const o=!bar.classList.contains('open'); bar.classList.toggle('open',o); tog.setAttribute('aria-expanded',String(o)); stage.classList.toggle('ad-trayopen',o);
-      if(o) bar.querySelectorAll('button:not(.ad-tog)').forEach(b=>b.dataset.l=b.getAttribute('aria-label')||''); });
+      if(o){ bar.querySelectorAll('button:not(.ad-tog)').forEach(b=>b.dataset.l=(b.getAttribute('aria-label')||'').replace(/\s*\(.*\)\s*$/,'')); orderBar(bar); } });
+    bar.addEventListener('click',e=>{ const u=e.target.closest('button'); if(u&&u!==tog){ const k=u.getAttribute('aria-label'); USE[k]=(USE[k]||0)+1; H.store.set('ad-use',USE); } },true);
     bar.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b===tog||!bar.classList.contains('open')) return;
-      setTimeout(()=>{ bar.classList.remove('open'); stage.classList.remove('ad-trayopen'); tog.setAttribute('aria-expanded','false'); tog.classList.toggle('has',!!bar.querySelector('button[aria-pressed="true"]:not(.ad-tog)')); },0); }); }
+      setTimeout(()=>{ bar.classList.remove('open'); stage.classList.remove('ad-trayopen'); tog.setAttribute('aria-expanded','false'); tog.classList.toggle('has',cardOpen()); },0); }); }
   const i=info(), n=bar.querySelectorAll('button:not(.ad-tog)').length, tmW=tm&&!tm.hidden?tm.offsetWidth:0, avail=(i.W-tmW)/2-24, k=sizeK();
   const tray=CFG.tray&&n>1&&(i.cls==='compact'||(n*42+8)*k>avail);
   bar.classList.toggle('ad-tray',tray); tog.hidden=!tray;
   if(!tray){ bar.classList.remove('open'); stage.classList.remove('ad-trayopen'); }
-  else tog.classList.toggle('has',!!bar.querySelector('button[aria-pressed="true"]:not(.ad-tog)'));
+  else tog.classList.toggle('has',cardOpen());
   stage.classList.toggle('ad-lift',(tray?48*k:(n*42+8)*k)>avail);
 }
 setInterval(trayCheck,1000);
@@ -178,6 +189,8 @@ function apply(){
   keepPlace(); placeSheets(); trayCheck(); sync();
 }
 stage.classList.add('ad-on');
+if(!H.store.get('ad-names-v1',false)){ H.store.set('ad-names-v1',true);
+  if(matchMedia('(hover: none)').matches&&!S.names){ S.names=true; H.savePrefs(); rail.classList.add('names'); document.getElementById('namesBtn')?.setAttribute('aria-pressed','true'); } }
 SC.on(()=>apply());
 requestAnimationFrame(apply);
 

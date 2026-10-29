@@ -83,7 +83,7 @@ const phUse=n=>{ const c=window.claude; return c&&c.use?Promise.resolve(c.use(n)
 let phDbP=null, phDlP=null;
 
 /* interrupt: Pip can be busy (a tour, a lesson, a question, a long flight, a plugin's show), and you can always stop him.
-   ✋ Stop appears under Pip while he's busy; Esc does the same. Plugins mark their shows with
+   ✋ Stop Pip appears in one fixed spot, under the top bar, while he's busy (never over the clock); Esc does the same. Plugins mark their shows with
    PipHost.busy(name,true/false) and listen for "pip:interrupt" to stop them. */
 const BUSY=new Set(); let travelSince=0;
 function phBusy(){ return TOUR.active||!!ASK.open||BUSY.size>0||(N.state==='travel'&&travelSince&&now()-travelSince>1200); }
@@ -97,7 +97,7 @@ function phInterrupt(quiet){
   if(was&&!quiet&&S.naviOn) setTimeout(()=>say(pick(['Okay, stopping.','Sorry! Stopped.','Right. Done.']),1200,null,0),150);
   if(was&&grounded()) goHomeSoon(1200);
 }
-const stopBtn=document.createElement('button'); stopBtn.className='pip-stop glass'; stopBtn.hidden=true; stopBtn.textContent='✋ Stop'; stopBtn.setAttribute('aria-label','Stop Pip');
+const stopBtn=document.createElement('button'); stopBtn.className='pip-stop glass'; stopBtn.hidden=true; stopBtn.textContent='✋ Stop Pip'; stopBtn.setAttribute('aria-label','Stop Pip');
 stopBtn.addEventListener('pointerdown',e=>e.stopPropagation()); stopBtn.addEventListener('click',e=>{ e.stopPropagation(); phInterrupt(); });
 stage.appendChild(stopBtn);
 { const st=document.createElement('style'); st.textContent=`.pip-stop{position:absolute;left:0;top:0;z-index:46;min-height:36px;padding:0 14px;border:0;border-radius:18px;font:600 13.5px/1 var(--ui);color:var(--ink);cursor:pointer;translate:-50% 0;transition:opacity .2s}
@@ -107,7 +107,7 @@ let stopT=0;
 PH.frame.push(function(){ if(N.state==='travel'){ if(!travelSince) travelSince=now(); } else travelSince=0;
   const b=S.naviOn&&phBusy(); if(b) stopT=stopT||now(); else stopT=0;
   const show=b&&now()-stopT>350; if(stopBtn.hidden===show) stopBtn.hidden=!show;
-  if(show){ const y=N.y+N.r+14, x=clamp(N.x,60,stage.clientWidth-60); stopBtn.style.transform=`translate(${Math.round(x)}px,${Math.round(Math.min(y,stage.clientHeight-50))}px)`; } });
+  if(show){ const tb=document.querySelector('.topbar'), y=tb?tb.getBoundingClientRect().bottom-stage.getBoundingClientRect().top+10:64; stopBtn.style.transform=`translate(${Math.round(stage.clientWidth/2)}px,${Math.round(y)}px)`; } });
 
 window.PipHost={N,S,P,G,stage,navi,
   frame:PH.frame, bump:PH.bump, impact:IMPACT, shelfOf,

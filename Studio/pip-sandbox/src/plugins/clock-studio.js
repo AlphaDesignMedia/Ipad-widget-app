@@ -79,6 +79,11 @@ function loadFont(k){ const g=FONTS[k]?.[2]; if(!g||loaded.has(g)) return; loade
 const css=document.createElement('style'); css.textContent=`
 .card-in.cs-on>#time,.card-in.cs-on>#date{display:none !important}
 .card.broken .cs-face{display:none}
+.cs-note{display:none;margin:0}
+.stage.cs-studio-on #p-clock .pb>:has(#cDate){display:none}
+.cs-main:has(.cs-flip){align-items:center}
+.stage.cs-studio-on #p-clock .cs-note{display:block}
+.stage.cs-studio-on #p-clock .drill:is([data-open="face"],[data-open="fonts"],[data-open="share"]){display:none}
 .card-in.cs-on{width:auto !important;min-width:min(220px,60vw);padding:12px 22px 18px}
 .cs-face{display:grid;justify-items:center;gap:2px;color:var(--cs-ink,inherit);font-family:var(--cs-font);font-weight:var(--cs-wght);
   font-variation-settings:'wght' var(--cs-wght),'slnt' calc(var(--cs-slant) * -1),'CASL' var(--cs-casual),'SOFT' var(--cs-soft);user-select:none;-webkit-user-select:none}
@@ -288,7 +293,7 @@ function sky(){ const h=new Date().getHours()+new Date().getMinutes()/60;
   const S=[[0,'#0b1236','#27306b'],[5,'#2b2d6b','#f08a7a'],[7,'#ffb37a','#9fd1ff'],[11,'#5aa8ff','#bfe3ff'],[16,'#6aa0ff','#ffd28a'],[19,'#ff7a6b','#5a3f8f'],[21,'#1c1f55','#3b2f7a'],[24,'#0b1236','#27306b']];
   let i=S.findIndex(s=>s[0]>h)-1; if(i<0) i=0; return [S[i][1],S[i][2]]; }
 function apply(){
-  const on=CS.on; const dr=document.querySelector('.cs-drill small'); if(dr) dr.textContent=on?'On':'Off'; cardIn.classList.toggle('cs-on',on); face.hidden=!on;
+  const on=CS.on; const dr=document.querySelector('.cs-drill small'); if(dr) dr.textContent=on?'On':'Off'; cardIn.classList.toggle('cs-on',on); H.stage.classList.toggle('cs-studio-on',on); face.hidden=!on;
   if(!on){ cardIn.className=cardIn.className.replace(/\bcs-\S+/g,'').trim(); H.refreshPanels(); return; }
   loadFont(CS.font);
   const st=cardIn.style, F=FONTS[CS.font]||FONTS.host;
@@ -498,8 +503,11 @@ card.addEventListener('change',e=>{ if(e.target.id==='csOn'){ set({on:e.target.c
 
 /* a way in from the sandbox's own Clock panel */
 new MutationObserver(()=>{ const pb=document.querySelector('#p-clock .pb'); if(!pb||pb.querySelector('.cs-drill')) return;
-  const b=document.createElement('button'); b.className='drill cs-drill'; b.innerHTML='<span>⏱️ Studio</span><small>'+(CS.on?'On':'Off')+'</small><span aria-hidden="true">›</span>';
-  b.addEventListener('click',e=>{ e.stopPropagation(); if(card.hidden) PB.toggle(card,btn); sync(); }); pb.prepend(b);
+  /* same shape as the panel's own rows; while Studio is on, Face, Font and Share step aside */
+  const b=document.createElement('button'); b.className='drill cs-drill'; b.innerHTML='<span>Clock Studio</span><small>'+(CS.on?'On':'Off')+'</small>'+(pb.querySelector('.drill svg')?.outerHTML||'');
+  b.addEventListener('click',e=>{ e.stopPropagation(); if(card.hidden) PB.toggle(card,btn); sync(); });
+  const note=document.createElement('p'); note.className='note cs-note'; note.textContent='Clock Studio is styling the clock. Switch it off in Studio to use Face, Font and the date here.';
+  pb.prepend(b,note);
 }).observe(document.getElementById('panels'),{childList:true,subtree:true});
 
 /* Pip notices */

@@ -1,6 +1,6 @@
 # Pip Sandbox: handoff for the next Claude agent
 
-_Updated Thu 29 Oct 2026, 21:45. Live version 1793310071-42f7._
+_Updated Thu 29 Oct 2026, 22:25. Live version 1793312605-ed46._
 
 ## Where things are
 - **Artifact:** slug `5e823b87-0596-4cad-b8d5-89633ac3752f`, title "Pip Sandbox", https://claude.ai/artifact/Cft2LCVsnRsPFRVSkoD9hY. Ignore the two "(Copy)" backups.
@@ -59,6 +59,21 @@ He leaves feedback inside the sandbox with **📮 Updates › Tell Claude**. It 
   - a once-only welcome sheet; "Try one" chips slide the sheet down so the clock shows
   - the Tell Claude feedback box
 - Source for both is in `tools/*.src.js`. The smoke test covers both.
+
+## Usability pass (29 Oct, 22:25)
+Changes were based on the iPad Check data (touch only, no hover, 1590×1106 landscape) and screenshots at that size.
+- **Clock card** sizes to its time: `width:max-content` with the old width as a minimum. Before this, 10:00–12:59 and all 24-hour times spilled past the card.
+- **✋ Stop Pip** sits in a fixed spot under the top bar (`host.js`). It no longer covers the clock.
+- **Rail names**: on side rails, each label sits under its icon. They are on once by default for touch-only screens (`ad-names-v1`); ≡ turns them off. Short labels: Access, Dev.
+- **🧩 tray**:
+  - full names on two lines; "(tap to…)" hints are dropped
+  - six across on wide screens, so it clears the rail
+  - most-used buttons sit nearest 🧩; tap counts are stored in `gs2-ad-use` and read with `PipUsage()`
+  - the dot on 🧩 means a card is open
+- **Usage data**: `use` is now included in iPad Check reports and in Tell Claude notes.
+- **Clock panel**: the Clock Studio row matches the other rows. While Studio is on, Face, Font, Share and Show date are hidden and a note explains why.
+- **Still open, not done**: the "Glass Sandbox V2 · stage 11.2" tag is stale; there's still no grouping in the tray; Pib's bubble overlaps Pip's (Pib is off on his iPad).
+- **Screenshot tool**: the session used a harness in the scratchpad. To rebuild it, copy the smoke.sh pattern and use `--screenshot` with a hash of steps.
 
 ## Next likely work
 - More plugins from Aaron, which he writes with other AIs. Adapt each one to PipHost:

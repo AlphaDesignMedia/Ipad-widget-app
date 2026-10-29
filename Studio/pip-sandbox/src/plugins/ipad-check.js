@@ -120,7 +120,7 @@ async function run(){
       webgl:webgl(), audio:sounds(), vibrate:'vibrate' in navigator, share:!!navigator.share, clipboard:!!navigator.clipboard, storage:storageOk(), indexedDB:!!window.indexedDB,
       offscreenCanvas:!!window.OffscreenCanvas, visualViewport:!!window.visualViewport, online:navigator.onLine},
     speed:{fps:speed.fps, msPerFrame:+speed.ms.toFixed(2), worstMs:+speed.worst.toFixed(1), elements:cost.elements, heapMB:cost.heapMB&&+cost.heapMB.toFixed(1)},
-    sandbox:{plugins:H.plugins.map(p=>p.id+':'+p.status), errors:(document.documentElement.dataset.errors||'').slice(0,600), pip:S.naviOn?(N.awake?'awake':'asleep'):'off', look:S.era, material:S.material}
+    sandbox:{plugins:H.plugins.map(p=>p.id+':'+p.status), errors:(document.documentElement.dataset.errors||'').slice(0,600), pip:S.naviOn?(N.awake?'awake':'asleep'):'off', look:S.era, material:S.material, use:window.PipUsage?.()||null}
   };
   const db=await H.db(); let saved='only on this device (no database here)';
   if(db){ try{ const ref=await db.collection('checks').add(R); saved='to the sandbox database ✓'; R.id=ref.id; }catch(err){ saved='not saved to the database ('+(err&&err.code||err)+')'; } }

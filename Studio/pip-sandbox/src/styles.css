@@ -59,7 +59,8 @@ button,input{font-family:var(--ui);color:inherit}
 .ri span{display:none}
 .rail.names .ri{width:auto;padding:0 14px 0 12px}
 .rail.names .ri span{display:inline}
-.rail.names[data-edge="left"] .ri,.rail.names[data-edge="right"] .ri{justify-content:flex-start}
+.rail.names[data-edge="left"] .ri,.rail.names[data-edge="right"] .ri{flex-direction:column;width:60px;height:54px;padding:0;gap:4px}
+.rail.names[data-edge="left"] .ri span,.rail.names[data-edge="right"] .ri span{font:600 10px/1 var(--ui);max-width:56px;overflow:hidden;text-overflow:ellipsis}
 .ri[aria-current="true"]{background:var(--glass-strong);color:var(--ink)}
 .ri[aria-current="true"] svg{color:var(--accent)}
 .rail-sep{flex:none;background:var(--hair);width:22px;height:1px;margin:3px auto}
@@ -124,7 +125,7 @@ input[type="range"]{width:100%;accent-color:var(--accent);margin:0;min-height:28
 /* clock card */
 .card{position:absolute;left:0;top:0;z-index:10;cursor:grab}
 .card.carried{cursor:grabbing}
-.card-in{position:relative;width:min(340px, 70vw);box-sizing:border-box;padding:12px 16px 20px;border-radius:30px;text-align:center;color:var(--card-ink);
+.card-in{position:relative;width:max-content;min-width:min(340px, 70vw);max-width:calc(100vw - 24px);box-sizing:border-box;padding:12px 16px 20px;border-radius:30px;text-align:center;color:var(--card-ink);
   background:color-mix(in srgb, var(--accent) 64%, transparent);
   background-image:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 45%);
   -webkit-backdrop-filter:blur(26px) saturate(1.6);backdrop-filter:blur(26px) saturate(1.6);

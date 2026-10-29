@@ -148,7 +148,7 @@ function context(){
     panels:[...document.querySelectorAll('#panels [id^="p-"]:not([hidden])')].map(p=>p.id.slice(2)),
     card:document.querySelector('.plugcard:not([hidden]) h3')?.textContent||null,
     clock:window.PipClockStudio?.get?.().on?window.PipClockStudio.get().mode:'sandbox',
-    off:H.plugins.filter(p=>p.status==='off').map(p=>p.id)};
+    off:H.plugins.filter(p=>p.status==='off').map(p=>p.id), use:window.PipUsage?.()||null};
 }
 async function push(){
   const db=await H.db(); if(!db) return false; let sent=0;
