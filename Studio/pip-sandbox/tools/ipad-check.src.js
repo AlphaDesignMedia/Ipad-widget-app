@@ -65,7 +65,7 @@ async function motionTest(ms=4000){
   removeEventListener('devicemotion',onM); removeEventListener('deviceorientation',onO); tilt.hidden=true;
   out.hz=out.events>1&&tl>t0?Math.round((out.events-1)/((tl-t0)/1000)):0;
   out.maxAccel=+out.maxAccel.toFixed(2);
-  if(!out.events) out.note=out.permission==='denied'?'You said no to motion. Settings › Safari can reset it.':'No motion events: blocked by the page frame or no sensor.';
+  if(!out.events) out.note=out.permission==='denied'?(window.top!==window?'The Claude app blocks motion for artifacts. Tilt needs the real app.':'Motion was turned down. Settings › Safari can reset it.'):'No motion events: blocked by the page frame or no sensor.';
   return out;
 }
 

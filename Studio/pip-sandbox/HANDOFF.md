@@ -1,6 +1,6 @@
 # Pip Sandbox: handoff for the next Claude agent
 
-_Updated Thu 29 Oct 2026, evening. Live version 1793306447-2978._
+_Updated Thu 29 Oct 2026, 21:30. Live version 1793309403-e9a0._
 
 ## Where things are
 - **Artifact:** slug `5e823b87-0596-4cad-b8d5-89633ac3752f`, title "Pip Sandbox", https://claude.ai/artifact/Cft2LCVsnRsPFRVSkoD9hY. Ignore the two "(Copy)" backups.
@@ -36,7 +36,9 @@ _Updated Thu 29 Oct 2026, evening. Live version 1793306447-2978._
   - ✋ Stop interrupts repairs
 
   Check that he's happy with these.
-- **Motion:** denied in the Claude app. If he wants tilt, try Safari, or accept it as an app limit.
+- **Motion: parked.** Two iPad Checks both report `denied` with `inFrame:true`. The claude.ai artifact frame blocks motion before any prompt appears, and Safari loads the same frame. Decision (29 Oct): tilt waits for the native app (CoreMotion). iPad Check now says so instead of "You said no".
+- **App vs artifact:** recommended keeping the sandbox for fast ideas, and later a *Sandbox tab* in the real app: a WKWebView that loads these files, plus a tiny native bridge (CoreMotion tilt, offline Multipeer for Pip Link). Port winners to SwiftUI one at a time. Waiting for Aaron to pick when.
+- **Smoke flake:** `smash keeps panel closed` failed once and passed on rerun (timing).
 - **Pip Link:** it is a demo online (claude.ai room). Real offline sharing needs the native app (Multipeer).
 - **Progress dashboard:** one chat card (`chat/sandbox-handover-29oct`) points here. Sandbox items aren't in the lanes yet.
 
