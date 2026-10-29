@@ -1,15 +1,15 @@
 # Pip Sandbox: handoff for the next Claude agent
 
-_Updated Thu 29 Oct 2026, 21:30. Live version 1793309403-e9a0._
+_Updated Thu 29 Oct 2026, 21:45. Live version 1793310071-42f7._
 
 ## Where things are
 - **Artifact:** slug `5e823b87-0596-4cad-b8d5-89633ac3752f`, title "Pip Sandbox", https://claude.ai/artifact/Cft2LCVsnRsPFRVSkoD9hY. Ignore the two "(Copy)" backups.
-- **The artifact is the source of truth.** `src/` is a snapshot of all 40 files at that version. Pull fresh files with `read_file` before editing, and compare them to `src/` to spot changes made since.
+- **The artifact is the source of truth.** `src/` is a snapshot of all 42 files at that version. Pull fresh files with `read_file` before editing, and compare them to `src/` to spot changes made since.
 - **Capabilities:** `{db:{}, downloads:true, room:{}}`, runtime contract 0.2.92. If you add a capability, declare it first, then publish.
 - **Testing guide for other platforms:** [TESTING.md](TESTING.md). Reports go to `reports/`, to the db `checks` collection, and as `TEST …` notes in Pip's Brain.
 
 ## How it's built
-- `index.html` loads `core.js`, `pip.js`, `extras.js`, `engine.js` and `host.js` as one script, then each file in `PLUGINS` (30 of them, all on).
+- `index.html` loads `core.js`, `pip.js`, `extras.js`, `engine.js` and `host.js` as one script, then each file in `PLUGINS` (32 of them, all on).
 - `host.js` exposes `window.PipHost`. Recent additions:
   - `setPerch`, `smash`, `restore`
   - `interrupt`, `isBusy`, `busy(name,on)`. These drive the ✋ Stop chip, which Esc also triggers.
@@ -17,6 +17,12 @@ _Updated Thu 29 Oct 2026, 21:30. Live version 1793309403-e9a0._
 - Plugin bar boilerplate (`PB`) is in `tools/plugbar-PB.js`. The `tools/*.src.js` files contain `/*PB*/`, which is replaced with that boilerplate to make the shipped plugin.
 - **Test:** `tools/smoke.sh` runs headless Chrome on port 8791. It checks that all plugins load, every card opens, Stop clears busy, smash stays closed, and the log is empty. Last run: all passing. For a new plugin, copy `tools/smoke-body.html` and add its checks.
 - **Publish:** `publish_files`, patch mode, with `base_version`. After publishing, copy the changed files into `src/` so this snapshot stays current.
+
+## When Aaron says "update"
+He leaves feedback inside the sandbox with **📮 Updates › Tell Claude**. It goes to the db `feedback` collection: `{text, tag (bug|idea|game|clock|pip|other), at, status, ctx, from}`.
+1. `db_list feedback`. Work on every note with `status:"new"`, worst bugs first.
+2. For each note, `db_write` an update to `status` (`doing` → `done`, or `later`) and a short plain `reply`. He sees the reply under his note.
+3. To announce something big, add an entry to the top of `NEWS` in `tools/updates.src.js`. It shows once as a full welcome sheet.
 
 ## Database (read at session start)
 - `brains/aaron/parts/{profile,notes,lessons,progress,log}` is Pip's Brain.
@@ -27,6 +33,7 @@ _Updated Thu 29 Oct 2026, 21:30. Live version 1793309403-e9a0._
   - motion permission denied
   - audio suspended until the first tap
 - `boards/page-N` holds Sketch pages.
+- `feedback` holds Aaron's notes to Claude (see above).
 
 ## Open with Aaron
 - **Blind test:** the 🎮 plugin is on quietly. Don't explain what it does until Aaron says whether he noticed anything. Then read `PipGame.stats()` with him. Details are in Claude's memory note on the sandbox.
@@ -41,6 +48,17 @@ _Updated Thu 29 Oct 2026, 21:30. Live version 1793309403-e9a0._
 - **Smoke flake:** `smash keeps panel closed` failed once and passed on rerun (timing).
 - **Pip Link:** it is a demo online (claude.ai room). Real offline sharing needs the native app (Multipeer).
 - **Progress dashboard:** one chat card (`chat/sandbox-handover-29oct`) points here. Sandbox items aren't in the lanes yet.
+
+## New on 29 Oct (late)
+- **⏱️ Clock Studio** (his plugin). Changes made to fit the sandbox:
+  - the inline name field replaced `prompt()`, which the Claude app blocks
+  - scrolling no longer deletes saved clocks
+  - uses the shared PB code
+  - `PipClockStudio.open()` and `usePreset(i)` added
+- **📮 Updates** (Claude):
+  - a once-only welcome sheet; "Try one" chips slide the sheet down so the clock shows
+  - the Tell Claude feedback box
+- Source for both is in `tools/*.src.js`. The smoke test covers both.
 
 ## Next likely work
 - More plugins from Aaron, which he writes with other AIs. Adapt each one to PipHost:
