@@ -28,5 +28,6 @@ enum Plugins {
         NextAction(),
         IdeaInbox(),
         BusyPip(),
+        DashboardQueue(),
     ]
 }
