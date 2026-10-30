@@ -16,5 +16,6 @@ enum Plugins {
         PipBond(),
         PipEmotes(),
         DoodleDuet(),
+        SetInTheirWays(),
     ]
 }
