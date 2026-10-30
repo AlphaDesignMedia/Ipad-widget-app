@@ -456,3 +456,9 @@ Read Tea Break v1 and Guest Takeover v1 against the feel rule:
 - Aaron loves Pip getting to know him. Ask for Pip's Bond: a quick way to test it (a fast-forward or "pretend a week has passed" button in the card), while it still grows slowly and naturally over real days.
 - New plugin from the Mac agent: Twenty Past (`Plugins/TwentyPast.swift`). It's a surprise for Aaron, so don't mention what it does.
 - Pip's touch handling changed: Pip's view no longer takes touches. Grab, flick, tap and pinch come from a window recogniser in `Pieces/Pip.swift` (`PipTouches`). A tap on Pip also reaches whatever is underneath.
+
+## House rule: the discombobulator (Aaron, 30 Oct 2026)
+- Real names are fine in dev chat. Anything that goes into the app gets made-up names.
+- Examples: Marlboro → Redcliffe Reds, Greggs → Crumbleys, Yorkshire Tea → Moorside Brew, Haribo → Wobblies.
+- The homage fairy is always Pip in the app, never its real name.
+- Today's goal: Pip is fun but not annoying, unless the user turns Pip up (host.joy).
