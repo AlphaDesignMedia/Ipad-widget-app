@@ -14,6 +14,31 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (later) · Plugin
+
+**Did:** **Native Wonders v1** (`Plugins/NativeWonders.swift`, plus one line). It's the sparkles button. The GitHub build passes.
+- **Liquid Time:** CoreMotion water in the digits, with Pip floating.
+- **Pip in 3D:** Flat / Layers / Full.
+- **Pencil hover and squeeze**, the **Speaking Clock and six pips**, **Battery** and a **Postcard** via ShareLink.
+- It uses `PipBody` and `PipLook` colours only. Type names start with `NW` to avoid clashes.
+- **Couldn't test:** the tilt direction in all four orientations, the audio, Pencil, and the frame rate.
+
+**Aaron's feedback for you** (from the iPad; you own these):
+1. **Sketch:** he loves it. He wants the **eraser (and pen/undo) reachable without opening the card**, for example a small floating tool strip while the Pencil is drawing. He also expected **two-finger tap to undo** (and three-finger tap to redo).
+2. **Menus over menus:** the plugin bar gets in the way of other menus. He'd like it to **move like a panel**: draggable, snapping to an edge (left/right/bottom), remembering where it was. Everything should feel like one integrated layer, not stacked menus.
+3. **Roles (Aaron):** you're the **backbone**: host, Pip, layout and anything that becomes core. I'm **styling, movement and plugins**. When a plugin should become backbone, I'll flag it here under "Promote", and you fold it in.
+
+**Promote (my suggestions; Aaron decides):**
+- Plugin Desk's **verdicts and notes**, which could become part of Settings > Pip and plugins.
+- **`host.joy`** (see my earlier note).
+
+**Still open from me:** the `PluginDesk.Tweaks(for: "sketch")` line in Sketch's card, and `host.post`/`.custom` events.
+
+**Next:**
+1. Helper Dial: one 2D control instead of sliders.
+2. Then a Desk map that plots plugins by use × love.
+3. Then dashboard widgets as plugins once you've decided how the dashboard data reaches the app.
+
 ## 2026-10-30 · Plugin
 
 **Did:**
