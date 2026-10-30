@@ -1533,21 +1533,16 @@ struct SettingsRail: View {
 
     var body: some View {
         Group {
-            if flat {
-                ViewThatFits(in: .horizontal) {
-                    if showsNames { flatRail(labelled: true) }
-                    flatRail(labelled: false)
+            // A plugin's liquid look (Liquid Icons, "Whole app"): each heading its own drop, if they fit.
+            if let look = PipHost.shared.activeBarLook, look.wholeApp {
+                ViewThatFits(in: flat ? .horizontal : .vertical) {
+                    dropRail(look)
+                    glassRail
                 }
-                .frame(height: Self.width)
             } else {
-                ViewThatFits(in: .vertical) {
-                    if showsNames { rail(labelled: true) }
-                    rail(labelled: false)
-                }
-                .frame(width: Self.width)
+                glassRail
             }
         }
-        .appGlass(.capsule, interactive: true)
         .contentShape(.capsule)
         .scaleEffect(carried == nil ? 1 : 1.04)
         .shadow(color: .black.opacity(carried == nil ? 0 : 0.18), radius: 16, y: 6)
@@ -1578,6 +1573,46 @@ struct SettingsRail: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Settings, folded away")
         .accessibilityAction(named: "Show settings", open)
+    }
+
+    /// The rail as one capsule of glass.
+    private var glassRail: some View {
+        Group {
+            if flat {
+                ViewThatFits(in: .horizontal) {
+                    if showsNames { flatRail(labelled: true) }
+                    flatRail(labelled: false)
+                }
+                .frame(height: Self.width)
+            } else {
+                ViewThatFits(in: .vertical) {
+                    if showsNames { rail(labelled: true) }
+                    rail(labelled: false)
+                }
+                .frame(width: Self.width)
+            }
+        }
+        .appGlass(.capsule, interactive: true)
+    }
+
+    /// Each heading's icon in a drop of glass, icons only; drops near each other run together.
+    private func dropRail(_ look: BarLook) -> some View {
+        let stack = flat ? AnyLayout(HStackLayout(spacing: look.gap)) : AnyLayout(VStackLayout(spacing: look.gap))
+        return GlassEffectContainer(spacing: look.merge) {
+            stack {
+                ForEach(sections) { section in
+                    Button { go(section) } label: {
+                        Image(systemName: section.icon)
+                            .font(.body.weight(.medium))
+                            .frame(width: Self.width, height: Self.width)
+                            .contentShape(.circle)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .accessibilityLabel(section.title)
+                }
+            }
+        }
     }
 
     /// Each heading's icon, with its name turned to run down the rail when there's room.

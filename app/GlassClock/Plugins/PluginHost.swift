@@ -59,10 +59,13 @@ struct InkMark: Equatable {
 }
 
 /// A plugin's restyle of the plugin bar: the gap between buttons, the bar around them, and each button
-/// around its icon (given whether its card is open).
+/// around its icon (given whether its card is open). With `wholeApp`, the app's own buttons (the settings rail)
+/// become drops too, `gap` apart, running together when nearer than `merge`.
 struct BarLook {
     let owner: String
     var gap: CGFloat
+    var merge: CGFloat = 6
+    var wholeApp = false
     var bar: @MainActor (AnyView) -> AnyView
     var button: @MainActor (AnyView, Bool) -> AnyView
 }
@@ -136,6 +139,8 @@ final class PipHost {
     /// A plugin's own look for the plugin bar (Liquid Icons sets one in `start`). Used only while its owner is on;
     /// nil: the shared glass bar.
     var barLook: BarLook?
+    /// The bar look, while its owner is on.
+    var activeBarLook: BarLook? { barLook.flatMap { isOn($0.owner) ? $0 : nil } }
     /// How lively plugins should be: 0 still, 1 calm (the default), 2 cosy, 3 playful, 4 giddy, 5 unhinged.
     /// One setting for every plugin; the Joy Slider sets it. Read `joy`, which respects simpler motion.
     var joySetting = UserDefaults.standard.object(forKey: "pipJoy") as? Int ?? 1 {

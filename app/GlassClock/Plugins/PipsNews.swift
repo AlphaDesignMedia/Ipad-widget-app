@@ -20,6 +20,7 @@ struct PipsNews: SandboxPlugin {
     }
 
     static let items = [
+        Item(id: "liquidRail", title: "Liquid side rail", line: "Psst! The side rail's gone drippy too. Tap me!", opens: "liquid"),
         Item(id: "liquid", title: "Liquid Icons", line: "Psst! The bar's gone all liquid. Tap me and I'll show you!", opens: "liquid"),
         Item(id: "lean", title: "Pip leans and wobbles", line: "Psst! I lean into corners now. Wheee!", opens: "bond"),
     ]

@@ -62,7 +62,7 @@ struct PluginBar: View {
                             .padding(.bottom, PluginBarLook.cardBottom)
                             .transition(host.simpler ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .bottomLeading)))
                     }
-                    let look = host.barLook.flatMap { host.isOn($0.owner) ? $0 : nil }
+                    let look = host.activeBarLook
                     let buttons = HStack(spacing: look?.gap ?? PluginBarLook.barGap) {
                         ForEach(items.indices, id: \.self) { i in button(items[i], look) }
                     }

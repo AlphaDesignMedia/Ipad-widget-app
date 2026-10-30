@@ -3,7 +3,8 @@ import SwiftUI
 // LIQUID ICONS · plugin v1 (Dream). The plugin bar's icons become drops of liquid glass: each icon its own
 // drop, squishing when pressed (interactive glass). Drops close together run into each other like liquid.
 // An open card's drop grows a little and brightens, with a wobble (a fade under simpler motion).
-// How runny is a setting. Uses the host's `barLook`, so it touches no other file.
+// How runny is a setting. "Whole app" turns the settings rail into drops too (icons only).
+// Uses the host's `barLook`, so it touches no other file.
 // Where: the drop button in the plugin bar.
 
 struct LiquidIcons: SandboxPlugin {
@@ -21,6 +22,7 @@ struct LiquidIcons: SandboxPlugin {
     }
 
     static let key = "plug.liquid.runny"
+    static let wholeKey = "plug.liquid.whole"   // the settings rail goes liquid too
     static let grow = 1.1                 // an open card's drop
     static let shine = 0.22               // its brightening
 
@@ -31,7 +33,8 @@ struct LiquidIcons: SandboxPlugin {
     /// Hands the host the bar's look; again whenever the setting changes.
     static func apply(_ host: PipHost) {
         let runny = Runny(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .drops
-        host.barLook = BarLook(owner: "liquid", gap: runny.gap,
+        let whole = UserDefaults.standard.object(forKey: wholeKey) as? Bool ?? true
+        host.barLook = BarLook(owner: "liquid", gap: runny.gap, merge: runny.merge, wholeApp: whole,
             bar: { buttons in
                 AnyView(GlassEffectContainer(spacing: runny.merge) { buttons }.padding(4))
             },
@@ -61,6 +64,7 @@ struct LiquidIcons: SandboxPlugin {
     struct RunnyCard: View {
         let host: PipHost
         @AppStorage(LiquidIcons.key) private var runny = Runny.drops.rawValue
+        @AppStorage(LiquidIcons.wholeKey) private var whole = true
 
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
@@ -77,6 +81,8 @@ struct LiquidIcons: SandboxPlugin {
                         .accessibilityAddTraits(runny == r.rawValue ? .isSelected : [])
                     }
                 }
+                Toggle("Whole app", isOn: $whole)
+                    .onChange(of: whole) { withAnimation(.easeOut(duration: 0.25)) { LiquidIcons.apply(host) } }
                 Text("Press a drop to squish it.").foregroundStyle(.secondary)
             }
             .font(.system(size: 13.5))
