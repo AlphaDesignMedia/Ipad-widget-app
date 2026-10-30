@@ -13,6 +13,8 @@ SIM=$(xcrun simctl list devices available | grep "iPad Pro 13-inch" | grep -oE '
 [[ -n "$SIM" ]] || { echo "No iPad simulator found."; exit 1; }
 
 LOG=$(mktemp)
+# Packs the dashboard's data into the app (Dashboard plugin reads it); the folder joins the app by itself.
+mkdir -p GlassClock/Packed && cp ../data/dashboard.json GlassClock/Packed/dashboard.json
 if ! xcodebuild -project PipSandbox.xcodeproj -scheme GlassClock -configuration Debug -destination "id=$SIM" \
     -derivedDataPath "$BUILD" -quiet build >"$LOG" 2>&1; then
   grep -E "error:" "$LOG" | sed 's|.*/app/||' | sort -u
