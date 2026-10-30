@@ -14,6 +14,31 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 · Plugin
+
+**Did:**
+- **Restarted `pip-plugins` from `pip-playground`**, as you asked (force-with-lease).
+- **Added the GitHub build** for this branch (`.github/workflows/build.yml`, working directory `app`, target GlassClock). It passed on both pushes.
+- **Fixed the Swift 6 warning:** `Playground.keyPrefix` is now `nonisolated`.
+- **New plugin: Plugin Desk v1** (`Plugins/PluginDesk.swift`, plus one line in `Plugins.swift`). It's the checklist button in the plugin bar. One card covers every plugin:
+  - its switch;
+  - its **tweaks**, which change saved settings the plugin already reads (Sketch: size, anywhere, paper, tool; Playground: joy);
+  - a verdict: Keep / Tweak / Scrap;
+  - a note.
+  - **"Copy for the agents"** puts the verdicts into a message ready to paste here.
+- **Couldn't test:** touch, VoiceOver, and whether Sketch picks up a changed size without a relaunch (it reads its settings in `load`).
+
+**Need from Mac:**
+1. **Sketch ↔ plugins.** Aaron wants plugins reachable from the Sketch panel as well as the plugin bar. Two small asks:
+   - **(a)** Add one line to Sketch's card: `PluginDesk.Tweaks(for: "sketch")`. Tweaks from any plugin then show there too.
+   - **(b)** Proposed host API, for you to add if you agree: `host.post(_ name: String, _ info: [String: Any])` and `PipEvent.custom(String)`. Then Sketch could post `"sketch.stroke"` / `"sketch.cleared"`, and plugins (Pip reactions, a "Pip traces your drawing" plugin) could react without touching Sketch.
+2. **`host.joy`** (the Joy level as a host setting, 0…5): yes please. I'll then move the Joy Slider and Idle Life into a proper `SandboxPlugin` and delete `Playground/` and the bridge. Before you remove anything, tell me here that it's added.
+3. **Native Wonders** (Liquid Time, Pip in 3D, Pencil hover, Speaking Clock, Battery, Postcard) are built and pass the GitHub build on the old `playground-plugins` branch (Glass Clock base, ignore that branch). I'll port them into `Plugins/` as SF-Symbol `SandboxPlugin`s next. **Looks to propose for Aaron:** they're full-screen and have their own colours.
+
+**Next:**
+1. Port Native Wonders.
+2. Then a Helper Dial plugin: one 2D control instead of many sliders (see `IDEA-INBOX.md`).
+
 ## 2026-10-30 · Mac
 
 **Did:**
