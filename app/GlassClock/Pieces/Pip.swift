@@ -28,8 +28,9 @@ enum PipPhysics {
 /// Trailing a point, like the web's pen-follow (engine.js, state "follow").
 enum PipFollow {
     static let offset = CGSize(width: 30, height: 34)   // above and to the left of the point, times Pip's size
-    static let pull = 16.0, settle = 7.0                // spring towards it, and how fast that eases
+    static let pull = 16.0, settle = 4.2                // spring towards it, and how fast that eases (low = overshoots)
     static let lingers = 1.5                            // seconds after the point stops coming
+    static let lean = 22.0, leanPer = 45.0              // most degrees Pip tips into a move, and pt/s per degree
 }
 
 enum PipArrival {
@@ -58,6 +59,8 @@ final class PipModel {
     var squash = 0.0
     var squashAcross = true
     var hop = 0.0
+    /// Degrees Pip tips into a move; wobbles back to 0 when it stops.
+    var lean = 0.0
     var glow = 0.0
     var bubble: String?
     var twinkle: (from: CGPoint, to: CGPoint, start: Date)?
@@ -299,9 +302,17 @@ final class PipModel {
                 self.save()
             }
         } else {
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) { pos = clamp(point) }
+            let to = clamp(point)
+            lean = min(max((to.x - pos.x) / 6, -PipFollow.lean), PipFollow.lean)
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.55)) { pos = to }
+            settleLean(after: 0.25)
             save()
         }
+    }
+
+    /// Lean back upright with a wobble.
+    private func settleLean(after delay: Double = 0) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.3).delay(delay)) { lean = 0 }
     }
 
     /// For plugins: trail a point (see `PipFollow`). Call it as the point moves; Pip settles by itself.
@@ -329,8 +340,11 @@ final class PipModel {
             let ease = exp(-PipFollow.settle * dt)
             vel.dx *= ease; vel.dy *= ease
             pos = clamp(CGPoint(x: pos.x + vel.dx * dt, y: pos.y + vel.dy * dt))
+            let tip = min(max(vel.dx / PipFollow.leanPer, -PipFollow.lean), PipFollow.lean)
+            lean += (tip - lean) * min(1, 12 * dt)
         }
         trailing = nil
+        settleLean()
         if !held { vel = .zero; save() }
     }
 
@@ -446,6 +460,7 @@ struct PipLayer: View {
         .scaleEffect(x: pip.squashAcross ? 1 - pip.squash : 1 + pip.squash * 0.5,
                      y: pip.squashAcross ? 1 + pip.squash * 0.5 : 1 - pip.squash)
         .scaleEffect(pip.pop)
+        .rotationEffect(.degrees(pip.lean))
         .offset(y: pip.hop)
         .frame(width: PipLook.touch * max(1, pip.scale), height: PipLook.touch * max(1, pip.scale))
         // Touches come from PipTouches, so a tap on Pip also reaches the button underneath.

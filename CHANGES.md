@@ -22,3 +22,4 @@ _None yet._
 - 30 Oct 2026 · `Plugins/NativeWonders.swift`, `HelperDial.swift`, `OpeningNight.swift`, `ProfessorPip.swift` (from the plugin agent) · Merged. Professor Pip: handles the new events and skips Pencil positions.
 - 30 Oct 2026 · `CLAUDE.md`, `PLUGIN-AGENT-HANDOVER.md`, `HANDOVER.md`, `app/PLUGIN-SPEC.md`, `AGENT-NOTES.md` · Who does what: the Mac agent owns the core, plugins hold the extras. The spec covers the new core pieces.
 
+- 30 Oct 2026 · `Pieces/Pip.swift` (core) · Pip follows with more life: leans into moves, overshoots, wobbles upright when it stops.
