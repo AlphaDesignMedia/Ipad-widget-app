@@ -35,20 +35,26 @@ struct PipFlags: SandboxPlugin {
 
     /// Everything not listed here is treated as green: it has no loop of its own and only works while you're
     /// looking at it. Wake rates below were read off each plugin's own sleep interval.
+    /// Read off each plugin's own sleep pattern, not guessed. Anything not listed is treated as green:
+    /// no loop of its own, so it only works while you're looking at it.
+    ///
+    /// The axis that matters turned out to be **does it act on its own**, not raw wake rate. A plugin that
+    /// runs fast *while you're watching it move* is doing its job; one that starts up when you've walked
+    /// away is the one to switch off first.
     static let verdicts: [String: Verdict] = [
-        "weight": .init(flag: .red, why: "Wakes twice a second, all the time it's on.",
-                        note: "Weight never stops thinking. Twice a second, even when nothing's happening."),
-        "busypip": .init(flag: .red, why: "Wakes once a second, all the time it's on.",
+        "glass": .init(flag: .red, why: "Starts itself when you stop touching the screen, then wakes every 3s and loops a shine.",
+                       note: "Window Cleaner sets off on its own when you leave the room. Lovely, but it's the only one here that starts without you."),
+        "busypip": .init(flag: .amber, why: "Wakes once a second the whole time it's on, whether or not it's doing anything.",
                          note: "Busy Pip is busy once a second, whether or not there's anything to be busy about."),
-        "tidy": .init(flag: .red, why: "Wakes every 2 seconds, and keeps an animation looping.",
+        "tidy": .init(flag: .amber, why: "Wakes every 2 seconds, and keeps an animation looping.",
                       note: "Tidy Pip checks every couple of seconds, and keeps a little animation going round."),
-        "glass": .init(flag: .red, why: "Wakes every 3 seconds, starts itself when idle, and loops a shine.",
-                       note: "Window Cleaner sets off on its own when you leave the room. Lovely, but it's the busiest one here."),
-        "twentypast": .init(flag: .amber, why: "Wakes every 6 seconds.",
-                            note: "Twenty Past looks up every six seconds. Not much, but it adds up."),
-        "vendomat": .init(flag: .amber, why: "Wakes every 9 seconds.",
-                          note: "The Vend-O-Mat keeps half an eye open. Fine unless everything else is too."),
-        "cupboard": .init(flag: .amber, why: "Wakes every 5 seconds while Pip's shut in.",
+        "vendomat": .init(flag: .amber, why: "Rests at 9s, but runs at about 22 frames a second while anything is in the air.",
+                          note: "The Vend-O-Mat dozes until something's falling, then it's wide awake."),
+        "weight": .init(flag: .green, why: "Adaptive: 60 a second only while Pip is actually moving, then drops to twice a second.",
+                        note: "Weight only works hard while I'm moving. The rest of the time it has a sit down."),
+        "twentypast": .init(flag: .green, why: "Wakes every 6s, and backs off to a minute when there's nothing due.",
+                            note: "Twenty Past glances at the clock, then leaves it alone."),
+        "cupboard": .init(flag: .green, why: "Only ticks while Pip is shut in the cupboard.",
                           note: "The cupboard only ticks while I'm locked in it, which is fair enough."),
         "teabreak": .init(flag: .green, why: "Wakes every 30 seconds.",
                           note: "Tea Break barely stirs. Half a minute between thoughts, like me."),
@@ -82,59 +88,71 @@ private struct FlagsCard: View {
 
     private var rows: [(info: PluginInfo, v: PipFlags.Verdict)] {
         host.plugins.map { ($0.info, PipFlags.verdict($0.info.id)) }
+            .filter { $0.0.id != "flags" }          // no switching off the switch panel
             .sorted { a, b in
                 a.v.flag == b.v.flag ? a.info.name < b.info.name : a.v.flag < b.v.flag
             }
     }
 
-    private var redsOn: [PluginInfo] {
-        rows.filter { $0.v.flag == .red && host.isOn($0.info.id) }.map(\.info)
+    /// Anything worth a second look, worst first: the reds and the ambers that are still on.
+    private var watchlist: [PluginInfo] {
+        rows.filter { $0.v.flag < .green && host.isOn($0.info.id) }.map(\.info)
     }
+
+    private var anyOff: Bool { rows.contains { !host.isOn($0.info.id) } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Pip's flags").font(.system(size: 20, weight: .semibold))
-            Text("A hunch, not a measurement. Red means try switching it off first if things feel slow.")
+            Text("Red flags").font(.system(size: 20, weight: .semibold))
+            Text("Anything that might be making the app heavy, worst first. A hunch, not a measurement \u{2014} switch one off and see.")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if redsOn.isEmpty {
-                Label("Nothing heavy is switched on.", systemImage: "checkmark.circle")
+            if watchlist.isEmpty {
+                Label("Nothing on the watchlist is switched on.", systemImage: "checkmark.circle")
                     .font(.system(size: 14))
+                    .frame(minHeight: 44)
             } else {
-                Button {
-                    settle()
-                } label: {
-                    Label("Settle the \(redsOn.count) heavy one\(redsOn.count == 1 ? "" : "s")",
-                          systemImage: "moon.zzz")
+                Button { settle() } label: {
+                    Label("Switch off all \(watchlist.count)", systemImage: "moon.zzz")
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(settling)
-                .accessibilityHint("Switches off every red-flagged plugin. Settings brings them back.")
+                .accessibilityHint("Switches off every red and amber plugin. Settings brings them back.")
             }
 
+            if anyOff {
+                Button { allBackOn() } label: {
+                    Label("Switch everything back on", systemImage: "arrow.uturn.backward")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .disabled(settling)
+            }
+
+            Divider()
+
+            // One switch per plugin, worst at the top.
             ForEach(rows, id: \.info.id) { row in
-                HStack(alignment: .firstTextBaseline, spacing: 9) {
-                    Text(row.v.flag.dot).accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
+                Toggle(isOn: Binding(
+                    get: { host.isOn(row.info.id) },
+                    set: { host.setOn(row.info.id, $0) }
+                )) {
+                    HStack(alignment: .firstTextBaseline, spacing: 9) {
+                        Text(row.v.flag.dot).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(row.info.name).font(.system(size: 14, weight: .medium))
-                            if !host.isOn(row.info.id) {
-                                Text("off").font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(row.v.why).font(.system(size: 12)).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        Text(row.v.why).font(.system(size: 12)).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .frame(minHeight: 44, alignment: .leading)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(row.info.name). \(row.v.flag.word). \(row.v.why)\(host.isOn(row.info.id) ? "" : " Switched off.")")
+                .frame(minHeight: 44)
+                .accessibilityLabel("\(row.info.name). \(row.v.flag.word). \(row.v.why)")
             }
 
-            Text("Switched off, never deleted: Settings brings any of them back.")
+            Text("Switched off, never deleted: this list or Settings brings any of them back.")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
         }
         .padding(18)
@@ -144,28 +162,32 @@ private struct FlagsCard: View {
     /// Pip's note: one line about the heaviest thing that's actually on. Quiet at joy 0, silent with Pip off.
     private func pipSays() {
         guard host.joy > 0, PipTalkTurns.floorFree(host) else { return }
-        guard let worst = rows.first(where: { $0.v.flag == .red && host.isOn($0.info.id) })
-                ?? rows.first(where: { $0.v.flag == .amber && host.isOn($0.info.id) }) else {
-            if host.say(PipFlags.verdicts["teabreak"].map { _ in "Nothing heavy on. I feel quite light, actually." } ?? "",
-                        for: PipFlags.Tune.sayFor) {
-                PipTalkTurns.takeFloor(host, for: PipFlags.Tune.sayFor)
-            }
-            return
-        }
-        if host.say(worst.v.note, for: PipFlags.Tune.sayFor) {
+        let line = rows.first { $0.v.flag < .green && host.isOn($0.info.id) }?.v.note
+            ?? "Nothing heavy on. I feel quite light, actually."
+        if host.say(line, for: PipFlags.Tune.sayFor) {
             PipTalkTurns.takeFloor(host, for: PipFlags.Tune.sayFor)
         }
     }
 
-    /// Switch the red ones off one at a time, so the app doesn't lurch.
+    /// Switch the watchlist off one at a time, so the app doesn't lurch.
     private func settle() {
         settling = true
-        for (i, p) in redsOn.enumerated() {
+        let list = watchlist
+        for (i, p) in list.enumerated() {
             host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(p.id, false) }
         }
-        host.later(Double(redsOn.count) * PipFlags.Tune.settleGap + 0.1) {
+        host.later(Double(list.count) * PipFlags.Tune.settleGap + 0.1) {
             settling = false
             if host.joy > 0 { host.say("Right. That's quieter.", for: 2.2) }
         }
+    }
+
+    private func allBackOn() {
+        settling = true
+        let list = rows.map(\.info).filter { !host.isOn($0.id) }
+        for (i, p) in list.enumerated() {
+            host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(p.id, true) }
+        }
+        host.later(Double(list.count) * PipFlags.Tune.settleGap + 0.1) { settling = false }
     }
 }
