@@ -13,6 +13,7 @@ Aaron is a UK graphic designer, not a developer. Use plain words, short answers 
 - Before each change, make a Git save point with a plain-English name. If he says "undo", go back to the last save point.
 - End every change with three lines: What changed · What to test on the iPad · How to undo.
 - Xcode runs the app (here: `app/PipSandbox.xcodeproj`). After a change, remind him to press Run in Xcode.
+- Show ideas as a quick condensed example first, like a small table. Keep the vibe. Details later.
 
 ### Rules that never bend
 - Glass Clock is the product. The Sandbox is the playground, and ideas get tried here first.
