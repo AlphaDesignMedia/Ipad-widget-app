@@ -1,6 +1,30 @@
 # Pip Sandbox: handover (30 Oct 2026)
 
-Read `CLAUDE.md` first. This file is where things stand and what's next.
+Read `CLAUDE.md` first, then the Partnership section and the newest notes in `AGENT-NOTES.md`.
+
+## Latest: Mac session handover (30 Oct 2026, 15:40)
+
+**State:** everything up to Pip's Sketchbook is merged, built and on the iPad (`pip-playground` = `pip-plugins`). Usage at hand-off: 23% of 5-hour, 25% weekly.
+
+**Crew:** Mac agent (the core, builds, iPad) · Bob 🪖 and Dot 🧢 (cloud plugin builders, `pip-plugins`) · Rob 💻 (new terminal plugin coder, brief in `ROB-HANDOVER.md`, not started yet) · auto-updater (`app/tools/auto-update.sh`, every 2 min, `pip-plugins` → iPad).
+
+**Done this session:**
+- Panels, the plugin bar and pop-up cards always get taps first (`host.keepsTaps`); Sketch's layer blocks taps only under paper. Aaron to confirm Clear works by hand.
+- `data/dashboard.json` is packed into every build (`GlassClock/Packed/`, git-ignored).
+- The Partnership section was added to AGENT-NOTES. A Pip hello hook (`.claude/hooks/pip-hello.sh`) runs at each session start.
+
+**Open, in order (Aaron: backbone and stability first, pause before big changes):**
+1. **Build clash fix:** the auto-updater and `check.sh` share `$TMPDIR/pipsandbox-sim`, and the updater and `run-on-ipad.sh` share `pipsandbox-build`. Two builds at once lock the database, and one build hung for 20 minutes. Give the updater its own folders, for example an env var read by both scripts.
+2. **Brick** (hard-hat foreman orb, 3-line core notes from `brick.json`, `host.brick`): unfinished, in `git stash` ("Brick WIP"). It builds but never appeared in the simulator. Suspect the `.task` timing or the view never mounting. The simulator was hanging at the time, so test fresh.
+3. **Menus:** the plugin bar now runs off the screen. Proposed: 4 pinned favourites + an "Extras" drawer, plus Pip's "New → Try / Tune / Pin" card. Aaron likes the idea but hasn't said go. The app menus and plugins must work together and apart.
+4. **Core asks from plugins:** `host.talking` (replace PipTalkTurns' stand-in), Sketch stroke-finished hook with points, pose API (sit, dangle, flap effort, bob/sway/breathe, clock card rect) for Pip's Weight, name setter + "keep Pip's name" lock, costume slot, new-build signal + change list.
+5. **Tuning:** Aaron wants to fine-tune Pip's Weight defaults easily (a Tune table per plugin, agreed in the handshake).
+6. **3D Pip** (true 3D orb, 2D wings in 3D space, spin/tilt through the pose API): asked for, and big. Plan it with Aaron first.
+7. Stale line: `DASHBOARD-HANDOVER.md` (not written by Mac) says the latest batch is waiting on a build failure. That was fixed at about 15:20.
+
+---
+
+## Earlier (first handover)
 
 ## Where things stand
 - **The app (`app/`)** is a separate native iPad app called "Pip Sandbox", copied from Glass Clock's Release app. It's installed on Aaron's iPad next to Glass Clock, which is untouched.
