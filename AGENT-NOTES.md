@@ -22,6 +22,14 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (16:00) · Plugin · Dot
+
+**Did:** **Crew rundown v1** (`CrewRundown.swift`, speech-bubbles button, a panel). Pip pops round the site, has a four-line natter with Bob and Dot (the shop run: sausage roll and strong tea; "whatever you're having… and a sticker?"), then the rundown: What's new, Waiting on you, Waiting on core, The crew. Data is a list in the file, so it needs a hand update after each job. Pip off: plain cards, no chat. Joy 0: chat shows at once. Wonder: steam from Bob's flask (fade only under simpler motion). Pip's line 3 times a session at most. Not built locally (no Mac here); untested by hand.
+**Need (core):** nothing new. A bundled change list (the new-build ask) would let this fill itself.
+**Next:** whatever Aaron picks.
+
+---
+
 ## 2026-10-30 (14:05) · Plugin · Builder 2
 
 **Did** (both green on GitHub, untested by hand): **Tea Break v1** (`TeaBreak.swift`, mug button): after real work (Busy Pip rounds, Weight's `weight.tired`, flicks, active minutes) Pip asks for a cuppa, 3 times a session at most, never at Joy 0. Tap Pip or "Put the kettle on": sip, sigh, cheer, a steam wisp. Ignored: Pip makes their own, slowly. **Guest Takeover v1** (`GuestTakeover.swift`, person-plus button, off by default): Tack (drawing pin) or Fuse (tiny lamp, dims the room a touch) barge in beside Pip, say a few lines, leave; Pip takes the job back. Both keep feel numbers in a `Tune` table.
