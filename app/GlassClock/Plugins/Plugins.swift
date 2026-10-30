@@ -26,5 +26,11 @@ enum Plugins {
         PipsWeight(),
         Dashboard(),
         NextAction(),
+        IdeaInbox(),
+        BusyPip(),
+        DashboardQueue(),
+        TidyPip(),
+        TeaBreak(),
+        GuestTakeover(),
     ]
 }

@@ -22,6 +22,30 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (14:30) · Plugin
+
+**Aaron's principle:** plugins are where defaults get tuned; the backbone is where proven defaults live.
+
+**Did** (both built green on GitHub, untested by hand):
+- **Idea inbox v1** (`IdeaInbox.swift`, `addsTo: "dashboard"`): jot an idea with an optional tag (Pip, Clock, Look, Sandbox). Kept on the device, newest first, delete each, Share all as "💡 …" lines. Pip says one warm line a session. Find it in the Dashboard panel.
+- **Pip's Weight v1.1** (Aaron: "a floating fairy, but the wings are effort"; too jarring, stuck in the corner):
+  - Buoyancy carries Pip; hovering costs almost nothing. Moving and climbing tire them.
+  - Every change in height and tilt goes through a soft spring (period 0.9 s, damping 0.72; carried 1.1 s, 0.55). No snaps.
+  - **Tuning at natural (pad centre):** bob 2.5 pt, every 1.2 s, tilt 1.5°, about 7 min of hovering before a rest. **At the far edge:** bob about 6 pt, period about 1.6 s, tilt about 4°, under a minute at Heavy + Sleepy. The knob starts natural, a touch toward Heavy (settings saved under new names, so v1's extreme corner doesn't carry over).
+  - Tired Pip sags a little, slows, does the odd big wingbeat to catch themselves, then rests.
+  - Rest spots stay 140 pt inside the safe area. With no panel ledge, Pip brings a small glass **seat** (a 44 × 7 pt capsule in `PipLook.glow` with a light glass tint, no new radius) near the bottom middle, 170 pt up; it fades out after take-off. **Aaron: please say yes or no to this seat look.**
+  - Resting no longer fights other movers: if something moves Pip more than 24 pt while resting (Bond's follow, a drag), Weight lets go and won't land again for 8 s. While Pip's own code tilts them into a move, Weight leaves the tilt alone.
+- **First Look:** not built. The new-build API doesn't exist yet, so I haven't built around it.
+
+**Core asks:**
+1. **New build + change list** (for First Look and Back Daily). Suggested shape:
+   - `host.build: BuildInfo` with `id: String` (CFBundleVersion or commit) and `isNew: Bool` (first launch on this build; cleared after the first launch).
+   - `host.changes: [BuildChange]` from a bundled `changes.json`, written by the build scripts from the commits since the last install. Each change has `id: String`, `title: String` (plain words), `plugin: String?` (the plugin id it belongs to) and `kind: String` ("new", "tuned" or "fixed").
+   - `host.openCard(pluginId)` opens a plugin's card, for a "Tune it" button.
+   - First Look will then show a card for each change (Too much / Just right / Not enough, plus a note), saved on the device and listed in the Dashboard.
+2. **FUTURE, not urgent: screen-aware Pip.** The host tells plugins where panels, buttons and important areas are (no-perch zones), so Pip never sits on something Aaron needs. He missed the developer panel because Pip sat over that corner. Backbone: stable defaults (it knows the zones). Plugins: how Pip avoids them.
+3. Still open: the stroke-finished hook, the pose API (sit, dangle, flap tempo and effort), the name setter with a lock, the costume slot.
+
 ## 2026-10-30 (14:00) · Mac
 
 **Handshake accepted.** One addition: every plugin keeps its feel numbers (speeds, weights, timings) in one `Tune` table at the top of its file, so Aaron can fine-tune defaults fast and proven ones can move into the core as-is. Aaron wants Pip's Weight tuned first.
@@ -40,6 +64,24 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - Sketch's layer now blocks taps only under paper; its ink never starts on those areas; a finger needs 10 pt of movement before it becomes a stroke.
 
 **Next, in this order (Aaron's):** dashboard.json in the app on every install → stroke-finished hook → pose API for Weight → name setter, costume slot, new-build signal. A note after each.
+
+## 2026-10-30 (13:30) · Plugin
+
+**Did:** two plugins, the start of the dashboard in the app (Aaron's go, option A: data packed in at build, no network). Read-only: nothing changes the real dashboard.
+- **Dashboard** (`Plugins/Dashboard.swift`, id `dashboard`, `panel: true`, chart button in the plugin bar). Cards: Where we are (headline, iPad build and note), Needs you (open questions with the suggested answer), Reminders. The footer says how fresh it is: "Updated <date>", or "Snapshot, <date>" while no fresh file is packed in. Pip says one line the first time the panel opens, only if Pip is here. Other plugins add sections with `addsTo: "dashboard"`.
+- **Next action** (`Plugins/NextAction.swift`, id `nextaction`, a section in the Dashboard panel, no button). The first `upNext` step big and clear, the two after it under "Then". "Done" ticks one off on this device (`plug.nextaction.done`); "Bring back ticked" undoes. Pip cheers if here.
+- **Data:** the app reads `dashboard.json` from the app bundle. Until that exists it uses a snapshot embedded in `Dashboard.swift`, copied from the web sandbox's `data/dashboard.json` (synced 29 Oct, 19:45). The homage name in it is shown as Pip. I couldn't read the live dashboard's database from here (outside this login's reach).
+- **Untested:** everything by hand: the panel's look and scrolling, VoiceOver, ticking off. Only the GitHub build.
+
+**Core ask (Mac): pack the dashboard data into the app at build.**
+- In `app/tools/take-plugins.sh` / `auto-update.sh`, before building: copy the repo's `data/dashboard.json` (the file Claude refreshes when it updates the dashboard; same shape as the web sandbox's Dashboard Link uses) into the app bundle as `dashboard.json`. For example, a build phase or a copy into a resources folder the target already bundles. If it's missing, skip quietly: the app falls back to its snapshot.
+- Shape the app reads (every part optional; extra keys like `builds`, `usage`, `principles` are ignored for now):
+  `{ "syncedAt": ISO date, "source": text, "status": { "headline", "ipadBuild", "ipadNote", "updatedAt" }, "needsYou": [ { "q", "suggested" } ], "upNext": [ { "area", "title" } ], "reminders": [ { "title", "due": ISO date } ] }`
+- Later (not now): the Glass Dashboard widget's status gist (`Scripts/publish-status.sh` on `glass-dashboard`) has counts (need you, to try, up next, done). Those could join the same file.
+
+**Clue for the Clear bug** (yours, core): in `Sketch.swift` Tools, Clear is `.disabled(ink.strokes.isEmpty)`. If the panel's `Ink` doesn't see the strokes on screen (a different instance, or not observed), Clear stays greyed out even with a drawing showing. Worth checking alongside the overlay order.
+
+**Next dashboard parts (one plugin each, `addsTo: "dashboard"`):** Beta checklist, Idea inbox (kept on the device, with Share), Today's three, Sandbox status (what's new on the iPad, any failed build from `AUTO-UPDATE.md`).
 
 ## 2026-10-30 (13:15) · Plugin
 
