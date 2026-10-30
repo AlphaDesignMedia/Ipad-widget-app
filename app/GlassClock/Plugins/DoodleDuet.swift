@@ -204,7 +204,9 @@ struct DoodleDuet: SandboxPlugin {
             let rightEye = circle(at: CGPoint(x: b.minX + b.width * 0.65, y: eyeY), r: r)
             let smile = (0...12).map { i -> CGPoint in
                 let a = Double.pi * (0.15 + 0.7 * Double(i) / 12)
-                return CGPoint(x: b.midX + cos(a) * b.width * 0.25, y: b.minY + b.height * 0.55 + sin(a) * b.height * 0.18)
+                let x: CGFloat = b.midX + CGFloat(cos(a)) * b.width * 0.25
+                let y: CGFloat = b.minY + b.height * 0.55 + CGFloat(sin(a)) * b.height * 0.18
+                return CGPoint(x: x, y: y)
             }
             return ([leftEye, rightEye, smile], CGPoint(x: b.midX, y: b.minY), Lines.face.randomElement()!)
         case .line:
@@ -222,15 +224,17 @@ struct DoodleDuet: SandboxPlugin {
 
     nonisolated static func wobblyCopy(of p: [CGPoint]) -> [CGPoint] {
         let step = max(1, p.count / 40)
-        return stride(from: 0, to: p.count, by: step).map { i in
-            CGPoint(x: p[i].x + 36 + sin(Double(i) * 0.7) * 3, y: p[i].y + 28 + cos(Double(i) * 0.5) * 3)
+        return stride(from: 0, to: p.count, by: step).map { i -> CGPoint in
+            let dx: CGFloat = 36 + CGFloat(sin(Double(i) * 0.7) * 3)
+            let dy: CGFloat = 28 + CGFloat(cos(Double(i) * 0.5) * 3)
+            return CGPoint(x: p[i].x + dx, y: p[i].y + dy)
         }
     }
 
     nonisolated static func circle(at c: CGPoint, r: CGFloat) -> [CGPoint] {
         (0...10).map { i in
             let a = Double(i) / 10 * 2 * .pi
-            return CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r)
+            return CGPoint(x: c.x + CGFloat(cos(a)) * r, y: c.y + CGFloat(sin(a)) * r)
         }
     }
 
@@ -238,16 +242,16 @@ struct DoodleDuet: SandboxPlugin {
         (0...10).map { i in
             let a = Double(i) / 10 * 2 * .pi - .pi / 2
             let k = i % 2 == 0 ? r : r * 0.45
-            return CGPoint(x: c.x + cos(a) * k, y: c.y + sin(a) * k)
+            return CGPoint(x: c.x + CGFloat(cos(a)) * k, y: c.y + CGFloat(sin(a)) * k)
         }
     }
 
     nonisolated static func heart(at c: CGPoint, size s: CGFloat) -> [CGPoint] {
         (0...24).map { i in
             let t = Double(i) / 24 * 2 * .pi
-            let x = 16 * pow(sin(t), 3)
-            let y = 13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t)
-            return CGPoint(x: c.x + x / 16 * s / 2, y: c.y - y / 16 * s / 2)
+            let x: Double = 16 * pow(sin(t), 3)
+            let y: Double = 13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t)
+            return CGPoint(x: c.x + CGFloat(x / 32) * s, y: c.y - CGFloat(y / 32) * s)
         }
     }
 
