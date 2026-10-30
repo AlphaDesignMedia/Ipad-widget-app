@@ -104,7 +104,7 @@ struct BusyPip: SandboxPlugin {
     private func tick(_ host: PipHost) {
         trackOpens(host)
         installWatch(host)
-        guard !state.busy, host.pipHere, !host.pipAsleep, Self.floorFree(host) else { return }
+        guard !state.busy, host.pipHere, !host.pipAsleep, PipTalkTurns.floorFree(host) else { return }
         let real = Self.developer
         guard Date.now.timeIntervalSince(state.lastTouch) >= Tune.idle,
               Date.now.timeIntervalSince(state.lastRound) >= (real ? Tune.realGap : Tune.pretendGap) else { return }
@@ -125,20 +125,20 @@ struct BusyPip: SandboxPlugin {
         guard !state.busy, host.pipHere else { return }
         state.busy = true
         state.lastRound = .now
-        Self.takeFloor(host, for: 60)
+        PipTalkTurns.takeFloor(host, for: 60)
         state.round = Task { @MainActor in
             if real { await realRound(host) } else { await pretendRound(host) }
             withAnimation(.easeInOut(duration: 0.5)) {
                 state.busy = false
                 state.checking = ""
             }
-            Self.takeFloor(host, for: 0)
+            PipTalkTurns.takeFloor(host, for: 0)
         }
     }
 
     private func stop() {
         state.round?.cancel()
-        UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: "plug.pip.askingUntil")
+        PipTalkTurns.giveBack()
         withAnimation(.easeInOut(duration: 0.3)) {
             state.busy = false
             state.checking = ""
@@ -214,15 +214,6 @@ struct BusyPip: SandboxPlugin {
         guard !Task.isCancelled else { return }
         await signOff(host)
         host.say(Lines.pretendDone.randomElement()!, for: 2.2)
-    }
-
-    /// The shared "Pip is talking" convention until the core has a flag: a time in `plug.pip.askingUntil` that every
-    /// plugin checks before Pip asks or starts something, and sets while it has the floor.
-    static func floorFree(_ host: PipHost) -> Bool {
-        Date.now.timeIntervalSince1970 >= ((host.value("pip", "askingUntil") as Double?) ?? 0)
-    }
-    static func takeFloor(_ host: PipHost, for seconds: Double) {
-        host.setValue(Date.now.timeIntervalSince1970 + seconds, "pip", "askingUntil")
     }
 
     /// How many stops a round makes: 1 when still, 3 when calm, up to 5 when unhinged.

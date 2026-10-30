@@ -84,7 +84,8 @@ struct GuestTakeover: SandboxPlugin {
         guard invited(host), visit.guest == nil else { return }
         let joy = host.joy
         guard Date.now.timeIntervalSince(visit.last) >= Tune.gap(joy: joy) * 60,
-              Double.random(in: 0..<1) < Tune.chance(joy: joy) else { return }
+              Double.random(in: 0..<1) < Tune.chance(joy: joy),
+              PipTalkTurns.floorFree(host) else { return }
         barge(host, Guest.allCases.randomElement()!)
     }
 
@@ -92,6 +93,8 @@ struct GuestTakeover: SandboxPlugin {
     func barge(_ host: PipHost, _ guest: Guest) {
         guard host.pipHere, visit.guest == nil else { return }
         visit.last = .now
+        // Hold the floor for the whole visit, including Pip's last word.
+        PipTalkTurns.takeFloor(host, for: Tune.lineGap * Double(guest.lines.count) + 3)
         let pip = host.pipPosition
         let bounds = visit.bounds
         let left = pip.x > bounds.width / 2
