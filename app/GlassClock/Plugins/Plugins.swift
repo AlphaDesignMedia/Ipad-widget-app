@@ -34,5 +34,6 @@ enum Plugins {
         PipsFeelings(),
         GuestTakeover(),
         CrewRundown(),
+        StationeryCupboard(),
     ]
 }

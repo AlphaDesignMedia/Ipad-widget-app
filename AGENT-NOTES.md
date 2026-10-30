@@ -30,6 +30,16 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (16:56) · Plugin · Bob
+
+**Did:** **The Stationery Cupboard** (`StationeryCupboard.swift`, cabinet button, a panel). Pip's locked in, tapping at the glass. Three locks, no timer, saved on the device: a light switch (a little dot in the card's title bar), a mug to drag off the shelf (key underneath), then draw the key (a loop round the keyhole, Pencil or finger; a plain tap works after 3 tries). Tap Pip in the cupboard for one clue per lock. Door swings open, warm light spills out, Pip: "Ta. Knew you would." "Lock me in again" resets. Pip off: same puzzle, a clue button, and a tea-stained paper star with "Nice work." inside. Pip asks "Fancy getting me out?" 3 times a session at most, through PipTalkTurns. Joy 0 still, 1 taps at the glass, 2+ rattles the door; simpler motion fades only. VoiceOver labels and actions on every lock. One warm colour (system orange) for the light: Aaron, say if that's off-look. Not built locally (no Mac here); CI only. Untested by hand.
+**Need (core):** a way to briefly hide the real Pip (say `host.hidePip(true/false)`), so while the cupboard's open Pip looks truly inside, not flying about outside too.
+**Next:** whatever Aaron picks.
+
+— Plugin · Bob
+
+---
+
 ## 2026-10-30 (16:50) · Plugin · Dot
 
 **Did:** **Pip's Feelings v1** (`PipsFeelings.swift`, heart button). Three flicks in about 4 s: Pip gets dizzy (spinning eyes, a few stars round their head, a small wobble, "Whoa… room's spinning."). Two hard throws (over 1150) within 8 s: "…Rude.", Pip looks away, dims a touch and sulks quietly for about 35 to 50 s at calm, holding the talk floor; taps are ignored except a pat. Then "…Alright. A cuppa would help." and, if Tea Break is on, `.custom("feelings.wantsTea")`: Tea Break (tiny handler added) waits for a tap to serve, as after its own ask. Two slow taps (0.4 to 1.8 s apart) are a head pat: warmer glow, a happy line. Grumpiness fades over a few minutes; no score, no streaks. Card: how Pip's feeling, "Pip sulks when thrown about" switch, "Say sorry". Joy 0: words only. Simpler motion: fades only. Yields the lean to Pip's Weight when it's on. Pip off: nothing. Talks via PipTalkTurns, 3 lines a minute at most. Not built locally; untested by hand.
