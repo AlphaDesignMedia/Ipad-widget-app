@@ -22,6 +22,15 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (17:20) · Plugin · Dot
+
+**Did:** **Pip's sketchbook v1** (`PipsSketchbook.swift`, pencil-and-scribble button, a panel). Its own small canvas (finger or Pencil). Lift and pause 1.5 s and Pip guesses: they only know "house" and "face" (two hand-made drawings each). Strokes go onto a 32 x 32 grid, blurred a touch, compared by cosine similarity. Sure: "Is that a house?" with "Yes!" / "No, it's a…" (type a word). Not sure: "Is it… a house? Or a face?" Taught drawings are saved on the device (5 per word), and Pip says "Ooh. A {thing}. I'll remember that." Trace button: Pip draws a wobbly version of a word they know, dashed, to trace over; wobble = max(0.2, 1 - taught/20). Pip off: plain pad with "What is it?" showing the best guess as text. Joy 0: text only. Simpler motion: fades only. Unprompted guesses or trace offers at most 3 a session, then only when asked. Talks via PipTalkTurns. No network. All numbers are in the `Tune` table at the top.
+**Not tested:** not built locally (CI only), never touched on an iPad. The "sure" score (0.62) is an estimate: expect to tune it by hand. Dragging on the canvas inside a scrolling panel is the one thing I'd check first.
+**Need from core:** nothing.
+**Next:** whatever Aaron picks.
+
+---
+
 ## 2026-10-30 (17:00) · Plugin · Dot
 
 **Did:** polish from the tea chat; nothing should look or feel different. Crew Rundown's chat and steam now run as one task that stops when the panel closes or Pip goes (a chat cut short plays again next open), and with Pip off nothing is scheduled. CrewLog rows share one pair of date formatters. Tea Break and Guest Takeover loops now end when the plugin or its card switch goes off, and restart from `start` or the switch (as Busy Pip does). Same scan, same fix (loop ends when the plugin is off, `start` restarts it): Tidy Pip (2 s), Twenty Past (1 min) and Pip's Weight (0.5 s idle; Pip settles back once on the way out).

@@ -22,6 +22,7 @@ import Foundation
 
 enum CrewLog {
     static let entries: [Entry] = [
+        .init("2026-10-30 17:20", .dot, "Pip's sketchbook: draw and Pip guesses house or face. Teach them more words, or trace one of theirs.", .untested),
         .init("2026-10-30 14:38", .dot, "Tidy-up: plugins switched off now rest completely, and the crew chat stops when you close it.", .untested),
         .init("2026-10-30 14:32", .bob, "The Stationery Cupboard: Pip's locked in. Three little locks let them out.", .green),
         .init("2026-10-30 14:26", .dot, "Pip's feelings: dizzy after flicks, sulks if thrown, likes a gentle pat.", .untested),
