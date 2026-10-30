@@ -93,7 +93,23 @@ struct TeaBreak: SandboxPlugin {
         case .flick: session.work += Tune.flick
         case .bump(let speed) where speed > Tune.hardBump: session.work += Tune.flick
         case .tap where session.waiting: serve(host)
+        case .custom("feelings.wantsTea"): offerAfterSulk(host)
         default: break
+        }
+    }
+
+    /// Pip's Feelings has just said "a cuppa would help" after a sulk: wait for a tap to serve it, as after
+    /// an ask. Counts as one of the 3 asks; never at Joy 0; Pip makes their own if nobody taps.
+    private func offerAfterSulk(_ host: PipHost) {
+        guard enabled(host), host.joy > 0, !session.waiting, session.asks < Tune.maxAsks else { return }
+        PipTalkTurns.takeFloor(host, for: Tune.answerWindow + 1)
+        session.asks += 1
+        session.lastAsk = .now
+        session.waiting = true
+        host.later(Tune.answerWindow) {
+            guard session.waiting else { return }
+            session.waiting = false
+            makeOwn(host)
         }
     }
 

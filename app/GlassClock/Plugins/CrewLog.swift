@@ -22,6 +22,7 @@ import Foundation
 
 enum CrewLog {
     static let entries: [Entry] = [
+        .init("2026-10-30 14:26", .dot, "Pip's feelings: dizzy after flicks, sulks if thrown, likes a gentle pat.", .untested),
         .init("2026-10-30 14:06", .dot, "Crew rundown fills itself from the crew's log book, and counts what's new.", .untested),
         .init("2026-10-30 14:01", .dot, "Crew rundown: this panel.", .untested),
         .init("2026-10-30 13:58", .bob, "Dashboard queue only offers when nobody else is talking.", .green),

@@ -22,6 +22,17 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (16:50) · Plugin · Dot
+
+**Did:** **Pip's Feelings v1** (`PipsFeelings.swift`, heart button). Three flicks in about 4 s: Pip gets dizzy (spinning eyes, a few stars round their head, a small wobble, "Whoa… room's spinning."). Two hard throws (over 1150) within 8 s: "…Rude.", Pip looks away, dims a touch and sulks quietly for about 35 to 50 s at calm, holding the talk floor; taps are ignored except a pat. Then "…Alright. A cuppa would help." and, if Tea Break is on, `.custom("feelings.wantsTea")`: Tea Break (tiny handler added) waits for a tap to serve, as after its own ask. Two slow taps (0.4 to 1.8 s apart) are a head pat: warmer glow, a happy line. Grumpiness fades over a few minutes; no score, no streaks. Card: how Pip's feeling, "Pip sulks when thrown about" switch, "Say sorry". Joy 0: words only. Simpler motion: fades only. Yields the lean to Pip's Weight when it's on. Pip off: nothing. Talks via PipTalkTurns, 3 lines a minute at most. Not built locally; untested by hand.
+**CORE ASKS:**
+1. A rub/stroke gesture event on Pip (a slow drag over Pip without picking them up), so the pat can be a real head rub.
+2. A pose API with yaw/spin, so Pip can turn round in 3D (a dialled-back version of the 3D experiment): turn away to sulk, spin when dizzy.
+3. A `host.talking` flag, to replace `PipTalkTurns`.
+**Next:** whatever Aaron picks.
+
+---
+
 ## 2026-10-30 (16:35) · Plugin · Dot
 
 **Did:** **Crew rundown v1.1** now fills itself. "What's new" lives in a new log book, `app/GlassClock/Plugins/CrewLog.swift` (data only, not a plugin): one line per job, newest first, with "x new since you last looked" (saved on the device as `plug.crew.lastLooked`) and a small "New" tag. Logged Bob's three snag fixes (3d73551, 3480a9c, 5887422). `plugin-maker.md` now tells builders to add a CrewLog line per job. Pip off: plain list. Not built locally; untested by hand.

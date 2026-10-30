@@ -31,6 +31,7 @@ enum Plugins {
         DashboardQueue(),
         TidyPip(),
         TeaBreak(),
+        PipsFeelings(),
         GuestTakeover(),
         CrewRundown(),
     ]
