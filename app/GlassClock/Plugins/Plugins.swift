@@ -32,5 +32,6 @@ enum Plugins {
         TidyPip(),
         TeaBreak(),
         GuestTakeover(),
+        CrewRundown(),
     ]
 }

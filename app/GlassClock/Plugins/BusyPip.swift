@@ -84,24 +84,27 @@ struct BusyPip: SandboxPlugin {
         if (host.value("busypip", "since") as Double?) == nil {
             host.setValue(Date.now.timeIntervalSince1970, "busypip", "since")
         }
-        guard state.loop == nil else { return }
+        wake(host)
+    }
+
+    /// Runs the 1-second loop only while Busy Pip is on and switched on in its card; it ends itself when either
+    /// goes off. The card's switch calls this again.
+    fileprivate func wake(_ host: PipHost) {
+        guard state.loop == nil, host.isOn("busypip"), enabled(host) else { return }
         state.loop = Task { @MainActor in
-            while !Task.isCancelled {
+            while !Task.isCancelled, host.isOn("busypip"), enabled(host) {
                 tick(host)
                 try? await Task.sleep(for: .seconds(1))
             }
+            if state.busy { stop() }
+            state.loop = nil
         }
     }
 
     private func tick(_ host: PipHost) {
         trackOpens(host)
-        guard host.isOn("busypip") else {
-            if state.busy { stop() }
-            return
-        }
         installWatch(host)
-        guard enabled(host) else { return }
-        guard !state.busy, host.pipHere, !host.pipAsleep else { return }
+        guard !state.busy, host.pipHere, !host.pipAsleep, Self.floorFree(host) else { return }
         let real = Self.developer
         guard Date.now.timeIntervalSince(state.lastTouch) >= Tune.idle,
               Date.now.timeIntervalSince(state.lastRound) >= (real ? Tune.realGap : Tune.pretendGap) else { return }
@@ -122,17 +125,20 @@ struct BusyPip: SandboxPlugin {
         guard !state.busy, host.pipHere else { return }
         state.busy = true
         state.lastRound = .now
+        Self.takeFloor(host, for: 60)
         state.round = Task { @MainActor in
             if real { await realRound(host) } else { await pretendRound(host) }
             withAnimation(.easeInOut(duration: 0.5)) {
                 state.busy = false
                 state.checking = ""
             }
+            Self.takeFloor(host, for: 0)
         }
     }
 
     private func stop() {
         state.round?.cancel()
+        UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: "plug.pip.askingUntil")
         withAnimation(.easeInOut(duration: 0.3)) {
             state.busy = false
             state.checking = ""
@@ -162,6 +168,7 @@ struct BusyPip: SandboxPlugin {
         let s = await probe.value
         guard !Task.isCancelled else { return }
         let screen = "Screen: \(s.fps) frames a second, \(s.late) late, while I was flying about."
+        host.setValue(report.count, "busypip", "checked")   // plugins looked at, for Tea Break
         report.append(screen)
         await pause(2.6)
         host.say(screen, for: 3.2)
@@ -207,6 +214,15 @@ struct BusyPip: SandboxPlugin {
         guard !Task.isCancelled else { return }
         await signOff(host)
         host.say(Lines.pretendDone.randomElement()!, for: 2.2)
+    }
+
+    /// The shared "Pip is talking" convention until the core has a flag: a time in `plug.pip.askingUntil` that every
+    /// plugin checks before Pip asks or starts something, and sets while it has the floor.
+    static func floorFree(_ host: PipHost) -> Bool {
+        Date.now.timeIntervalSince1970 >= ((host.value("pip", "askingUntil") as Double?) ?? 0)
+    }
+    static func takeFloor(_ host: PipHost, for seconds: Double) {
+        host.setValue(Date.now.timeIntervalSince1970 + seconds, "pip", "askingUntil")
     }
 
     /// How many stops a round makes: 1 when still, 3 when calm, up to 5 when unhinged.
@@ -455,6 +471,7 @@ struct BusyPip: SandboxPlugin {
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
                 Toggle("Pip does rounds when you're idle", isOn: $on)
+                    .onChange(of: on) { if on { plugin.wake(host) } }
                     .font(.system(size: 13.5))
                     .accessibilityLabel("Let Pip do rounds when you're idle")
                 Text(developer
