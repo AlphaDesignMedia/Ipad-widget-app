@@ -30,6 +30,7 @@ struct PipEmotes: SandboxPlugin {
         case .flick(let speed): speed > 1400 ? ["😆", "🌀"] : ["😄"]
         case .bump(let speed): speed > 1150 ? ["😵‍💫", "💫"] : ["😬"]
         case .rest: ["😌"]
+        default: []
         }
     }
 

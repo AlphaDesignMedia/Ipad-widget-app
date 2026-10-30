@@ -78,6 +78,7 @@ struct ProfessorPip: SandboxPlugin {
         case .flick(let speed): "Pip was flicked at \(Int(speed)) pt/s"
         case .bump(let speed): "Pip bumped an edge at \(Int(speed)) pt/s\(speed > 1150 ? " (dizzy)" : "")"
         case .rest: "Pip came to rest"
+        default: "Event: \(event)"
         }
     }
 
