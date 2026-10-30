@@ -115,9 +115,9 @@ struct DashboardQueue: SandboxPlugin {
         host.later(25) {
             let offers = (host.value("dashqueue", "offers") as Int?) ?? 0
             let left = Self.waiting((host.value("dashqueue", "marks") as String?) ?? "").count
-            guard offers < Self.maxOffers, left > 0, host.pipHere, !host.pipAsleep, BusyPip.floorFree(host) else { return }
+            guard offers < Self.maxOffers, left > 0, host.pipHere, !host.pipAsleep, PipTalkTurns.floorFree(host) else { return }
             if host.say(Lines.offer(left), for: 4.5) {
-                BusyPip.takeFloor(host, for: 6)
+                PipTalkTurns.takeFloor(host, for: 6)
                 host.setValue(offers + 1, "dashqueue", "offers")
             }
         }

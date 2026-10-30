@@ -1,13 +1,14 @@
 import SwiftUI
 
-// CREW RUNDOWN · plugin v1 (On trial). Pip pops round the site, has a quick natter with the builders (Bob the
+// CREW RUNDOWN · plugin v1.1 (On trial). Pip pops round the site, has a quick natter with the builders (Bob the
 // foreman and Dot the apprentice) and gives Aaron a short, plain rundown: what's new, what's waiting on him,
-// and what's waiting on the core. Data is a small list written into this file (from the pip-plugins history
-// and AGENT-NOTES.md, 30 Oct 2026). No network. With Pip off: plain cards, no chat, just the list.
+// and what's waiting on the core. "What's new" fills itself from the crew's log book, CrewLog.swift (builders
+// add one line per job), newest first, with "x new since you last looked" (kept on the device).
+// No network. With Pip off: plain cards, no chat, just the list.
 // Where: the speech-bubbles button in the plugin bar (opens as a panel).
 
 struct CrewRundown: SandboxPlugin {
-    let info = PluginInfo(id: "crew", name: "Crew rundown", version: "v1", shelf: .trial,
+    let info = PluginInfo(id: "crew", name: "Crew rundown", version: "v1.1", shelf: .trial,
                           icon: "bubble.left.and.bubble.right",
                           what: "Pip pops round the site and tells you what the builders have done.",
                           panel: true)
@@ -27,63 +28,15 @@ struct CrewRundown: SandboxPlugin {
 
     // MARK: Data
 
-    enum Who: String, Sendable {
-        case pip, bob, dot
-        var name: String { ["pip": "Pip", "bob": "Bob", "dot": "Dot"][rawValue] ?? "Pip" }
-        var symbol: String {
-            switch self {
-            case .pip: return "sparkle"
-            case .bob: return "wrench.and.screwdriver"
-            case .dot: return "paintbrush.pointed"
-            }
-        }
-        var role: String {
-            switch self {
-            case .pip: return "Your guide"
-            case .bob: return "Foreman. Steady. Flask of tea, a vape on breaks."
-            case .dot: return "Apprentice. Keen, and wishes they were better."
-            }
-        }
-    }
-
-    enum Status: String, Sendable {
-        case green, untested, core, doing
-        var label: String {
-            switch self {
-            case .green: return "Built, CI green"
-            case .untested: return "Not hand-tested"
-            case .core: return "Waiting on core"
-            case .doing: return "In progress"
-            }
-        }
-    }
-
-    struct Entry: Sendable {
-        let when: String
-        let who: Who
-        let what: String
-        let status: Status
-    }
+    /// The crew and the job statuses live in the log book (CrewLog.swift).
+    typealias Who = CrewLog.Who
+    typealias Status = CrewLog.Status
+    typealias Entry = CrewLog.Entry
 
     struct Line: Sendable {
         let who: Who
         let text: String
     }
-
-    /// What the crew has done, newest first. From the pip-plugins history and AGENT-NOTES.md, 30 Oct 2026.
-    static let news: [Entry] = [
-        Entry(when: "Fri 30 Oct", who: .dot, what: "Crew rundown: this panel.", status: .untested),
-        Entry(when: "Fri 30 Oct", who: .bob, what: "Three snag fixes for Busy Pip and Tidy Pip.", status: .doing),
-        Entry(when: "Fri 30 Oct", who: .dot, what: "Guest Takeover: Tack and Fuse pop in, then leave.", status: .core),
-        Entry(when: "Fri 30 Oct", who: .dot, what: "Tea Break: Pip asks for a cuppa after real work.", status: .green),
-        Entry(when: "Fri 30 Oct", who: .bob, what: "Tidy Pip: offers to tidy away open panels.", status: .green),
-        Entry(when: "Fri 30 Oct", who: .bob, what: "Dashboard queue: 13 ideas to move over.", status: .green),
-        Entry(when: "Fri 30 Oct", who: .bob, what: "Busy Pip: rounds with a clipboard while you're idle.", status: .green),
-        Entry(when: "Fri 30 Oct", who: .bob, what: "Idea inbox: jot ideas down on the iPad.", status: .green),
-        Entry(when: "Fri 30 Oct", who: .bob, what: "Next action: your next step, big and clear.", status: .green),
-        Entry(when: "Fri 30 Oct", who: .bob, what: "Dashboard: your progress board in a panel.", status: .green),
-        Entry(when: "Fri 30 Oct", who: .bob, what: "Pip's Weight v1.1: floats, tires, rests on a seat.", status: .green),
-    ]
 
     /// Decisions only Aaron can make.
     static let forYou: [String] = [
@@ -122,6 +75,8 @@ struct CrewRundown: SandboxPlugin {
     @MainActor @Observable final class Session {
         var shown = 0
         var steaming = false
+        /// The newest log date Aaron had seen before this session ("" means never). Read once, on first open.
+        var since: String? = nil
         @ObservationIgnored var offers = 0
         @ObservationIgnored var played = false
         @ObservationIgnored var run = 0
@@ -178,6 +133,19 @@ struct CrewRundown: SandboxPlugin {
         let plugin: CrewRundown
         let session: Session
         let host: PipHost
+        /// The newest log date seen, saved on the device.
+        @AppStorage("plug.crew.lastLooked") private var lastLooked = ""
+
+        private var seen: String { session.since ?? lastLooked }
+
+        private var newLine: String {
+            let count = CrewLog.newCount(since: seen)
+            if seen.isEmpty { return "All \(count) are new to you." }
+            switch count {
+            case 0: return "Nothing new since you last looked."
+            default: return "\(count) new since you last looked."
+            }
+        }
 
         var body: some View {
             VStack(spacing: Corner.inset) {
@@ -198,8 +166,10 @@ struct CrewRundown: SandboxPlugin {
                     }
                 }
                 SettingsCard(title: "What's new", icon: "hammer", footer: CrewRundown.footer) {
-                    ForEach(CrewRundown.news.indices, id: \.self) { i in
-                        EntryRow(entry: CrewRundown.news[i])
+                    Text(newLine).foregroundStyle(.secondary)
+                    let news = CrewLog.newestFirst
+                    ForEach(news.indices, id: \.self) { i in
+                        EntryRow(entry: news[i], isNew: news[i].date > seen)
                     }
                 }
                 SettingsCard(title: "Waiting on you", icon: "person.crop.circle.badge.questionmark") {
@@ -223,20 +193,34 @@ struct CrewRundown: SandboxPlugin {
                     }
                 }
             }
+            .onAppear(perform: looked)
+        }
+
+        /// Remember what was new before this look (once a session), then save that Aaron has now seen it all.
+        private func looked() {
+            if session.since == nil { session.since = lastLooked }
+            lastLooked = CrewLog.newest
         }
     }
 
     struct EntryRow: View {
         let entry: Entry
+        let isNew: Bool
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.what)
-                Text("\(entry.who.name) · \(entry.when) · \(entry.status.label)")
-                    .font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: PluginBarLook.cardGap) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.what)
+                    Text("\(entry.who.name) · \(entry.when) · \(entry.status.label)")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                if isNew {
+                    Text("New").font(.caption).foregroundStyle(PipLook.glow)
+                }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(entry.what) By \(entry.who.name), \(entry.when). \(entry.status.label).")
+            .accessibilityLabel("\(isNew ? "New. " : "")\(entry.what) By \(entry.who.name), \(entry.when). \(entry.status.label).")
         }
     }
 

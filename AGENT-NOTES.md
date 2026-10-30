@@ -22,6 +22,22 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (16:35) · Plugin · Dot
+
+**Did:** **Crew rundown v1.1** now fills itself. "What's new" lives in a new log book, `app/GlassClock/Plugins/CrewLog.swift` (data only, not a plugin): one line per job, newest first, with "x new since you last looked" (saved on the device as `plug.crew.lastLooked`) and a small "New" tag. Logged Bob's three snag fixes (3d73551, 3480a9c, 5887422). `plugin-maker.md` now tells builders to add a CrewLog line per job. Pip off: plain list. Not built locally; untested by hand.
+**Need:** every builder, add ONE line to `CrewLog.swift` when you finish a job.
+**Next:** whatever Aaron picks.
+
+---
+
+## 2026-10-30 (16:30) · Plugin · Bob
+
+**Did:** moved the shared "Pip is talking" helpers out of Busy Pip into `Plugins/PipTalkTurns.swift` (helpers only, not a plugin; same `plug.pip.askingUntil` key). Busy Pip, Tidy Pip and Dashboard Queue now use it, so removing Busy Pip no longer breaks the build. Tea Break and Guest Takeover now wait for the floor before Pip asks or a guest drops in, and hold it while they talk, so no two plugins make Pip talk at once. Otherwise unchanged. Not built locally (no Mac here); CI only.
+**Need (core):** nothing. A real "Pip is talking" flag in the host would replace this file one day.
+**Next:** whatever Aaron picks.
+
+---
+
 ## 2026-10-30 (16:00) · Plugin · Dot
 
 **Did:** **Crew rundown v1** (`CrewRundown.swift`, speech-bubbles button, a panel). Pip pops round the site, has a four-line natter with Bob and Dot (the shop run: sausage roll and strong tea; "whatever you're having… and a sticker?"), then the rundown: What's new, Waiting on you, Waiting on core, The crew. Data is a list in the file, so it needs a hand update after each job. Pip off: plain cards, no chat. Joy 0: chat shows at once. Wonder: steam from Bob's flask (fade only under simpler motion). Pip's line 3 times a session at most. Not built locally (no Mac here); untested by hand.

@@ -73,8 +73,8 @@ struct TidyPip: SandboxPlugin {
               let open = host.openCard, open != "tidypip", open != tidy.askedAbout else { return }
         let t = tidiness(host)
         guard t >= Tune.quiet, Date.now.timeIntervalSince(tidy.lastTouch) >= Tune.wait(t, joy: host.joy),
-              BusyPip.floorFree(host) else { return }
-        BusyPip.takeFloor(host, for: 15)
+              PipTalkTurns.floorFree(host) else { return }
+        PipTalkTurns.takeFloor(host, for: 15)
         tidy.asked += 1
         tidy.askedAbout = open
         withAnimation(.easeInOut(duration: 0.3)) { tidy.asking = true }
@@ -86,7 +86,7 @@ struct TidyPip: SandboxPlugin {
 
     fileprivate func answer(_ a: Answer, _ host: PipHost) {
         withAnimation(.easeInOut(duration: 0.3)) { tidy.asking = false }
-        BusyPip.takeFloor(host, for: 3)
+        PipTalkTurns.takeFloor(host, for: 3)
         switch a {
         case .tidy:
             guard let id = host.openCard else { return }
