@@ -77,7 +77,7 @@ struct KeyboardKit: SandboxPlugin {
             .animation(host.simpler ? nil : .snappy, value: keyboardTop)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
                 guard let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
-                let screen = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.effectiveGeometry.coordinateSpace.bounds.height ?? 0
+                let screen = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.coordinateSpace.bounds.height ?? 0
                 // A floating or hidden keyboard doesn't reach the bottom; only show the chip for a docked one.
                 keyboardTop = end.minY < screen && end.maxY >= screen - 1 && end.height > 120 ? end.minY : nil
             }
