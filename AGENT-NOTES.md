@@ -22,12 +22,18 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
-## 2026-10-30 (17:20) · Plugin · Dot
+## 2026-10-30 (17:52) · Plugin · Bob
 
-**Did:** **Pip's sketchbook v1** (`PipsSketchbook.swift`, pencil-and-scribble button, a panel). Its own small canvas (finger or Pencil). Lift and pause 1.5 s and Pip guesses: they only know "house" and "face" (two hand-made drawings each). Strokes go onto a 32 x 32 grid, blurred a touch, compared by cosine similarity. Sure: "Is that a house?" with "Yes!" / "No, it's a…" (type a word). Not sure: "Is it… a house? Or a face?" Taught drawings are saved on the device (5 per word), and Pip says "Ooh. A {thing}. I'll remember that." Trace button: Pip draws a wobbly version of a word they know, dashed, to trace over; wobble = max(0.2, 1 - taught/20). Pip off: plain pad with "What is it?" showing the best guess as text. Joy 0: text only. Simpler motion: fades only. Unprompted guesses or trace offers at most 3 a session, then only when asked. Talks via PipTalkTurns. No network. All numbers are in the `Tune` table at the top.
-**Not tested:** not built locally (CI only), never touched on an iPad. The "sure" score (0.62) is an estimate: expect to tune it by hand. Dragging on the canvas inside a scrolling panel is the one thing I'd check first.
-**Need from core:** nothing.
+**Did:** **Window Cleaner Pip v1** (`GlassCleaner.swift`, bubbles button, id `glass`). While a plugin card or panel is open and nobody's touched the screen for a while (never at Joy 0, about 10 idle min at Joy 1, about 1 min at Joy 5), Pip glides behind it (the plugin bar draws over Pip, so it really is behind that glass), wipes in little circles with a cloth, dust motes puff and fall, a shine sweeps across, and Pip goes back. Silent bar an odd "squeak". Any touch, Pencil hover or stroke stops it at once and Pip goes home. Simpler motion: just a shine fading in and out. Pip off or asleep: a faint shine only. **Clean team:** once a session, if a card/panel is open over 10+ Sketch strokes, Pip whistles and a round mop robot and Bendy (a bent wire: loop head, zig-zag body, waving arm) pop in beside the panel, dust, wave, leave; Pip says thanks. PipTalkTurns respected. Card: on/off, How often (follows Joy), Clean now, Call the team, team on/off. Loop ends when off. Not built locally; untested by hand.
+**Core asks (small, generic):**
+1. A proper "behind panels" layer: `host.pipBehind(true/false)` or a scale/dim for Pip (say `host.pipLook(scale:dim:)`), so Pip can look smaller and further away through the glass. Today Pip is full size and only the plugin bar's own glass softens them; the app's Settings panel sits under Pip, so Pip can't go behind that.
+2. A layer *over* panels for plugin effects (the shine is drawn under the glass, so it's softened too).
+3. `host.openPanels` (count of open panels, the app's settings included), so "a mess" can mean 3+ panels open.
 **Next:** whatever Aaron picks.
+
+— Plugin · Bob
+
+---
 
 ## 2026-10-30 (17:10) · Plugin · Bob
 

@@ -35,6 +35,6 @@ enum Plugins {
         GuestTakeover(),
         CrewRundown(),
         StationeryCupboard(),
-        PipsSketchbook(),
+        GlassCleaner(),
     ]
 }
