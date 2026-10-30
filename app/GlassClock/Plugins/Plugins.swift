@@ -30,5 +30,6 @@ enum Plugins {
         BusyPip(),
         DashboardQueue(),
         TidyPip(),
+        TeaBreak(),
     ]
 }
