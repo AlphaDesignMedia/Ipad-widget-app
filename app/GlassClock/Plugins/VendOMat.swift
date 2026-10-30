@@ -941,7 +941,8 @@ extension VendOMat.Machine {
     private func maybeShout(_ host: PipHost) {
         guard pipReacts(host), talked < Tune.maxShots(joy: host.joy),
               PipTalkTurns.floorFree(host),
-              Double.random(in: 0..<1) < Tune.shotChance(joy: host.joy) else { return }
+              Double.random(in: 0..<1) < Tune.shotChance(joy: host.joy),
+              PipTalkTurns.spend(host) else { return }
         talked += 1
         PipTalkTurns.takeFloor(host, for: 2.5)
         host.say(Lines.shot.randomElement()!, for: 1.8)

@@ -96,7 +96,7 @@ struct GuestTakeover: SandboxPlugin {
         let joy = host.joy
         guard Date.now.timeIntervalSince(visit.last) >= Tune.gap(joy: joy) * 60,
               Double.random(in: 0..<1) < Tune.chance(joy: joy),
-              PipTalkTurns.floorFree(host) else { return }
+              PipTalkTurns.spend(host) else { return }
         barge(host, Guest.allCases.randomElement()!)
     }
 

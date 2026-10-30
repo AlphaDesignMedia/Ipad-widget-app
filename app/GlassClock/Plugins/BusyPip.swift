@@ -107,7 +107,8 @@ struct BusyPip: SandboxPlugin {
         guard !state.busy, host.pipHere, !host.pipAsleep, PipTalkTurns.floorFree(host) else { return }
         let real = Self.developer
         guard Date.now.timeIntervalSince(state.lastTouch) >= Tune.idle,
-              Date.now.timeIntervalSince(state.lastRound) >= (real ? Tune.realGap : Tune.pretendGap) else { return }
+              Date.now.timeIntervalSince(state.lastRound) >= (real ? Tune.realGap : Tune.pretendGap),
+              PipTalkTurns.spend(host) else { return }
         begin(host, real: real)
     }
 

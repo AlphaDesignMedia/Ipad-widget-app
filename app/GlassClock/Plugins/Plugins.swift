@@ -38,6 +38,7 @@ enum Plugins {
         PipsSketchbook(),
         VendOMat(),
         ShowModes(),
+        PipManners(),
         // All on for Aaron's show-off build (30 Oct). Comment a line out to park it again.
         GlassCleaner(),     // Bob: back on for show-off (Aaron, 30 Oct); rare at calm, stops on touch
         PipChecks(),        // Greg: speaks 8s after launch, not hand-tested

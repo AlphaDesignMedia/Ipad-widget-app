@@ -76,7 +76,7 @@ struct RobVisits: SandboxPlugin {
         let s = Self.session
         guard !s.busy, s.unprompted < Tune.maxUnprompted else { return }
         guard Date.now.timeIntervalSince(s.since) > Tune.soonest else { return }
-        guard Double.random(in: 0...1) < Tune.chance, PipTalkTurns.floorFree(host) else { return }
+        guard Double.random(in: 0...1) < Tune.chance, PipTalkTurns.spend(host) else { return }
         s.unprompted += 1
         Self.pop(host)
     }
