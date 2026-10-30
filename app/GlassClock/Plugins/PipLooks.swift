@@ -128,10 +128,8 @@ struct PipLooks: SandboxPlugin {
                 .onChanged { drag in finger = drag.location }
                 .onEnded { _ in finger = nil })
             .onContinuousHover { phase in
-                switch phase {
-                case .active(let p): finger = p
-                case .ended: finger = nil
-                }
+                // `if case`, like Native Wonders: a switch over SwiftUI's HoverPhase can warn about unknown cases.
+                if case .active(let p) = phase { finger = p } else { finger = nil }
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Preview of Pip's two looks, Classic and Drop. \(look.short) is chosen.")
