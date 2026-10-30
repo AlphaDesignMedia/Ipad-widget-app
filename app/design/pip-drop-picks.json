@@ -1,0 +1,6 @@
+{
+  "from": "Aaron, Pip Drop Workshop, 30 Oct 2026",
+  "note": "First pick for a 'Drop' Pip look. Classic orb stays the default; this is one option in a Pip look list, one tap back. Rule: Pip must read as one clear shape in silhouette; the drop is an extra on the circle. Wings are Aaron's to design, so these are placeholders.",
+  "picks": {"curl":-0.31,"size":37,"round":0.54,"tail":1.4,"tilt":-161,"hue":156,"glow":1,"w1":2.48,"w2":0.78,"wide":0.51,"fan":58,"flap":4,"depth":0.45,"lag":0.6,"turn":0.35,"boing":0.55,"bob":0.5,"wingsFrom":"back","farWingsFaint":true},
+  "workshop": "https://claude.ai/artifact/6RiHNHLgMMG9ptFPHfvhc1"
+}
