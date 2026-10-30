@@ -129,9 +129,9 @@ struct HelperDial: SandboxPlugin {
 
     // MARK: Views
 
-    func card(_ host: PipHost) -> some View { Card(plugin: self, host: host) }
+    func card(_ host: PipHost) -> some View { DialCard(plugin: self, host: host) }
 
-    struct Card: View {
+    struct DialCard: View {
         let plugin: HelperDial
         let host: PipHost
         @State private var dot = CGPoint(x: 0, y: -0.4)
