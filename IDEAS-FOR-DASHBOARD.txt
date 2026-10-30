@@ -1,0 +1,24 @@
+Pip Sandbox ideas, 30 Oct 2026 (13 from Dashboard Queue, then IDEA-INBOX.md). [built only] = built as a plugin, not tried by hand.
+
+Pip's Sketchbook [built only] - Pip wants to join in when you draw, guesses badly, and gets better as you teach them.
+Pip's name drifts - Pip's vowel slowly follows their personality (Pep, Pop, Pap, Pup), so they become a mini you.
+Circles over sliders - 2D pads with labelled edges replace rows of sliders: one gesture sets several related values.
+Help Pip home - Pip's own tiny game: flap a tired Pip to a ledge, with no fail screen.
+Pip's backstory - Pip was the star of a forgotten made-up arcade cabinet, which gives their flapping and resting a reason.
+Pip's story unfolds - Chapters unlock with time and the Bond ladder, never money, and branch from how you use the app.
+Android - No port for now; the web sandbox in Chrome on Android covers it for free.
+Restraint ladder - Every feature climbs Play > Proven > Hidden > Gentle > Core, so Glass Clock opens as just the clock.
+Busy Pip [built only] - When you're idle, Pip audits the plugins with a clipboard, and your answers set how calm Pip is.
+Tea break [built only] - After real work Pip asks for a cuppa (3 times at most), then makes their own: charm without guilt.
+Guest Takeover [built only] - Made-up guests barge in and do Pip's job, so you notice Pip when they take it back.
+Pip checks themselves - After each update Pip tries what's new and asks "Still feel like me?"; a no switches that change off.
+Feel rule - Every build must pass "Does this still feel like Pip?": smooth, fresh, one tap off.
+VPS server (Later) - An always-on box for a tester inbox and the dashboard's numbers; wait for the first outside testers.
+Helper Dial [built only] - Pip's tips steered by one circle (topic by angle, amount by distance) instead of many sliders.
+Plugin Desk map - Plot plugins by use against love, so keep / scrap / hidden gem shows at a glance.
+Feng shui for features - Every feature is upkeep: a gentle "still sparking joy?" card, and unused plugins go to a loft, never deleted.
+Clutter score and tidy up - Pip sighs happily when little is open, and a button tidies cards and panels away (Tidy Pip covers part of it).
+Pip is the menu - The collapsed menu ball becomes Pip, and Pip wears costumes for what you're doing (pencil in Sketch, glasses in lab).
+Pip finds an identity - Tiny flick-yes/no questions (6 words max, one a day) where every answer visibly changes something.
+Two drops (Parked) - Red drop: wild code-rain effects; blue drop: calm. One choice sets Joy and the look.
+Search-era homage (For Eras) - A made-up early-web search look in the Time Machine, with Pip's wink: "I hope I never end up turning evil."
