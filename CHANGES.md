@@ -18,6 +18,7 @@ _None yet._
 - 30 Oct 2026 · `app/GlassClock/Playground/` (4 files, the plugin agent's, unchanged), `Plugins/PlaygroundBridge.swift`, `Plugins.swift` (one line), `.github/workflows/build.yml` · The plugin agent's Joy Slider and Idle Life, connected to Pip and the plugin bar through a bridge; GitHub builds both pip branches.
 - 30 Oct 2026 · `.github/workflows/build.yml`, `Playground/PlaygroundCore.swift`, `Plugins/PluginDesk.swift`, `IDEA-INBOX.md` (from the plugin agent) · Merged: the GitHub build, a Swift 6 fix, and Plugin Desk (review every plugin: keep, tweak or scrap, with notes).
 - 30 Oct 2026 · `Plugins/PluginHost.swift`, `PluginBar.swift`, `Pieces/Pip.swift` (core) · Panels that move like the app's settings; plugins can add sections to another plugin's panel; events between plugins (`host.post`, `.ink`); Pip can follow a point; one Joy level for every plugin.
-- 30 Oct 2026 · `Plugins/Sketch.swift`, `Wonders.swift` (new), `Plugins.swift` (one line) · Sketch's tools are now a panel. Wonders: Pip follows the Pencil and answers drawings (moved out of Sketch).
+- 30 Oct 2026 · `Plugins/Sketch.swift`, `PencilWonders.swift` (new), `Plugins.swift` (one line) · Sketch's tools are now a panel. Pencil Wonders: Pip follows the Pencil and answers drawings (moved out of Sketch).
+- 30 Oct 2026 · `Plugins/NativeWonders.swift`, `HelperDial.swift`, `OpeningNight.swift`, `ProfessorPip.swift` (from the plugin agent) · Merged. Professor Pip: handles the new events and skips Pencil positions.
 - 30 Oct 2026 · `CLAUDE.md`, `PLUGIN-AGENT-HANDOVER.md`, `HANDOVER.md`, `app/PLUGIN-SPEC.md`, `AGENT-NOTES.md` · Who does what: the Mac agent owns the core, plugins hold the extras. The spec covers the new core pieces.
 

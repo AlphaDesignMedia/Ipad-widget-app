@@ -67,6 +67,8 @@ struct ProfessorPip: SandboxPlugin {
     }
 
     func on(_ event: PipEvent, _ host: PipHost) {
+        // The Pencil's position arrives many times a second; it would push every other event out of the notebook.
+        if case .ink(.pencil) = event { return }
         lab.note(Self.describe(event))
     }
 
@@ -78,6 +80,8 @@ struct ProfessorPip: SandboxPlugin {
         case .flick(let speed): "Pip was flicked at \(Int(speed)) pt/s"
         case .bump(let speed): "Pip bumped an edge at \(Int(speed)) pt/s\(speed > 1150 ? " (dizzy)" : "")"
         case .rest: "Pip came to rest"
+        case .ink(let ink): "Drawing: \(ink)"
+        case .custom(let name): "Plugin message: \(name)"
         default: "Event: \(event)"
         }
     }

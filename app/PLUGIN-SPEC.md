@@ -35,7 +35,7 @@ struct MyPlugin: SandboxPlugin {
 - `id`: short and unique. It's also your storage prefix.
 - Leave out what you don't need. With no `card`, there's no bar button. With no `overlay`, nothing is drawn.
 - **State:** the plugin is a struct, made once. For state that lasts the session, keep a small `@MainActor final class` in a `let` (see `PipRemembers.swift`). Settings go in storage, below.
-- **Worked examples:** `PipRemembers.swift` uses data, logic, events, storage, a card and Pip's voice. `Wonders.swift` answers another plugin's events and adds a section to its panel.
+- **Worked examples:** `PipRemembers.swift` uses data, logic, events, storage, a card and Pip's voice. `PencilWonders.swift` answers another plugin's events and adds a section to its panel.
 
 ## What the host gives you (`host`)
 - **Pip:**
@@ -45,6 +45,7 @@ struct MyPlugin: SandboxPlugin {
   - `host.pipHere`, `host.pipAsleep` and `host.pipPosition` tell you where Pip is and whether it's awake.
 - **Events** (`on`): `.appear`, `.wake`, `.tap`, `.flick(speed:)`, `.bump(speed:)` and `.rest`. Speeds are in points per second; above 1150 counts as a hard bump.
   - `.ink(...)` comes from Sketch: `.pencil(point)` (where the Pencil hovers or draws), `.drew(InkMark)` (a finished stroke: its box, length, time, whether it's a loop, on Pip, or round Pip), `.erased` and `.cleared`.
+  - **End a `switch` over `PipEvent` with `default:` (or use `if case`).** The core adds new events, and a switch that lists only today's stops the whole app building.
   - `host.post(event)` sends an event to every plugin that's on. `.custom("myid.something")` is for trying ideas out; anything that sticks gets its own case (ask the Mac agent).
 - **Motion:** `host.simpler` is true when the person wants less motion. Fade, don't move.
 - **Joy:** `host.joy`, 0 (still) to 5 (unhinged), default 1 (calm), never above 2 under simpler motion. One setting for every plugin; read it to decide how lively to be.

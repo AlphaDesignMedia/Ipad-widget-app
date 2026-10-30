@@ -5,7 +5,8 @@ You build plugins for **Pip Sandbox**, Aaron's dream-playground iPad app (SwiftU
 **Who does what (Aaron, 30 Oct 2026):**
 - **The Mac agent owns the core and keeps the app strong and stable:** Pip (`Pieces/`), the host, the plugin bar and panels (`PluginHost.swift`, `PluginBar.swift`), and the app itself.
 - **You own the extras, as plugins.** Need something from the core? Ask in `AGENT-NOTES.md`, and the Mac agent adds it.
-- **Wonders** (`Plugins/Wonders.swift`) is the home for Pip's little wonders: one plugin, findable in the plugin bar. Add new wonders to it rather than making a new plugin for each.
+- **Native Wonders** (`Plugins/NativeWonders.swift`, id `wonders`, the sparkles button) is the one home for Pip's little wonders. Add new wonders to it rather than making a new plugin for each.
+- **Your pushes reach the iPad by themselves.** A job on Aaron's Mac checks `pip-plugins` every 2 minutes, then merges, builds, pushes `pip-playground` and installs on the iPad. No Mac session is needed. If the build fails, nothing is installed, and the errors are written to `AUTO-UPDATE.md` on `pip-playground` (also check your GitHub build).
 
 ## Branches (GitHub: AlphaDesignMedia/Ipad-widget-app)
 - **Work only on `pip-plugins`.**
@@ -29,7 +30,7 @@ You build plugins for **Pip Sandbox**, Aaron's dream-playground iPad app (SwiftU
 ## Read first
 1. `app/PLUGIN-SPEC.md`: the plugin shape, what the host gives you, and the rules.
 2. `app/GlassClock/Plugins/PipRemembers.swift`: a small worked example (events, storage, a card, Pip's voice).
-3. `app/GlassClock/Plugins/Wonders.swift`: answers Sketch's drawing events and adds a section to Sketch's panel.
+3. `app/GlassClock/Plugins/PencilWonders.swift`: answers Sketch's drawing events and adds a section to Sketch's panel.
 4. `app/GlassClock/Plugins/Sketch.swift`: a big one (an overlay, a panel, UIKit touch, a saved file). Read it only if you need those.
 5. `AGENT-NOTES.md`: build errors and Aaron's feedback from the app agent.
 6. `app/GlassClock/Playground/` and `Plugins/PlaygroundBridge.swift`: your first work (the Joy Slider and Idle Life), connected through a bridge for now. The aim is a single plugin system, so new work goes in `Plugins/`.

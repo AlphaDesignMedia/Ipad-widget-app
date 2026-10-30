@@ -1,15 +1,14 @@
 import SwiftUI
 
-// WONDERS · plugin v1 (Dream). The little extras that make Pip feel alive, kept in one place you can find:
-// the sparkles button in the plugin bar, and a Wonders section in the drawing panel.
-// First wonders: Pip follows the Apple Pencil, hovering or drawing (the web sandbox's pen-follow, pip.js),
-// and Pip answers what you draw (moved here from Sketch). Each wonder has its own switch, and all of them
-// rest while Pip is switched off. Under simpler motion Pip stays put and only answers.
-// New wonders go here: add a case to Wonder, then answer its event in on(_:_:).
+// PENCIL WONDERS · plugin v1 (Dream). Pip follows the Apple Pencil, hovering or drawing (the web sandbox's
+// pen-follow, pip.js), and Pip answers what you draw (moved here from Sketch). Each has its own switch, in a
+// section of Sketch's panel. Everything rests while Pip is switched off; under simpler motion Pip stays put
+// and only answers. To be folded into Native Wonders (the one Wonders plugin) by the plugin agent.
+// Where: the Pencil Wonders card in Sketch's panel, and Settings > Pip and plugins.
 
-struct Wonders: SandboxPlugin {
-    let info = PluginInfo(id: "wonders", name: "Wonders", version: "v1", shelf: .dream,
-                          icon: "sparkles", what: "Little wonders: Pip follows your Pencil and answers your drawings.")
+struct PencilWonders: SandboxPlugin {
+    let info = PluginInfo(id: "pencil", name: "Pencil Wonders", version: "v1", shelf: .dream,
+                          icon: "pencil.and.scribble", what: "Pip follows your Pencil and answers your drawings.")
 
     // MARK: Data
 
@@ -28,7 +27,7 @@ struct Wonders: SandboxPlugin {
             case .answers: "Draw on Pip, ring Pip, or just draw: now and then Pip says something."
             }
         }
-        var key: String { "plug.wonders.\(rawValue)" }
+        var key: String { "plug.pencil.\(rawValue)" }
     }
 
     /// The web's Sketch reactions (plugins/sketch.js), plus a line for a ring around Pip.
@@ -120,33 +119,18 @@ struct Wonders: SandboxPlugin {
     func on(_ event: PipEvent, _ host: PipHost) {
         guard case .ink(let ink) = event else { return }
         switch ink {
-        case .pencil(let at): if Wonders.isOn(.follow) { mind.follow(at, host) }
-        case .drew(let mark): if Wonders.isOn(.answers) { mind.answer(mark, host) }
-        case .erased: if Wonders.isOn(.answers) { mind.erased(host) }
+        case .pencil(let at): if PencilWonders.isOn(.follow) { mind.follow(at, host) }
+        case .drew(let mark): if PencilWonders.isOn(.answers) { mind.answer(mark, host) }
+        case .erased: if PencilWonders.isOn(.answers) { mind.erased(host) }
         case .cleared: break
         }
     }
 
     // MARK: Views
 
-    /// Its own card in the plugin bar, and a section in Sketch's drawing panel.
-    func card(_ host: PipHost) -> some View {
-        VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
-            Switches()
-            if let note = note(host) {
-                Text(note).font(.caption).foregroundStyle(.secondary)
-            }
-        }
-    }
-
+    /// A section in Sketch's drawing panel (no button of its own in the plugin bar).
     var addsTo: String? { "sketch" }
     func addOn(_ host: PipHost) -> some View { Switches() }
-
-    private func note(_ host: PipHost) -> String? {
-        if !host.pipOn { return "Pip is switched off (Settings > Accessibility), so the wonders are resting." }
-        if host.simpler { return "Simpler motion is on, so Pip stays put and only answers." }
-        return nil
-    }
 
     /// One switch per wonder. Each is its own row, so the panel's card puts a line between them.
     struct Switches: View {
