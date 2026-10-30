@@ -163,6 +163,11 @@ final class DirectorStage {
             for beat in beats {
                 if beat.wait > 0 { try? await Task.sleep(for: .seconds(beat.wait)) }
                 if Task.isCancelled { return }
+                guard host.isOn("director") else {      // switched off mid-scene: stop quietly
+                    PipTalkTurns.takeFloor(host, for: 0)
+                    self.finish()
+                    return
+                }
                 if case .line(_, _) = beat.act, fluffPending {
                     fluffPending = false
                     self.fluff(host)
