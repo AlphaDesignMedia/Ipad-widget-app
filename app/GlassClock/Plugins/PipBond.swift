@@ -31,8 +31,12 @@ struct PipBond: SandboxPlugin {
 
     enum Lines {
         static let rub = ["Ooh, that's the spot.", "Mmm. Head rubs.", "Keep going. For science."]
-        static let warmer = "I think I like you."
-        static let bestMates = "Best mates? Best mates. I'll stick with you."
+        /// Said on reaching each stage of the ladder (BondStage).
+        static let stage = ["", "I think I like you.", "We're pals now. Officially.",
+                            "Best mates? Best mates. I'll stick with you.", "You're family now. Don't tell the others."]
+        /// What each stage opens up, shown in the card.
+        static let unlocks = ["Pip says hello", "Pip notices your changes", "Pip leans and wobbles, shares news",
+                              "Pip follows your finger and Pencil", "Secrets. Shh."]
         static let follow = ["Wait for me!", "Where are we going?", "Right behind you."]
         static let settle = "I'll sit here. Near you."
         static let tired = ["Phew. Need a sit down.", "You're fast. I'm glass.", "Two minutes. Just two."]
@@ -87,7 +91,12 @@ struct PipBond: SandboxPlugin {
     }
 
     func on(_ event: PipEvent, _ host: PipHost) {
-        if event == .tap { grow(Gain.tap, host) }
+        switch event {
+        case .tap: grow(Gain.tap, host)
+        case .custom(let name) where name.hasPrefix("bond.grow:"):
+            grow(Double(name.dropFirst("bond.grow:".count)) ?? 0, host)
+        default: break
+        }
     }
 
     private func tickTogether(_ host: PipHost) {
@@ -101,10 +110,11 @@ struct PipBond: SandboxPlugin {
         let before = bond.level
         bond.level = min(1, bond.level + amount * Self.pace(host).rate)
         save(host)
-        if before < 0.4, bond.level >= 0.4 { host.say(Lines.warmer, for: 2.4) }
-        if before < Gain.bestMates, bond.level >= Gain.bestMates {
+        let stage = BondStage(bond.level)
+        if stage > BondStage(before) {
             host.cheer()
-            host.say(Lines.bestMates, for: 3)
+            host.say(Lines.stage[stage.rawValue], for: 3)
+            host.post(.custom("bond.stage"))
         }
     }
 
@@ -180,6 +190,7 @@ struct PipBond: SandboxPlugin {
         @State private var level = 0.0
         @State private var pace = Pace.quick
         @State private var follow = false
+        @State private var all = false
 
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
@@ -200,6 +211,20 @@ struct PipBond: SandboxPlugin {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityValue("\(Int(level * 100)) percent")
+
+                ForEach(BondStage.allCases.dropFirst(), id: \.self) { stage in
+                    let reached = BondStage(level) >= stage
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image(systemName: reached ? "checkmark.circle.fill" : "lock")
+                            .foregroundStyle(reached ? PipLook.accent : .secondary)
+                        Text(stage.name).bold()
+                        Text(Lines.unlocks[stage.rawValue]).foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityValue(reached ? "Unlocked" : "Locked")
+                }
+                Toggle("Unlock everything", isOn: $all)
+                    .onChange(of: all) { _, v in host.setValue(v, "bond", "all") }
 
                 Text("How fast Pip warms up").bold()
                 HStack(spacing: 6) {
@@ -227,19 +252,13 @@ struct PipBond: SandboxPlugin {
             .font(.system(size: 13.5))
             .onAppear {
                 level = plugin.bond.level
+                all = host.value("bond", "all") ?? false
                 pace = PipBond.pace(host)
                 follow = plugin.bond.follow
             }
         }
 
-        private var title: String {
-            switch level {
-            case ..<0.15: "Strangers"
-            case ..<0.4: "Getting to know you"
-            case ..<Gain.bestMates: "Friends"
-            default: "Best mates"
-            }
-        }
+        private var title: String { BondStage(level).name }
     }
 }
 

@@ -5,7 +5,7 @@ import SwiftUI
 // it notices, so this comes before tricks.
 // Old-game thrift: one small table of lines per setting, picked so the same line never comes twice running;
 // a short wait so a flurry of changes gets one remark; and never more than one remark every few seconds.
-// Posts .custom("notices.noticed") each time, for anything that wants to count it (the bond, later).
+// Unlocks at Friendly on the bond ladder; each remark is a small gift to the bond.
 // Where: no button; switch it off in Settings with the other plugins.
 
 struct PipNotices: SandboxPlugin {
@@ -88,7 +88,7 @@ struct PipNotices: SandboxPlugin {
     }
 
     static func remark(_ key: String, _ value: String, _ host: PipHost) {
-        guard host.pipHere, !host.pipAsleep, Date.now.timeIntervalSince(watch.lastRemark) > quiet else { return }
+        guard host.pipHere, !host.pipAsleep, host.unlocked(.friendly), Date.now.timeIntervalSince(watch.lastRemark) > quiet else { return }
         let colour = ClockColor(rawValue: value)
         let options = lines(key, value, name: colour?.name ?? "That").filter { $0 != watch.lastLine }
         guard let line = options.randomElement(), host.say(line, for: 2.4) else { return }
@@ -96,6 +96,6 @@ struct PipNotices: SandboxPlugin {
         watch.lastRemark = .now
         if key == "appColor" { host.blush(AppColor.resolve(value)) }
         host.cheer()
-        host.post(.custom("notices.noticed"))
+        host.befriend(0.03)
     }
 }

@@ -70,6 +70,16 @@ struct BarLook {
     var button: @MainActor (AnyView, Bool) -> AnyView
 }
 
+/// How close you and Pip are, as a ladder over one number, 0...1 (like an old game's friendship byte).
+/// Pip's Bond keeps the number; plugins read `host.stage` or ask `host.unlocked(.pal)` to open up as you go.
+enum BondStage: Int, CaseIterable, Comparable {
+    case stranger, friendly, pal, bestMate, family
+    static let starts = [0, 0.25, 0.5, 0.75, 0.95]
+    init(_ level: Double) { self = Self.allCases.last { Self.starts[$0.rawValue] <= level } ?? .stranger }
+    var name: String { ["Stranger", "Friendly", "Pal", "Best mate", "Family"][rawValue] }
+    static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
+}
+
 // MARK: The plugin shape
 
 /// Everything is optional except `info`. Data first, logic second, views last: they port to
@@ -232,6 +242,19 @@ final class PipHost {
         withAnimation(.easeInOut(duration: 0.6)) { pip.halo = color }
         later(seconds) { [pip] in withAnimation(.easeInOut(duration: 1.2)) { pip.halo = nil } }
     }
+
+    // MARK: The bond, for plugins
+
+    var bond: Double { value("bond", "level") ?? 0 }
+    var stage: BondStage { BondStage(bond) }
+    /// True once you and Pip are this close. Always true with Pip's Bond off, or "Unlock everything" on,
+    /// so nothing is ever kept from you.
+    func unlocked(_ needs: BondStage) -> Bool {
+        !isOn("bond") || value("bond", "all") == true || stage >= needs
+    }
+    /// A small gift to the bond, for something you did together (a tutorial step, a change Pip noticed).
+    /// Pip's Bond counts it, at its own pace.
+    func befriend(_ amount: Double = 0.02) { send(.custom("bond.grow:\(amount)")) }
 
     // MARK: Plugins, for plugins
 
