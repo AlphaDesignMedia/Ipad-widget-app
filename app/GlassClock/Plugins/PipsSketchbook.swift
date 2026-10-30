@@ -32,6 +32,8 @@ struct PipsSketchbook: SandboxPlugin {
         static let keepPerLabel = 5             // taught examples kept for each word
         static let maxLabel = 24                // letters in a word
         static let maxPoints = 40               // points kept per stroke when saving
+        static let maxStrokes = 30              // strokes kept per drawing when saving (keeps saved data small)
+        static let maxWords = 24                // words Pip can be taught; past this they only add to words they know
         static let wobbleAmp = 0.04             // trace wobble at full wobble, as a fraction of the trace box
         static let wobbleLearn = 20.0           // taught drawings that bring the wobble down to its floor
         static let wobbleFloor = 0.2
@@ -204,7 +206,7 @@ struct PipsSketchbook: SandboxPlugin {
 
         /// Every stroke pared to a few points, fitted to a 0...100 square and centred. Used to save a drawing.
         static func normalised(_ d: Drawing) -> Drawing {
-            let kept = d.filter { $0.count > 1 }
+            let kept = Array(d.filter { $0.count > 1 }.prefix(Tune.maxStrokes))
             let all = kept.flatMap { $0 }
             guard all.count > 1 else { return [] }
             let b = box(all)
@@ -444,7 +446,7 @@ struct PipsSketchbook: SandboxPlugin {
 
         private func learn(_ label: String, _ host: PipHost) {
             let drawing = Eye.normalised(strokes)
-            guard !drawing.isEmpty else { return }
+            guard !drawing.isEmpty, taught[label] != nil || taught.count < Tune.maxWords else { return }
             var list = taught[label] ?? []
             list.append(drawing)
             if list.count > Tune.keepPerLabel { list.removeFirst(list.count - Tune.keepPerLabel) }
