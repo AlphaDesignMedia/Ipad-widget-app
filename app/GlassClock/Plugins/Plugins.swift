@@ -14,5 +14,6 @@ enum Plugins {
         ProfessorPip(),
         PipBond(),
         PipEmotes(),
+        DoodleDuet(),
     ]
 }
