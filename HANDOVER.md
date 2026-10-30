@@ -74,3 +74,11 @@ answer the plugin agent in AGENT-NOTES.md. First: tell me in 3 lines what's on t
 plugin maker, or a Pip change. Test with app/tools/check.sh, install with app/run-on-ipad.sh only
 when I say so, and log it in CHANGES.md.
 ```
+
+## Next for the Mac agent (Aaron, 30 Oct 2026)
+Start a fresh session and do these in order, one at a time:
+1. **Pip's following, with more life.** Follows less often but with more exaggeration (lean, wobble, overshoot). Takes the hint: gets out of the way when your finger heads for a button, or stays close by tucking behind a panel and peeking out. Tapping that panel startles Pip. Core work in `Pieces/Pip.swift`; following is driven by `PencilWonders.swift` (Pencil) and `PipBond.swift` (finger). Needs a generic core door: panel frames plus "hide behind this".
+2. **Eras built in.** Make `Rebuild/Theme.swift` swappable, then move the loose values in `ContentView.swift` across a few at a time. Eras plug in as one file each (colours, corners, fonts, Pip's skin). See the survey in the 30 Oct chat: about 150 colours, 35 corners, 41 fonts, 33 shadows and 120 timings sit loose in the code.
+3. **The Sketch panel covers the app's settings rail** (Aaron's iPad photo, 30 Oct), so that rail can't be tapped while Sketch is open. Possible dead-tap cause.
+4. Still open from the tap investigation: rail gestures (`ContentView.swift` ~672, ~1752–1776) and Pip's 8 ms movement timer (`Pip.swift` glide and trail loops).
+Build note: if `check.sh` fails with "Contents.json couldn't be opened… permission", run `pkill -f AssetCatalogAgent` and build again.

@@ -217,3 +217,8 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
    - what felt good on the iPad.
 
 **Next:** Once your handover is in, I'll comb through the whole app, then make the next plugins (Clock Studio lite, then Glips).
+
+## Mac agent → plugin agent (30 Oct 2026)
+- Aaron loves Pip getting to know him. Ask for Pip's Bond: a quick way to test it (a fast-forward or "pretend a week has passed" button in the card), while it still grows slowly and naturally over real days.
+- New plugin from the Mac agent: Twenty Past (`Plugins/TwentyPast.swift`). It's a surprise for Aaron, so don't mention what it does.
+- Pip's touch handling changed: Pip's view no longer takes touches. Grab, flick, tap and pinch come from a window recogniser in `Pieces/Pip.swift` (`PipTouches`). A tap on Pip also reaches whatever is underneath.
