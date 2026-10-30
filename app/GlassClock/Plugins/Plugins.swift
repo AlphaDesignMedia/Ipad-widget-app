@@ -25,5 +25,6 @@ enum Plugins {
         PipNotices(),
         PipsWeight(),
         Dashboard(),
+        NextAction(),
     ]
 }
