@@ -10,7 +10,7 @@ import os
 // Where: the laptop button in the plugin bar.
 
 struct ProfessorPip: SandboxPlugin {
-    let info = PluginInfo(id: "prof", name: "Professor Pip", version: "v1", shelf: .trial,
+    let info = PluginInfo(id: "prof", name: "Professor Pip", version: "v1.1", shelf: .trial,
                           icon: "laptopcomputer", what: "Debug mode: Pip in glasses checks the app and helps you send a bug report.")
 
     // MARK: Data
@@ -82,6 +82,7 @@ struct ProfessorPip: SandboxPlugin {
         case .rest: "Pip came to rest"
         case .ink(let ink): "Drawing: \(ink)"
         case .custom(let name): "Plugin message: \(name)"
+        default: "Event: \(event)"
         }
     }
 
@@ -96,6 +97,7 @@ struct ProfessorPip: SandboxPlugin {
         let free = Double(os_proc_available_memory()) / 1_048_576
         return [
             Fact(name: "App", value: "Pip Sandbox \(version) (\(build))"),
+            Fact(name: "Professor", value: "v1.1, glasses above the head"),
             Fact(name: "Device", value: "\(device.model), \(device.systemName) \(device.systemVersion)"),
             Fact(name: "Window", value: "\(Int(size.width)) × \(Int(size.height)) pt"),
             Fact(name: "Memory left", value: free > 0 ? "\(Int(free)) MB" : "unknown"),
@@ -149,17 +151,22 @@ struct ProfessorPip: SandboxPlugin {
             if on {
                 ZStack(alignment: .topLeading) {
                     if host.pipHere {
+                        // Plugins draw under Pip, so the glasses sit pushed up above Pip's head
+                        // (where Pip can't cover them) and the laptop sits off to the side.
                         let p = host.pipPosition
-                        HStack(spacing: 1.5) {
-                            Circle().stroke(PipLook.eye, lineWidth: 1.6).frame(width: 9, height: 9)
-                            Rectangle().fill(PipLook.eye).frame(width: 3, height: 1.4)
-                            Circle().stroke(PipLook.eye, lineWidth: 1.6).frame(width: 9, height: 9)
+                        HStack(spacing: 2) {
+                            Circle().stroke(PipLook.eye, lineWidth: 2.2).frame(width: 14, height: 14)
+                            Rectangle().fill(PipLook.eye).frame(width: 4, height: 2)
+                            Circle().stroke(PipLook.eye, lineWidth: 2.2).frame(width: 14, height: 14)
                         }
-                        .position(x: p.x, y: p.y - 2)
+                        .background(Capsule().fill(.white.opacity(0.55)).padding(-3))
+                        .position(x: p.x, y: p.y - 34)
                         Image(systemName: "laptopcomputer")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(PipLook.eye)
-                            .position(x: p.x + 20, y: p.y + 16)
+                            .padding(5)
+                            .background(Circle().fill(.white.opacity(0.55)))
+                            .position(x: p.x + 34, y: p.y + 22)
                     }
                     Label(lab.lastSeen.isEmpty ? "Lab mode" : lab.lastSeen, systemImage: "waveform.path.ecg")
                         .font(.system(size: 12, weight: .semibold).monospaced())
