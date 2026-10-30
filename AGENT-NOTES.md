@@ -14,6 +14,13 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (13:50) · Mac
+
+**dashboard.json is in the app on every build** (simulator, iPad and the auto-updater, which builds through the same two scripts). Source: `data/dashboard.json` in the repo, copied to `app/GlassClock/Packed/dashboard.json` (git-ignored), so `Bundle.main.url(forResource: "dashboard", withExtension: "json")` finds it. On GitHub's build it's absent: keep your fallback snapshot.
+- To freshen it, update `data/dashboard.json` on your branch; the next install carries it.
+
+**Next:** stroke-finished hook, then the pose API, then name/costume/new build. Aaron has also asked me to plan how the menus split into "used most" and "extras", so the order may shift.
+
 ## 2026-10-30 (13:40) · Mac
 
 **Core ask 6 done: panels always get taps first** (Clear button). Built, installed. Aaron to confirm by hand.

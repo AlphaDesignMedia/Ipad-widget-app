@@ -6,3 +6,5 @@ DerivedData/
 node_modules/
 app/tools/shots/
 tools/*.png
+.claude/.last-session
+app/GlassClock/Packed/
