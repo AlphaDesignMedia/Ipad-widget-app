@@ -63,6 +63,8 @@ final class PipModel {
     var lean = 0.0
     var glow = 0.0
     var halo: Color?                 // the halo's colour for a moment (a blush); nil: Pip's own
+    var look = CGSize.zero           // where Pip's eyes point, -1...1 each way; zero: straight ahead
+    @ObservationIgnored private var lookTurn = 0
     var bubble: String?
     var twinkle: (from: CGPoint, to: CGPoint, start: Date)?
     var bursts: [Burst] = []
@@ -286,6 +288,21 @@ final class PipModel {
         pos = clamp(pos)
     }
 
+    /// For plugins: Pip's eyes turn towards a point, further the further it is, then drift back.
+    func lookAt(_ point: CGPoint) {
+        let dx = point.x - pos.x, dy = point.y - pos.y
+        let d = max(hypot(dx, dy), 1), reach = min(d / 120, 1)
+        let to = CGSize(width: dx / d * reach, height: dy / d * reach)
+        withAnimation(simpler ? .easeOut(duration: 0.15) : .spring(response: 0.22, dampingFraction: 0.65)) { look = to }
+        lookTurn += 1
+        let mine = lookTurn
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.6))
+            guard lookTurn == mine else { return }
+            withAnimation(.easeInOut(duration: 0.5)) { look = .zero }
+        }
+    }
+
     /// For plugins: happy eyes and a hop.
     func cheer() {
         beHappy(1)
@@ -454,7 +471,7 @@ struct PipLayer: View {
             let flap = flaps ? 0.5 - 0.5 * cos(.pi * t / PipLook.flapSeconds) : 0
             ZStack {
                 PipBody(face: pip.face, flap: flap, spin: (t / 0.5).truncatingRemainder(dividingBy: 1), glow: pip.glow,
-                        halo: pip.halo ?? PipLook.glow, size: PipLook.size * pip.scale)
+                        halo: pip.halo ?? PipLook.glow, look: pip.look, size: PipLook.size * pip.scale)
                 if pip.face == .asleep { snore(t) }
             }
         }

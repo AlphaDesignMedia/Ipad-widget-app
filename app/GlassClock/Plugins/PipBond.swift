@@ -8,6 +8,7 @@ import UIKit.UIGestureRecognizerSubclass
 // behind it, and settles nearby when you stop. Follow can also just be switched on.
 // Following takes effort: Pip has energy, spends it moving and stops for a rest when tired (with a 😮‍💨 bubble
 // if Pip's Emotes is on), then catches up once rested. Speed of earning is a setting (quick by default, for now). Watching touches never takes them from the app.
+// Pip's eyes follow your finger and the Pencil, at any stage.
 // Where: the heart button in the plugin bar.
 
 struct PipBond: SandboxPlugin {
@@ -93,6 +94,7 @@ struct PipBond: SandboxPlugin {
     func on(_ event: PipEvent, _ host: PipHost) {
         switch event {
         case .tap: grow(Gain.tap, host)
+        case .ink(.pencil(let point)): host.lookAt(point)
         case .custom(let name) where name.hasPrefix("bond.grow:"):
             grow(Double(name.dropFirst("bond.grow:".count)) ?? 0, host)
         default: break
@@ -146,6 +148,7 @@ struct PipBond: SandboxPlugin {
         guard host.isOn("bond"), host.pipHere else { return }
         let pip = host.pipPosition
         let near = hypot(point.x - pip.x, point.y - pip.y) < 34
+        if !near { host.lookAt(point) }      // Pip's eyes follow every touch
         switch phase {
         case .began:
             bond.rubStart = near ? .now : nil

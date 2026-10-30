@@ -126,3 +126,13 @@ Every idea gets the same shape:
 - "Was today a good day?"
 
 **Verdict:** Now-able as a plugin once petting and flicks are solid. It needs a flick-direction event from the core (`.flick` has speed but no direction).
+
+---
+
+## Two drops (30 Oct 2026, Aaron) · Parked until the eyes and reactions are done
+**What:** Pip offers a red drop or a blue drop. Red: wild effects, code raining through the glass panels, the app's insides showing. Blue: grounded and calm. A homage, no film names. It could set the Joy level and the look in one choice.
+**Cheapest test:** a plugin card with the two drops; red sets Joy to giddy plus a code-rain overlay; blue sets calm.
+
+## Search-era homage, with a wink (30 Oct 2026, Aaron) · For Eras
+**What:** in the Time Machine/Eras, an early-web search-engine look (primary-colour letters, a plain white page, one big box), made up and never the real brand. On the anniversary of that famous "don't be bad" motto being quietly dropped, Pip says: "I hope I never end up turning evil one day."
+**Honest doubts:** house rule says no real brands, so it's the look of the era only; no logo, name or real wording.
