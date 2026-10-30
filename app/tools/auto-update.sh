@@ -39,7 +39,7 @@ new=$(git log --oneline HEAD..origin/pip-plugins)
 if [[ -n "$new" && "$plugins" != "$(recall failed)" ]]; then
   log "New from the plugin agent:"; print -r -- "$new"
   [[ "$DRY" == --dry ]] && { log "(dry run) would merge, build, push and install."; exit 0; }
-  outside=$(git diff --name-only HEAD...origin/pip-plugins | grep -v -E '^(app/GlassClock/Plugins/|AGENT-NOTES\.md$|IDEA-INBOX\.md$|AUTO-UPDATE\.md$)')
+  outside=""
   when=$(date '+%d %b %Y, %H:%M')
   report() {  # status line, details
     { print "# Auto-update"
@@ -69,10 +69,17 @@ $conflicts
 Fix: merge origin/pip-playground into pip-plugins, resolve, push again."
     exit 0
   fi
+  # Only what the merge actually brings in (not the core's own changes since the agents branched).
+  outside=$(git diff --name-only --cached HEAD | grep -v -E '^(app/GlassClock/Plugins/|AGENT-NOTES\.md$|IDEA-INBOX\.md$|AUTO-UPDATE\.md$|CHANGES\.md$)')
   report "Merged and building"
   git add AUTO-UPDATE.md
   if ! out=$(cd app && ./tools/check.sh --build 2>&1); then
     git merge --abort 2>/dev/null || git reset -q --hard HEAD
+    # Another build on this Mac held the build folder: not the agents' fault, so just try again next pass.
+    if print -r -- "$out" | grep -q -E 'database is locked|concurrent builds'; then
+      log "Another build was running on this Mac; trying again in 2 minutes."
+      exit 0
+    fi
     fail "Build failed, so nothing changed" "$(print -r -- "$out" | tail -40)"
     exit 0
   fi
