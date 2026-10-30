@@ -23,5 +23,6 @@ enum Plugins {
         PipsNews(),
         LooksTimeMachine(),
         PipNotices(),
+        PipsWeight(),
     ]
 }
