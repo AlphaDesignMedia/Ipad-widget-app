@@ -540,7 +540,8 @@ struct PipLayer: View {
 
     /// The falling twinkle with its trail, and the little bursts when Pip lands or bounces.
     private var sparkles: some View {
-        TimelineView(.animation) { tl in
+        // Paused when nothing's falling or bursting, so it costs nothing the rest of the time.
+        TimelineView(.animation(paused: pip.twinkle == nil && pip.bursts.isEmpty)) { tl in
             Canvas { gc, _ in
                 let now = tl.date
                 if let tw = pip.twinkle {
