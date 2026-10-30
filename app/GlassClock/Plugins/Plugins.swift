@@ -18,5 +18,6 @@ enum Plugins {
         DoodleDuet(),
         SetInTheirWays(),
         KeyboardKit(),
+        TwentyPast(),
     ]
 }
