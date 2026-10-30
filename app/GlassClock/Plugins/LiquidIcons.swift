@@ -54,7 +54,10 @@ struct LiquidIcons: SandboxPlugin {
 
         var body: some View {
             icon
-                .glassEffect(.regular.tint(open ? .white.opacity(LiquidIcons.shine) : .clear).interactive(), in: .circle)
+                .overlay { if open { Circle().fill(.white.opacity(LiquidIcons.shine)).allowsHitTesting(false) } }
+                // The app's own glass: its theme, your colour (tinted on the Tinted Home Screen), and
+                // Reduce Transparency, so the drops always match the panels.
+                .appGlass(.circle, interactive: true)
                 .scaleEffect(open && !simpler ? LiquidIcons.grow : 1)
                 .animation(simpler ? .easeOut(duration: 0.2) : .spring(duration: 0.45, bounce: 0.55), value: open)
                 .contentShape(.circle)

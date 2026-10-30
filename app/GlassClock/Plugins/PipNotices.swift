@@ -14,7 +14,7 @@ struct PipNotices: SandboxPlugin {
 
     // MARK: Data
 
-    static let watched = ["appColor", "appTheme", "appAppearance", "interfaceStyle",
+    static let watched = ["myHomeScreen", "appColor", "appTheme", "appAppearance", "interfaceStyle",
                           "plug.liquid.whole", "plug.liquid.runny", "simpleMotion"]
     static let settle = 0.8         // seconds of stillness before Pip remarks
     static let quiet = 5.0          // seconds between remarks, at least
@@ -36,6 +36,10 @@ struct PipNotices: SandboxPlugin {
         case ("interfaceStyle", _): ["New layout! Let me look around.", "Rearranging? I love that."]
         case ("plug.liquid.whole", "1"), ("plug.liquid.runny", _): ["Drippy!", "Splish splash."]
         case ("plug.liquid.whole", _): ["All dry again."]
+        // The previews of these two aren't spot on yet (30 Oct 2026); said 3 times at most, then Pip stops.
+        case ("myHomeScreen", "clear"), ("myHomeScreen", "tinted"):
+            ["Heads up: my \(value.capitalized) preview isn't spot on yet. Peek at your real Home Screen too!"]
+        case ("myHomeScreen", _): ["Noted! I'll dress to match."]
         case ("simpleMotion", "1"): ["Taking it easy. Me too."]
         case ("simpleMotion", _): ["Wheee, moving again!"]
         default: []
@@ -89,6 +93,11 @@ struct PipNotices: SandboxPlugin {
 
     static func remark(_ key: String, _ value: String, _ host: PipHost) {
         guard host.pipHere, !host.pipAsleep, host.unlocked(.friendly), Date.now.timeIntervalSince(watch.lastRemark) > quiet else { return }
+        if key == "myHomeScreen", value == "clear" || value == "tinted" {
+            let warned: Int = host.value("notices", "warned") ?? 0
+            guard warned < 3 else { return }
+            host.setValue(warned + 1, "notices", "warned")
+        }
         let colour = ClockColor(rawValue: value)
         let options = lines(key, value, name: colour?.name ?? "That").filter { $0 != watch.lastLine }
         guard let line = options.randomElement(), host.say(line, for: 2.4) else { return }

@@ -1608,7 +1608,7 @@ struct SettingsRail: View {
                             .contentShape(.circle)
                     }
                     .buttonStyle(.plain)
-                    .glassEffect(.regular.interactive(), in: .circle)
+                    .appGlass(.circle, interactive: true)
                     .accessibilityLabel(section.title)
                 }
             }
