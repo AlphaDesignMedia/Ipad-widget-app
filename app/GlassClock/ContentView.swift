@@ -374,10 +374,10 @@ struct ContentView: View {
         // The guided tour, over the real app (owner idea, 2026-10-21).
         .overlay {
             if showsTour {
-                GuidedTour(targets: tourTargets, finish: endTour, firstTime: !hasSeenTour) {
+                GuidedTour(targets: tourTargets, finish: endTour, keepSimple: {
                     withAnimation(.smooth(duration: 0.45)) { interface = .classic }
                     endTour()
-                }
+                }, firstTime: !hasSeenTour)
                 .tint(AppColor.chosen(appColor))
             }
         }
@@ -544,15 +544,19 @@ struct ContentView: View {
         }
     }
 
-    /// The settings on a glass panel, so the backdrop shows through around the rows.
+    /// The settings, drawn like the Panels settings: in Glass each card is its own glass with no slab
+    /// behind it, and the cards fade softly at the scroll edges; other themes keep the glass panel
+    /// (Aaron, 30 Oct 2026: Classic's left menu should match the panels on either side).
     private var settingsPanel: some View {
         settings
             .dynamicTypeSize(settingsTextSize)
             .simultaneousGesture(textPinchGesture(.settings))
             .sensoryFeedback(.selection, trigger: settingsTextSize)
             .scrollContentBackground(.hidden)
-            .clipShape(.rect(cornerRadius: Corner.panel))
-            .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
+            // Rounded only when there's a panel to round; in Glass the cards fade instead of being cut.
+            .clipShape(.rect(cornerRadius: appTheme.isGlassy && !reducesGlass ? 0 : Corner.panel))
+            .modifier(ScrollEdges(fades: appTheme.isGlassy && !reducesGlass))
+            .modifier(PanelBacking(clear: appTheme.isGlassy && !reducesGlass))
             .overlay(alignment: .top) { textSizeOverlay(.settings) }
     }
 
