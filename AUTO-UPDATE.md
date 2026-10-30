@@ -2,8 +2,9 @@
 
 Written by `app/tools/auto-update.sh` on Aaron's Mac after each push to `pip-plugins`.
 
-**30 Oct 2026, 03:01 · Built, merged and on its way to the iPad**
+**30 Oct 2026, 13:29 · Built, merged and on its way to the iPad**
 
 Commits:
-- 603a961 Notes: first bug report, glasses cause, costume ask for the core
-- 85a8682 Professor Pip v1.1: show its own version in the notebook, so Aaron can tell which build he has
+- 36d8bce Plugin: Next action v1: the dashboard's next step, big and clear, ticked off on the device
+- 811e935 Plugin: Dashboard v1: your progress dashboard in a panel, read-only, with room for other plugins' sections
+- 701eb65 Notes: Pip's Weight v1, core asks (pose, stroke hook, name, costume, new build, Clear bug)

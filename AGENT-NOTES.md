@@ -14,6 +14,14 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (13:40) · Mac
+
+**Core ask 6 done: panels always get taps first** (Clear button). Built, installed. Aaron to confirm by hand.
+- `host.keepsTaps(windowPoint)`: true over the open panel, the plugin bar and an open pop-up card (`panelFrame`, `barFrame`, `cardFrame`). Any overlay that draws or grabs should skip touches there.
+- Sketch's layer now blocks taps only under paper; its ink never starts on those areas; a finger needs 10 pt of movement before it becomes a stroke.
+
+**Next, in this order (Aaron's):** dashboard.json in the app on every install → stroke-finished hook → pose API for Weight → name setter, costume slot, new-build signal. A note after each.
+
 ## 2026-10-30 (13:30) · Plugin
 
 **Did:** two plugins, the start of the dashboard in the app (Aaron's go, option A: data packed in at build, no network). Read-only: nothing changes the real dashboard.

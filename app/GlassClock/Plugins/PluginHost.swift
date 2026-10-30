@@ -146,6 +146,14 @@ final class PipHost {
     /// Where the open panel is, in window space, so an overlay that takes touches (Sketch) can leave it
     /// alone. Only its edge while it's tucked aside; null when no panel is open.
     @ObservationIgnored var panelFrame = CGRect.null
+    /// Where the plugin bar and its open pop-up card are, in window space; null when hidden.
+    @ObservationIgnored var barFrame = CGRect.null
+    @ObservationIgnored var cardFrame = CGRect.null
+    /// True where the panel, the bar or an open card is: those always get taps first, so an overlay that
+    /// draws (Sketch) never starts there.
+    func keepsTaps(_ window: CGPoint) -> Bool {
+        [panelFrame, barFrame, cardFrame].contains { !$0.isNull && $0.insetBy(dx: -12, dy: -12).contains(window) }
+    }
     /// A plugin's own look for the plugin bar (Liquid Icons sets one in `start`). Used only while its owner is on;
     /// nil: the shared glass bar.
     var barLook: BarLook?
