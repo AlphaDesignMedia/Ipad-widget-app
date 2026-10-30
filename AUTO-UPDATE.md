@@ -2,9 +2,12 @@
 
 Written by `app/tools/auto-update.sh` on Aaron's Mac after each push to `pip-plugins`.
 
-**30 Oct 2026, 13:29 · Built, merged and on its way to the iPad**
+**30 Oct 2026, 14:11 · Built, merged and on its way to the iPad**
 
 Commits:
-- 36d8bce Plugin: Next action v1: the dashboard's next step, big and clear, ticked off on the device
-- 811e935 Plugin: Dashboard v1: your progress dashboard in a panel, read-only, with room for other plugins' sections
-- 701eb65 Notes: Pip's Weight v1, core asks (pose, stroke hook, name, costume, new build, Clear bug)
+- 926f08e Merge remote-tracking branch 'origin/pip-plugins' into dot-crewlog
+- a4f39c3 Plugin: Crew Rundown v1.1: fills itself from a crew log book and shows what's new since you last looked
+- e6a30bd Move shared "Pip is talking" helpers into their own file
+
+Changed outside `Plugins/` (the core is the Mac agent's: ask in AGENT-NOTES.md):
+- .claude/agents/plugin-maker.md
