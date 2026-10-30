@@ -127,7 +127,7 @@ struct TeaBreak: SandboxPlugin {
         guard !session.waiting, session.asks < Tune.maxAsks,
               session.work >= Tune.need(joy: joy),
               Date.now.timeIntervalSince(session.lastAsk) >= Tune.gap(joy: joy) * 60,
-              PipTalkTurns.floorFree(host) else { return }
+              PipTalkTurns.spend(host) else { return }
         let report: String = host.value("busypip", "report") ?? ""
         let checked = report.isEmpty ? nil : report.split(separator: "\n").count
         guard host.say(Lines.ask(checked: checked), for: 4) else { return }

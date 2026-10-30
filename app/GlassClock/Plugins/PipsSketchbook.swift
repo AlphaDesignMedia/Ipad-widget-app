@@ -390,7 +390,8 @@ struct PipsSketchbook: SandboxPlugin {
 
         private func autoGuess(_ host: PipHost) {
             guard host.pipHere, offers < Tune.maxOffers, phase == .idle, !strokes.isEmpty,
-                  PipTalkTurns.floorFree(host) else { return }
+                  PipTalkTurns.floorFree(host),
+                  host.joy == 0 || PipTalkTurns.spend(host) else { return }   // Joy 0: a silent guess in the card, no talk
             offers += 1
             runGuess(host)
         }

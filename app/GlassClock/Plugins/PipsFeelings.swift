@@ -255,7 +255,7 @@ struct PipsFeelings: SandboxPlugin {
             host.later(4) { if mind.feeling == .content { mind.feeling = .fine } }
             return
         }
-        guard host.pipHere, say(Lines.backFromSulk, host, for: 2.6) else { return }
+        guard host.pipHere, PipTalkTurns.spend(host), say(Lines.backFromSulk, host, for: 2.6) else { return }
         // Tea Break, if it's on, can take it from here (a tap then serves the cuppa).
         if host.isOn("teabreak") { host.post(.custom("feelings.wantsTea")) }
     }

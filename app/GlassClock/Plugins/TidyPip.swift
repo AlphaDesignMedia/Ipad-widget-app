@@ -126,7 +126,7 @@ struct TidyPip: SandboxPlugin {
         guard about != tidy.askedAbout else { return }
         let t = tidiness(host)
         guard t >= Tune.quiet, Date.now.timeIntervalSince(tidy.lastTouch) >= Tune.wait(t, joy: host.joy),
-              PipTalkTurns.floorFree(host) else { return }
+              PipTalkTurns.spend(host) else { return }
         // Drawings first. A bit Aaron hasn't shown he knows, not shown yet this session: Pip shows how first.
         let topic: Topic = inkCount(host) > 0 ? .ink : (host.panelFrame.isNull ? .card : .panel)
         if (host.value("tidypip", topic.knowsKey) as Bool?) != true, !tidy.guided.contains(topic.rawValue) {
@@ -185,7 +185,7 @@ struct TidyPip: SandboxPlugin {
                 }
             }
         } else if tidy.lastTouch <= g.at, !tidy.asking, (host.value("tidypip", "never") as Bool?) != true, !tidy.canPutBack, tidy.asked < Tune.asksPerSession,
-                  host.openCard != "tidypip", PipTalkTurns.floorFree(host) {
+                  host.openCard != "tidypip", PipTalkTurns.spend(host) {
             ask(g.about, Lines.doIt, host)
         }
     }
