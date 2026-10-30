@@ -24,5 +24,6 @@ enum Plugins {
         LooksTimeMachine(),
         PipNotices(),
         PipsWeight(),
+        Dashboard(),
     ]
 }
