@@ -92,6 +92,8 @@ It's honest about itself: these are **suspicions, not measurements**. Nothing pr
 
 Flask's on the side, love. I read every changed line on `evening-next` the way a compiler would. There's no Mac here, so none of it has been built. Branch `jean-check`, nothing pushed.
 
+**Second pass (Director's Call, branch `jean-check2`):** host calls, `takeFloor`, the `default:`, number types and names all check out; fixed two things: a scene now stops if the plugin is switched off mid-take, and the clapper really snaps. Not compiled. — Jean
+
 **Checked:** Bob's Pip's Manners (the `PipTalkTurns` ledger and `spend`, `PipManners`, and the swaps from `floorFree` to `spend` in BusyPip, TidyPip, TeaBreak, GuestTakeover, DashboardQueue, PipsFeelings, VendOMat, PipsSketchbook, GlassCleaner, PipChecks and RobVisits). Dot's `DrawOff`, `GlassMemory` and the additions to Sketch and GlassCleaner. Bob's `PipLooks`.
 - Checked against the real `PluginHost.swift`: every `host.*` call exists with the right labels. `PipBody`, `PipFace` (every case, and a `default:` is there), `SettingsCard`, `PluginCardButton`, `Corner.inset` and `PipLook.accent`/`flapSeconds` all match.
 - Main-actor use is right everywhere. The project builds in Swift 5 mode, so plugin structs run on the main actor, and the helpers that `nonisolated` drawing code calls are `nonisolated` too.
