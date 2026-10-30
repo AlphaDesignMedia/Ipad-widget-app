@@ -43,5 +43,6 @@ enum Plugins {
         PipChecks(),        // Greg: speaks 8s after launch, not hand-tested
         RobVisits(),        // Rob: pops in unprompted at joy 2+, not hand-tested
         VintagePacks(),     // Rob: passive
+        PipFlags(),         // Rob: new. No loop, does nothing until opened. Park it if you'd rather.
     ]
 }
