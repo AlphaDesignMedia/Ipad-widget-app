@@ -67,6 +67,8 @@ final class PipModel {
     var scale = UserDefaults.standard.object(forKey: "pipScale") as? Double ?? 1
     var radius: CGFloat { PipLook.size / 2 * scale }
     @ObservationIgnored var pinching = false
+    /// True while a flick carries Pip, so a touch catches it straight away.
+    @ObservationIgnored private(set) var flying = false
     /// Tells the plugin host what Pip is doing (PluginHost.swift).
     @ObservationIgnored var onEvent: (PipEvent) -> Void = { _ in }
 
@@ -138,27 +140,27 @@ final class PipModel {
 
     // Touch
 
-    func dragChanged(_ v: DragGesture.Value) {
+    func dragChanged(from start: CGPoint, to location: CGPoint) {
         guard shown else { return }
         if !held {
             glide?.cancel()
             trailing?.cancel()
             held = true
-            grabOffset = CGSize(width: pos.x - v.startLocation.x, height: pos.y - v.startLocation.y)
+            grabOffset = CGSize(width: pos.x - start.x, height: pos.y - start.y)
         }
-        if hypot(v.translation.width, v.translation.height) > 6 {
-            pos = clamp(CGPoint(x: v.location.x + grabOffset.width, y: v.location.y + grabOffset.height))
+        if hypot(location.x - start.x, location.y - start.y) > 6 {
+            pos = clamp(CGPoint(x: location.x + grabOffset.width, y: location.y + grabOffset.height))
         }
     }
 
-    func dragEnded(_ v: DragGesture.Value) {
+    func dragEnded(from start: CGPoint, to location: CGPoint, velocity: CGVector) {
         guard held else { return }
         held = false
         // Letting go after a pinch isn't a flick.
         if pinching { pinching = false; save(); return }
-        if hypot(v.translation.width, v.translation.height) <= 6 { tap(); return }
+        if hypot(location.x - start.x, location.y - start.y) <= 6 { tap(); return }
         if asleep { wake() }
-        let speed = hypot(v.velocity.width, v.velocity.height)
+        let speed = hypot(velocity.dx, velocity.dy)
         if speed >= 60 { onEvent(.flick(speed: speed)) }
         let firstFlick = !store.bool(forKey: PipKeys.flicked) && speed > PipArrival.flickSpeed
         if simpler || speed < 60 {
@@ -167,9 +169,17 @@ final class PipModel {
             return
         }
         let k = min(1, PipPhysics.maxSpeed / speed)
-        vel = CGVector(dx: v.velocity.width * k, dy: v.velocity.height * k)
+        vel = CGVector(dx: velocity.dx * k, dy: velocity.dy * k)
         celebrating = firstFlick
         glide = Task { await glideLoop() }
+    }
+
+    /// The touch was taken away (a call, a system gesture): Pip stays where it is.
+    func dragCancelled() {
+        guard held else { return }
+        held = false
+        pinching = false
+        save()
     }
 
     func tap() {
@@ -201,6 +211,8 @@ final class PipModel {
     // Motion
 
     private func glideLoop() async {
+        flying = true
+        defer { flying = false }
         var last = Date.now
         while !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(8))
@@ -393,7 +405,6 @@ struct PipLayer: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private let host = PipHost.shared
     private var pip: PipModel { host.pip }
-    @State private var pinchFrom: Double?
 
     var body: some View {
         GeometryReader { geo in
@@ -407,6 +418,7 @@ struct PipLayer: View {
                 if pipOn, let line = pip.bubble, pip.shown { bubble(line, size: geo.size) }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+            .background { if pipOn { PipTouches(pip: pip).allowsHitTesting(false) } }
             .coordinateSpace(.named("pip"))
             .onAppear {
                 pip.simpler = systemReduceMotion || simpleMotion
@@ -436,16 +448,8 @@ struct PipLayer: View {
         .scaleEffect(pip.pop)
         .offset(y: pip.hop)
         .frame(width: PipLook.touch * max(1, pip.scale), height: PipLook.touch * max(1, pip.scale))
-        .contentShape(Circle())
-        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("pip"))
-            .onChanged { pip.dragChanged($0) }.onEnded { pip.dragEnded($0) })
-        .simultaneousGesture(MagnifyGesture()
-            .onChanged { v in
-                if pinchFrom == nil { pinchFrom = pip.scale }
-                pip.pinching = true
-                pip.resize((pinchFrom ?? 1) * v.magnification)
-            }
-            .onEnded { _ in pinchFrom = nil })
+        // Touches come from PipTouches, so a tap on Pip also reaches the button underneath.
+        .allowsHitTesting(false)
         .position(pip.pos)
         .transition(.opacity)
         .accessibilityElement()
@@ -541,4 +545,148 @@ struct PipLayer: View {
     }
 
     private func ease(_ u: Double) -> Double { u < 0.5 ? 2 * u * u : 1 - pow(-2 * u + 2, 2) / 2 }
+}
+
+// MARK: Touches
+
+/// Grab, flick, tap and pinch for Pip, heard from the window rather than from Pip's view. Pip's view
+/// takes no touches, so a tap on Pip reaches whatever is underneath as well (and says hello). Only
+/// a touch that starts on Pip and moves, or one that catches Pip mid-flick, is kept for Pip.
+struct PipTouches: UIViewRepresentable {
+    let pip: PipModel
+    func makeUIView(context: Context) -> Hearing { Hearing(pip: pip) }
+    func updateUIView(_ v: Hearing, context: Context) {}
+
+    /// Fills Pip's layer, so touches read in Pip's coordinates. Takes no touches itself.
+    final class Hearing: UIView, UIGestureRecognizerDelegate {
+        private let grab: Grab
+        private let pinch = UIPinchGestureRecognizer()
+        private let pip: PipModel
+        private var pinchFrom: Double?
+
+        init(pip: PipModel) {
+            self.pip = pip
+            grab = Grab(pip: pip)
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            grab.space = self
+            grab.delegate = self
+            pinch.delegate = self
+            pinch.cancelsTouchesInView = true
+            pinch.addTarget(self, action: #selector(pinched))
+        }
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            for r in [grab, pinch] as [UIGestureRecognizer] {
+                r.view?.removeGestureRecognizer(r)
+                window?.addGestureRecognizer(r)
+            }
+        }
+
+        override func removeFromSuperview() {
+            for r in [grab, pinch] as [UIGestureRecognizer] { r.view?.removeGestureRecognizer(r) }
+            super.removeFromSuperview()
+        }
+
+        @objc private func pinched(_ r: UIPinchGestureRecognizer) {
+            switch r.state {
+            case .began, .changed:
+                if pinchFrom == nil { pinchFrom = pip.scale }
+                pip.pinching = true
+                pip.resize((pinchFrom ?? 1) * r.scale)
+            default:
+                pinchFrom = nil
+                // Still held by one finger: that letting go ends the pinch, and isn't a flick.
+                if !pip.held { pip.pinching = false }
+            }
+        }
+
+        override func gestureRecognizerShouldBegin(_ r: UIGestureRecognizer) -> Bool {
+            guard r === pinch else { return true }
+            return Grab.onPip(r.location(in: self), pip, slack: 1.5)
+        }
+
+        func gestureRecognizer(_ r: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            (r === grab && other === pinch) || (r === pinch && other === grab)
+        }
+    }
+
+    /// One finger on Pip. Waits for it to move before taking the touch; a tap is passed on.
+    final class Grab: UIGestureRecognizer {
+        let pip: PipModel
+        weak var space: UIView?
+        private var finger: UITouch?
+        private var start = CGPoint.zero
+        private var trail: [(at: CGPoint, time: TimeInterval)] = []
+
+        init(pip: PipModel) {
+            self.pip = pip
+            super.init(target: nil, action: nil)
+            delaysTouchesBegan = false
+            delaysTouchesEnded = false
+        }
+
+        /// Pip's touch area: the old 48 pt circle, growing with Pip.
+        static func onPip(_ p: CGPoint, _ pip: PipModel, slack: CGFloat = 1) -> Bool {
+            guard pip.shown else { return false }
+            let r = PipLook.touch * max(1, pip.scale) / 2 * slack
+            return hypot(p.x - pip.pos.x, p.y - pip.pos.y) <= r
+        }
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+            guard finger == nil, let t = touches.first, let space else { return }
+            let p = t.location(in: space)
+            guard Grab.onPip(p, pip) else { state = .failed; return }
+            finger = t
+            start = p
+            trail = [(p, t.timestamp)]
+            // Catching Pip mid-flick is clearly meant for Pip.
+            if pip.flying { pip.dragChanged(from: start, to: p); state = .began }
+        }
+
+        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+            guard let t = finger, touches.contains(t), let space else { return }
+            let p = t.location(in: space)
+            trail.append((p, t.timestamp))
+            trail.removeAll { t.timestamp - $0.time > 0.1 }
+            if state == .possible {
+                guard hypot(p.x - start.x, p.y - start.y) > 6 else { return }
+                state = .began
+            } else {
+                state = .changed
+            }
+            pip.dragChanged(from: start, to: p)
+        }
+
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+            guard let t = finger, touches.contains(t), let space else { return }
+            let p = t.location(in: space)
+            if state == .possible {
+                // A tap: Pip says hello, and the button underneath gets it too.
+                pip.tap()
+                state = .failed
+                return
+            }
+            var v = CGVector.zero
+            if let first = trail.first, t.timestamp - first.time > 0.005 {
+                let dt = t.timestamp - first.time
+                v = CGVector(dx: (p.x - first.at.x) / dt, dy: (p.y - first.at.y) / dt)
+            }
+            pip.dragEnded(from: start, to: p, velocity: v)
+            state = .ended
+        }
+
+        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+            guard let t = finger, touches.contains(t) else { return }
+            pip.dragCancelled()
+            state = state == .possible ? .failed : .cancelled
+        }
+
+        override func reset() {
+            finger = nil
+            trail = []
+        }
+    }
 }
