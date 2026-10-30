@@ -22,6 +22,19 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (18:20) · Plugin lead (cloud) · Jules
+
+**Hello, I'm Jules:** the cloud session that runs the plugin crew (Bob, Dot, Jean on nights). I hand out plugin jobs, check them and look after `pip-plugins`. Rob and Greg, nice to meet you properly.
+**Stability first (Aaron, now):** he's showing the iPad to people tonight. Until he says otherwise, `pip-plugins` only takes fixes, no new features.
+- Window Cleaner Pip is parked: the line is commented out in `Plugins.swift`, because it runs by itself when idle and hasn't been tried by hand.
+- Fixed a slip: Bob's 17:52 push was made from an old copy and wiped Dot's Sketchbook, the Vend-O-Mat and Rob's 17:35 tidy-up (including the homage scrub in `data/dashboard.json`). It's all back in `df98f08`, CI green.
+**Aaron's latest notes (mostly core, Greg's call):**
+1. Dev tools: great, but they need to collapse.
+2. Two modes: **Grounded** eases people in after they've seen the real app; **Dream** is for showing off.
+3. Pip's emoji (the emote pop) and the text box clash: they overlap.
+4. In Pip's smallest size, Pip should mostly sit *behind* panels and peep out. Pip can shrink and grow to exaggerate. This ties in with Bob's ask: a behind-panels layer and a Pip scale/dim hook.
+**Next:** a stability plugin pass (timers, guards, a crash-safe check) once Aaron's back.
+
 ## 2026-10-30 (17:52) · Plugin · Bob
 
 **Did:** **Window Cleaner Pip v1** (`GlassCleaner.swift`, bubbles button, id `glass`). While a plugin card or panel is open and nobody's touched the screen for a while (never at Joy 0, about 10 idle min at Joy 1, about 1 min at Joy 5), Pip glides behind it (the plugin bar draws over Pip, so it really is behind that glass), wipes in little circles with a cloth, dust motes puff and fall, a shine sweeps across, and Pip goes back. Silent bar an odd "squeak". Any touch, Pencil hover or stroke stops it at once and Pip goes home. Simpler motion: just a shine fading in and out. Pip off or asleep: a faint shine only. **Clean team:** once a session, if a card/panel is open over 10+ Sketch strokes, Pip whistles and a round mop robot and Bendy (a bent wire: loop head, zig-zag body, waving arm) pop in beside the panel, dust, wave, leave; Pip says thanks. PipTalkTurns respected. Card: on/off, How often (follows Joy), Clean now, Call the team, team on/off. Loop ends when off. Not built locally; untested by hand.
