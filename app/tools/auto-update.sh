@@ -27,7 +27,12 @@ recall() { cat "$STATE/$1" 2>/dev/null; }
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] || { log "Uncommitted changes; skipped."; exit 0; }
 
 git fetch -q origin pip-plugins pip-playground || { log "Couldn't reach GitHub."; exit 0; }
-git merge -q --ff-only origin/pip-playground 2>/dev/null
+# In the job's own clone, GitHub is the truth (a merge that failed to push is simply redone).
+if [[ "$(git config --get pipsandbox.autoclone)" == true ]]; then
+  git reset -q --hard origin/pip-playground
+else
+  git merge -q --ff-only origin/pip-playground 2>/dev/null
+fi
 
 plugins=$(git rev-parse origin/pip-plugins)
 new=$(git log --oneline HEAD..origin/pip-plugins)

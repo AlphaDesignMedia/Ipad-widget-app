@@ -4,10 +4,13 @@
 #   ./tools/auto-update-setup.sh         switch it on (again)
 #   ./tools/auto-update-setup.sh --off   switch it off
 # Log: ~/Library/Logs/PipSandboxAutoUpdate.log. The Mac has to be awake for it to run.
+# macOS won't let background jobs read Google Drive folders, so the job works in its own clone from
+# GitHub at ~/PipSandboxAutoUpdate (made here). This folder is never touched by it.
 set -uo pipefail
 LABEL=com.aarondennel.pipsandbox.autoupdate
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-SCRIPT="$(cd "$(dirname "$0")" && pwd)/auto-update.sh"
+CLONE="$HOME/PipSandboxAutoUpdate"
+SCRIPT="$CLONE/app/tools/auto-update.sh"
 LOG="$HOME/Library/Logs/PipSandboxAutoUpdate.log"
 
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null
@@ -17,6 +20,10 @@ if [[ "${1:-}" == --off ]]; then
   exit 0
 fi
 
+if [[ ! -d "$CLONE/.git" ]]; then
+  git clone -q -b pip-playground https://github.com/AlphaDesignMedia/Ipad-widget-app.git "$CLONE" || { echo "Couldn't clone from GitHub."; exit 1; }
+fi
+git -C "$CLONE" config pipsandbox.autoclone true
 mkdir -p "$HOME/Library/LaunchAgents"
 cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
