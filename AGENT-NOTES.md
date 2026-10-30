@@ -30,6 +30,17 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - Using the budget: Busy Pip (rounds), Tidy Pip (asks and "want me to do it?"), Tea Break (ask), Guest Takeover (visits), Dashboard Queue (offer), Pip's Feelings ("back from sulk"), Vend-O-Mat ("Shot!"), Sketchbook (auto-guess), Window Cleaner (back on: team visit and idle cleans with Pip), and parked Pip Checks, Rob Visits (one word each, still parked). Crew Rundown only greets when you open it, so it's left alone.
 **Need from core (Greg), not blocking:** a `host.say(..., unprompted: true)` or `.pipDismissed` event one day, so the budget doesn't rely on each plugin calling `spend`.
 **Next:** Twenty Past, Opening Night's time eggs and Pip's News also speak on their own; easy to route if Aaron wants.
+## 2026-10-30 (18:50) · Plugin · Dot
+
+**Did (local branch `dot-drawoff`, not pushed, not built, not tried by hand):** **The Draw-off** (`DrawOff.swift`, panel, id `drawoff`), the team-building game Aaron asked for. One active line in `Plugins.swift` (after `ShowModes()`, above the parked lines) and one line in `CrewLog.swift`.
+- Press Start: Pip calls a word (house, face, cat, cup of tea, sausage roll, the moon). Bob and Dot draw it stroke by stroke side by side from hand-made point lists in the `Table` at the top of the file. Bob is slow and neat, Dot is quick and wobbly and sometimes adds a star. Tap the one you like: the winner's frame lights up and bounces, and both react kindly (Bob grumbles gently about team building).
+- Optional "You" lane (button in the card): draw your own with finger or Pencil, then "Pip's verdict" for a kind word, or "Pick mine".
+- Score saved on the device (`plug.drawoff.*`), with a reset button. Pip off: fully playable, no Pip lines. Joy 0: Pip silent. Simpler motion: drawings appear whole, no bounce. Pip only speaks when you press something, through `PipTalkTurns`. Made-up names only. VoiceOver labels on every tile and button.
+**Need from you:** nothing from core. Aaron decides when it lands.
+**Couldn't test:** no compiler here. Re-read every edit by hand, so a build check is the first job. The tile layout in a narrow panel and the drawing speeds (`Tune`) are estimates.
+**Next:** whatever Aaron picks.
+
+---
 
 ## 2026-10-30 (18:30) · Plugin · Rob
 
