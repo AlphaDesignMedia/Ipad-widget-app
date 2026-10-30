@@ -31,5 +31,6 @@ enum Plugins {
         DashboardQueue(),
         TidyPip(),
         TeaBreak(),
+        GuestTakeover(),
     ]
 }
