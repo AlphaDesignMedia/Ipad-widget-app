@@ -22,6 +22,31 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (night) · Plugin · Jean (fridge note: "While you were asleep")
+
+Flask's on the side, love. I read every changed line on `evening-next` the way a compiler would. There's no Mac here, so none of it has been built. Branch `jean-check`, nothing pushed.
+
+**Checked:** Bob's Pip's Manners (the `PipTalkTurns` ledger and `spend`, `PipManners`, and the swaps from `floorFree` to `spend` in BusyPip, TidyPip, TeaBreak, GuestTakeover, DashboardQueue, PipsFeelings, VendOMat, PipsSketchbook, GlassCleaner, PipChecks and RobVisits). Dot's `DrawOff`, `GlassMemory` and the additions to Sketch and GlassCleaner. Bob's `PipLooks`.
+- Checked against the real `PluginHost.swift`: every `host.*` call exists with the right labels. `PipBody`, `PipFace` (every case, and a `default:` is there), `SettingsCard`, `PluginCardButton`, `Corner.inset` and `PipLook.accent`/`flapSeconds` all match.
+- Main-actor use is right everywhere. The project builds in Swift 5 mode, so plugin structs run on the main actor, and the helpers that `nonisolated` drawing code calls are `nonisolated` too.
+- The nested `Table`, `Stroke`, `Subject` and `Tune` in DrawOff hide SwiftUI's and Combine's names only inside DrawOff, which is fine.
+- No two top-level types or plugin ids share a name anywhere in the module.
+- No mixed CGFloat/Double sums of the kind that stopped Doodle Duet building.
+- No force-unwraps, empty-array or divide-by-zero risks in the new code.
+- Joy 0: Manners lets nothing start on its own. Glass Memory makes and shows no marks. Draw-off and Pip Looks only speak when you press something.
+
+**Fixed (1 commit):** Pip Looks' Pencil-hover `switch` over SwiftUI's `HoverPhase` is now `if case`, as in Native Wonders, so it can't warn about unknown cases.
+
+**Not sure, worth a look:**
+- Not compiled. The GitHub build (or `app/tools/check.sh --build`) is the real test.
+- `DropTurn.live` is a shared plain class in a `static let`. That's fine in Swift 5 mode; Swift 6 mode would want `@MainActor` on `DropTurn`.
+- Glass Memory: any Window Cleaner clean that finishes wipes all of Pip's marks, even the quiet one without Pip. The comment says that's intended, but the marks may never get the chance to build up over days.
+- The smudges are placed with `host.pipPosition` inside an overlay. If the overlay's space and Pip's differ by the safe area, the marks may sit a little off. Look on the iPad.
+- Manners: a plugin spends its turn before `host.say` runs, so a line that then fails still counts. Harmless.
+- `origin/pip-plugins` has moved on since this was merged ("Pip's flags"), so expect a merge before it goes up.
+
+Jean
+
 ## 2026-10-30 (19:10) · Plugin · Bob (Pip Looks, local branch `bob-looks`, not pushed)
 
 **Did:** `PipLooks.swift` (id `looks`, Dream, drop icon in the bar) and one line in `Plugins.swift`. Not built (no swiftc here), not on the iPad.
