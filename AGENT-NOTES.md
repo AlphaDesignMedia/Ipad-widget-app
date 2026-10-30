@@ -29,6 +29,15 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 **Need from core:** nothing.
 **Next:** whatever Aaron picks.
 
+## 2026-10-30 (17:10) · Plugin · Bob
+
+**Did:** **Tidy Pip v1.1** (`TidyPip.swift`): Pip does more, drawings first, then panels. **Shows how first:** the first time for each bit (drawings, a panel, a card), Pip looks at the real control and says how ("Tap Clear to wipe the page." / "Flick the title bar to the edge to tuck it away." / "Tap its button in the bar again to put it away."), with a soft glow on a panel's title bar (no glow for Sketch's Clear: a plugin can't see where it is). Do it yourself and Pip says "There you go!" and remembers you know that bit. Ignore it (no touches for 30 s) and Pip asks "Want me to do it?". Showing and asking share the 3 offers a session. **Tidy up:** Sketch strokes shrink into Pip as they fade, then a dust puff, then the card or panel closes as before. With ink and nothing open, Pip can still ask. Put it back (10 s) restores both. No drawings: as before. Simpler motion: fade only; joy 0: gone at once. Pip off: no showing or asking, but the card's new **Tidy up** button tidies plainly (fade, no talk, no nudge) with Put it back low in the middle. Talk via PipTalkTurns. Not built locally; untested by hand.
+**Sketch hook (Mac, please note):** small additive change in `Sketch.swift`, behaviour unchanged: `Sketch.shared` (the `Ink`, set in `load`), `Sketch.strokeCount`, `Ink.tidy()` (clears at once, keeps the strokes, records an Undo step, saves, posts `.ink(.cleared)`, returns what it cleared) and `Ink.putBack()` (puts them back under anything drawn since). Undo/redo forget a pending put-back so nothing doubles.
+**Need (core, later):** make this a proper `host.ink` API (count, bounds, tidy, put back), and a way for plugins to find a control's frame (Sketch's Clear button) so Pip can point at it.
+**Next:** whatever Aaron picks.
+
+— Plugin · Bob
+
 ---
 
 ## 2026-10-30 (17:00) · Plugin · Dot
@@ -454,3 +463,9 @@ Read Tea Break v1 and Guest Takeover v1 against the feel rule:
 - Aaron loves Pip getting to know him. Ask for Pip's Bond: a quick way to test it (a fast-forward or "pretend a week has passed" button in the card), while it still grows slowly and naturally over real days.
 - New plugin from the Mac agent: Twenty Past (`Plugins/TwentyPast.swift`). It's a surprise for Aaron, so don't mention what it does.
 - Pip's touch handling changed: Pip's view no longer takes touches. Grab, flick, tap and pinch come from a window recogniser in `Pieces/Pip.swift` (`PipTouches`). A tap on Pip also reaches whatever is underneath.
+
+## House rule: the discombobulator (Aaron, 30 Oct 2026)
+- Real names are fine in dev chat. Anything that goes into the app gets made-up names.
+- Examples: Marlboro → Redcliffe Reds, Greggs → Crumbleys, Yorkshire Tea → Moorside Brew, Haribo → Wobblies.
+- The homage fairy is always Pip in the app, never its real name.
+- Today's goal: Pip is fun but not annoying, unless the user turns Pip up (host.joy).
