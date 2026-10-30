@@ -1,0 +1,215 @@
+<title>Pip Drop Workshop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: a night-sky stage where Pip floats, with a drafting-table column of dials beside it (stacks on phones). */
+:root{
+  --bg:#eef1f6; --ink:#17202e; --muted:#5b6578; --panel:#ffffffcc; --line:#d5dbe6;
+  --stage:#0f1830; --stage2:#1d2b52; --accent:#2f6bff; --glass:rgba(255,255,255,.42);
+  --display:"Bricolage Grotesque",ui-rounded,system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b0f18; --ink:#e7ecf5; --muted:#98a3b8; --panel:#151c2bcc; --line:#26304a;
+  --stage:#060a16; --stage2:#141f3d; --accent:#7aa2ff; --glass:rgba(200,215,255,.22); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b0f18; --ink:#e7ecf5; --muted:#98a3b8; --panel:#151c2bcc; --line:#26304a;
+  --stage:#060a16; --stage2:#141f3d; --accent:#7aa2ff; --glass:rgba(200,215,255,.22); color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:18px}
+header h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,4vw,44px);margin:0;letter-spacing:-.02em;text-wrap:balance}
+header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.stage{position:relative;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 30% 20%,var(--stage2),var(--stage));aspect-ratio:4/3;max-width:100%}
+canvas{width:100%;height:100%;display:block;touch-action:none;cursor:pointer}
+.hint{position:absolute;left:14px;bottom:12px;color:#c9d4ee;font-size:13px;opacity:.8;pointer-events:none}
+.side{display:grid;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;backdrop-filter:blur(10px)}
+.side h2{font-family:var(--display);font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-weight:700;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:7px 13px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.dial{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.dial label{font-size:14px}
+.dial output{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.dial input{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.group{display:grid;gap:10px}
+.copy{display:grid;gap:8px}
+pre{margin:0;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;overflow-x:auto;white-space:pre-wrap;word-break:break-word}
+.toggles{display:flex;flex-wrap:wrap;gap:8px}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Pip Drop Workshop</h1>
+    <p>Pip as a drop of liquid. The tip flicks out into a wing, and a second wing flicks off that. Side on, so you only see the near wings. Turn the dials until it feels like Pip, then copy your picks for the backbone.</p>
+  </header>
+  <div class="main">
+    <div class="stage"><canvas id="c" aria-label="Pip drop preview. Tap Pip to boing."></canvas><div class="hint">Move your finger or mouse: Pip turns to look · tap to boing · drag to move</div></div>
+    <aside class="side">
+      <div class="group"><h2>Start from</h2>
+        <div class="presets" id="presets"></div></div>
+      <div class="group"><h2>The drop</h2><div id="g1" class="group"></div></div>
+      <div class="group"><h2>The wings</h2><div id="g2" class="group"></div></div>
+      <div class="group"><h2>Feel</h2><div id="g3" class="group"></div>
+        <div class="toggles">
+          <button id="tFollow" aria-pressed="false">Follow my finger</button>
+          <button id="tEyes" aria-pressed="false">Eye</button>
+          <button id="tBack" aria-pressed="false">Wings from the back</button>
+          <button id="tSil" aria-pressed="false">Silhouette test</button>
+          <button id="tGhost" aria-pressed="false">Far wings faint</button>
+          <button id="tPeek" aria-pressed="false">Peek behind a panel</button>
+          <button id="tBreathe" aria-pressed="false">Shrink and grow</button>
+        </div></div>
+      <div class="copy"><h2>FOR TERMINAL</h2>
+        <button id="copyBtn">Copy my picks</button>
+        <pre id="out"></pre></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const DIALS=[
+ ['g1','size','Size',30,90,1],['g1','round','Roundness',0,1,.01],['g1','tail','Tip length',0,1.4,.01],['g1','tilt','Tip angle',-180,-60,1],['g1','curl','Curl',-1,1,.01],['g1','hue','Colour',0,360,1],['g1','glow','Glow',0,1,.01],
+ ['g2','w1','Wing size',0.6,2.6,.01],['g2','w2','Second wing',0.2,1,.01],['g2','wide','Wing width',0.15,0.7,.01],['g2','fan','Wing spread',0,90,1],
+ ['g3','flap','Flap speed',0,8,.1],['g3','depth','Flap depth',0,1,.01],['g3','lag','Second wing lag',0,1.6,.01],['g3','turn','Turn in space',0,1,.01],['g3','boing','Squash and stretch',0,1,.01],['g3','bob','Float',0,1,.01]];
+const PRESETS={
+ 'Aaron 30 Oct':{curl:-0.31,size:37,round:0.54,tail:1.4,tilt:-161,hue:156,glow:1,w1:2.48,w2:0.78,wide:0.51,fan:58,flap:4,depth:0.45,lag:0.6,turn:0.35,boing:0.55,bob:0.5,wingsFrom:'back'},
+ 'Classic orb':{curl:0,size:58,round:1,tail:0,tilt:-120,hue:200,glow:.7,w1:1.3,w2:.7,wide:.42,fan:40,flap:3,depth:.45,lag:.5,turn:.3,boing:.5,bob:.5,wingsFrom:'back'},
+ 'Soft drop':{curl:.35,size:58,round:1,tail:.35,tilt:-115,hue:200,glow:.7,w1:1.4,w2:.7,wide:.42,fan:38,flap:3,depth:.45,lag:.6,turn:.35,boing:.55,bob:.5,wingsFrom:'back'},
+ 'Raindrop':{curl:.55,size:56,round:.8,tail:.7,tilt:-120,hue:205,glow:.6,w1:1.6,w2:.6,wide:.38,fan:34,flap:3.2,depth:.45,lag:.6,turn:.35,boing:.5,bob:.5},
+ 'Flicky':{curl:.9,size:50,round:.6,tail:1.15,tilt:-140,hue:190,glow:.75,w1:2.1,w2:.75,wide:.3,fan:48,flap:5.5,depth:.7,lag:.9,turn:.6,boing:.75,bob:.6},
+ 'Sleepy':{curl:.3,size:62,round:.95,tail:.35,tilt:-105,hue:230,glow:.35,w1:1.2,w2:.45,wide:.5,fan:22,flap:1.1,depth:.25,lag:.4,turn:.15,boing:.3,bob:.3},
+ 'Show-off':{curl:-.7,size:70,round:.75,tail:.95,tilt:-130,hue:275,glow:1,w1:2.5,w2:.9,wide:.42,fan:60,flap:4.2,depth:.9,lag:1.2,turn:.9,boing:1,bob:.8}};
+let P={...PRESETS['Aaron 30 Oct']}; const T={ghost:true,peek:false,breathe:false,sil:false,follow:true,eyes:true};
+const $=s=>document.querySelector(s);
+DIALS.forEach(([g,k,l,mn,mx,st])=>{const d=document.createElement('div');d.className='dial';
+ d.innerHTML=`<label for="d-${k}">${l}</label><output id="o-${k}"></output><input id="d-${k}" type="range" min="${mn}" max="${mx}" step="${st}">`;
+ $('#'+g).appendChild(d);d.querySelector('input').addEventListener('input',e=>{P[k]=+e.target.value;sync()});});
+Object.keys(PRESETS).forEach(n=>{const b=document.createElement('button');b.textContent=n;b.onclick=()=>{P={...PRESETS[n]};sync();boing(1)};$('#presets').appendChild(b)});
+function tog(id,k){const b=$(id);const f=()=>{b.classList.toggle('on',T[k]);b.setAttribute('aria-pressed',T[k])};b.onclick=()=>{T[k]=!T[k];f()};f()}
+tog('#tGhost','ghost');tog('#tSil','sil');tog('#tFollow','follow');tog('#tEyes','eyes');
+{const b=$('#tBack');const f=()=>{const on=P.wingsFrom!=='tip';b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)};b.onclick=()=>{P.wingsFrom=P.wingsFrom==='tip'?'back':'tip';f();sync()};window.syncBack=f;f()}tog('#tPeek','peek');tog('#tBreathe','breathe');
+function sync(){if(!P.wingsFrom)P.wingsFrom='tip';window.syncBack&&window.syncBack();DIALS.forEach(([,k,,,,st])=>{$('#d-'+k).value=P[k];$('#o-'+k).textContent=st<1?(+P[k]).toFixed(2):Math.round(P[k])});
+ $('#out').textContent='Pip drop picks (from the Pip Drop Workshop):\n'+JSON.stringify({...P,farWingsFaint:T.ghost},null,0).replace(/,/g,', ');}
+sync();
+$('#copyBtn').onclick=async()=>{const t=$('#out').textContent;try{await navigator.clipboard.writeText(t);$('#copyBtn').textContent='Copied ✓'}catch{const r=document.createRange();r.selectNodeContents($('#out'));getSelection().removeAllRanges();getSelection().addRange(r);$('#copyBtn').textContent='Selected, press copy'}setTimeout(()=>$('#copyBtn').textContent='Copy my picks',1800)};
+
+const cv=$('#c'),ctx=cv.getContext('2d');let W=0,H=0,dpr=1;
+function fit(){const r=cv.getBoundingClientRect();dpr=Math.min(2,devicePixelRatio||1);W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;}
+new ResizeObserver(fit).observe(cv);fit();
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let pos={x:.5,y:.52},sq=0,sqv=0,drag=null,t0=performance.now();
+function boing(a){sqv+=a*1.4*(P.boing+.1)}
+cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect();drag={x:e.clientX,y:e.clientY,moved:false};cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const r=cv.getBoundingClientRect();if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>6)drag.moved=true;if(drag.moved){pos.x=Math.min(.92,Math.max(.08,(e.clientX-r.left)/r.width));pos.y=Math.min(.9,Math.max(.12,(e.clientY-r.top)/r.height))}});
+cv.addEventListener('pointerup',()=>{if(drag&&!drag.moved)boing(1);else if(drag)boing(.6);drag=null});
+const stars=Array.from({length:60},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.3+.3,p:Math.random()*6}));
+
+// --- 3D bits: body space has Pip facing +x, y down, z toward you ---
+const ptr={x:null,y:null};
+cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect();ptr.x=e.clientX-r.left;ptr.y=e.clientY-r.top});
+cv.addEventListener('pointerleave',()=>{ptr.x=null});
+const look={yaw:-.6,pitch:0},bodyO={yaw:-.6,pitch:0};let blinkAt=2;
+const rotY=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return{x:v.x*c+v.z*s,y:v.y,z:-v.x*s+v.z*c}};
+const rotX=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return{x:v.x,y:v.y*c-v.z*s,z:v.y*s+v.z*c}};
+const add=(a,b,k=1)=>({x:a.x+b.x*k,y:a.y+b.y*k,z:a.z+b.z*k});
+const norm=v=>{const l=Math.hypot(v.x,v.y,v.z)||1;return{x:v.x/l,y:v.y/l,z:v.z/l}};
+const cross=(a,b)=>({x:a.y*b.z-a.z*b.y,y:a.z*b.x-a.x*b.z,z:a.x*b.y-a.y*b.x});
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+
+// one liquid wing in 3D: a leaf outline from root along d, widening along w, then turned with the body
+function wing3(root,ang,spreadZ,twist,len,wid,R){
+ const d=norm({x:Math.cos(ang),y:Math.sin(ang),z:spreadZ});
+ let w=norm(cross(d,{x:0,y:0,z:1}));const n0=cross(d,w);
+ w=norm(add({x:w.x*Math.cos(twist),y:w.y*Math.cos(twist),z:w.z*Math.cos(twist)},n0,Math.sin(twist)));
+ const pts=[],N=18;
+ for(let i=0;i<=N;i++){const s=i/N;pts.push(add(add(root,d,len*s),w,wid*len*Math.pow(Math.sin(Math.PI*s),.85)*(1.15-.55*s)))}
+ for(let i=N-1;i>0;i--){const s=i/N;pts.push(add(add(root,d,len*s),w,-wid*len*.22*Math.sin(Math.PI*s)))}
+ const P2=pts.map(R),nrm=R(cross(d,w));
+ return{P2,z:P2.reduce((a,p)=>a+p.z,0)/P2.length,root:R(root),tip:R(add(root,d,len)),rib:R(add(add(root,d,len*.55),w,wid*len*.35)),face:Math.abs(norm(nrm).z)};
+}
+function paintWing(wg,h,alpha){
+ ctx.beginPath();wg.P2.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();
+ if(T.sil){ctx.fillStyle=`rgba(236,241,255,${alpha>.5?1:.35})`;ctx.fill();return}
+ const a=alpha*(.45+.55*wg.face); // edge-on wings go thin and see-through, like glass turning
+ const g=ctx.createLinearGradient(wg.root.x,wg.root.y,wg.tip.x,wg.tip.y);
+ g.addColorStop(0,`hsla(${h},90%,80%,${.9*a})`);g.addColorStop(1,`hsla(${h+25},95%,93%,${.28*a})`);
+ ctx.fillStyle=g;ctx.fill();
+ ctx.strokeStyle=`hsla(${h},100%,96%,${(.35+.5*(1-wg.face))*alpha})`;ctx.lineWidth=1.3;ctx.stroke();
+ ctx.beginPath();ctx.moveTo(wg.root.x,wg.root.y);ctx.quadraticCurveTo(wg.rib.x,wg.rib.y,wg.tip.x,wg.tip.y); // the rib sells the curve
+ ctx.strokeStyle=`hsla(${h},100%,97%,${.4*alpha})`;ctx.lineWidth=1;ctx.stroke();
+}
+
+function draw(now){
+ const t=reduce?0:(now-t0)/1000;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+ stars.forEach(s=>{ctx.fillStyle=`rgba(220,230,255,${.25+.25*Math.sin(t*1.3+s.p)})`;ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,7);ctx.fill()});
+ sqv+=(-sq*60-sqv*7)/60;sq+=sqv/60;if(reduce){sq=0}
+ const breathe=T.breathe?Math.sin(t*1.1)*.28*(.4+P.boing):0;
+ const scale=(W/640)*(1+breathe)*(T.peek?.62:1);
+ let cx=pos.x*W,cy=pos.y*H+Math.sin(t*1.6)*10*P.bob*(W/640);
+ if(T.peek){const pk=(Math.sin(t*.7)+1)/2;cx=W*.5+W*.27+pk*W*.12;cy=H*.42+Math.sin(t*1.9)*6}
+ const r=P.size*scale;
+ // where Pip looks: your finger in "Follow my finger", otherwise a slow idle turn
+ let ty,tp;
+ if(T.follow&&ptr.x!==null&&!drag){const dx=clamp((ptr.x-cx)/(W*.3),-1,1),dy=clamp((ptr.y-cy)/(H*.35),-1,1);ty=-Math.PI/2+dx*(Math.PI/2-.25);tp=-dy*.55}
+ else{ty=-.6+Math.sin(t*.8)*P.turn*1.1;tp=Math.sin(t*.6)*.14*P.turn}
+ const k=reduce?1:.12;look.yaw+=(ty-look.yaw)*k;look.pitch+=(tp-look.pitch)*k;
+ bodyO.yaw+=(look.yaw-bodyO.yaw)*(reduce?1:.045);bodyO.pitch+=(look.pitch*.5-bodyO.pitch)*(reduce?1:.045); // the body trails the head
+ const R=v=>rotX(rotY(v,bodyO.yaw),bodyO.pitch);
+ ctx.save();ctx.translate(cx,cy);ctx.scale(1+sq*.35,1-sq*.35);
+ // tail in 3D, so it swings round as Pip turns
+ const a=P.tilt*Math.PI/180,d=r*(1+P.tail),curlA=a+P.curl*.75+Math.sin(t*1.3)*.06*P.bob;
+ const tail3=R({x:Math.cos(curlA)*d,y:Math.sin(curlA)*d,z:0}),tip={x:tail3.x,y:tail3.y};
+ const spineAng=Math.atan2(R({x:Math.cos(a),y:Math.sin(a),z:0}).y,R({x:Math.cos(a),y:Math.sin(a),z:0}).x);
+ // wings
+ const flapA=Math.sin(t*P.flap)*P.depth,flap2=Math.sin(t*P.flap-P.lag)*P.depth*1.3;
+ const fromBack=P.wingsFrom!=='tip',fan=P.fan*Math.PI/180;
+ const base=(fromBack?a+.45:a+Math.PI*.12)-fan/2,L1=r*P.w1,L2=L1*P.w2;
+ const wings=[];
+ for(const side of [1,-1]){
+  const root=fromBack?{x:Math.cos(a+.75)*r*.72,y:Math.sin(a+.75)*r*.72,z:side*r*.35}:{x:Math.cos(curlA)*d,y:Math.sin(curlA)*d,z:0};
+  const z1=side*(.45+.75*flapA),z2=side*(.6+.9*flap2);
+  const w1=wing3(root,base-flapA*.45,z1,flapA*.7*side,L1,P.wide,R);
+  let root2=root;if(!fromBack){const dd=norm({x:Math.cos(base-flapA*.45),y:Math.sin(base-flapA*.45),z:z1});root2=add(root,dd,L1*.88)}
+  const w2=wing3(root2,base+fan-flap2*.45+(fromBack?.55:0),z2,flap2*.7*side,L2,P.wide*.9,R);
+  const alpha=side>0?1:(T.ghost?.4:.95);wings.push({w:w1,alpha},{w:w2,alpha:alpha*.92});
+ }
+ wings.sort((p,q)=>p.w.z-q.w.z);
+ wings.filter(x=>x.w.z<0).forEach(x=>paintWing(x.w,P.hue,x.alpha));
+ if(!T.sil){const gl=ctx.createRadialGradient(0,0,r*.2,0,0,r*(2.2+P.glow*1.6));gl.addColorStop(0,`hsla(${P.hue},100%,75%,${.35*P.glow})`);gl.addColorStop(1,`hsla(${P.hue},100%,70%,0)`);ctx.fillStyle=gl;ctx.beginPath();ctx.arc(0,0,r*(2.2+P.glow*1.6),0,7);ctx.fill()}
+ // the drop: a ball plus a liquid tip, outline from the turned tail
+ const dd=Math.hypot(tip.x,tip.y),ca=Math.acos(Math.min(.999,r/Math.max(dd,r*1.001))),ta=Math.atan2(tip.y,tip.x);
+ const p1={x:Math.cos(ta+ca)*r,y:Math.sin(ta+ca)*r},p2={x:Math.cos(ta-ca)*r,y:Math.sin(ta-ca)*r};
+ const bulge=P.round*r*.55,sl=Math.min(dd,r+d)*.55,spine={x:Math.cos(spineAng)*sl,y:Math.sin(spineAng)*sl};
+ const ctrl=p=>{const mx=(p.x+spine.x)/2,my=(p.y+spine.y)/2,l=Math.hypot(mx,my)||1;return{x:mx+mx/l*bulge*.7,y:my+my/l*bulge*.7}};
+ const c1=ctrl(p1),c2=ctrl(p2);
+ ctx.beginPath();ctx.moveTo(tip.x,tip.y);ctx.quadraticCurveTo(c1.x,c1.y,p1.x,p1.y);ctx.arc(0,0,r,ta+ca,ta-ca+Math.PI*2);ctx.quadraticCurveTo(c2.x,c2.y,tip.x,tip.y);ctx.closePath();
+ if(T.sil){ctx.fillStyle='rgb(236,241,255)';ctx.fill()}else{
+  const hx=-r*.35,hy=-r*.4; // the light stays put while Pip turns: that's what makes a ball read as round
+  const body=ctx.createRadialGradient(hx,hy,r*.08,0,0,r*1.25);
+  body.addColorStop(0,`hsl(${P.hue},100%,97%)`);body.addColorStop(.35,`hsl(${P.hue},95%,78%)`);body.addColorStop(.85,`hsl(${P.hue+15},80%,52%)`);body.addColorStop(1,`hsl(${P.hue+25},70%,38%)`);
+  ctx.fillStyle=body;ctx.shadowColor=`hsla(${P.hue},100%,70%,${P.glow})`;ctx.shadowBlur=30*P.glow*scale;ctx.fill();ctx.shadowBlur=0;
+  ctx.strokeStyle=`hsla(${P.hue},100%,92%,.5)`;ctx.lineWidth=1.5;ctx.stroke();
+  // the eye sits on the ball's surface, so it slides round and squashes as the head turns
+  if(T.eyes){const e=rotX(rotY(norm({x:1,y:-.12,z:0}),look.yaw),look.pitch);
+   if(e.z>-.05){const ex=e.x*r*.8,ey=e.y*r*.8,ang=Math.atan2(ey,ex),er=r*.15;
+    if(t>blinkAt){blinkAt=t+2.5+Math.random()*3}const bl=(blinkAt-t)<.12?.15:1;
+    ctx.save();ctx.translate(ex,ey);ctx.rotate(ang);ctx.fillStyle=`hsl(${P.hue+40},45%,13%)`;
+    ctx.beginPath();ctx.ellipse(0,0,er*clamp(e.z,.25,1),er*bl,0,0,7);ctx.fill();
+    if(bl>.5){ctx.rotate(-ang);ctx.fillStyle='rgba(255,255,255,.95)';ctx.beginPath();ctx.arc(-er*.3,-er*.35,er*.28,0,7);ctx.fill()}ctx.restore()}}
+  ctx.fillStyle='rgba(255,255,255,.85)';ctx.beginPath();ctx.ellipse(hx*.9,hy*.95,r*.18,r*.1,-.6,0,7);ctx.fill();
+ }
+ wings.filter(x=>x.w.z>=0).forEach(x=>paintWing(x.w,P.hue,x.alpha));
+ ctx.restore();
+ if(T.peek){const px=W*.12,py=H*.18,pw=W*.62,ph=H*.64;ctx.save();ctx.fillStyle='rgba(225,235,255,.30)';ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.roundRect(px,py,pw,ph,22);ctx.fill();ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.55)';ctx.font=`600 ${Math.max(12,W/40)}px Atkinson Hyperlegible,system-ui`;ctx.fillText('Settings',px+20,py+34);
+  for(let i=0;i<4;i++){ctx.fillStyle='rgba(255,255,255,.22)';ctx.beginPath();ctx.roundRect(px+20,py+56+i*(ph-80)/4,pw-40,(ph-80)/4-12,12);ctx.fill()}ctx.restore()}
+ requestAnimationFrame(draw);}
+requestAnimationFrame(draw);
+</script>
