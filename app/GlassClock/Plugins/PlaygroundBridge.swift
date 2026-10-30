@@ -73,22 +73,24 @@ struct PlaygroundBridge: SandboxPlugin {
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
                 JoySliderView()
-                ForEach(playground.plugins) { p in
-                    Toggle(isOn: Binding(get: { playground.isOn(p.id) }, set: { playground.setOn(p.id, $0) })) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(p.name).bold()
-                            Text(p.blurb).foregroundStyle(.secondary)
+                DevFold(id: "playground.tools", title: "the test tools", summary: "Switches and idle tests") {
+                    ForEach(playground.plugins) { p in
+                        Toggle(isOn: Binding(get: { playground.isOn(p.id) }, set: { playground.setOn(p.id, $0) })) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(p.name).bold()
+                                Text(p.blurb).foregroundStyle(.secondary)
+                            }
                         }
                     }
-                }
-                if playground.isOn(IdleLife.plugin.id) {
-                    Text("Idle: \(idle.stage.name). Last: \(idle.lastAct?.caption ?? "nothing yet")")
-                        .foregroundStyle(.secondary)
-                    HStack(spacing: 6) {
-                        ForEach([1, 3, 15], id: \.self) { minutes in
-                            Button("\(minutes) min") { idle.pretend(idleFor: Double(minutes * 60)) }
-                                .buttonStyle(PluginCardButton())
-                                .accessibilityLabel("Pretend nobody touched the screen for \(minutes) minutes")
+                    if playground.isOn(IdleLife.plugin.id) {
+                        Text("Idle: \(idle.stage.name). Last: \(idle.lastAct?.caption ?? "nothing yet")")
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 6) {
+                            ForEach([1, 3, 15], id: \.self) { minutes in
+                                Button("\(minutes) min") { idle.pretend(idleFor: Double(minutes * 60)) }
+                                    .buttonStyle(PluginCardButton())
+                                    .accessibilityLabel("Pretend nobody touched the screen for \(minutes) minutes")
+                            }
                         }
                     }
                 }

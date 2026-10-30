@@ -183,30 +183,38 @@ struct CrewRundown: SandboxPlugin {
                     }
                 }
                 SettingsCard(title: "What's new", icon: "hammer", footer: CrewRundown.footer) {
-                    Text(newLine).foregroundStyle(.secondary)
-                    let news = CrewLog.newestFirst
-                    ForEach(news.indices, id: \.self) { i in
-                        EntryRow(entry: news[i], isNew: news[i].date > seen)
+                    // The summary stays visible while it's folded, so you can see if anything's new.
+                    DevFold(id: "crew.new", title: "the list", summary: newLine) {
+                        let news = CrewLog.newestFirst
+                        ForEach(news.indices, id: \.self) { i in
+                            EntryRow(entry: news[i], isNew: news[i].date > seen)
+                        }
                     }
                 }
                 SettingsCard(title: "Waiting on you", icon: "person.crop.circle.badge.questionmark") {
-                    ForEach(CrewRundown.forYou.indices, id: \.self) { i in
-                        Text(CrewRundown.forYou[i])
+                    DevFold(id: "crew.you", title: "the list", summary: "\(CrewRundown.forYou.count) things") {
+                        ForEach(CrewRundown.forYou.indices, id: \.self) { i in
+                            Text(CrewRundown.forYou[i])
+                        }
                     }
                 }
                 SettingsCard(title: "Waiting on core", icon: "gearshape.2",
                              footer: "Asked for in the agent notes. The Mac agent builds these.") {
-                    ForEach(CrewRundown.forCore.indices, id: \.self) { i in
-                        Text(CrewRundown.forCore[i])
+                    DevFold(id: "crew.core", title: "the list", summary: "\(CrewRundown.forCore.count) things") {
+                        ForEach(CrewRundown.forCore.indices, id: \.self) { i in
+                            Text(CrewRundown.forCore[i])
+                        }
                     }
                 }
                 SettingsCard(title: "The crew", icon: "person.2") {
-                    ForEach([Who.bob, Who.dot, Who.rob], id: \.self) { who in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Label(who.name, systemImage: who.symbol)
-                            Text(who.role).font(.caption).foregroundStyle(.secondary)
+                    DevFold(id: "crew.crew", title: "the crew") {
+                        ForEach([Who.bob, Who.dot, Who.rob], id: \.self) { who in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label(who.name, systemImage: who.symbol)
+                                Text(who.role).font(.caption).foregroundStyle(.secondary)
+                            }
+                            .accessibilityElement(children: .combine)
                         }
-                        .accessibilityElement(children: .combine)
                     }
                 }
             }

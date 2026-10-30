@@ -145,36 +145,38 @@ struct DashboardQueue: SandboxPlugin {
         private var total: Int { DashboardQueue.items.count }
 
         var body: some View {
-            VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
-                Text("Dashboard queue").bold()
-                Text("\(movedCount) of \(total) moved")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .accessibilityLabel("\(movedCount) of \(total) ideas moved to your dashboard")
-                if walk.active, let id = walk.current, let item = DashboardQueue.items.first(where: { $0.id == id }) {
-                    step(item)
-                } else if movedCount == total {
-                    Text("All moved. The dashboard knows everything now.").font(.system(size: 13.5))
-                } else {
-                    Button(host.pipHere ? "Move them over with Pip" : "Move them over") { begin() }
-                        .buttonStyle(PluginCardButton(on: true))
-                        .accessibilityLabel("Start moving the queued ideas to your dashboard")
-                    ForEach(DashboardQueue.waiting(raw)) { item in
-                        HStack(spacing: 6) {
-                            Text(item.title).font(.system(size: 13.5))
-                            if marks[item.id] == .skipped {
-                                Text("skipped").font(.caption).foregroundStyle(.secondary)
+            DevFold(id: "queue", title: "the queue", summary: "\(movedCount) of \(total) moved") {
+                VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
+                    Text("Dashboard queue").bold()
+                    Text("\(movedCount) of \(total) moved")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityLabel("\(movedCount) of \(total) ideas moved to your dashboard")
+                    if walk.active, let id = walk.current, let item = DashboardQueue.items.first(where: { $0.id == id }) {
+                        step(item)
+                    } else if movedCount == total {
+                        Text("All moved. The dashboard knows everything now.").font(.system(size: 13.5))
+                    } else {
+                        Button(host.pipHere ? "Move them over with Pip" : "Move them over") { begin() }
+                            .buttonStyle(PluginCardButton(on: true))
+                            .accessibilityLabel("Start moving the queued ideas to your dashboard")
+                        ForEach(DashboardQueue.waiting(raw)) { item in
+                            HStack(spacing: 6) {
+                                Text(item.title).font(.system(size: 13.5))
+                                if marks[item.id] == .skipped {
+                                    Text("skipped").font(.caption).foregroundStyle(.secondary)
+                                }
                             }
+                            .accessibilityElement(children: .combine)
                         }
-                        .accessibilityElement(children: .combine)
+                    }
+                    if !lastMoved.isEmpty, !walk.active {
+                        Button("Undo last moved") { undo() }
+                            .buttonStyle(PluginCardButton())
+                            .accessibilityLabel("Undo the last idea marked as moved")
                     }
                 }
-                if !lastMoved.isEmpty, !walk.active {
-                    Button("Undo last moved") { undo() }
-                        .buttonStyle(PluginCardButton())
-                        .accessibilityLabel("Undo the last idea marked as moved")
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
 
         /// One step card: the idea, Copy, switch to the dashboard, then Done / Skip / Later.

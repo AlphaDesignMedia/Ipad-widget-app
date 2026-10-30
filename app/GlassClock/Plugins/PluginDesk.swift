@@ -125,15 +125,17 @@ struct PluginDesk: SandboxPlugin {
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
                 tally
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(host.plugins.indices, id: \.self) { i in
-                            let p = host.plugins[i]
-                            if p.info.id != "desk" { row(p) }
+                DevFold(id: "desk.list", title: "the plugins", summary: "\(host.plugins.count - 1) plugins to review") {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(host.plugins.indices, id: \.self) { i in
+                                let p = host.plugins[i]
+                                if p.info.id != "desk" { row(p) }
+                            }
                         }
                     }
+                    .frame(maxHeight: 420)
                 }
-                .frame(maxHeight: 420)
                 HStack(spacing: 8) {
                     Button(copied ? "Copied" : "Copy for the agents") {
                         UIPasteboard.general.string = PluginDesk.message(host, reviews)
