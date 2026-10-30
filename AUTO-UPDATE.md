@@ -2,8 +2,8 @@
 
 Written by `app/tools/auto-update.sh` on Aaron's Mac after each push to `pip-plugins`.
 
-**30 Oct 2026, 02:56 · Built, merged and on its way to the iPad**
+**30 Oct 2026, 03:01 · Built, merged and on its way to the iPad**
 
 Commits:
-- 7badc0c Idea inbox: feng shui, Pip as the menu, flick-yes/no chats
-- 62c372d Professor Pip: glasses above Pip's head so Pip can't hide them; Plugin: Keyboard Kit v1: hide-keyboard chip and shortcuts
+- 603a961 Notes: first bug report, glasses cause, costume ask for the core
+- 85a8682 Professor Pip v1.1: show its own version in the notebook, so Aaron can tell which build he has

@@ -10,7 +10,7 @@ import os
 // Where: the laptop button in the plugin bar.
 
 struct ProfessorPip: SandboxPlugin {
-    let info = PluginInfo(id: "prof", name: "Professor Pip", version: "v1", shelf: .trial,
+    let info = PluginInfo(id: "prof", name: "Professor Pip", version: "v1.1", shelf: .trial,
                           icon: "laptopcomputer", what: "Debug mode: Pip in glasses checks the app and helps you send a bug report.")
 
     // MARK: Data
@@ -97,6 +97,7 @@ struct ProfessorPip: SandboxPlugin {
         let free = Double(os_proc_available_memory()) / 1_048_576
         return [
             Fact(name: "App", value: "Pip Sandbox \(version) (\(build))"),
+            Fact(name: "Professor", value: "v1.1, glasses above the head"),
             Fact(name: "Device", value: "\(device.model), \(device.systemName) \(device.systemVersion)"),
             Fact(name: "Window", value: "\(Int(size.width)) × \(Int(size.height)) pt"),
             Fact(name: "Memory left", value: free > 0 ? "\(Int(free)) MB" : "unknown"),
