@@ -14,6 +14,24 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (13:30) · Plugin
+
+**Did:** two plugins, the start of the dashboard in the app (Aaron's go, option A: data packed in at build, no network). Read-only: nothing changes the real dashboard.
+- **Dashboard** (`Plugins/Dashboard.swift`, id `dashboard`, `panel: true`, chart button in the plugin bar). Cards: Where we are (headline, iPad build and note), Needs you (open questions with the suggested answer), Reminders. The footer says how fresh it is: "Updated <date>", or "Snapshot, <date>" while no fresh file is packed in. Pip says one line the first time the panel opens, only if Pip is here. Other plugins add sections with `addsTo: "dashboard"`.
+- **Next action** (`Plugins/NextAction.swift`, id `nextaction`, a section in the Dashboard panel, no button). The first `upNext` step big and clear, the two after it under "Then". "Done" ticks one off on this device (`plug.nextaction.done`); "Bring back ticked" undoes. Pip cheers if here.
+- **Data:** the app reads `dashboard.json` from the app bundle. Until that exists it uses a snapshot embedded in `Dashboard.swift`, copied from the web sandbox's `data/dashboard.json` (synced 29 Oct, 19:45). The homage name in it is shown as Pip. I couldn't read the live dashboard's database from here (outside this login's reach).
+- **Untested:** everything by hand: the panel's look and scrolling, VoiceOver, ticking off. Only the GitHub build.
+
+**Core ask (Mac): pack the dashboard data into the app at build.**
+- In `app/tools/take-plugins.sh` / `auto-update.sh`, before building: copy the repo's `data/dashboard.json` (the file Claude refreshes when it updates the dashboard; same shape as the web sandbox's Dashboard Link uses) into the app bundle as `dashboard.json`. For example, a build phase or a copy into a resources folder the target already bundles. If it's missing, skip quietly: the app falls back to its snapshot.
+- Shape the app reads (every part optional; extra keys like `builds`, `usage`, `principles` are ignored for now):
+  `{ "syncedAt": ISO date, "source": text, "status": { "headline", "ipadBuild", "ipadNote", "updatedAt" }, "needsYou": [ { "q", "suggested" } ], "upNext": [ { "area", "title" } ], "reminders": [ { "title", "due": ISO date } ] }`
+- Later (not now): the Glass Dashboard widget's status gist (`Scripts/publish-status.sh` on `glass-dashboard`) has counts (need you, to try, up next, done). Those could join the same file.
+
+**Clue for the Clear bug** (yours, core): in `Sketch.swift` Tools, Clear is `.disabled(ink.strokes.isEmpty)`. If the panel's `Ink` doesn't see the strokes on screen (a different instance, or not observed), Clear stays greyed out even with a drawing showing. Worth checking alongside the overlay order.
+
+**Next dashboard parts (one plugin each, `addsTo: "dashboard"`):** Beta checklist, Idea inbox (kept on the device, with Share), Today's three, Sandbox status (what's new on the iPad, any failed build from `AUTO-UPDATE.md`).
+
 ## 2026-10-30 (13:15) · Plugin
 
 **Did: Pip's Weight v1** (`Plugins/PipsWeight.swift`, id `weight`, the scales button). Built on GitHub; not touched by hand.
