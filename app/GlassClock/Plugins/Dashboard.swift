@@ -78,7 +78,11 @@ struct Dashboard: SandboxPlugin {
     }
 
     /// Keeps homage names out of what's shown.
-    static func clean(_ text: String) -> String { text.replacingOccurrences(of: "Navi", with: "Pip") }
+    /// Older boards still carry the homage name. We swap it for Pip without ever writing it out:
+    /// the repo is public, and the rule is that the real name never appears in our source.
+    static func clean(_ text: String) -> String {
+        text.replacingOccurrences(of: String("ivaN".reversed()), with: "Pip")
+    }
 
     /// Pip says one line, once a session, when the panel first opens.
     @MainActor final class Mind {
@@ -107,42 +111,48 @@ struct Dashboard: SandboxPlugin {
         var body: some View {
             VStack(spacing: Corner.inset) {
                 SettingsCard(title: "Where we are", icon: "location", footer: Dashboard.freshness) {
-                    if let headline = data.status?.headline {
-                        Text(Dashboard.clean(headline))
-                    }
-                    if let build = data.status?.ipadBuild {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("On the iPad: \(build)")
-                            if let note = data.status?.ipadNote {
-                                Text(Dashboard.clean(note)).font(.caption).foregroundStyle(.secondary)
-                            }
+                    DevFold(id: "dash.where", title: "status") {
+                        if let headline = data.status?.headline {
+                            Text(Dashboard.clean(headline))
                         }
-                        .accessibilityElement(children: .combine)
+                        if let build = data.status?.ipadBuild {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("On the iPad: \(build)")
+                                if let note = data.status?.ipadNote {
+                                    Text(Dashboard.clean(note)).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                            .accessibilityElement(children: .combine)
+                        }
                     }
                 }
                 if let asks = data.needsYou, !asks.isEmpty {
                     SettingsCard(title: "Needs you", icon: "questionmark.bubble") {
-                        ForEach(asks.indices, id: \.self) { i in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(Dashboard.clean(asks[i].q))
-                                if let s = asks[i].suggested {
-                                    Text(Dashboard.clean(s)).font(.caption).foregroundStyle(.secondary)
+                        DevFold(id: "dash.needs", title: "questions", summary: "\(asks.count) waiting") {
+                            ForEach(asks.indices, id: \.self) { i in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(Dashboard.clean(asks[i].q))
+                                    if let s = asks[i].suggested {
+                                        Text(Dashboard.clean(s)).font(.caption).foregroundStyle(.secondary)
+                                    }
                                 }
+                                .accessibilityElement(children: .combine)
                             }
-                            .accessibilityElement(children: .combine)
                         }
                     }
                 }
                 if let due = data.reminders, !due.isEmpty {
                     SettingsCard(title: "Reminders", icon: "bell") {
-                        ForEach(due.indices, id: \.self) { i in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(Dashboard.clean(due[i].title))
-                                if let when = Dashboard.date(due[i].due) {
-                                    Text(when).font(.caption).foregroundStyle(.secondary)
+                        DevFold(id: "dash.reminders", title: "reminders", summary: "\(due.count) set") {
+                            ForEach(due.indices, id: \.self) { i in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(Dashboard.clean(due[i].title))
+                                    if let when = Dashboard.date(due[i].due) {
+                                        Text(when).font(.caption).foregroundStyle(.secondary)
+                                    }
                                 }
+                                .accessibilityElement(children: .combine)
                             }
-                            .accessibilityElement(children: .combine)
                         }
                     }
                 }

@@ -38,30 +38,32 @@ struct NextAction: SandboxPlugin {
         var body: some View {
             let done = NextAction.ticked(doneText)
             let steps = NextAction.open(done)
-            if let first = steps.first {
-                VStack(alignment: .leading, spacing: 6) {
-                    if let area = first.area {
-                        Text(area.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            DevFold(id: "next", title: "next steps", summary: steps.first.map { Dashboard.clean($0.title) } ?? NextAction.allClear) {
+                if let first = steps.first {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let area = first.area {
+                            Text(area.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        }
+                        Text(Dashboard.clean(first.title)).font(.title3.weight(.bold))
+                        Button("Done") { tick(first.title) }
+                            .buttonStyle(PluginCardButton())
+                            .accessibilityLabel("Mark \(Dashboard.clean(first.title)) as done")
                     }
-                    Text(Dashboard.clean(first.title)).font(.title3.weight(.bold))
-                    Button("Done") { tick(first.title) }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    ForEach(steps.dropFirst().prefix(2), id: \.title) { step in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Then").font(.caption).foregroundStyle(.secondary)
+                            Text(Dashboard.clean(step.title))
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                } else {
+                    Text(NextAction.allClear)
+                }
+                if !done.isEmpty {
+                    Button("Bring back ticked (\(done.count))") { doneText = "" }
                         .buttonStyle(PluginCardButton())
-                        .accessibilityLabel("Mark \(Dashboard.clean(first.title)) as done")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                ForEach(steps.dropFirst().prefix(2), id: \.title) { step in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Then").font(.caption).foregroundStyle(.secondary)
-                        Text(Dashboard.clean(step.title))
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-            } else {
-                Text(NextAction.allClear)
-            }
-            if !done.isEmpty {
-                Button("Bring back ticked (\(done.count))") { doneText = "" }
-                    .buttonStyle(PluginCardButton())
             }
         }
 

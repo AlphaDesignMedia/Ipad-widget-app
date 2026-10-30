@@ -51,7 +51,7 @@ struct TwentyPast: SandboxPlugin {
         let slots = days.flatMap { day in
             [hour, hour + 12].compactMap { cal.date(bySettingHour: $0, minute: minute, second: 0, of: day) }
         }
-        return slots.first { $0.addingTimeInterval(60) > now } ?? slots[slots.count - 1]
+        return slots.first { $0.addingTimeInterval(60) > now } ?? slots.last ?? now
     }
 
     func start(_ host: PipHost) throws {

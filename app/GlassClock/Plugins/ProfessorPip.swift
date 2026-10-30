@@ -82,7 +82,6 @@ struct ProfessorPip: SandboxPlugin {
         case .rest: "Pip came to rest"
         case .ink(let ink): "Drawing: \(ink)"
         case .custom(let name): "Plugin message: \(name)"
-        default: "Event: \(event)"
         }
     }
 
@@ -93,7 +92,7 @@ struct ProfessorPip: SandboxPlugin {
         let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        let size = scene?.coordinateSpace.bounds.size ?? .zero
+        let size = scene?.effectiveGeometry.coordinateSpace.bounds.size ?? .zero
         let free = Double(os_proc_available_memory()) / 1_048_576
         return [
             Fact(name: "App", value: "Pip Sandbox \(version) (\(build))"),

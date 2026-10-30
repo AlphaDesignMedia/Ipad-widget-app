@@ -3,18 +3,18 @@
  "source": "Glass Clock Progress",
  "url": "https://claude.ai/artifact/UQ9Yo6F6RBNdoUn8B9sqeW",
  "status": {
-  "headline": "Tue 27 Oct, 7:15 pm: iPad app reinstalled and working (sign-in lasts to 3 Nov). Fresh widgets are at the top, widgets pack together (Float in Arrange), Figma button added, brand board started in Figma. Waiting for the Wednesday 2 pm reset: pricing research, Moods plan, in-app fairy.",
+  "headline": "Fri 30 Oct, evening: show-off build ready (everything on, Tuck away button). Next up: putting the Drop Pip look in the app. Pip images: https://claude.ai/artifact/NhFoab44i6YsKoSPif8Zxu",
   "ipadBuild": "Clean reinstall · 7:05 pm",
   "ipadNote": "Same app, freshly signed. Your saved styles were reset by the reinstall. Free sign-in expires Tue 3 Nov.",
-  "updatedAt": "Tue 27 Oct, 7:15 pm"
+  "updatedAt": "Fri 30 Oct, 6:55 pm"
  },
  "needsYou": [
   {
-   "q": "Where does Navi live on this board for now?",
+   "q": "Where does Pip live on this board for now?",
    "suggested": "Brief only, no panel (suggested)"
   },
   {
-   "q": "Should Navi be a little bit more present for unpaid users?",
+   "q": "Should Pip be a little bit more present for unpaid users?",
    "suggested": "Same for everyone, tiny and switch-off-able (suggested)"
   },
   {
@@ -23,6 +23,26 @@
   }
  ],
  "upNext": [
+  {
+   "area": "Pip",
+   "title": "Priority: put the Drop Pip look in the app (Classic stays default, one tap back)"
+  },
+  {
+   "area": "Pip",
+   "title": "Backbone: Pip depth hook, so Pip can sit behind panels and peek"
+  },
+  {
+   "area": "Pip",
+   "title": "Backbone: Pip style hook, so Pip can wear looks and costumes"
+  },
+  {
+   "area": "Look",
+   "title": "Glass Kit: Still Water glass style (press-to-grow and melt are settings)"
+  },
+  {
+   "area": "Sandbox",
+   "title": "Waiting to land: Pip's Manners, the Draw-off, glass smudges and ink"
+  },
   {
    "area": "Dashboard",
    "title": "Make the dashboard feel alive (small touches)"

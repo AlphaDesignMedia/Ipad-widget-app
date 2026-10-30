@@ -166,7 +166,7 @@ struct DoodleDuet: SandboxPlugin {
 
     private func corner() -> CGPoint? {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        guard let size = scene?.coordinateSpace.bounds.size else { return nil }
+        guard let size = scene?.effectiveGeometry.coordinateSpace.bounds.size else { return nil }
         return CGPoint(x: size.width - 60, y: 80)
     }
 

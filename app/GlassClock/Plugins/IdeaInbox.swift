@@ -63,58 +63,60 @@ struct IdeaInbox: SandboxPlugin {
 
         var body: some View {
             let ideas = IdeaInbox.decode(stored)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Idea inbox").bold()
-                TextField("An idea, in a few words", text: $draft, axis: .vertical)
-                    .lineLimit(1...3)
-                    .textFieldStyle(.roundedBorder)
-                    .submitLabel(.done)
-                    .onSubmit(save)
-                    .accessibilityLabel("New idea")
-                HStack(spacing: 6) {
-                    ForEach(IdeaInbox.tags, id: \.self) { t in
-                        Button(t) { tag = tag == t ? nil : t }
-                            .buttonStyle(PluginCardButton(on: tag == t))
-                            .accessibilityLabel("Tag \(t)")
-                            .accessibilityAddTraits(tag == t ? .isSelected : [])
-                    }
-                    Spacer(minLength: 0)
-                    Button("Save", action: save)
-                        .buttonStyle(PluginCardButton(on: true))
-                        .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .accessibilityLabel("Save idea")
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            if ideas.isEmpty {
-                Text("No ideas yet. They stay on this iPad until you share them.")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                ForEach(ideas) { idea in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let t = idea.tag {
-                                Text(t.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                            }
-                            Text(idea.text)
+            DevFold(id: "ideas", title: "ideas", summary: ideas.isEmpty ? "None yet" : "\(ideas.count) saved") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Idea inbox").bold()
+                    TextField("An idea, in a few words", text: $draft, axis: .vertical)
+                        .lineLimit(1...3)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.done)
+                        .onSubmit(save)
+                        .accessibilityLabel("New idea")
+                    HStack(spacing: 6) {
+                        ForEach(IdeaInbox.tags, id: \.self) { t in
+                            Button(t) { tag = tag == t ? nil : t }
+                                .buttonStyle(PluginCardButton(on: tag == t))
+                                .accessibilityLabel("Tag \(t)")
+                                .accessibilityAddTraits(tag == t ? .isSelected : [])
                         }
-                        .accessibilityElement(children: .combine)
                         Spacer(minLength: 0)
-                        Button {
-                            remove(idea)
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(PluginCardButton())
-                        .accessibilityLabel("Delete idea: \(idea.text)")
+                        Button("Save", action: save)
+                            .buttonStyle(PluginCardButton(on: true))
+                            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .accessibilityLabel("Save idea")
                     }
                 }
-                ShareLink(item: IdeaInbox.shareText(ideas)) {
-                    Label("Share all (\(ideas.count))", systemImage: "square.and.arrow.up")
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if ideas.isEmpty {
+                    Text("No ideas yet. They stay on this iPad until you share them.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    ForEach(ideas) { idea in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                if let t = idea.tag {
+                                    Text(t.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                }
+                                Text(idea.text)
+                            }
+                            .accessibilityElement(children: .combine)
+                            Spacer(minLength: 0)
+                            Button {
+                                remove(idea)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(PluginCardButton())
+                            .accessibilityLabel("Delete idea: \(idea.text)")
+                        }
+                    }
+                    ShareLink(item: IdeaInbox.shareText(ideas)) {
+                        Label("Share all (\(ideas.count))", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(PluginCardButton())
+                    .accessibilityLabel("Share all \(ideas.count) ideas as text")
                 }
-                .buttonStyle(PluginCardButton())
-                .accessibilityLabel("Share all \(ideas.count) ideas as text")
             }
         }
 
