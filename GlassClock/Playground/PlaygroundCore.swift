@@ -91,6 +91,7 @@ final class Playground {
         register(IdleLife.plugin)
         register(PipVoice.plugin)
         register(IdleScene.plugin)
+        register(Wonder.plugin)
         if Pib.shared.state != .gone { register(Pib.plugin) }
     }
 

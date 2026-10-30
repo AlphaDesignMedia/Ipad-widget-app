@@ -30,6 +30,18 @@ struct PlaygroundPanel: View {
 
                 Section { JoySliderView() }
 
+                if playground.isOn(Wonder.plugin.id) {
+                    Section {
+                        NavigationLink {
+                            NativeWondersView()
+                        } label: {
+                            Label("Native Wonders", systemImage: "sparkles")
+                        }
+                    } footer: {
+                        Text("Start with Liquid Time. Tilt your iPad.")
+                    }
+                }
+
                 Section("Personality") {
                     Picker("Pip is", selection: $persona) {
                         ForEach(PipPersona.allCases) { p in
