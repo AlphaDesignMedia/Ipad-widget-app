@@ -18,6 +18,13 @@ Pip Sandbox is Aaron's **dream** playground for Glass Clock. It never ships.
 - Grow it in small steps. Quiz Aaron on what goes in next, with a recommendation and honest pushback (see `HANDOVER.md`).
 - Homage names: never use the real name of what Pip pays homage to (no "Navi"). Name idea, not decided: "Pip's Widget Playground".
 
+## Who does what (Aaron, 30 Oct 2026)
+- **This Mac agent is the core and organizes it, and keeps the app "strong and stable":** Pip (`Pieces/`), the host, plugin bar and panels, and the app.
+  - Core changes stay small and generic, so any plugin can use them.
+  - Nothing goes on the iPad unless it builds and looks right in the simulator first.
+- **Plugins hold all the extra features.** The cloud plugin agent writes most of them and asks for core APIs in `AGENT-NOTES.md`.
+- **Wonders** is the one plugin for Pip's little extras (it started with Pip following the Pencil). Sketch's tools are a panel that other plugins add sections to.
+
 ## GitHub (since 30 Oct 2026)
 - This folder is its own git repo. It pushes to github.com/AlphaDesignMedia/Ipad-widget-app (a public repo) on the branch `pip-playground`.
   - That branch has no shared history with `main`, which is Glass Clock. Never touch `main`.

@@ -6,6 +6,7 @@ enum Plugins {
     static let all: [any SandboxPlugin] = [
         PipRemembers(),
         Sketch(),
+        Wonders(),
         PlaygroundBridge(),
         PluginDesk(),
     ]

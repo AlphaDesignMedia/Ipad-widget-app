@@ -25,6 +25,13 @@ enum PipPhysics {
     static let blinkEvery = 2.6...5.8, blinkSeconds = 0.13
 }
 
+/// Trailing a point, like the web's pen-follow (engine.js, state "follow").
+enum PipFollow {
+    static let offset = CGSize(width: 30, height: 34)   // above and to the left of the point, times Pip's size
+    static let pull = 16.0, settle = 7.0                // spring towards it, and how fast that eases
+    static let lingers = 1.5                            // seconds after the point stops coming
+}
+
 enum PipArrival {
     static let delay = 0.9, fall = 1.8, burst = 0.8
     static let flickSpeed = 500.0        // the first flick that counts
@@ -73,6 +80,9 @@ final class PipModel {
     private var grabOffset = CGSize.zero
     private var vel = CGVector.zero
     private var glide: Task<Void, Never>?
+    private var trailing: Task<Void, Never>?
+    private var trail = CGPoint.zero
+    private var trailSeen = Date.distantPast
     private var bubbleTask: Task<Void, Never>?
     private var happyTask: Task<Void, Never>?
     private var dizzyTask: Task<Void, Never>?
@@ -132,6 +142,7 @@ final class PipModel {
         guard shown else { return }
         if !held {
             glide?.cancel()
+            trailing?.cancel()
             held = true
             grabOffset = CGSize(width: pos.x - v.startLocation.x, height: pos.y - v.startLocation.y)
         }
@@ -268,6 +279,7 @@ final class PipModel {
     /// For plugins: glide to a point, or fade there when motion is simpler.
     func go(to point: CGPoint) {
         glide?.cancel()
+        trailing?.cancel()
         if simpler {
             withAnimation(.easeOut(duration: 0.2)) { shown = false } completion: {
                 self.pos = self.clamp(point)
@@ -278,6 +290,36 @@ final class PipModel {
             withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) { pos = clamp(point) }
             save()
         }
+    }
+
+    /// For plugins: trail a point (see `PipFollow`). Call it as the point moves; Pip settles by itself.
+    func follow(_ point: CGPoint) {
+        guard shown, !asleep, !held, !pinching, !simpler else { return }
+        trail = point
+        trailSeen = .now
+        guard trailing == nil else { return }
+        glide?.cancel()
+        vel = .zero
+        trailing = Task { await trailLoop() }
+    }
+
+    private func trailLoop() async {
+        var last = Date.now
+        while !Task.isCancelled, Date.now.timeIntervalSince(trailSeen) < PipFollow.lingers {
+            try? await Task.sleep(for: .milliseconds(8))
+            guard !Task.isCancelled, !held else { break }
+            let now = Date.now, dt = min(now.timeIntervalSince(last), 1 / 30)
+            last = now
+            let k = max(1, scale)
+            let to = clamp(CGPoint(x: trail.x - PipFollow.offset.width * k, y: trail.y - PipFollow.offset.height * k))
+            vel.dx += (to.x - pos.x) * PipFollow.pull * dt
+            vel.dy += (to.y - pos.y) * PipFollow.pull * dt
+            let ease = exp(-PipFollow.settle * dt)
+            vel.dx *= ease; vel.dy *= ease
+            pos = clamp(CGPoint(x: pos.x + vel.dx * dt, y: pos.y + vel.dy * dt))
+        }
+        trailing = nil
+        if !held { vel = .zero; save() }
     }
 
     private func bounceUp() {

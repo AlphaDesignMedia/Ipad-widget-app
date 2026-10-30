@@ -5,14 +5,17 @@ import UIKit.UIGestureRecognizerSubclass
 // SKETCH · plugin v1 (Dream). Ported from the web sandbox's plugins/sketch.js, then made native.
 // The Apple Pencil draws over the whole app, any time: pressure and tilt shape the line, fingers keep using
 // the app, and a Pencil tap still taps. Pen, marker, highlighter and a stroke eraser; the web's colours and
-// sizes; undo, redo, clear. With the card open, fingers can draw too, on the app or on paper.
+// sizes; undo, redo, clear. With the panel open, fingers can draw too, on the app or on paper.
 // Pencil double-tap and squeeze follow the person's Pencil settings; hovering shows where the ink will land.
-// Pip reacts to what you draw (and to being drawn on). The drawing stays on this device (sketch.json).
+// Its tools are a panel that moves like the app's settings (PluginPanel); other plugins add sections to it.
+// It tells other plugins what's drawn (PipEvent.ink): Pip's answers live in Wonders, not here.
+// The drawing stays on this device (sketch.json).
 // Where: the scribble button in the plugin bar. Left out from the web for now: pages, sync, snapshots.
 
 struct Sketch: SandboxPlugin {
     let info = PluginInfo(id: "sketch", name: "Sketch", version: "v1", shelf: .dream,
-                          icon: "scribble.variable", what: "Draw over the app with Apple Pencil; fingers keep working.")
+                          icon: "scribble.variable", what: "Draw over the app with Apple Pencil; fingers keep working.",
+                          panel: true)
 
     // MARK: Data
 
@@ -52,16 +55,8 @@ struct Sketch: SandboxPlugin {
         static let clearFade = 0.35                         // new: seconds
     }
 
+    /// What Pip says about how Sketch works. Pip's answers to the drawing itself are in Wonders.
     enum Lines {
-        static let onPip = ["Hey! That's me.", "Are you drawing on me?", "That tickles."]
-        static let halo = ["A ring, just for me?", "Am I in the picture now?"]
-        static let circle = ["A circle! Pretty round.", "Ooh, a loop.", "Is that the sun? Or me?"]
-        static let speedy = ["Speedy!", "Whoosh."]
-        static let lots = ["So many lines.", "I'm dizzy just watching."]
-        static let dot = "A dot. Minimalist."
-        static func milestone(_ n: Int) -> String { "\(n) strokes. It's really coming along." }
-        static let any = ["Is it a cat?", "I like where this is going.", "Hmm. Modern.", "Keep going!", "Can I be in it?"]
-        static let erased = ["Gone. Never happened.", "Erase with confidence."]
         static let pencil = "Pencil! I'll ignore your palm now."
         static let fingers = "Fingers draw now. The app waits underneath."
         static let fresh = "Fresh page."
@@ -179,7 +174,7 @@ struct Sketch: SandboxPlugin {
 
     static var file: URL { URL.applicationSupportDirectory.appending(path: "sketch.json") }
 
-    /// Everything the drawing needs while the app runs: the ink, the tools, undo and Pip's reactions.
+    /// Everything the drawing needs while the app runs: the ink, the tools and undo.
     @MainActor @Observable final class Ink {
         var strokes: [Stroke] = []
         var live: Stroke?
@@ -195,7 +190,6 @@ struct Sketch: SandboxPlugin {
         var redos: [[Stroke]] = []
 
         @ObservationIgnored weak var host: PipHost?
-        @ObservationIgnored var cardFrame = CGRect.null      // in window space; the Pencil leaves the card alone
         @ObservationIgnored private var previous = Tool.eraser
         @ObservationIgnored private var draft: Stroke?
         @ObservationIgnored private var before: [Stroke] = []
@@ -208,13 +202,11 @@ struct Sketch: SandboxPlugin {
         @ObservationIgnored private var lastTime: TimeInterval = 0
         @ObservationIgnored private var startTime: TimeInterval = 0
         @ObservationIgnored private var lastWidth: Double?
-        @ObservationIgnored private var lastReact = Date.distantPast
-        @ObservationIgnored private var count = 0
         @ObservationIgnored private var loaded = false
         @ObservationIgnored private var saving: Task<Void, Never>?
 
         var open: Bool { host?.openCard == "sketch" }
-        /// While the card is open with fingers or paper on, the overlay takes touches; Pip and the bar stay above it.
+        /// While the panel is open with fingers or paper on, the overlay takes touches; Pip and the bar stay above it.
         var blocking: Bool { open && (finger || paper) }
 
         // Settings
@@ -262,11 +254,9 @@ struct Sketch: SandboxPlugin {
             }
         }
 
-        /// The card's own controls and Pip keep working: the Pencil (or a finger) can still slide and grab them.
+        /// The panel's own controls and Pip keep working: the Pencil (or a finger) can still slide and grab them.
         func keepsClear(window w: CGPoint, canvas c: CGPoint) -> Bool {
-            if open, !cardFrame.isNull,
-               CGRect(x: cardFrame.minX - 24, y: cardFrame.minY - 64, width: cardFrame.width + 48,
-                      height: cardFrame.height + 88).contains(w) { return true }
+            if open, let f = host?.panelFrame, !f.isNull, f.insetBy(dx: -12, dy: -12).contains(w) { return true }
             guard let host, host.pipHere else { return false }
             let p = host.pipPosition
             return hypot(c.x - p.x, c.y - p.y) < PipLook.touch * max(1, host.pip.scale) / 2
@@ -312,6 +302,7 @@ struct Sketch: SandboxPlugin {
         func add(_ samples: [Sample], show: Bool) {
             samples.forEach(append)
             guard show, let d = draft else { return }
+            if byPencil { host?.post(.ink(.pencil(lastRaw))) }
             if d.tool == .eraser {
                 erase(along: d)
                 cursor = d.point(d.count - 1)
@@ -328,7 +319,7 @@ struct Sketch: SandboxPlugin {
                 guard erasedAny else { return }
                 remember(before)
                 save()
-                react(erased: true)
+                host?.post(.ink(.erased))
                 return
             }
             if let w = lastWidth, hypot(lastRaw.x - lastAt.x, lastRaw.y - lastAt.y) > 0.75 { d.add(lastRaw, w) }
@@ -336,7 +327,7 @@ struct Sketch: SandboxPlugin {
             remember(strokes)
             strokes.append(d)
             save()
-            react(to: d, seconds: lastTime - startTime)
+            host?.post(.ink(.drew(mark(d, seconds: lastTime - startTime))))
         }
 
         func cancel() {
@@ -407,6 +398,12 @@ struct Sketch: SandboxPlugin {
                 self.save()
             }
             host?.say(Lines.fresh, for: 1.2)
+            host?.post(.ink(.cleared))
+        }
+
+        /// The Pencil hovering where it would draw: other plugins hear where it is (Wonders: Pip follows it).
+        func hovering(_ at: CGPoint, window w: CGPoint) {
+            if !keepsClear(window: w, canvas: at) { host?.post(.ink(.pencil(at))) }
         }
 
         /// Saved a second after the last change, so a busy drawing doesn't write on every stroke.
@@ -420,40 +417,18 @@ struct Sketch: SandboxPlugin {
             }
         }
 
-        // Pip
-
-        /// The web's reactions: always when drawn on (or ringed), otherwise now and then, never more than every 6 seconds.
-        private func react(to s: Stroke, seconds: Double) {
-            count += 1
-            guard let host, host.pipHere, !host.pipAsleep else { return }
-            let pip = host.pipPosition
-            if Sketch.touches(s, pip, within: host.pip.radius + 4) {
-                guard Date.now.timeIntervalSince(lastReact) > 2 else { return }
-                say(Lines.onPip.randomElement(), cheer: true)
-                return
+        /// The finished stroke, described for plugins that answer drawings (Wonders).
+        private func mark(_ s: Stroke, seconds: Double) -> InkMark {
+            let (length, _, closed) = Sketch.shape(s)
+            let box = CGRect(x: CGFloat(s.box[0]), y: CGFloat(s.box[1]),
+                             width: CGFloat(s.box[2] - s.box[0]), height: CGFloat(s.box[3] - s.box[1]))
+            var onPip = false, ringsPip = false
+            if let host, host.pipHere {
+                let pip = host.pipPosition
+                onPip = Sketch.touches(s, pip, within: host.pip.radius + 4)
+                ringsPip = closed && Sketch.encloses(s, pip)
             }
-            let (length, diagonal, closed) = Sketch.shape(s)
-            if closed, Sketch.encloses(s, pip) { say(Lines.halo.randomElement(), cheer: true); return }
-            guard Date.now.timeIntervalSince(lastReact) > 6, Double.random(in: 0..<1) < 0.4 else { return }
-            let line = closed ? Lines.circle.randomElement()
-                : length > 1400 && seconds < 2 ? Lines.speedy.randomElement()
-                : length > 2600 ? Lines.lots.randomElement()
-                : diagonal < 10 ? Lines.dot
-                : count % 10 == 0 ? Lines.milestone(count)
-                : Lines.any.randomElement()
-            say(line, cheer: false)
-        }
-
-        private func react(erased: Bool) {
-            guard let host, host.pipHere, !host.pipAsleep,
-                  Date.now.timeIntervalSince(lastReact) > 6, Double.random(in: 0..<1) < 0.4 else { return }
-            say(Lines.erased.randomElement(), cheer: false)
-        }
-
-        private func say(_ line: String?, cheer: Bool) {
-            guard let line, let host, host.say(line, for: 1.8) else { return }
-            if cheer { host.cheer() }
-            lastReact = .now
+            return InkMark(box: box, length: length, seconds: seconds, closed: closed, onPip: onPip, ringsPip: ringsPip)
         }
     }
 
@@ -552,57 +527,56 @@ struct Sketch: SandboxPlugin {
         }
     }
 
-    /// The card: tools, colours, size, undo and the ways to draw.
+    /// The panel's cards: what to draw with, and the page.
     struct Tools: View {
         let ink: Ink
         var body: some View {
-            VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
-                HStack(spacing: Look.rowGap) {
-                    ForEach(Tool.allCases, id: \.self) { t in
-                        Button { ink.pick(t) } label: { Label(t.label, systemImage: t.icon).labelStyle(.iconOnly) }
-                            .buttonStyle(PluginCardButton(on: ink.tool == t))
-                            .accessibilityAddTraits(ink.tool == t ? .isSelected : [])
+            VStack(spacing: Corner.inset) {
+                SettingsCard(title: "Draw", icon: "paintbrush.pointed") {
+                    HStack(spacing: Look.rowGap) {
+                        ForEach(Tool.allCases, id: \.self) { t in
+                            Button { ink.pick(t) } label: { Label(t.label, systemImage: t.icon).labelStyle(.iconOnly) }
+                                .buttonStyle(PluginCardButton(on: ink.tool == t))
+                                .accessibilityAddTraits(ink.tool == t ? .isSelected : [])
+                        }
                     }
+                    HStack(spacing: Look.swatchGap) {
+                        ForEach(Sketch.colours.indices, id: \.self) { i in swatch(i) }
+                    }
+                    .padding(.vertical, Look.pickedGap + Look.pickedRing)
+                    Slider(value: Binding(get: { ink.size }, set: { ink.resize($0) }), in: Look.sizes, step: 1)
+                        .accessibilityLabel("Size")
+                        .accessibilityValue("\(Int(ink.size))")
                 }
-                HStack(spacing: Look.swatchGap) {
-                    ForEach(Sketch.colours.indices, id: \.self) { i in swatch(i) }
+                SettingsCard(title: "Page", icon: "doc", footer: note) {
+                    HStack(spacing: Look.rowGap) {
+                        Button { ink.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward").labelStyle(.iconOnly) }
+                            .disabled(ink.undos.isEmpty)
+                        Button { ink.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward").labelStyle(.iconOnly) }
+                            .disabled(ink.redos.isEmpty)
+                        Button("Clear") { ink.clear() }
+                            .disabled(ink.strokes.isEmpty)
+                    }
+                    .buttonStyle(PluginCardButton())
+                    HStack(spacing: Look.rowGap) {
+                        Button("Draw with finger") { ink.toggleFinger() }
+                            .buttonStyle(PluginCardButton(on: ink.finger))
+                            .accessibilityAddTraits(ink.finger ? .isSelected : [])
+                        Button("Paper") { withAnimation(.easeOut(duration: 0.2)) { ink.togglePaper() } }
+                            .buttonStyle(PluginCardButton(on: ink.paper))
+                            .accessibilityAddTraits(ink.paper ? .isSelected : [])
+                    }
+                    Button("Pencil draws anywhere") { ink.toggleAnywhere() }
+                        .buttonStyle(PluginCardButton(on: ink.anywhere))
+                        .accessibilityAddTraits(ink.anywhere ? .isSelected : [])
                 }
-                .padding(.vertical, Look.pickedGap + Look.pickedRing)
-                Slider(value: Binding(get: { ink.size }, set: { ink.resize($0) }), in: Look.sizes, step: 1)
-                    .accessibilityLabel("Size")
-                    .accessibilityValue("\(Int(ink.size))")
-                HStack(spacing: Look.rowGap) {
-                    Button { ink.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward").labelStyle(.iconOnly) }
-                        .disabled(ink.undos.isEmpty)
-                    Button { ink.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward").labelStyle(.iconOnly) }
-                        .disabled(ink.redos.isEmpty)
-                    Button("Clear") { ink.clear() }
-                        .disabled(ink.strokes.isEmpty)
-                }
-                .buttonStyle(PluginCardButton())
-                HStack(spacing: Look.rowGap) {
-                    Button("Draw with finger") { ink.toggleFinger() }
-                        .buttonStyle(PluginCardButton(on: ink.finger))
-                        .accessibilityAddTraits(ink.finger ? .isSelected : [])
-                    Button("Paper") { withAnimation(.easeOut(duration: 0.2)) { ink.togglePaper() } }
-                        .buttonStyle(PluginCardButton(on: ink.paper))
-                        .accessibilityAddTraits(ink.paper ? .isSelected : [])
-                }
-                Button("Pencil draws anywhere") { ink.toggleAnywhere() }
-                    .buttonStyle(PluginCardButton(on: ink.anywhere))
-                    .accessibilityAddTraits(ink.anywhere ? .isSelected : [])
-                Text(note)
-                    .font(.system(size: 13.5)).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { ink.cardFrame = $0 }
-            .onDisappear { ink.cardFrame = .null }
         }
 
         private var note: String {
-            if ink.finger { return "Fingers draw too. The app waits underneath until you close this card." }
-            if !ink.anywhere { return "The Pencil draws only while this card is open." }
-            return "Draw with Apple Pencil anywhere. Fingers keep using the app, and a Pencil tap still taps. Double-tap or squeeze the Pencil to switch tools."
+            if ink.finger { return "Fingers draw too. The app waits underneath until you close this panel." }
+            if !ink.anywhere { return "The Pencil draws only while this panel is open." }
+            return "Draw with Apple Pencil anywhere. Fingers keep using the app, and a Pencil tap still taps. Double-tap or squeeze the Pencil to switch tools. Flick a title bar sideways to tuck this panel away."
         }
 
         private func swatch(_ i: Int) -> some View {
@@ -676,6 +650,7 @@ struct Sketch: SandboxPlugin {
             let show = (g.state == .began || g.state == .changed) && g.zOffset > 0 && ink.accepts(.pencil)
             let at: CGPoint? = show ? g.location(in: self) : nil
             if ink.cursor != at { ink.cursor = at }
+            if let at { ink.hovering(at, window: g.location(in: nil)) }
         }
 
         func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap) {
