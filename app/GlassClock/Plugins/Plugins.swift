@@ -8,5 +8,6 @@ enum Plugins {
         Sketch(),
         PlaygroundBridge(),
         PluginDesk(),
+        NativeWonders(),
     ]
 }
