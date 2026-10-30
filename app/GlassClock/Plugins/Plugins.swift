@@ -20,5 +20,6 @@ enum Plugins {
         KeyboardKit(),
         TwentyPast(),
         LiquidIcons(),
+        PipsNews(),
     ]
 }
