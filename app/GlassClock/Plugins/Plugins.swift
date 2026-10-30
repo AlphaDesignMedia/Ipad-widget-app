@@ -21,5 +21,6 @@ enum Plugins {
         TwentyPast(),
         LiquidIcons(),
         PipsNews(),
+        LooksTimeMachine(),
     ]
 }
