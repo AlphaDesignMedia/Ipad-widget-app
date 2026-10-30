@@ -1908,13 +1908,20 @@ struct ContentView: View {
         }
         ToolbarItem(placement: .topBarLeading) { tourButton.tint(iconsOnGlass) }
         if interface == .panels {
+            if liquidToolbar { ToolbarSpacer(.fixed, placement: .topBarLeading) }
             ToolbarItem(placement: .topBarLeading) { fullScreenButton.tint(iconsOnGlass) }
+            if liquidToolbar { ToolbarSpacer(.fixed, placement: .topBarLeading) }
             ToolbarItem(placement: .topBarLeading) { arrangeMenu.tint(iconsOnGlass) }
         }
         ToolbarItem(placement: .principal) { interfaceSwitch }
         ToolbarItem(placement: .primaryAction) { refreshButton.tint(iconsOnGlass) }
+        if liquidToolbar { ToolbarSpacer(.fixed, placement: .primaryAction) }
         ToolbarItem(placement: .primaryAction) { applyButton }
     }
+
+    /// A plugin's liquid look (Liquid Icons, "Whole app"): each toolbar button its own drop of glass,
+    /// split apart by spacers, instead of sharing one capsule.
+    private var liquidToolbar: Bool { PipHost.shared.activeBarLook?.wholeApp == true }
 
     /// The panel arrangements in a menu, for anyone who'd rather pick than drag.
     private var arrangeMenu: some View {

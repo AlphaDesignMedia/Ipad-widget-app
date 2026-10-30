@@ -3,7 +3,7 @@ import SwiftUI
 // LIQUID ICONS · plugin v1 (Dream). The plugin bar's icons become drops of liquid glass: each icon its own
 // drop, squishing when pressed (interactive glass). Drops close together run into each other like liquid.
 // An open card's drop grows a little and brightens, with a wobble (a fade under simpler motion).
-// How runny is a setting. "Whole app" turns the settings rail into drops too (icons only).
+// How runny is a setting. "Whole app" turns the settings rail (icons only) and top buttons into drops too.
 // Uses the host's `barLook`, so it touches no other file.
 // Where: the drop button in the plugin bar.
 

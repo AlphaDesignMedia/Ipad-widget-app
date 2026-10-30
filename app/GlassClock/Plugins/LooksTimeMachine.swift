@@ -22,7 +22,7 @@ struct LooksTimeMachine: SandboxPlugin {
     static let looks = [
         Look(name: "Glass", liquid: false, whole: false),
         Look(name: "Liquid bar", liquid: true, whole: false),
-        Look(name: "Liquid rail", liquid: true, whole: true),
+        Look(name: "Liquid rail + top", liquid: true, whole: true),
     ]
     static let most = 8                 // snapshots kept; the oldest goes first
     /// Never saved or put back: the snapshots themselves, Pip's News memory, and the host's crash guard.

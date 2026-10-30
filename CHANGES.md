@@ -27,3 +27,4 @@ _None yet._
 - 30 Oct 2026 · `Plugins/PipsNews.swift` (new), `Plugins.swift` (one line) · Pip's News: Pip whispers what's new after appearing or waking; tap Pip to see it. 3 offers each, then stops.
 - 30 Oct 2026 · `PluginHost.swift`, `Workspace.swift`, `LiquidIcons.swift`, `PluginBar.swift`, `PipsNews.swift` · Liquid Icons "Whole app" switch (on): the settings rail becomes drops, icons only; BarLook gains merge + wholeApp, host gains activeBarLook; News line.
 - 30 Oct 2026 · `LooksTimeMachine.swift`, `Plugins.swift`, `PipsNews.swift` · Looks Time Machine v1: slide through the app's looks; save and go back to snapshots of your settings. News line.
+- 30 Oct 2026 · `ContentView.swift`, `LiquidIcons.swift`, `LooksTimeMachine.swift`, `PipsNews.swift` · "Whole app" also splits the top buttons into drops (toolbar spacers). News line.
