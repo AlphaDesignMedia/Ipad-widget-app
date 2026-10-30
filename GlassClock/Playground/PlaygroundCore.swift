@@ -54,6 +54,13 @@ enum PlaygroundEvent: Equatable {
     case idleAct(IdleAct)
     case welcomeBack(awaySeconds: Int)
     case touched
+    case say(String)
+}
+
+/// Grounded: the app is exactly the real app, plus only the plugins promoted to Grounded.
+/// Playground: everything being tried runs too.
+enum PlaygroundMode: String, CaseIterable {
+    case grounded, playground
 }
 
 /// The one place plugins register, get switched on and off, and send each other events.
@@ -63,6 +70,12 @@ final class Playground {
 
     private(set) var plugins: [PlaygroundPlugin] = []
     private var switchedOn: Set<String>
+    /// Shelves Aaron has moved plugins to, by id. Overrides the shelf each plugin ships with.
+    private var movedTo: [String: Int]
+    /// Grounded by default: the app opens as the real app, and the joy is one switch away.
+    var mode: PlaygroundMode {
+        didSet { defaults.set(mode.rawValue, forKey: Self.keyPrefix + "mode") }
+    }
     @ObservationIgnored private var listeners: [(PlaygroundEvent) -> Void] = []
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -72,8 +85,22 @@ final class Playground {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         switchedOn = Set(defaults.stringArray(forKey: Self.keyPrefix + "on") ?? [])
+        movedTo = defaults.dictionary(forKey: Self.keyPrefix + "shelves") as? [String: Int] ?? [:]
+        mode = PlaygroundMode(rawValue: defaults.string(forKey: Self.keyPrefix + "mode") ?? "") ?? .grounded
         register(JoyLevel.plugin)
         register(IdleLife.plugin)
+        register(PipVoice.plugin)
+        register(IdleScene.plugin)
+        if Pib.shared.state != .gone { register(Pib.plugin) }
+    }
+
+    /// Starts every plugin's brain. Called once, by `PlaygroundOverlay`.
+    static func boot(reduceMotion: Bool) {
+        IdleLife.shared.reduceMotion = reduceMotion
+        IdleLife.shared.start()
+        PipVoice.shared.start()
+        IdleScenes.shared.start()
+        Pib.shared.arrive()
     }
 
     func register(_ plugin: PlaygroundPlugin) {
@@ -86,7 +113,26 @@ final class Playground {
         }
     }
 
-    func isOn(_ id: String) -> Bool { switchedOn.contains(id) }
+    /// Switched on *and* allowed to run in the current mode. Plugins check this, not `isOn`.
+    func isOn(_ id: String) -> Bool {
+        guard switchedOn.contains(id), let plugin = plugins.first(where: { $0.id == id }) else { return false }
+        return mode == .playground || shelf(of: plugin) >= .grounded
+    }
+
+    /// The switch alone, as shown in the panel.
+    func isSwitchedOn(_ id: String) -> Bool { switchedOn.contains(id) }
+
+    func shelf(of plugin: PlaygroundPlugin) -> PlaygroundShelf {
+        movedTo[plugin.id].flatMap(PlaygroundShelf.init(rawValue:)) ?? plugin.shelf
+    }
+
+    /// Moves a plugin up or down a shelf. Moving to Grounded is how a tried thing "moves over".
+    func move(_ plugin: PlaygroundPlugin, to shelf: PlaygroundShelf) {
+        movedTo[plugin.id] = shelf == plugin.shelf ? nil : shelf.rawValue
+        defaults.set(movedTo, forKey: Self.keyPrefix + "shelves")
+    }
+
+    func unregister(_ id: String) { plugins.removeAll { $0.id == id } }
 
     func setOn(_ id: String, _ on: Bool) {
         if on { switchedOn.insert(id) } else { switchedOn.remove(id) }
@@ -96,7 +142,7 @@ final class Playground {
     /// Plugins grouped by shelf, most finished first.
     var byShelf: [ShelfGroup] {
         PlaygroundShelf.allCases.reversed().compactMap { shelf in
-            let list = plugins.filter { $0.shelf == shelf }
+            let list = plugins.filter { self.shelf(of: $0) == shelf }
             return list.isEmpty ? nil : ShelfGroup(shelf: shelf, plugins: list)
         }
     }
