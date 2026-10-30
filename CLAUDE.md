@@ -2,6 +2,27 @@
 
 Claude Code reads this automatically. Keep it short.
 
+## House rules (from Aaron, 30 Oct 2026; these win if anything below disagrees)
+
+### Who you're working with
+Aaron is a UK graphic designer, not a developer. Use plain words, short answers and British spelling. Explain any technical word in one line.
+
+### How we work
+- Investigate first. Say what you plan to change before changing it, unless Aaron has said "go".
+- One change at a time. Don't touch anything he didn't ask about.
+- Before each change, make a Git save point with a plain-English name. If he says "undo", go back to the last save point.
+- End every change with three lines: What changed · What to test on the iPad · How to undo.
+- Xcode runs the app (here: `app/PipSandbox.xcodeproj`). After a change, remind him to press Run in Xcode.
+
+### Rules that never bend
+- Glass Clock is the product. The Sandbox is the playground, and ideas get tried here first.
+- The app must be great with Pip switched off. New Pip features go behind the Pip switch.
+- Pip is "they" by default (he or she is a setting). Pip never sells, and offers help 3 times, then stops.
+- Subtle nostalgia, never copying. No real brands. No third-party ads or tracking.
+
+### Right now
+Glass Clock is shipping its clock beta to TestFlight: bugs and polish come first there, and new features wait. That freeze is for Glass Clock; the Sandbox is where new ideas wait their turn.
+
 ## What this is
 Pip Sandbox is Aaron's **dream** playground for Glass Clock. It never ships.
 - Glass Clock (the iPad app) is the grounded version. The Glass Clock Progress dashboard sits between the two.

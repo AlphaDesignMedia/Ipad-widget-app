@@ -1,0 +1,9 @@
+{
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/xcuserdata": true,
+    "**/*.xcuserstate": true,
+    "**/DerivedData": true,
+    "**/build": true
+  }
+}
