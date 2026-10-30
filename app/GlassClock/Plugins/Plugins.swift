@@ -36,6 +36,8 @@ enum Plugins {
         CrewRundown(),
         StationeryCupboard(),
         PipsSketchbook(),
+        VendOMat(),
+        GlassCleaner(),
         PipChecks(),
         RobVisits(),
         VintagePacks(),

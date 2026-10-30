@@ -25,9 +25,6 @@ struct StationeryCupboard: SandboxPlugin {
         static let outerRadius: CGFloat = 72    // nor further than this
         static let tapAfter = 3                 // tries before a plain tap on the keyhole works too
         static let tapSlop: CGFloat = 10        // a stroke shorter than this is a tap
-        static let doorSwing = -108.0           // degrees the door opens through
-        static let doorDepth = 0.5              // perspective: lower is a longer lens
-        static let doorOpenOpacity = 0.5        // the open door, left as a ghost of itself
         static let maxInk = 600                 // points kept in one stroke
         static let doorSeconds = 1.3            // the door swinging open
         static let fadeSeconds = 0.6            // lights, mug and fades
@@ -387,12 +384,9 @@ struct StationeryCupboard: SandboxPlugin {
                         LinearKeyframe(amp * 0.6, duration: 0.07)
                         LinearKeyframe(0, duration: 0.06)
                     }
-                    .rotation3DEffect(.degrees(open && !simpler ? Tune.doorSwing : 0), axis: (x: 0, y: 1, z: 0),
-                                      anchor: .leading, perspective: Tune.doorDepth)
-                    .opacity(open ? (simpler ? 0 : Tune.doorOpenOpacity) : 1)
-                    // An open door is a ghost, and invisible under reduced motion, but a faded SwiftUI view
-                    // still takes taps. Without this it sits over the open cupboard and swallows them.
-                    .allowsHitTesting(!open)
+                    .rotation3DEffect(.degrees(open && !simpler ? -108 : 0), axis: (x: 0, y: 1, z: 0),
+                                      anchor: .leading, perspective: 0.5)
+                    .opacity(open ? (simpler ? 0 : 0.5) : 1)
                     .position(x: Spot.door.midX, y: Spot.door.midY)
                 // The dark, until the light's on. Pip glows through it.
                 Rectangle()

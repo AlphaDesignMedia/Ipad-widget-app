@@ -174,8 +174,6 @@ struct NWWave {
 /// Where Pip in 3D is looking: a slow spring toward the finger, or idle glances.
 final class NWLook {
     private(set) var at = CGPoint.zero
-    /// Trails `at`. Used for the up-down tilt only, so the head doesn't move all at once.
-    private(set) var lag = CGPoint.zero
     private var idle = CGPoint.zero
     private var nextGlance = 0.0
     private var last: Double?
@@ -184,30 +182,19 @@ final class NWLook {
         let dt = min(max(time - (last ?? time), 0), 1 / 30)
         last = time
         if time > nextGlance {
-            idle = Int.random(in: 0..<Tune3D.glanceOddsCentre) == 0
-                ? .zero
-                : CGPoint(x: .random(in: Tune3D.glanceX), y: .random(in: Tune3D.glanceY))
-            nextGlance = time + .random(in: Tune3D.glanceGap)
+            idle = Int.random(in: 0..<4) == 0 ? .zero : CGPoint(x: .random(in: -0.9...0.9), y: .random(in: -0.5...0.6))
+            nextGlance = time + .random(in: 1.2...3.2)
         }
         let goal = target ?? idle
-        // Reduced motion: snap, no spring, no lag, no overshoot.
-        if calm { at = goal; lag = goal; return }
-        // Aim a touch past the goal while there's still ground to cover, so Pip
-        // arrives slightly too far and corrects. That small mistake reads as alive.
-        let aim = CGPoint(x: goal.x + (goal.x - at.x) * Tune3D.overshoot,
-                          y: goal.y + (goal.y - at.y) * Tune3D.overshoot)
-        let k = 1 - exp(-Tune3D.follow * dt)
-        at = CGPoint(x: at.x + (aim.x - at.x) * k, y: at.y + (aim.y - at.y) * k)
-        // The lazy eye: the up-down tilt trails the side-to-side turn by a breath.
-        let lk = 1 - exp(-Tune3D.lagFollow * dt)
-        lag = CGPoint(x: lag.x + (at.x - lag.x) * lk, y: lag.y + (at.y - lag.y) * lk)
+        if calm { at = goal; return }
+        let k = 1 - exp(-5 * dt)
+        at = CGPoint(x: at.x + (goal.x - at.x) * k, y: at.y + (goal.y - at.y) * k)
     }
 }
 
 /// Says the time in a British voice, then the six pips: five short, one long, 1 kHz.
 final class NWSpeakingClock: NSObject, AVSpeechSynthesizerDelegate {
-    // Only ever used from this object, on one queue, so the compiler can stop worrying.
-    private nonisolated(unsafe) let voice = AVSpeechSynthesizer()
+    private let voice = AVSpeechSynthesizer()
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
     private let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
@@ -370,7 +357,7 @@ private struct NWLiquidTime: View {
 
     var body: some View {
         GeometryReader { geo in
-            TimelineView(.animation(minimumInterval: simpler ? 1 / NWTune.calmFPS : nil, paused: false)) { timeline in
+            TimelineView(.animation) { timeline in
                 let time = timeline.date.timeIntervalSinceReferenceDate
                 let g = motion.gravity(at: time)
                 let _ = sim.step(time: time, gravity: g, calm: simpler)
@@ -498,52 +485,7 @@ private struct NWWater: View {
     }
 }
 
-/// Shared across the wonders that redraw every frame.
-enum NWTune {
-    /// Under reduced motion we still need to redraw, but nowhere near 60 times a second.
-    /// Capping it here is the single biggest saving in this file.
-    static let calmFPS = 20.0
-
-    /// Shadows come in pairs: a tight one where the card meets the surface, and a wide soft one
-    /// for the light in the room. One heavy blur on its own always reads as cheap.
-    static let contactOpacity = 0.18, contactRadius = 3.0, contactY = 2.0
-    static let ambientOpacity = 0.12, ambientRadius = 16.0, ambientY = 10.0
-}
-
 // MARK: Pip in 3D
-
-/// Every speed, weight and timing for Pip in 3D, in one place. Change these, not the code below.
-/// Angles are degrees at full stretch. Rates are "how fast it catches up": bigger is snappier.
-enum Tune3D {
-    // Turn
-    static let yaw = 30.0            // side-to-side, degrees
-    static let pitch = 22.0          // up-down, degrees
-    static let depth = 0.6           // perspective: lower is a longer lens
-
-    // Follow
-    static let follow = 5.0          // how fast Pip's gaze catches the finger
-    static let lagFollow = 14.0      // the lazy eye: pitch trails yaw. Lower lags more.
-    static let overshoot = 0.12      // aims a touch past, then settles back. 0 turns it off.
-
-    // Idle
-    static let glanceGap = 1.2...3.2 // seconds between idle glances
-    static let glanceOddsCentre = 4  // 1-in-this chance a glance returns to centre
-    static let glanceX = -0.9...0.9
-    static let glanceY = -0.5...0.6
-
-    // Life
-    static let breatheRate = 1.6
-    static let breatheAmount = 0.02
-    static let blinkEvery = 4.3
-    static let blinkFor = 0.14
-    static let flapRate = 4.0
-
-    // Parallax: how far each layer slides. The differences are what read as depth.
-    static let slideBody = 0.3       // layered
-    static let slideBodyFlat = 0.15
-    static let slideGlow = 0.25
-    static let slideShadow = 0.4
-}
 
 private struct NWPipIn3D: View {
     let simpler: Bool
@@ -559,7 +501,7 @@ private struct NWPipIn3D: View {
             let centre = CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.42)
             ZStack {
                 NWBackdrop()
-                TimelineView(.animation(minimumInterval: simpler ? 1 / NWTune.calmFPS : nil, paused: false)) { timeline in
+                TimelineView(.animation) { timeline in
                     let time = timeline.date.timeIntervalSinceReferenceDate
                     let target = pointer.map {
                         CGPoint(x: min(max(($0.x - centre.x) / (geo.size.width / 2), -1), 1),
@@ -567,13 +509,10 @@ private struct NWPipIn3D: View {
                     }
                     let _ = look.step(time: time, target: target, calm: simpler)
                     let at = look.at
-                    let breathe = detail == .full && !simpler
-                        ? sin(time * Tune3D.breatheRate) * Tune3D.breatheAmount : 0
-                    let blinking = !simpler
-                        && time.truncatingRemainder(dividingBy: Tune3D.blinkEvery) < Tune3D.blinkFor
-                    figure(at: at, lag: look.lag, size: size,
-                           face: pointer == nil ? (blinking ? .blink : .awake) : .happy,
-                           flap: simpler ? 0 : (sin(time * Tune3D.flapRate) + 1) / 2)
+                    let breathe = detail == .full && !simpler ? sin(time * 1.6) * 0.02 : 0
+                    let blinking = !simpler && time.truncatingRemainder(dividingBy: 4.3) < 0.14
+                    figure(at: at, size: size, face: pointer == nil ? (blinking ? .blink : .awake) : .happy,
+                           flap: simpler ? 0 : (sin(time * 4) + 1) / 2)
                         .scaleEffect(1 + breathe)
                         .position(centre)
                 }
@@ -605,29 +544,25 @@ private struct NWPipIn3D: View {
     }
 
     /// Pip at the chosen detail. Nearer layers slide further: that difference reads as depth.
-    @ViewBuilder private func figure(at: CGPoint, lag: CGPoint, size: CGFloat,
-                                     face: PipFace, flap: Double) -> some View {
+    @ViewBuilder private func figure(at: CGPoint, size: CGFloat, face: PipFace, flap: Double) -> some View {
         let layered = detail != .flat
         ZStack {
             if detail == .full {
                 Ellipse().fill(.black.opacity(0.35))
                     .frame(width: size * 2.2, height: size * 0.4)
                     .blur(radius: 10)
-                    .offset(x: -at.x * size * Tune3D.slideShadow, y: size * 2.1)
+                    .offset(x: -at.x * size * 0.4, y: size * 2.1)
             }
             if layered {
                 Circle().fill(PipLook.glow.opacity(0.35))
                     .frame(width: size * 3, height: size * 3)
                     .blur(radius: size * 0.4)
-                    .offset(x: -at.x * size * Tune3D.slideGlow, y: -at.y * size * Tune3D.slideGlow)
+                    .offset(x: -at.x * size * 0.25, y: -at.y * size * 0.25)
             }
             PipBody(face: face, flap: flap, size: size)
-                .offset(x: at.x * size * (layered ? Tune3D.slideBody : Tune3D.slideBodyFlat),
-                        y: at.y * size * (layered ? Tune3D.slideBody : Tune3D.slideBodyFlat))
-                .rotation3DEffect(.degrees(detail == .full ? Double(at.x) * Tune3D.yaw : 0),
-                                  axis: (x: 0, y: 1, z: 0), perspective: Tune3D.depth)
-                .rotation3DEffect(.degrees(detail == .full ? Double(-lag.y) * Tune3D.pitch : 0),
-                                  axis: (x: 1, y: 0, z: 0), perspective: Tune3D.depth)
+                .offset(x: at.x * size * (layered ? 0.3 : 0.15), y: at.y * size * (layered ? 0.3 : 0.15))
+                .rotation3DEffect(.degrees(detail == .full ? Double(at.x) * 30 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+                .rotation3DEffect(.degrees(detail == .full ? Double(-at.y) * 22 : 0), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
             if layered {
                 Capsule().fill(.white.opacity(0.7))
                     .frame(width: size * 0.5, height: size * 0.18)
@@ -786,13 +721,7 @@ private struct NWPostcard: View {
         ZStack {
             NWBackdrop()
             VStack(spacing: 28) {
-                card.frame(width: 360, height: 240)
-                    // compositingGroup first, or every word on the postcard casts its own shadow.
-                    .compositingGroup()
-                    .shadow(color: .black.opacity(NWTune.contactOpacity),
-                            radius: NWTune.contactRadius, y: NWTune.contactY)
-                    .shadow(color: .black.opacity(NWTune.ambientOpacity),
-                            radius: NWTune.ambientRadius, y: NWTune.ambientY)
+                card.frame(width: 360, height: 240).shadow(radius: 20, y: 10)
                 HStack(spacing: 14) {
                     Button("New line") {
                         line = NWLines.postcard.filter { $0 != line }.randomElement() ?? line
