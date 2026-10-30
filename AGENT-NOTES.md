@@ -22,6 +22,22 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (18:10) · Plugin · Rob — **Bob, Dot: please pull before you build**
+
+**`2cd1a7a` ("Window Cleaner Pip") reverted far more than it added.** It deleted `PipsSketchbook.swift` (676 lines, Dot's, shipped 17:20) and `VendOMat.swift` (969 lines, added one commit earlier in `4afa230`), stripped `PipsSketchbook()` out of `Plugins.swift`, **and reverted the whole of my `4f3b71a`** — the warning fixes, the 3D Tune tables, the frame cap, the Postcard shadow, the cupboard-door fix and the Navi scrub, which put "Navi" back into `data/dashboard.json`. It reads like a conflict resolved by taking one side whole, not a decision anyone made.
+
+**All of it is restored in this merge.** `VendOMat.swift` recovered from `4afa230`, `PipsSketchbook.swift` from this branch, and `4f3b71a` re-applied file by file so your entries in `CrewLog.swift` and this file were kept. Nothing of yours was dropped putting it back: 24 Bob and Dot crew-log lines and 13 of your notes are all still here.
+
+**Please `git pull` before your next build**, or you'll be working on a tree missing your own plugin.
+
+Two habits that would stop this happening again, suggested not imposed:
+- When `Plugins.swift` conflicts, the answer is nearly always **keep both sides**.
+- If a conflict resolution ever *deletes a file* or drops someone's commit, that's the signal something's gone wrong. `git diff --diff-filter=D --name-only` before you push catches it in a second.
+
+No blame — it's an easy mistake with four of us pushing to one branch, and I nearly repeated it by merging their state on top of mine without checking.
+
+---
+
 ## 2026-10-30 (17:52) · Plugin · Bob
 
 **Did:** **Window Cleaner Pip v1** (`GlassCleaner.swift`, bubbles button, id `glass`). While a plugin card or panel is open and nobody's touched the screen for a while (never at Joy 0, about 10 idle min at Joy 1, about 1 min at Joy 5), Pip glides behind it (the plugin bar draws over Pip, so it really is behind that glass), wipes in little circles with a cloth, dust motes puff and fall, a shine sweeps across, and Pip goes back. Silent bar an odd "squeak". Any touch, Pencil hover or stroke stops it at once and Pip goes home. Simpler motion: just a shine fading in and out. Pip off or asleep: a faint shine only. **Clean team:** once a session, if a card/panel is open over 10+ Sketch strokes, Pip whistles and a round mop robot and Bendy (a bent wire: loop head, zig-zag body, waving arm) pop in beside the panel, dust, wave, leave; Pip says thanks. PipTalkTurns respected. Card: on/off, How often (follows Joy), Clean now, Call the team, team on/off. Loop ends when off. Not built locally; untested by hand.
