@@ -17,5 +17,6 @@ enum Plugins {
         PipEmotes(),
         DoodleDuet(),
         SetInTheirWays(),
+        KeyboardKit(),
     ]
 }
