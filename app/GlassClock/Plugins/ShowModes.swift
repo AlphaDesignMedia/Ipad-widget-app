@@ -4,6 +4,7 @@ import SwiftUI
 // Grounded: eases people in after they've seen the real Glass Clock. Only the Grounded-shelf plugins stay on,
 // Joy goes calm, and the dev tools (the dashboard, crew rundown, plugin desk and so on, all On trial) are switched off.
 // Dream: everything on and Joy up a little, for showing off.
+// Tuck away: every plugin off but this one, so the bar is one button, like a tidy menu in the real app.
 // "Put back how it was" restores exactly the plugins and Joy you had before the first tap, however many times you switch.
 // Works through what the host already offers (switching plugins on and off, and Joy). This plugin never switches itself off.
 // Works the same with Pip off; with Pip here they say one short line.
@@ -16,15 +17,37 @@ struct ShowModes: SandboxPlugin {
     // MARK: Data
 
     enum Mode: String, CaseIterable {
-        case grounded, dream
-        var title: String { self == .grounded ? "Grounded" : "Dream" }
-        var icon: String { self == .grounded ? "leaf" : "sparkles" }
+        case tucked, grounded, dream
+        var title: String {
+            switch self {
+            case .tucked: "Tuck away"
+            case .grounded: "Grounded"
+            case .dream: "Dream"
+            }
+        }
+        var icon: String {
+            switch self {
+            case .tucked: "line.3.horizontal"
+            case .grounded: "leaf"
+            case .dream: "sparkles"
+            }
+        }
         var blurb: String {
-            self == .grounded ? "Calm, like the real app. Dev tools tucked away." : "Everything on. For showing off."
+            switch self {
+            case .tucked: "Everything put away but this button."
+            case .grounded: "Calm, like the real app. Dev tools tucked away."
+            case .dream: "Everything on. For showing off."
+            }
         }
         /// Joy for the mode: calm, or a playful notch up (host.joy still caps it when motion is simpler).
-        var joy: Int { self == .grounded ? 1 : 3 }
-        var line: String { self == .grounded ? "Nice and gentle." : "Right, everything's on!" }
+        var joy: Int { self == .dream ? 3 : 1 }
+        var line: String {
+            switch self {
+            case .tucked: "All tidy."
+            case .grounded: "Nice and gentle."
+            case .dream: "Right, everything's on!"
+            }
+        }
     }
 
     static let restoredLine = "Back how it was."
@@ -35,15 +58,19 @@ struct ShowModes: SandboxPlugin {
 
     // MARK: Logic
 
-    /// The plugins a mode puts on: Dream is everyone, Grounded is the Grounded shelf.
+    /// The plugins a mode puts on: Dream is everyone, Grounded is the Grounded shelf, Tuck away is nobody.
     static func wanted(_ mode: Mode, _ p: any SandboxPlugin) -> Bool {
-        mode == .dream || p.info.shelf == .grounded
+        switch mode {
+        case .tucked: false
+        case .grounded: p.info.shelf == .grounded
+        case .dream: true
+        }
     }
 
     /// Which mode the plugins are in right now, or nil when it's a mix (your own choices in Settings).
     @MainActor static func current(_ host: PipHost) -> Mode? {
         let others = host.plugins.filter { $0.info.id != selfID }
-        for mode in [Mode.grounded, .dream] {
+        for mode in Mode.allCases {
             let match = others.allSatisfy { p in
                 // A plugin the host switched off for breaking can't be on, so it doesn't count either way.
                 host.broken[p.info.id] != nil || host.isOn(p.info.id) == wanted(mode, p)
