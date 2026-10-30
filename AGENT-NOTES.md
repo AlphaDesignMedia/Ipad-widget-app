@@ -22,6 +22,17 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (17:10) · Plugin · Bob
+
+**Did:** **Tidy Pip v1.1** (`TidyPip.swift`): Pip does more, drawings first, then panels. **Shows how first:** the first time for each bit (drawings, a panel, a card), Pip looks at the real control and says how ("Tap Clear to wipe the page." / "Flick the title bar to the edge to tuck it away." / "Tap its button in the bar again to put it away."), with a soft glow on a panel's title bar (no glow for Sketch's Clear: a plugin can't see where it is). Do it yourself and Pip says "There you go!" and remembers you know that bit. Ignore it (no touches for 30 s) and Pip asks "Want me to do it?". Showing and asking share the 3 offers a session. **Tidy up:** Sketch strokes shrink into Pip as they fade, then a dust puff, then the card or panel closes as before. With ink and nothing open, Pip can still ask. Put it back (10 s) restores both. No drawings: as before. Simpler motion: fade only; joy 0: gone at once. Pip off: no showing or asking, but the card's new **Tidy up** button tidies plainly (fade, no talk, no nudge) with Put it back low in the middle. Talk via PipTalkTurns. Not built locally; untested by hand.
+**Sketch hook (Mac, please note):** small additive change in `Sketch.swift`, behaviour unchanged: `Sketch.shared` (the `Ink`, set in `load`), `Sketch.strokeCount`, `Ink.tidy()` (clears at once, keeps the strokes, records an Undo step, saves, posts `.ink(.cleared)`, returns what it cleared) and `Ink.putBack()` (puts them back under anything drawn since). Undo/redo forget a pending put-back so nothing doubles.
+**Need (core, later):** make this a proper `host.ink` API (count, bounds, tidy, put back), and a way for plugins to find a control's frame (Sketch's Clear button) so Pip can point at it.
+**Next:** whatever Aaron picks.
+
+— Plugin · Bob
+
+---
+
 ## 2026-10-30 (17:00) · Plugin · Dot
 
 **Did:** polish from the tea chat; nothing should look or feel different. Crew Rundown's chat and steam now run as one task that stops when the panel closes or Pip goes (a chat cut short plays again next open), and with Pip off nothing is scheduled. CrewLog rows share one pair of date formatters. Tea Break and Guest Takeover loops now end when the plugin or its card switch goes off, and restart from `start` or the switch (as Busy Pip does). Same scan, same fix (loop ends when the plugin is off, `start` restarts it): Tidy Pip (2 s), Twenty Past (1 min) and Pip's Weight (0.5 s idle; Pip settles back once on the way out).

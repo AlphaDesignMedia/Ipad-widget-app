@@ -10,6 +10,7 @@ import UIKit.UIGestureRecognizerSubclass
 // Its tools are a panel that moves like the app's settings (PluginPanel); other plugins add sections to it.
 // It tells other plugins what's drawn (PipEvent.ink): Pip's answers live in Wonders, not here.
 // The drawing stays on this device (sketch.json).
+// Other plugins can see and tidy the drawing through `Sketch.shared` (Tidy Pip uses `tidy()` and `putBack()`).
 // Where: the scribble button in the plugin bar. Left out from the web for now: pages, sync, snapshots.
 
 struct Sketch: SandboxPlugin {
@@ -204,6 +205,7 @@ struct Sketch: SandboxPlugin {
         @ObservationIgnored private var lastWidth: Double?
         @ObservationIgnored private var loaded = false
         @ObservationIgnored private var saving: Task<Void, Never>?
+        @ObservationIgnored private var tidied: [Stroke]?
 
         var open: Bool { host?.openCard == "sketch" }
         /// Only while the paper covers the app does the overlay take touches; Pip and the bar stay above it.
@@ -214,6 +216,7 @@ struct Sketch: SandboxPlugin {
 
         func load(_ host: PipHost) {
             self.host = host
+            Sketch.shared = self
             if let t: String = host.value("sketch", "tool"), let t = Tool(rawValue: t) { tool = t }
             if let c: String = host.value("sketch", "colour") { colour = c }
             if let s: Double = host.value("sketch", "size") { size = s }
@@ -378,6 +381,7 @@ struct Sketch: SandboxPlugin {
 
         func undo() {
             guard let last = undos.popLast() else { return }
+            tidied = nil
             redos.append(strokes)
             strokes = last
             save()
@@ -385,6 +389,7 @@ struct Sketch: SandboxPlugin {
 
         func redo() {
             guard let next = redos.popLast() else { return }
+            tidied = nil
             undos.append(strokes)
             strokes = next
             save()
@@ -401,6 +406,31 @@ struct Sketch: SandboxPlugin {
             }
             host?.say(Lines.fresh, for: 1.2)
             host?.post(.ink(.cleared))
+        }
+
+        // For other plugins (Tidy Pip). Small and generic: one day this could be a host.ink API.
+
+        /// Clears the drawing at once and keeps it, so `putBack()` (or Undo) brings it back.
+        /// Returns what was cleared, so the caller can animate it away; empty if there was nothing to tidy.
+        @discardableResult func tidy() -> [Stroke] {
+            guard !strokes.isEmpty, !clearing, draft == nil else { return [] }
+            let kept = strokes
+            remember(strokes)
+            tidied = kept
+            strokes = []
+            save()
+            host?.post(.ink(.cleared))
+            return kept
+        }
+
+        /// Puts the last tidied drawing back, under anything drawn since. False if there's nothing to put back.
+        @discardableResult func putBack() -> Bool {
+            guard let kept = tidied else { return false }
+            tidied = nil
+            remember(strokes)
+            strokes = kept + strokes
+            save()
+            return true
         }
 
         /// The Pencil hovering where it would draw: other plugins hear where it is (Wonders: Pip follows it).
@@ -435,6 +465,10 @@ struct Sketch: SandboxPlugin {
     }
 
     private let ink = Ink()
+
+    /// The drawing, for other plugins to see and tidy (set once Sketch has started; check `host.isOn("sketch")`).
+    @MainActor static weak var shared: Ink?
+    @MainActor static var strokeCount: Int { shared?.strokes.count ?? 0 }
 
     func start(_ host: PipHost) throws {
         ink.load(host)
