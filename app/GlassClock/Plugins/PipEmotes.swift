@@ -55,20 +55,30 @@ struct PipEmotes: SandboxPlugin {
         @State private var risen = false
 
         var body: some View {
-            ZStack {
-                if let bubble, host.pipHere {
-                    let p = host.pipPosition
-                    Text(bubble.emoji)
-                        .font(.system(size: 22))
-                        .frame(width: 40, height: 40)
-                        .glassEffect(.regular, in: .circle)
-                        .scaleEffect(risen || host.simpler ? 1 : 0.4)
-                        .opacity(risen ? 1 : 0)
-                        .position(x: p.x + 18, y: p.y - (risen && !host.simpler ? 44 : 30))
-                        .id(bubble.id)
+            GeometryReader { geo in
+                ZStack {
+                    if let bubble, host.pipHere {
+                        let p = host.pipPosition
+                        let rise: CGFloat = risen && !host.simpler ? 44 : 30
+                        // Pip's text box sits above Pip (below when Pip is near the top). While Pip is talking with
+                        // the box above, the emote moves below Pip so the two never overlap, or hides if there's no room.
+                        let boxAbove = p.y > 68 + 12 * host.pip.scale
+                        let dodge = host.pip.bubble != nil && boxAbove
+                        let below = p.y + host.pip.radius + rise - 8
+                        let room = below + 20 < geo.size.height
+                        Text(bubble.emoji)
+                            .font(.system(size: 22))
+                            .frame(width: 40, height: 40)
+                            .glassEffect(.regular, in: .circle)
+                            .scaleEffect(risen || host.simpler ? 1 : 0.4)
+                            .opacity(risen && (!dodge || room) ? 1 : 0)
+                            .position(x: p.x + 18, y: dodge ? below : p.y - rise)
+                            .animation(.easeOut(duration: 0.2), value: dodge)
+                            .id(bubble.id)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             .onReceive(NotificationCenter.default.publisher(for: PipEmotes.channel)) { note in
