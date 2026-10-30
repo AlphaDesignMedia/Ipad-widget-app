@@ -11,5 +11,6 @@ enum Plugins {
         NativeWonders(),
         HelperDial(),
         OpeningNight(),
+        ProfessorPip(),
     ]
 }
