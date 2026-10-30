@@ -39,7 +39,7 @@ enum Plugins {
         VendOMat(),
         ShowModes(),
         // Parked for Aaron's stable show-and-tell build (30 Oct); un-comment to bring back.
-        // GlassCleaner(),   // Bob: cleans the glass on its own when idle, not hand-tested
+        GlassCleaner(),     // Bob: back on for show-off (Aaron, 30 Oct); rare at calm, stops on touch
         // PipChecks(),      // Greg: speaks 8s after launch, not hand-tested
         // RobVisits(),      // Rob: pops in unprompted at joy 2+, not hand-tested
         // VintagePacks(),   // Rob: passive, parked only because the freeze says fixes only
