@@ -55,9 +55,11 @@ Read `CLAUDE.md` first. This file is where things stand and what's next.
 - Nothing counts as tested on the iPad until Aaron says so.
 - Simulator only: the build, the first meeting's look, the "Tap to wake" bubble, the plugin bar's button and the icon.
 - Not checked at all: touch (flick, pinch, bar and card taps), VoiceOver, reduced motion, rotation, and the notebook card's look.
-- **Sketch:**
-  - Seen in the simulator: the ink drawing (pen, marker, highlighter, tilt) and the card, using sample strokes from `-sketchDemo YES`.
-  - Not tested at all: real drawing with the Pencil or a finger, pressure, hover, double-tap and squeeze, the eraser, undo, paper, and Pip's reactions.
+- **Sketch:** Aaron tried it on the iPad on 30 Oct ("I love how Sketch is working"). Not tested since: the panel.
+- **The drawing panel and Wonders (30 Oct):**
+  - Seen in the simulator: the panel with its Draw, Page and Wonders cards (`-sketchDemo YES`), and Pip following a pretend Pencil (`-followDemo YES`: Pip ended where the Pencil stopped).
+  - Not tested at all: carrying the panel to the other side, tucking it, real Pencil hover and follow, Pip's answers since they moved to Wonders, and VoiceOver on the panel.
+  - The tucked panel's VoiceOver label is the app's own "Bring the settings back" (from `Peek`).
 
 ## Reminders
 - Free signing runs out on **6 Nov 2026**. Re-run `app/run-on-ipad.sh` before then. Glass Clock's own re-sign is due 3 Nov.

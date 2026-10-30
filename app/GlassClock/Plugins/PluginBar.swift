@@ -16,6 +16,14 @@ enum PluginBarLook {
     static let cardWidth: CGFloat = 310, cardPadding: CGFloat = 14, cardGap: CGFloat = 10
 }
 
+/// A plugin's panel, sized like the app's own (ContentView: settings at least 320 wide, 16 from the edges).
+/// Everything else about its look comes from the app's panel pieces: SettingsCard, Corner, PanelBacking.
+enum PanelLook {
+    static let width: CGFloat = 320
+    static let margin: CGFloat = 16
+    static let sideKey = "plugPanelLeading"     // which side it was last put down on
+}
+
 // MARK: Views
 
 /// Every plugin's overlay, under Pip.
@@ -29,32 +37,41 @@ struct PluginOverlays: View {
     }
 }
 
-/// The bar of plugin buttons at the bottom left, and the open card above it.
+/// The bar of plugin buttons at the bottom left, and the open card above it (or the open panel, at the side).
 /// Shown only while a plugin that has a card is on. Works with Pip switched off.
 struct PluginBar: View {
     let host: PipHost
     let size: CGSize
+    @AppStorage(PanelLook.sideKey) private var panelLeading = true
 
     private var withCards: [any SandboxPlugin] { host.plugins.filter { $0.hasCard && host.isOn($0.info.id) } }
 
     var body: some View {
         let items = withCards
         if !items.isEmpty {
-            ZStack(alignment: .bottomLeading) {
-                if let id = host.openCard, let p = items.first(where: { $0.info.id == id }) {
-                    card(p)
-                        .padding(.bottom, PluginBarLook.cardBottom)
-                        .transition(host.simpler ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .bottomLeading)))
+            let open = host.openCard.flatMap { id in items.first { $0.info.id == id } }
+            ZStack {
+                if let open, open.info.panel {
+                    PluginPanel(host: host, plugin: open, size: size)
+                        .id(open.info.id)
+                        .transition(host.simpler ? .opacity : .move(edge: panelLeading ? .leading : .trailing).combined(with: .opacity))
                 }
-                HStack(spacing: PluginBarLook.barGap) {
-                    ForEach(items.indices, id: \.self) { i in button(items[i]) }
+                ZStack(alignment: .bottomLeading) {
+                    if let open, !open.info.panel {
+                        card(open)
+                            .padding(.bottom, PluginBarLook.cardBottom)
+                            .transition(host.simpler ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .bottomLeading)))
+                    }
+                    HStack(spacing: PluginBarLook.barGap) {
+                        ForEach(items.indices, id: \.self) { i in button(items[i]) }
+                    }
+                    .padding(PluginBarLook.barPadding)
+                    .glassEffect(.regular, in: .rect(cornerRadius: PluginBarLook.radius))
+                    .padding(.bottom, PluginBarLook.barBottom)
                 }
-                .padding(PluginBarLook.barPadding)
-                .glassEffect(.regular, in: .rect(cornerRadius: PluginBarLook.radius))
-                .padding(.bottom, PluginBarLook.barBottom)
+                .padding(.leading, PluginBarLook.edge)
+                .frame(width: size.width, height: size.height, alignment: .bottomLeading)
             }
-            .padding(.leading, PluginBarLook.edge)
-            .frame(width: size.width, height: size.height, alignment: .bottomLeading)
         }
     }
 
@@ -88,6 +105,124 @@ struct PluginBar: View {
         .frame(maxHeight: size.height - 160, alignment: .top)
         .fixedSize(horizontal: false, vertical: true)
         .glassEffect(.regular, in: .rect(cornerRadius: PluginBarLook.radius))
+    }
+}
+
+/// A plugin whose card opens as a panel (`PluginInfo.panel`), made of the app's own panel pieces so it
+/// looks and moves like the settings: it slides in from its side; hold a card's title bar, then drag, to
+/// carry it to the other side; flick a title bar towards its edge to tuck it aside (tap it to bring it
+/// back), and push it again to close it. Other plugins add their sections under its cards (`addsTo`).
+struct PluginPanel: View {
+    let host: PipHost
+    let plugin: any SandboxPlugin
+    let size: CGSize
+    @AppStorage(PanelLook.sideKey) private var leading = true
+    @AppStorage("appTheme") private var theme = AppTheme.home
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage(CarryStyle.key) private var carryStyle = CarryStyle.lift
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reducesTransparency
+    @State private var tucked = false
+    @State private var carried = false
+    @State private var move = CGSize.zero
+    @State private var grab: CarryGrab?
+    @State private var rest = CGRect.zero
+    @State private var area = CGRect.zero
+
+    private var simple: Bool { systemReduceMotion || simpleMotion }
+    private var width: CGFloat { min(PanelLook.width, size.width - PanelLook.margin * 2) }
+    private var addOns: [any SandboxPlugin] {
+        host.plugins.filter { $0.addsTo == plugin.info.id && $0.hasAddOn && host.isOn($0.info.id) }
+    }
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            cards
+            ScrollView { cards }.scrollIndicators(.hidden)
+        }
+        .modifier(ScrollEdges(fades: glassy))
+        // In the Glass theme each card is its own glass; otherwise the panel has glass behind its cards.
+        .modifier(PanelBacking(clear: glassy))
+        .frame(width: width)
+        // Measured at rest, before the lift and the carry, like the app's panels.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { if !carried { rest = $0; report() } }
+        .modifier(CarriedShape(carried: carried, style: carryStyle,
+                               icon: grab?.icon ?? plugin.info.icon, title: grab?.title ?? plugin.info.name, simple: simple,
+                               hold: grab.map { CGPoint(x: $0.point.x - rest.minX, y: $0.point.y - rest.minY) },
+                               size: rest.size))
+        .scaleEffect(carried ? 1.025 : 1)
+        .shadow(color: .black.opacity(carried ? 0.2 : 0), radius: 22, y: 12)
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: carried)
+        .offset(move)
+        .modifier(Peek(on: tucked, towardsLeading: leading, width: width, simple: simple,
+                       wake: { setTucked(false) }, further: close))
+        .environment(\.panelCarry, PanelCarry(
+            grabbed: { g in if grab == nil { grab = g } },
+            moved: { m in
+                if !carried { carried = true }
+                move = m
+            },
+            ended: putDown,
+            flicked: { towardsLeading in setTucked(towardsLeading == leading) }))
+        .sensoryFeedback(.impact(weight: .medium), trigger: carried) { _, lifted in lifted }
+        .padding(.horizontal, PanelLook.margin)
+        .padding(.top, PanelLook.margin)
+        .padding(.bottom, PluginBarLook.cardBottom)
+        .frame(width: size.width, height: size.height, alignment: leading ? .topLeading : .topTrailing)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { area = $0 }
+        .onChange(of: tucked) { report() }
+        .onDisappear { host.panelFrame = .null }
+    }
+
+    private var glassy: Bool { theme.isGlassy && !reducesGlass && !reducesTransparency }
+
+    private var cards: some View {
+        VStack(spacing: Corner.inset) {
+            plugin.anyCard(host)
+            ForEach(addOns.indices, id: \.self) { i in
+                let p = addOns[i]
+                SettingsCard(title: p.info.name, icon: p.info.icon) { p.anyAddOn(host) }
+            }
+        }
+        .padding(Corner.edge)
+    }
+
+    private func setTucked(_ on: Bool) {
+        withAnimation(simple ? nil : .spring(response: 0.45, dampingFraction: 0.85)) { tucked = on }
+    }
+
+    private func close() {
+        withAnimation(.easeOut(duration: 0.2)) { host.openCard = nil }
+    }
+
+    /// Put down on the side the finger let go, gliding home from exactly where it was dropped.
+    private func putDown(_ moved: CGSize?) {
+        if let moved {
+            let finger = grab.map { CGPoint(x: $0.point.x + moved.width, y: $0.point.y + moved.height) }
+                ?? CGPoint(x: rest.midX + moved.width, y: rest.midY + moved.height)
+            let toLeading = finger.x < area.midX
+            if toLeading != leading {
+                let home = toLeading ? area.minX + PanelLook.margin : area.maxX - PanelLook.margin - rest.width
+                var still = Transaction()
+                still.disablesAnimations = true
+                withTransaction(still) {
+                    leading = toLeading
+                    move = CGSize(width: moved.width - (home - rest.minX), height: moved.height)
+                }
+            }
+        }
+        grab = nil
+        withAnimation(simple ? nil : ContentView.cardLand) {
+            move = .zero
+            carried = false
+        }
+    }
+
+    /// Tells the host where the panel is, so the Pencil leaves it alone (and only its edge, when tucked).
+    private func report() {
+        let away: CGFloat = leading ? -1 : 1
+        host.panelFrame = tucked ? rest.offsetBy(dx: away * (width - Peek.showing), dy: 0) : rest
     }
 }
 
