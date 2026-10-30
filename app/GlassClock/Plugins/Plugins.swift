@@ -29,5 +29,6 @@ enum Plugins {
         IdeaInbox(),
         BusyPip(),
         DashboardQueue(),
+        TidyPip(),
     ]
 }
