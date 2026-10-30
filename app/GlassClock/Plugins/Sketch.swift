@@ -206,8 +206,9 @@ struct Sketch: SandboxPlugin {
         @ObservationIgnored private var saving: Task<Void, Never>?
 
         var open: Bool { host?.openCard == "sketch" }
-        /// While the panel is open with fingers or paper on, the overlay takes touches; Pip and the bar stay above it.
-        var blocking: Bool { open && (finger || paper) }
+        /// Only while the paper covers the app does the overlay take touches; Pip and the bar stay above it.
+        /// Without paper the app's panels keep every tap, and a finger stroke takes over only once it moves.
+        var blocking: Bool { open && paper }
 
         // Settings
 
@@ -256,8 +257,9 @@ struct Sketch: SandboxPlugin {
 
         /// The panel's own controls and Pip keep working: the Pencil (or a finger) can still slide and grab them.
         func keepsClear(window w: CGPoint, canvas c: CGPoint) -> Bool {
-            if open, let f = host?.panelFrame, !f.isNull, f.insetBy(dx: -12, dy: -12).contains(w) { return true }
-            guard let host, host.pipHere else { return false }
+            guard let host else { return false }
+            if host.keepsTaps(w) { return true }
+            guard host.pipHere else { return false }
             let p = host.pipPosition
             return hypot(c.x - p.x, c.y - p.y) < PipLook.touch * max(1, host.pip.scale) / 2
         }
@@ -663,7 +665,7 @@ struct Sketch: SandboxPlugin {
         }
     }
 
-    /// One stroke at a time. It waits for 3 points of movement before it takes the touch from the app,
+    /// One stroke at a time. It waits for 3 points of movement (10 for a finger, which wobbles) before it takes the touch from the app,
     /// so taps (and every finger, unless the card says otherwise) go through untouched.
     final class InkGesture: UIGestureRecognizer, UIGestureRecognizerDelegate {
         weak var ink: Ink?
@@ -676,6 +678,8 @@ struct Sketch: SandboxPlugin {
             super.init(target: nil, action: nil)
             delegate = self
             allowedTouchTypes = [UITouch.TouchType.pencil, .direct].map { NSNumber(value: $0.rawValue) }
+            delaysTouchesEnded = false      // a tap reaches the app at once, never held back by the ink
+
         }
 
         func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive t: UITouch) -> Bool {
@@ -700,7 +704,7 @@ struct Sketch: SandboxPlugin {
             guard let t = touch, touches.contains(t), let ink, let canvas else { return }
             let at = t.location(in: canvas)
             if state == .possible {
-                if hypot(at.x - from.x, at.y - from.y) > 3 { state = .began }
+                if hypot(at.x - from.x, at.y - from.y) > (t.type == .pencil ? 3 : 10) { state = .began }
             } else {
                 state = .changed
             }

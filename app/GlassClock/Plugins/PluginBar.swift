@@ -59,6 +59,8 @@ struct PluginBar: View {
                 ZStack(alignment: .bottomLeading) {
                     if let open, !open.info.panel {
                         card(open)
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { host.cardFrame = $0 }
+                            .onDisappear { host.cardFrame = .null }
                             .padding(.bottom, PluginBarLook.cardBottom)
                             .transition(host.simpler ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .bottomLeading)))
                     }
@@ -74,6 +76,8 @@ struct PluginBar: View {
                                 .glassEffect(.regular, in: .rect(cornerRadius: PluginBarLook.radius))
                         }
                     }
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { host.barFrame = $0 }
+                    .onDisappear { host.barFrame = .null }
                     .padding(.bottom, PluginBarLook.barBottom)
                 }
                 .padding(.leading, PluginBarLook.edge)
