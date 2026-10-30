@@ -19,5 +19,6 @@ enum Plugins {
         SetInTheirWays(),
         KeyboardKit(),
         TwentyPast(),
+        LiquidIcons(),
     ]
 }

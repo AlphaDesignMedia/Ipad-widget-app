@@ -58,6 +58,15 @@ struct InkMark: Equatable {
     var ringsPip: Bool          // a loop around Pip
 }
 
+/// A plugin's restyle of the plugin bar: the gap between buttons, the bar around them, and each button
+/// around its icon (given whether its card is open).
+struct BarLook {
+    let owner: String
+    var gap: CGFloat
+    var bar: @MainActor (AnyView) -> AnyView
+    var button: @MainActor (AnyView, Bool) -> AnyView
+}
+
 // MARK: The plugin shape
 
 /// Everything is optional except `info`. Data first, logic second, views last: they port to
@@ -124,6 +133,9 @@ final class PipHost {
     /// Where the open panel is, in window space, so an overlay that takes touches (Sketch) can leave it
     /// alone. Only its edge while it's tucked aside; null when no panel is open.
     @ObservationIgnored var panelFrame = CGRect.null
+    /// A plugin's own look for the plugin bar (Liquid Icons sets one in `start`). Used only while its owner is on;
+    /// nil: the shared glass bar.
+    var barLook: BarLook?
     /// How lively plugins should be: 0 still, 1 calm (the default), 2 cosy, 3 playful, 4 giddy, 5 unhinged.
     /// One setting for every plugin; the Joy Slider sets it. Read `joy`, which respects simpler motion.
     var joySetting = UserDefaults.standard.object(forKey: "pipJoy") as? Int ?? 1 {

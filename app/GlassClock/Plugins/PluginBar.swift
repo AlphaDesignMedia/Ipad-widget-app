@@ -62,11 +62,18 @@ struct PluginBar: View {
                             .padding(.bottom, PluginBarLook.cardBottom)
                             .transition(host.simpler ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .bottomLeading)))
                     }
-                    HStack(spacing: PluginBarLook.barGap) {
-                        ForEach(items.indices, id: \.self) { i in button(items[i]) }
+                    let look = host.barLook.flatMap { host.isOn($0.owner) ? $0 : nil }
+                    let buttons = HStack(spacing: look?.gap ?? PluginBarLook.barGap) {
+                        ForEach(items.indices, id: \.self) { i in button(items[i], look) }
                     }
-                    .padding(PluginBarLook.barPadding)
-                    .glassEffect(.regular, in: .rect(cornerRadius: PluginBarLook.radius))
+                    Group {
+                        if let look { look.bar(AnyView(buttons)) }
+                        else {
+                            buttons
+                                .padding(PluginBarLook.barPadding)
+                                .glassEffect(.regular, in: .rect(cornerRadius: PluginBarLook.radius))
+                        }
+                    }
                     .padding(.bottom, PluginBarLook.barBottom)
                 }
                 .padding(.leading, PluginBarLook.edge)
@@ -75,17 +82,21 @@ struct PluginBar: View {
         }
     }
 
-    private func button(_ p: any SandboxPlugin) -> some View {
+    private func button(_ p: any SandboxPlugin, _ look: BarLook?) -> some View {
         let open = host.openCard == p.info.id
+        let icon = Image(systemName: p.info.icon)
+            .font(.system(size: 19))
+            .frame(width: PluginBarLook.button, height: PluginBarLook.button)
         return Button {
             withAnimation(.easeOut(duration: 0.2)) { host.openCard = open ? nil : p.info.id }
         } label: {
-            Image(systemName: p.info.icon)
-                .font(.system(size: 19))
-                .frame(width: PluginBarLook.button, height: PluginBarLook.button)
-                .background(open ? Color.primary.opacity(0.1) : .clear,
-                            in: .rect(cornerRadius: PluginBarLook.buttonRadius))
-                .contentShape(.rect(cornerRadius: PluginBarLook.buttonRadius))
+            if let look { look.button(AnyView(icon), open) }
+            else {
+                icon
+                    .background(open ? Color.primary.opacity(0.1) : .clear,
+                                in: .rect(cornerRadius: PluginBarLook.buttonRadius))
+                    .contentShape(.rect(cornerRadius: PluginBarLook.buttonRadius))
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(p.info.name)

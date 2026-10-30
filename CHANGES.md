@@ -23,3 +23,4 @@ _None yet._
 - 30 Oct 2026 · `CLAUDE.md`, `PLUGIN-AGENT-HANDOVER.md`, `HANDOVER.md`, `app/PLUGIN-SPEC.md`, `AGENT-NOTES.md` · Who does what: the Mac agent owns the core, plugins hold the extras. The spec covers the new core pieces.
 
 - 30 Oct 2026 · `Pieces/Pip.swift` (core) · Pip follows with more life: leans into moves, overshoots, wobbles upright when it stops.
+- 30 Oct 2026 · `Plugins/PluginHost.swift`, `PluginBar.swift` (core), `LiquidIcons.swift` (new), `Plugins.swift` (one line) · `host.barLook`: a plugin can restyle the plugin bar. Liquid Icons: each bar icon is a drop of liquid glass (Drops / Puddle / Blob).
