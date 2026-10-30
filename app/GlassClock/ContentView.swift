@@ -2740,7 +2740,7 @@ struct ContentView: View {
                 // A drag that starts on the widget moves the widget, never the backdrop: the
                 // next backdrop was sliding in behind a widget being dragged down (simulator,
                 // 22 Oct 2026).
-                guard !startsOnWidget(drag) else { return }
+                guard !startsOnWidget(drag), !startsOnPip(drag) else { return }
                 // Leans only for sideways drags, so scrolling up and down doesn't wobble, and not
                 // while the widget itself is being moved or pinched.
                 if !draggingCard, !editingWidget, motion.clockPinch == 1, abs(drag.translation.width) > abs(drag.translation.height) {
@@ -2756,7 +2756,7 @@ struct ContentView: View {
             }
             .onEnded { drag in
                 if motion.panelPull != 0 { withAnimation(.bouncy) { motion.panelPull = 0 } }
-                if startsOnWidget(drag) {
+                if startsOnWidget(drag) || startsOnPip(drag) {
                     if pulledBackdrop != nil { finishBackdropPull(predicted: 0) }
                     return
                 }
@@ -2783,6 +2783,13 @@ struct ContentView: View {
 
     private func startsOnWidget(_ drag: DragGesture.Value) -> Bool {
         interface == .panels && widgetRect.insetBy(dx: -12, dy: -12).contains(drag.startLocation)
+    }
+
+    /// A drag that starts on Pip is playing with Pip: it never swipes the backdrop or the panels
+    /// (Aaron, 30 Oct 2026: the background changed while he flicked Pip about).
+    private func startsOnPip(_ drag: DragGesture.Value) -> Bool {
+        guard let start = PipHost.shared.pip.touchStart else { return false }
+        return hypot(start.x - drag.startLocation.x, start.y - drag.startLocation.y) < 4
     }
 
     /// The card with glass bubbles floating around it: the Home Screen style above, widget
