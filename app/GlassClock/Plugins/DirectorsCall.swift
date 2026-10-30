@@ -320,8 +320,8 @@ private struct DirectorCard: View {
         if host.simpler {
             open = false
         } else {
-            open = true
-            withAnimation(.easeIn(duration: 0.12).delay(0.08)) { open = false }
+            withAnimation(.easeOut(duration: 0.08)) { open = true }
+            host.later(0.16) { withAnimation(.easeIn(duration: 0.12)) { open = false } }
         }
         stage.action(host)
     }
