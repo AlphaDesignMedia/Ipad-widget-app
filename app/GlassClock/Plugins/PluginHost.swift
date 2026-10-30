@@ -226,6 +226,12 @@ final class PipHost {
     /// Pip trails just above and to the left of a point, and settles a moment after the point stops
     /// coming. Call it as the point moves. Nothing while Pip is asleep or held, or when motion is simpler.
     func follow(_ point: CGPoint) { if pipHere { pip.follow(point) } }
+    /// Pip's halo takes a colour for a moment, then fades back to Pip's own.
+    func blush(_ color: Color, for seconds: Double = 3) {
+        guard pipHere else { return }
+        withAnimation(.easeInOut(duration: 0.6)) { pip.halo = color }
+        later(seconds) { [pip] in withAnimation(.easeInOut(duration: 1.2)) { pip.halo = nil } }
+    }
 
     // MARK: Plugins, for plugins
 

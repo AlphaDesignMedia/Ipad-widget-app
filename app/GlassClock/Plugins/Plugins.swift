@@ -22,5 +22,6 @@ enum Plugins {
         LiquidIcons(),
         PipsNews(),
         LooksTimeMachine(),
+        PipNotices(),
     ]
 }

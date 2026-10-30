@@ -27,12 +27,13 @@ enum PipFace: Equatable { case awake, asleep, blink, held, happy, dizzy }
 // MARK: View
 
 /// Pip at any size. `flap` runs 0...1 (wings open to folded), `spin` turns the dizzy eyes,
-/// `glow` adds to the halo just after Pip wakes. `rim` thins the outline for large drawings such as the icon.
+/// `glow` adds to the halo just after Pip wakes; `halo` is its colour. `rim` thins the outline for large drawings such as the icon.
 struct PipBody: View {
     var face: PipFace = .awake
     var flap: Double = 0
     var spin: Double = 0
     var glow: Double = 0
+    var halo: Color = PipLook.glow
     var size: CGFloat = PipLook.size
     var rim: CGFloat = 1
 
@@ -40,7 +41,7 @@ struct PipBody: View {
         let s = size, k = size / PipLook.size * rim
         ZStack {
             Circle()
-                .fill(RadialGradient(colors: [PipLook.glow, PipLook.glow.opacity(0)], center: .center,
+                .fill(RadialGradient(colors: [halo, halo.opacity(0)], center: .center,
                                      startRadius: 0, endRadius: s * 1.16))
                 .frame(width: s * 2.4, height: s * 2.4)
                 .scaleEffect(1 + glow * 0.45)

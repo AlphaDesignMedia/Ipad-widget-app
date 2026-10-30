@@ -62,6 +62,7 @@ final class PipModel {
     /// Degrees Pip tips into a move; wobbles back to 0 when it stops.
     var lean = 0.0
     var glow = 0.0
+    var halo: Color?                 // the halo's colour for a moment (a blush); nil: Pip's own
     var bubble: String?
     var twinkle: (from: CGPoint, to: CGPoint, start: Date)?
     var bursts: [Burst] = []
@@ -453,7 +454,7 @@ struct PipLayer: View {
             let flap = flaps ? 0.5 - 0.5 * cos(.pi * t / PipLook.flapSeconds) : 0
             ZStack {
                 PipBody(face: pip.face, flap: flap, spin: (t / 0.5).truncatingRemainder(dividingBy: 1), glow: pip.glow,
-                        size: PipLook.size * pip.scale)
+                        halo: pip.halo ?? PipLook.glow, size: PipLook.size * pip.scale)
                 if pip.face == .asleep { snore(t) }
             }
         }
