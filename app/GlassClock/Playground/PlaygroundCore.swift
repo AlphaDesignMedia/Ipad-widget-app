@@ -67,7 +67,7 @@ final class Playground {
     @ObservationIgnored private let defaults: UserDefaults
 
     /// Saved keys all start with this, so the playground never collides with the real app.
-    static let keyPrefix = "playground."
+    nonisolated static let keyPrefix = "playground."
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
