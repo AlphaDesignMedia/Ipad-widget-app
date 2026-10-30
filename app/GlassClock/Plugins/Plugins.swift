@@ -36,5 +36,6 @@ enum Plugins {
         CrewRundown(),
         StationeryCupboard(),
         PipsSketchbook(),
+        VendOMat(),
     ]
 }
