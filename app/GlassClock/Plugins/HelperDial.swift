@@ -85,7 +85,7 @@ struct HelperDial: SandboxPlugin {
         return r < 0.12 ? nil : 30 - 27 * r            // 30 minutes … 3 minutes
     }
 
-    nonisolated static func pick(x: Double, y: Double) -> (Topic, String)? {
+    static func pick(x: Double, y: Double) -> (Topic, String)? {
         let w = weights(x: x, y: y)
         var roll = Double.random(in: 0..<w.reduce(0, +))
         for t in Topic.allCases {
