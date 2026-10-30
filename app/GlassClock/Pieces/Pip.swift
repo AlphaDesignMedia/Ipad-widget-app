@@ -77,6 +77,9 @@ final class PipModel {
     @ObservationIgnored var pinching = false
     /// True while a flick carries Pip, so a touch catches it straight away.
     @ObservationIgnored private(set) var flying = false
+    /// Where (in the window) the last finger on Pip came down, so the app's own swipes can tell a
+    /// drag on Pip from a drag on the background and leave it alone.
+    @ObservationIgnored var touchStart: CGPoint?
     /// Tells the plugin host what Pip is doing (PluginHost.swift).
     @ObservationIgnored var onEvent: (PipEvent) -> Void = { _ in }
 
@@ -683,8 +686,10 @@ struct PipTouches: UIViewRepresentable {
         override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
             guard finger == nil, let t = touches.first, let space else { return }
             let p = t.location(in: space)
-            guard Grab.onPip(p, pip) else { state = .failed; return }
+            // A flying Pip is hard to hit: a slightly bigger catch area, so a near miss isn't a swipe.
+            guard Grab.onPip(p, pip, slack: pip.flying ? 1.6 : 1) else { pip.touchStart = nil; state = .failed; return }
             finger = t
+            pip.touchStart = t.location(in: nil)
             start = p
             trail = [(p, t.timestamp)]
             // Catching Pip mid-flick is clearly meant for Pip.
