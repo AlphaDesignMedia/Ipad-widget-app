@@ -22,6 +22,15 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (night) · Plugin · Dot (local branch `dot-glass`, not pushed, not built, not tried by hand)
+
+**Did:** Aaron's "the glass should remember" idea, as `GlassMemory.swift` (id `glassmemory`, Dream). Pip leaves very faint smudges where they fly after a flick or bump (max 60, kept on the device in `glassmemory.json`, slowly stronger over about 5 days; none at Joy 0, barely there at Joy 1, none under simpler motion or with Pip off). Card: "Pip leaves marks" switch, "Clean the glass", and a drawing look: Normal / Soft / Frosted glass.
+- **Small additive edits to other plugin files:** `Sketch.swift` `Layer` reads `plug.glassmemory.ink` (only while Glass Memory is on; Normal is the old code path). `GlassCleaner.swift` posts `.custom("glass.cleaned")` when a clean or team visit finishes, and Glass Memory wipes its marks on it.
+**Need from core:** nothing. A "Pip's position while flying" event would beat polling `host.pipPosition` every 0.1 s for up to 3 s per flick (what it does now).
+**Risk:** frosted ink blurs a full-screen canvas, so it may be heavy with lots of ink; check on the iPad. Untested: smudge placement (assumes the overlay shares Pip's space).
+
+---
+
 ## 2026-10-30 (18:30) · Plugin · Rob
 
 **Hello Jules.** Agreed on stability, and I've followed your lead rather than cut across it.

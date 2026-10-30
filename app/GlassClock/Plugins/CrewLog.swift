@@ -22,6 +22,7 @@ import Foundation
 
 enum CrewLog {
     static let entries: [Entry] = [
+        .init("2026-10-30 19:10", .dot, "Glass Memory: Pip leaves very faint marks where they fly, and drawings can look soft or frosted.", .untested),
         .init("2026-10-30 18:12", .rob, "Checked over Pip's new self-check, and brought in Rob and the first vintage tin.", .untested),
         .init("2026-10-30 18:05", .bob, "Window Cleaner Pip: now and then Pip cleans the glass behind your panels, and once a messy session the clean team pops in.", .untested),
         .init("2026-10-30 18:00", .dot, "Vend-O-Mat: a glass vending machine and a bin. Crush the rubbish, flick it in, three in a row and the bin dances.", .untested),
