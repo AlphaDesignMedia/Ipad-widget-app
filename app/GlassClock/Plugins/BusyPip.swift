@@ -162,6 +162,7 @@ struct BusyPip: SandboxPlugin {
         let s = await probe.value
         guard !Task.isCancelled else { return }
         let screen = "Screen: \(s.fps) frames a second, \(s.late) late, while I was flying about."
+        host.setValue(report.count, "busypip", "checked")   // plugins looked at, for Tea Break
         report.append(screen)
         await pause(2.6)
         host.say(screen, for: 3.2)
