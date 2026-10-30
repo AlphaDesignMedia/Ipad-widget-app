@@ -38,6 +38,10 @@ enum Plugins {
         PipsSketchbook(),
         VendOMat(),
         ShowModes(),
-        // GlassCleaner(),  // parked for Aaron's stable show-and-tell build (30 Oct); un-comment to bring back
+        // Parked for Aaron's stable show-and-tell build (30 Oct); un-comment to bring back.
+        // GlassCleaner(),   // Bob: cleans the glass on its own when idle, not hand-tested
+        // PipChecks(),      // Greg: speaks 8s after launch, not hand-tested
+        // RobVisits(),      // Rob: pops in unprompted at joy 2+, not hand-tested
+        // VintagePacks(),   // Rob: passive, parked only because the freeze says fixes only
     ]
 }
