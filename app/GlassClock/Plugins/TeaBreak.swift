@@ -101,10 +101,12 @@ struct TeaBreak: SandboxPlugin {
         let joy = host.joy
         guard !session.waiting, session.asks < Tune.maxAsks,
               session.work >= Tune.need(joy: joy),
-              Date.now.timeIntervalSince(session.lastAsk) >= Tune.gap(joy: joy) * 60 else { return }
+              Date.now.timeIntervalSince(session.lastAsk) >= Tune.gap(joy: joy) * 60,
+              PipTalkTurns.floorFree(host) else { return }
         let report: String = host.value("busypip", "report") ?? ""
         let checked = report.isEmpty ? nil : report.split(separator: "\n").count
         guard host.say(Lines.ask(checked: checked), for: 4) else { return }
+        PipTalkTurns.takeFloor(host, for: Tune.answerWindow + 1)   // held until Pip makes their own
         host.react(.curious, for: 1.6)
         session.asks += 1
         session.lastAsk = .now
@@ -122,6 +124,7 @@ struct TeaBreak: SandboxPlugin {
         session.work = 0
         TeaBreak.addCup()
         guard host.pipHere else { return }
+        PipTalkTurns.takeFloor(host, for: 3.2)
         session.steamAt = host.pipPosition
         withAnimation(.easeOut(duration: 0.4)) { session.steaming = true }
         host.say(Lines.sip.randomElement()!, for: 2.4)
@@ -133,6 +136,7 @@ struct TeaBreak: SandboxPlugin {
     private func makeOwn(_ host: PipHost) {
         session.work = 0
         guard host.say(Lines.own, for: 2.2) else { return }
+        PipTalkTurns.takeFloor(host, for: 12)                        // the slow cup, until "ownDone" is said
         host.react(.sleepy, for: 2)
         host.later(9) {
             guard host.pipHere else { return }
