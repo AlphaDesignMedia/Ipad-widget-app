@@ -15,4 +15,5 @@ _None yet._
 - 30 Oct 2026 · `app/PLUGIN-SPEC.md`, `app/tools/check.sh`, `.claude/agents/plugin-maker.md`, `HANDOVER.md` · How plugins get made and tested; handover.
 - 30 Oct 2026 · `app/GlassClock/Plugins/Sketch.swift`, `Plugins.swift` (one line) · Sketch: Apple Pencil draws over the whole app, with pressure and tilt; tools, colours, undo, paper; Pip reacts.
 - 30 Oct 2026 · `.gitignore`, `PLUGIN-AGENT-HANDOVER.md`, `AGENT-NOTES.md`, `app/tools/watch-plugins.sh`, `take-plugins.sh`, `CLAUDE.md` · On GitHub as the branch `pip-playground`; the plugin agent's branch is `pip-plugins`.
+- 30 Oct 2026 · `app/GlassClock/Playground/` (4 files, the plugin agent's, unchanged), `Plugins/PlaygroundBridge.swift`, `Plugins.swift` (one line), `.github/workflows/build.yml` · The plugin agent's Joy Slider and Idle Life, connected to Pip and the plugin bar through a bridge; GitHub builds both pip branches.
 

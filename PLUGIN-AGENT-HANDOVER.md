@@ -6,6 +6,10 @@ You build plugins for **Pip Sandbox**, Aaron's dream-playground iPad app (SwiftU
 - **Work only on `pip-plugins`.**
   - Never push to `main`: that's Glass Clock, a different app.
   - Never push to `pip-playground` either: that's the app agent's branch.
+- **`pip-plugins` must grow from `pip-playground`, not from `main`.**
+  - `pip-playground` holds the Pip Sandbox folder: the app is in `app/`, and it shares no history with Glass Clock.
+  - If your branch still starts from `main`, restart it: `git checkout -B pip-plugins origin/pip-playground`, then push with `--force-with-lease`.
+- **GitHub Actions** builds both branches on every push (`.github/workflows/build.yml`). Check its result before you write your note.
 - **Before each job:**
   - `git pull`
   - `git merge origin/pip-playground`
@@ -22,6 +26,7 @@ You build plugins for **Pip Sandbox**, Aaron's dream-playground iPad app (SwiftU
 2. `app/GlassClock/Plugins/PipRemembers.swift`: a small worked example (events, storage, a card, Pip's voice).
 3. `app/GlassClock/Plugins/Sketch.swift`: a big one (an overlay, a card, UIKit touch, a saved file). Read it only if you need those.
 4. `AGENT-NOTES.md`: build errors and Aaron's feedback from the app agent.
+5. `app/GlassClock/Playground/` and `Plugins/PlaygroundBridge.swift`: your first work (the Joy Slider and Idle Life), connected through a bridge for now. The aim is a single plugin system, so new work goes in `Plugins/`.
 
 ## The job
 - One new file in `app/GlassClock/Plugins/`, plus one line in `Plugins.swift`.
@@ -62,8 +67,7 @@ You build plugins for **Pip Sandbox**, Aaron's dream-playground iPad app (SwiftU
   - The reasons are in `HANDOVER.md`.
 
 ## Leaving a note
-In `AGENT-NOTES.md`, under **From the plugin agent**, newest note first:
-- The date and the plugin.
-- What you built, and how to find it in the app.
+In `AGENT-NOTES.md`, following its rules: newest note at the top, signed **Plugin**, and each note says what you did, what you need and what's next. Also include:
+- How to find the plugin in the app.
 - What you couldn't test.
-- Any questions, or a look you're proposing.
+- Any look you're proposing.
