@@ -22,7 +22,7 @@ enum PipLook {
 }
 
 /// Pip's face. The sandbox has more moods (meh, annoyed, sulk); these are the ones the app uses so far.
-enum PipFace: Equatable { case awake, asleep, blink, held, happy, dizzy }
+enum PipFace: Equatable { case awake, asleep, blink, held, happy, dizzy, surprised, curious, shy, sleepy }
 
 // MARK: View
 
@@ -63,7 +63,10 @@ struct PipBody: View {
                 .overlay(Circle().strokeBorder(.white.opacity(0.75), lineWidth: k))
                 .frame(width: s, height: s)
                 .shadow(color: .black.opacity(0.2), radius: 3.5 * k, y: 2 * k)
-            HStack(spacing: s * 0.17) { eye(s: s, k: k); eye(s: s, k: k) }
+            if face == .shy {
+                HStack(spacing: s * 0.42) { cheek(s); cheek(s) }.offset(y: s * 0.12)
+            }
+            HStack(spacing: s * 0.17) { eye(s: s, k: k, left: true); eye(s: s, k: k, left: false) }
                 .offset(x: look.width * s * 0.09, y: -s * 0.03 + look.height * s * 0.07)
                 .animation(.easeOut(duration: 0.14), value: face)
         }
@@ -86,8 +89,26 @@ struct PipBody: View {
             .offset(x: side * s * w.x, y: s * (w.y - w.h / 2))
     }
 
-    @ViewBuilder private func eye(s: CGFloat, k: CGFloat) -> some View {
+    private func cheek(_ s: CGFloat) -> some View {
+        Ellipse().fill(Color.pink.opacity(0.45)).frame(width: s * 0.16, height: s * 0.09).blur(radius: s * 0.02)
+    }
+
+    // Reactions are eye swaps, old-game style: no new art, just a different pair of shapes.
+    @ViewBuilder private func eye(s: CGFloat, k: CGFloat, left: Bool) -> some View {
         switch face {
+        case .surprised:
+            Circle().fill(PipLook.eye).frame(width: s * 0.16, height: s * 0.16)
+                .overlay(Circle().fill(.white).frame(width: s * 0.05).offset(x: -s * 0.03, y: -s * 0.03))
+        case .curious where !left:
+            Capsule().fill(PipLook.eye).frame(width: s * 0.13, height: s * 0.08)
+        case .curious:
+            Capsule().fill(PipLook.eye).frame(width: s * 0.13, height: s * 0.24)
+        case .sleepy:
+            Capsule().fill(PipLook.eye).frame(width: s * 0.13, height: s * 0.07).offset(y: s * 0.04)
+        case .shy:
+            UnevenRoundedRectangle(topLeadingRadius: s * 0.06, bottomLeadingRadius: 0.5 * k,
+                                   bottomTrailingRadius: 0.5 * k, topTrailingRadius: s * 0.06)
+                .fill(PipLook.eye).frame(width: s * 0.12, height: s * 0.08)
         case .dizzy:
             Circle().trim(from: 0, to: 0.75)
                 .stroke(PipLook.eye, lineWidth: 1.5 * k)

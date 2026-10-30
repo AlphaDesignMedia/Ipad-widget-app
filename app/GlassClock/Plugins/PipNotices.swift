@@ -95,7 +95,8 @@ struct PipNotices: SandboxPlugin {
         watch.lastLine = line
         watch.lastRemark = .now
         if key == "appColor" { host.blush(AppColor.resolve(value)) }
-        host.cheer()
+        host.react(.curious, for: 0.8)       // squints at the new thing, then cheers
+        host.later(0.8) { host.cheer() }
         host.befriend(0.03)
     }
 }

@@ -54,6 +54,8 @@ final class PipModel {
     var asleep = false
     var held = false
     var happy = false
+    var mood: PipFace?               // a reaction for a moment (surprised, curious, shy, sleepy)
+    @ObservationIgnored private var moodTask: Task<Void, Never>?
     var dizzy = false
     var blinking = false
     var squash = 0.0
@@ -80,7 +82,7 @@ final class PipModel {
 
     var face: PipFace {
         if asleep { .asleep } else if held { .held } else if dizzy { .dizzy }
-        else if happy { .happy } else if blinking { .blink } else { .awake }
+        else if let mood { mood } else if happy { .happy } else if blinking { .blink } else { .awake }
     }
     var sparkling: Bool { twinkle != nil || !bursts.isEmpty }
 
@@ -300,6 +302,16 @@ final class PipModel {
             try? await Task.sleep(for: .seconds(1.6))
             guard lookTurn == mine else { return }
             withAnimation(.easeInOut(duration: 0.5)) { look = .zero }
+        }
+    }
+
+    /// For plugins: a reaction face for a moment.
+    func react(_ face: PipFace, for seconds: Double) {
+        withAnimation(.easeOut(duration: 0.12)) { mood = face }
+        moodTask?.cancel()
+        moodTask = Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            if !Task.isCancelled { withAnimation(.easeOut(duration: 0.2)) { mood = nil } }
         }
     }
 

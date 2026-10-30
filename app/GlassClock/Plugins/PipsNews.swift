@@ -20,6 +20,7 @@ struct PipsNews: SandboxPlugin {
     }
 
     static let items = [
+        Item(id: "faces", title: "Pip's faces", line: "Psst! Rub my head. Go on. I dare you.", opens: "bond"),
         Item(id: "ladder", title: "The bond ladder", line: "Psst! The more we play, the more I can do. Peek at my heart!", opens: "bond"),
         Item(id: "notices", title: "Pip notices things", line: "Psst! Change your colour. I'll notice. Promise.", opens: nil),
         Item(id: "liquidTop", title: "Liquid top buttons", line: "Psst! The top buttons are little drops now. Pop!", opens: "liquid"),

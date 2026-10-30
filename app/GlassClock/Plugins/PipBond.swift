@@ -8,7 +8,8 @@ import UIKit.UIGestureRecognizerSubclass
 // behind it, and settles nearby when you stop. Follow can also just be switched on.
 // Following takes effort: Pip has energy, spends it moving and stops for a rest when tired (with a 😮‍💨 bubble
 // if Pip's Emotes is on), then catches up once rested. Speed of earning is a setting (quick by default, for now). Watching touches never takes them from the app.
-// Pip's eyes follow your finger and the Pencil, at any stage.
+// Pip's eyes follow your finger and the Pencil, at any stage. Reactions: jumps at a sudden touch close by,
+// goes shy and pink at head rubs, glances about and squints when idle, gets sleepy when left alone.
 // Where: the heart button in the plugin bar.
 
 struct PipBond: SandboxPlugin {
@@ -63,6 +64,8 @@ struct PipBond: SandboxPlugin {
         var lastFollow = Date.distantPast
         var lastRub = Date.distantPast
         var rubStart: Date?
+        var lastTouch = Date.now
+        var lastStartle = Date.distantPast
         var watcher: BondTouchWatch?
         var energy = 1.0
         var resting = false
@@ -88,6 +91,7 @@ struct PipBond: SandboxPlugin {
         bond.follow = host.value("bond", "follow") ?? false
         save(host)
         tickTogether(host)
+        fidget(host)
         install(host)
     }
 
@@ -105,6 +109,23 @@ struct PipBond: SandboxPlugin {
         host.later(60) {
             if host.isOn("bond"), host.pipHere, !host.pipAsleep { grow(Gain.minuteTogether, host) }
             tickTogether(host)
+        }
+    }
+
+    /// Old-game idle fidgets from a short table: glance about, squint at something, and get sleepy when
+    /// left alone a while. Any touch wakes the eyes up again.
+    private func fidget(_ host: PipHost) {
+        host.later(Double.random(in: 5...11)) {
+            let idle = Date.now.timeIntervalSince(bond.lastTouch)
+            if host.isOn("bond"), host.pipHere, !host.pipAsleep, host.openCard == nil, idle > 5 {
+                let p = host.pipPosition
+                switch (idle > 90, Int.random(in: 0..<6)) {
+                case (true, _): host.react(.sleepy, for: 9)
+                case (_, 0): host.react(.curious, for: 0.9)
+                default: host.lookAt(CGPoint(x: p.x + .random(in: -200...200), y: p.y + .random(in: -120...120)))
+                }
+            }
+            fidget(host)
         }
     }
 
@@ -149,15 +170,25 @@ struct PipBond: SandboxPlugin {
         let pip = host.pipPosition
         let near = hypot(point.x - pip.x, point.y - pip.y) < 34
         if !near { host.lookAt(point) }      // Pip's eyes follow every touch
+        let quiet = Date.now.timeIntervalSince(bond.lastTouch)
+        bond.lastTouch = .now
         switch phase {
         case .began:
             bond.rubStart = near ? .now : nil
+            // A touch landing close by, out of a quiet moment, makes Pip jump a little.
+            if !near, quiet > 3, hypot(point.x - pip.x, point.y - pip.y) < 110,
+               Date.now.timeIntervalSince(bond.lastStartle) > 6 {
+                bond.lastStartle = .now
+                host.react(.surprised, for: 0.6)
+            }
         case .moved:
             // A rub: a finger moving on Pip for a moment (a grab would fling Pip away instead).
             if near, let start = bond.rubStart, Date.now.timeIntervalSince(start) > 0.5,
                Date.now.timeIntervalSince(bond.lastRub) > 1.2 {
                 bond.lastRub = .now
                 grow(Gain.rub, host)
+                host.react(.shy, for: 1.6)
+                host.blush(.pink, for: 1.6)
                 if Int.random(in: 0..<3) == 0, let line = Lines.rub.randomElement() { host.say(line, for: 1.4) }
             }
             // Best mates follow, keeping just behind and below the finger, never on it.
