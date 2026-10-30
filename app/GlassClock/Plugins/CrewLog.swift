@@ -1,7 +1,6 @@
 import Foundation
 
-// =====================================================================================================
-//  BUILDERS: add ONE line here when you finish a job.
+// ==============================================================================================//  BUILDERS: add ONE line here when you finish a job.
 // =====================================================================================================
 //
 //  This is the crew's log book. Crew Rundown (the speech-bubbles panel) reads it and shows Aaron
@@ -23,6 +22,10 @@ import Foundation
 enum CrewLog {
     static let entries: [Entry] = [
         .init("2026-10-30 14:26", .dot, "Pip's feelings: dizzy after flicks, sulks if thrown, likes a gentle pat.", .untested),
+=======
+        .init("2026-10-30 14:14", .bob, "Tea chat: Bob and Dot checked each other's work and fixed two small snags.", .green),
+        .init("2026-10-30 14:14", .dot, "Tidy Pip's question now goes away if you leave it.", .green),
+        .init("2026-10-30 14:07", .bob, "Pip's plugins take turns talking, so nobody talks over anyone.", .green),
         .init("2026-10-30 14:06", .dot, "Crew rundown fills itself from the crew's log book, and counts what's new.", .untested),
         .init("2026-10-30 14:01", .dot, "Crew rundown: this panel.", .untested),
         .init("2026-10-30 13:58", .bob, "Dashboard queue only offers when nobody else is talking.", .green),

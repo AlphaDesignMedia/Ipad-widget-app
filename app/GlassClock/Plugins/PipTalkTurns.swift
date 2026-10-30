@@ -14,9 +14,12 @@ enum PipTalkTurns {
         Date.now.timeIntervalSince1970 >= ((host.value("pip", "askingUntil") as Double?) ?? 0)
     }
 
-    /// Hold the floor for this many seconds from now (0 gives it back).
+    /// Hold the floor for this many seconds from now (0 gives it back). Never shortens a longer hold that's
+    /// already there, so one plugin can't cut another off mid-sentence.
     static func takeFloor(_ host: PipHost, for seconds: Double) {
-        host.setValue(Date.now.timeIntervalSince1970 + seconds, "pip", "askingUntil")
+        let now = Date.now.timeIntervalSince1970
+        let held = (host.value("pip", "askingUntil") as Double?) ?? 0
+        host.setValue(seconds <= 0 ? now : max(held, now + seconds), "pip", "askingUntil")
     }
 
     /// Give the floor back straight away, for places that don't have the host to hand.
