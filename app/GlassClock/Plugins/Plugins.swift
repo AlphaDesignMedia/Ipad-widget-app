@@ -37,6 +37,7 @@ enum Plugins {
         StationeryCupboard(),
         PipsSketchbook(),
         VendOMat(),
+        ShowModes(),
         // GlassCleaner(),  // parked for Aaron's stable show-and-tell build (30 Oct); un-comment to bring back
     ]
 }
