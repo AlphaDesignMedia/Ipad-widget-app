@@ -33,5 +33,6 @@ enum Plugins {
         TeaBreak(),
         GuestTakeover(),
         CrewRundown(),
+        StationeryCupboard(),
     ]
 }
