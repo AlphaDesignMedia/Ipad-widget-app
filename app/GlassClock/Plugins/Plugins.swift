@@ -45,5 +45,6 @@ enum Plugins {
         PipChecks(),        // Greg: speaks 8s after launch, not hand-tested
         RobVisits(),        // Rob: pops in unprompted at joy 2+, not hand-tested
         VintagePacks(),     // Rob: passive
+        GlassMemory(),      // Dot: faint Pip trails that stay, and a frosted ink look; trails off at Joy 0
     ]
 }

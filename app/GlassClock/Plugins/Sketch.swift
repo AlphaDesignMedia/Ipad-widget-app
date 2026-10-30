@@ -508,12 +508,32 @@ struct Sketch: SandboxPlugin {
     /// The ink over the app (and paper, while the card is open), plus the invisible view that hears the Pencil.
     struct Layer: View {
         let ink: Ink
+        /// Glass Memory's ink look: "normal" (default), "soft" or "frosted". Only used while that plugin is on.
+        @AppStorage("plug.glassmemory.ink") private var glassInk = "normal"
         var body: some View {
             let strokes = ink.strokes
+            let look = (ink.host?.isOn("glassmemory") ?? false) ? glassInk : "normal"
             ZStack {
-                Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
-                    .opacity(ink.clearing ? 0 : 1)
-                    .background { if ink.open && ink.paper { Paper().transition(.opacity) } }
+                Group {
+                    switch look {
+                    case "soft":
+                        Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
+                            .opacity(0.5)
+                    case "frosted":
+                        ZStack {
+                            Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
+                                .blur(radius: 3)
+                                .opacity(0.4)
+                            Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
+                                .opacity(0.5)
+                                .shadow(color: .white.opacity(0.55), radius: 0.5, x: -0.8, y: -0.8)
+                        }
+                    default:
+                        Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
+                    }
+                }
+                .opacity(ink.clearing ? 0 : 1)
+                .background { if ink.open && ink.paper { Paper().transition(.opacity) } }
                 LiveInk(ink: ink)
                 Tracker(ink: ink)
             }

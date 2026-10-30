@@ -156,7 +156,8 @@ struct GlassCleaner: SandboxPlugin {
         wipe.faint = !host.pipHere
         withAnimation(.easeInOut(duration: 0.3)) { wipe.pane = pane }
         wipe.job = Task { @MainActor in
-            defer { if !Task.isCancelled { finish(host) } }
+            // Glass Memory listens for this and wipes Pip's marks (only when a clean ran to the end).
+            defer { if !Task.isCancelled { finish(host); host.post(.custom("glass.cleaned")) } }
             guard withPip else {
                 shine()
                 try? await Task.sleep(for: .seconds(Tune.shineSeconds + 0.6))
@@ -221,6 +222,7 @@ struct GlassCleaner: SandboxPlugin {
             try? await Task.sleep(for: .seconds(0.6))
             host.say(Lines.thanks.randomElement()!, for: 2)
             host.cheer()
+            host.post(.custom("glass.cleaned"))
         }
     }
 
