@@ -45,6 +45,9 @@ Port only what makes Aaron smile within 5 seconds, and port cheap things before 
 - 🎵 **Glass Harp:** AVAudio plus haptics, which feels far better on device.
 - 🔬 **Glass Lab:** use the real Liquid Glass API. It overlaps with Design Tweaks, so merge it there.
 
+- ✨ **Native Wonders:** ✅ built (Liquid Time, Pip in 3D, Pencil, Speaking Clock, Battery, Postcard).
+- 🕰️ **Spatial time machine (demo only):** the app as a deep, layered 3D diorama. Parallax with tilt, spatial-photo style depth, and maybe RealityKit later. Keep it mindful and short, not a gimmick you tire of.
+
 ## Stay on the web (don't port)
 
 - **Adaptive Layout, Panel Snap, Plugins Panel+.** Native size classes and the Workspace already do this.
