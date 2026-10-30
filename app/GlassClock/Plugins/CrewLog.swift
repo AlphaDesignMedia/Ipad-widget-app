@@ -22,6 +22,8 @@ import Foundation
 
 enum CrewLog {
     static let entries: [Entry] = [
+        .init("2026-10-30 17:35", .rob, "Tidy-up: every warning gone, reduced motion stops running flat out, and the cupboard door no longer swallows taps when it is open.", .untested),
+        .init("2026-10-30 16:05", .rob, "Pip in 3D turns in two beats now: the tilt trails the turn, and the look settles a touch past you. All the numbers live in one table.", .untested),
         .init("2026-10-30 17:20", .dot, "Pip's sketchbook: draw and Pip guesses house or face. Teach them more words, or trace one of theirs.", .untested),
         .init("2026-10-30 14:48", .bob, "Tidy Pip shows you how first, then offers to do it: drawings first, then panels.", .untested),
         .init("2026-10-30 14:38", .dot, "Tidy-up: plugins switched off now rest completely, and the crew chat stops when you close it.", .untested),
@@ -49,13 +51,14 @@ enum CrewLog {
     // MARK: Shape (builders: nothing to change below here)
 
     enum Who: String, Sendable, Hashable {
-        case pip, bob, dot
-        var name: String { ["pip": "Pip", "bob": "Bob", "dot": "Dot"][rawValue] ?? "Pip" }
+        case pip, bob, dot, rob
+        var name: String { ["pip": "Pip", "bob": "Bob", "dot": "Dot", "rob": "Rob"][rawValue] ?? "Pip" }
         var symbol: String {
             switch self {
             case .pip: return "sparkle"
             case .bob: return "wrench.and.screwdriver"
             case .dot: return "paintbrush.pointed"
+            case .rob: return "laptopcomputer"
             }
         }
         var role: String {
@@ -63,6 +66,7 @@ enum CrewLog {
             case .pip: return "Your guide"
             case .bob: return "Foreman. Steady. Flask of tea, a vape on breaks."
             case .dot: return "Apprentice. Keen, and wishes they were better."
+            case .rob: return "Older brother. Codes. Not Bob, and never has been."
             }
         }
     }
