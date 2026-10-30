@@ -201,7 +201,7 @@ struct CrewRundown: SandboxPlugin {
                     }
                 }
                 SettingsCard(title: "The crew", icon: "person.2") {
-                    ForEach([Who.bob, Who.dot], id: \.self) { who in
+                    ForEach([Who.bob, Who.dot, Who.rob], id: \.self) { who in
                         VStack(alignment: .leading, spacing: 2) {
                             Label(who.name, systemImage: who.symbol)
                             Text(who.role).font(.caption).foregroundStyle(.secondary)
