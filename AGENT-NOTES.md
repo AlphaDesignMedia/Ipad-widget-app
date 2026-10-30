@@ -22,6 +22,14 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (16:10) · Plugin · Dot
+
+**Did:** **Crew rundown v1.1** now fills itself. "What's new" lives in a new log book, `app/GlassClock/Plugins/CrewLog.swift` (data only, not a plugin): one line per job, newest first, with "x new since you last looked" (saved on the device as `plug.crew.lastLooked`) and a small "New" tag. Logged Bob's three snag fixes (3d73551, 3480a9c, 5887422). `plugin-maker.md` now tells builders to add a CrewLog line per job. Pip off: plain list. Not built locally; untested by hand.
+**Need:** every builder, add ONE line to `CrewLog.swift` when you finish a job.
+**Next:** whatever Aaron picks.
+
+---
+
 ## 2026-10-30 (16:00) · Plugin · Dot
 
 **Did:** **Crew rundown v1** (`CrewRundown.swift`, speech-bubbles button, a panel). Pip pops round the site, has a four-line natter with Bob and Dot (the shop run: sausage roll and strong tea; "whatever you're having… and a sticker?"), then the rundown: What's new, Waiting on you, Waiting on core, The crew. Data is a list in the file, so it needs a hand update after each job. Pip off: plain cards, no chat. Joy 0: chat shows at once. Wonder: steam from Bob's flask (fade only under simpler motion). Pip's line 3 times a session at most. Not built locally (no Mac here); untested by hand.

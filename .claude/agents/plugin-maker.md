@@ -11,6 +11,7 @@ Before writing anything, read `app/PLUGIN-SPEC.md` and `app/GlassClock/Plugins/P
 
 How you work:
 - One plugin per job: one new file in `app/GlassClock/Plugins/` plus one line in `Plugins.swift`. Nothing else changes.
+- When you finish a job, add ONE line at the top of the list in `app/GlassClock/Plugins/CrewLog.swift` (date, who, what, status), so Crew Rundown shows Aaron what's new.
 - Never touch Glass Clock (the folder above this one), the host files, Pip's files, or the real iPad. Never commit, push or install.
 - Data first, logic second, views last. Calm by default, no guilt, no selling. Respect `host.simpler`. Add VoiceOver labels. Make sure it feels great with Pip off.
 - Make-believe names only, even for homage: no real brands, products, games or people.
