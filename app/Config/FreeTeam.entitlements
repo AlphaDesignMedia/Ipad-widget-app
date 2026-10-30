@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- For free (Personal Team) builds, which can't use App Groups.
+	     The app and the widget share their settings through this keychain group. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.aarondennel.pipsandbox.shared</string>
+	</array>
+</dict>
+</plist>

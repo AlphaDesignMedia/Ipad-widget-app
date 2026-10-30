@@ -1,0 +1,1662 @@
+import SwiftUI
+import UIKit
+
+/// How the preview and the settings share the window.
+enum WorkspaceLayout: String, CaseIterable, Identifiable {
+    case automatic, sideBySide, stacked, previewOnly
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .sideBySide: "Side by Side"
+        case .stacked: "Stacked"
+        case .previewOnly: "Preview Only"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .automatic: "rectangle.3.group"
+        case .sideBySide: "rectangle.split.2x1"
+        case .stacked: "rectangle.split.1x2"
+        case .previewOnly: "rectangle"
+        }
+    }
+
+    /// Automatic picks side by side when there's room (a full-screen iPad in landscape) and
+    /// stacked in portrait and narrower Split View or Stage Manager windows.
+    func resolved(width: CGFloat) -> WorkspaceLayout {
+        guard self == .automatic else { return self }
+        return width >= 1000 ? .sideBySide : .stacked
+    }
+}
+
+/// The backdrops in small families, so the list reads as a few short groups rather than one
+/// long menu (owner feedback, 2026-10-21).
+enum BackdropKind: String, CaseIterable, Identifiable {
+    case gradients, mesh, patterns
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .gradients: "Gradients"
+        case .mesh: "Mesh"
+        case .patterns: "Patterns"
+        }
+    }
+
+    var backdrops: [PreviewBackdrop] {
+        switch self {
+        case .gradients: [.plain, .aurora, .sunset, .ocean, .graphite]
+        case .mesh: [.bloom, .dune, .lagoon, .midnight, .glow]
+        case .patterns: [.lines, .waves, .dots, .rings]
+        }
+    }
+}
+
+extension PreviewBackdrop {
+    /// The family this backdrop belongs to, for the small "which kind" hint when swiping.
+    /// Your Photo has none.
+    var kind: BackdropKind? { BackdropKind.allCases.first { $0.backdrops.contains(self) } }
+}
+
+/// What's behind the preview card. Apps can't see the Home Screen wallpaper, so the closest
+/// thing is a photo the person picks, such as a screenshot of their own Home Screen.
+enum PreviewBackdrop: String, CaseIterable, Identifiable {
+    case plain, aurora, sunset, ocean, graphite, bloom, dune, lagoon, midnight, glow, lines, waves, dots, rings, custom, photo
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .plain: "Plain"
+        case .aurora: "Aurora"
+        case .sunset: "Sunset"
+        case .ocean: "Ocean"
+        case .graphite: "Graphite"
+        case .bloom: "Bloom"
+        case .dune: "Dune"
+        case .lagoon: "Lagoon"
+        case .midnight: "Midnight"
+        case .glow: "Glow"
+        case .lines: "Lines"
+        case .waves: "Waves"
+        case .dots: "Dots"
+        case .rings: "Rings"
+        case .custom: "Your Own"
+        case .photo: "Your Photo"
+        }
+    }
+
+    var colors: [Color] {
+        switch self {
+        case .plain, .photo: [.indigo, .teal, .orange]
+        case .custom: CustomBackdrop.decode(UserDefaults.standard.string(forKey: CustomBackdrop.key) ?? "")?.colors
+            ?? CustomBackdrop().colors
+        case .aurora: [.indigo, .teal, .orange]
+        case .sunset: [.purple, .pink, .orange]
+        case .ocean: [Color(red: 0.02, green: 0.1, blue: 0.35), .blue, .teal]
+        case .graphite: [Color(white: 0.12), Color(white: 0.3), Color(white: 0.18)]
+        case .bloom, .dune, .lagoon, .midnight, .glow: mesh ?? []
+        case .lines: [Color(red: 0.36, green: 0.44, blue: 0.86), Color(red: 0.62, green: 0.40, blue: 0.86)]
+        case .waves: [Color(red: 0.10, green: 0.56, blue: 0.70), Color(red: 0.18, green: 0.32, blue: 0.66)]
+        case .dots: [Color(red: 0.94, green: 0.56, blue: 0.48), Color(red: 0.80, green: 0.36, blue: 0.56)]
+        case .rings: [Color(red: 0.30, green: 0.66, blue: 0.52), Color(red: 0.16, green: 0.40, blue: 0.56)]
+        }
+    }
+
+    /// The simple drawn patterns (owner request, 2026-10-21: lines and patterns as ideas
+    /// for backdrops). They follow Light and Dark, see `PatternBackdrop`.
+    var isPattern: Bool { [.lines, .waves, .dots, .rings, .custom].contains(self) }
+
+    /// Soft, blended mesh backdrops in the spirit of the iPad's own wallpapers (owner request,
+    /// 2026-10-21): nine colours on a 3×3 grid, top-left to bottom-right.
+    var mesh: [Color]? {
+        func c(_ r: Double, _ g: Double, _ b: Double) -> Color { Color(red: r, green: g, blue: b) }
+        return switch self {
+        case .bloom: [c(0.98, 0.78, 0.86), c(0.86, 0.62, 0.95), c(0.62, 0.66, 0.98),
+                      c(0.99, 0.62, 0.70), c(0.80, 0.50, 0.92), c(0.48, 0.56, 0.96),
+                      c(1.00, 0.80, 0.66), c(0.94, 0.56, 0.74), c(0.56, 0.72, 0.98)]
+        case .dune: [c(0.99, 0.91, 0.78), c(0.97, 0.82, 0.62), c(0.93, 0.70, 0.52),
+                     c(0.96, 0.80, 0.62), c(0.90, 0.64, 0.46), c(0.80, 0.52, 0.40),
+                     c(0.86, 0.62, 0.48), c(0.72, 0.46, 0.38), c(0.56, 0.36, 0.34)]
+        case .lagoon: [c(0.62, 0.92, 0.88), c(0.36, 0.80, 0.86), c(0.20, 0.58, 0.86),
+                       c(0.40, 0.84, 0.74), c(0.16, 0.64, 0.74), c(0.10, 0.40, 0.72),
+                       c(0.20, 0.66, 0.56), c(0.08, 0.46, 0.56), c(0.06, 0.26, 0.52)]
+        case .midnight: [c(0.10, 0.10, 0.26), c(0.18, 0.12, 0.38), c(0.08, 0.16, 0.36),
+                         c(0.14, 0.08, 0.30), c(0.30, 0.16, 0.50), c(0.10, 0.22, 0.46),
+                         c(0.04, 0.04, 0.14), c(0.12, 0.08, 0.26), c(0.04, 0.10, 0.24)]
+        case .glow: [c(1.00, 0.86, 0.50), c(1.00, 0.66, 0.36), c(0.98, 0.44, 0.34),
+                     c(1.00, 0.62, 0.30), c(0.96, 0.40, 0.30), c(0.86, 0.24, 0.36),
+                     c(0.94, 0.36, 0.28), c(0.78, 0.20, 0.34), c(0.52, 0.12, 0.36)]
+        default: nil
+        }
+    }
+}
+
+/// A drawn backdrop: a soft gradient with fine lines, waves, dots or rings over it. Pale with
+/// darker marks in Light, deep with lighter marks in Dark.
+struct PatternBackdrop: View {
+    var kind: PreviewBackdrop
+    /// For Your Own: its colours and pattern, passed in so it redraws as they change.
+    var custom: CustomBackdrop? = nil
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let dark = colorScheme == .dark
+        let base = custom?.colors ?? kind.colors
+        let marks = kind == .custom ? custom?.pattern.drawn : kind
+        ZStack {
+            LinearGradient(colors: base, startPoint: .topLeading, endPoint: .bottomTrailing)
+            // Light: washed towards white; Dark: towards black.
+            (dark ? Color.black : Color.white).opacity(dark ? 0.45 : 0.55)
+            Canvas { context, size in
+                let ink = GraphicsContext.Shading.color(dark ? .white.opacity(0.16) : base[0].opacity(0.35))
+                switch marks {
+                case .lines:
+                    var path = Path()
+                    let gap: CGFloat = 26
+                    var x = -size.height
+                    while x < size.width {
+                        path.move(to: CGPoint(x: x, y: size.height))
+                        path.addLine(to: CGPoint(x: x + size.height, y: 0))
+                        x += gap
+                    }
+                    context.stroke(path, with: ink, lineWidth: 1.2)
+                case .waves:
+                    let gap: CGFloat = 34
+                    var y: CGFloat = 0
+                    var row = 0.0
+                    while y < size.height + gap {
+                        var path = Path()
+                        path.move(to: CGPoint(x: 0, y: y))
+                        for x in stride(from: 0, through: size.width, by: 8) {
+                            path.addLine(to: CGPoint(x: x, y: y + 12 * sin(x / 90 + row * 0.5)))
+                        }
+                        context.stroke(path, with: ink, lineWidth: 1.4)
+                        y += gap
+                        row += 1
+                    }
+                case .dots:
+                    let gap: CGFloat = 24
+                    for x in stride(from: gap / 2, through: size.width, by: gap) {
+                        for y in stride(from: gap / 2, through: size.height, by: gap) {
+                            context.fill(Path(ellipseIn: CGRect(x: x - 2, y: y - 2, width: 4, height: 4)), with: ink)
+                        }
+                    }
+                case .rings:
+                    let centre = CGPoint(x: size.width * 0.15, y: size.height * 0.85)
+                    let reach = hypot(size.width, size.height)
+                    for radius in stride(from: CGFloat(40), through: reach, by: 38) {
+                        context.stroke(Path(ellipseIn: CGRect(x: centre.x - radius, y: centre.y - radius,
+                                                              width: radius * 2, height: radius * 2)),
+                                       with: ink, lineWidth: 1.4)
+                    }
+                default:
+                    break
+                }
+            }
+        }
+    }
+}
+
+/// A backdrop drawn to fill its space, shared by the preview, its thumbnail and the Moods.
+struct BackdropFill: View {
+    var backdrop: PreviewBackdrop
+    var homeScreen: HomeScreenStyle
+    /// Light: gradients and mesh are lifted to pastels, so the deep ones (Midnight, Graphite,
+    /// Ocean) don't clash with the pale panels (owner, 25 Oct 2026). A flat white wash over
+    /// them was tried first and turned the dark ones a muddy grey. Dark mirrors it: the pale
+    /// ones sink to deep tones of the same colour (owner, 25 Oct 2026: pastels and deeps, like
+    /// a light and a dark tone of one colour).
+    var tone = BackdropTone.natural
+    var photo: UIImage? = nil
+    var custom: CustomBackdrop? = nil
+
+    var body: some View {
+        switch backdrop {
+        case .plain where homeScreen.accent == nil:
+            homeScreen == .dark ? Color.black : Color.white
+        case .plain:
+            // Clear and Tinted draw white text, so Plain is a quiet slate there rather than
+            // white; it used to fall back to Aurora and looked the same (owner, 2026-10-21).
+            LinearGradient(colors: [Color(white: 0.34), Color(white: 0.18)], startPoint: .top, endPoint: .bottom)
+        case .photo where photo != nil:
+            Color.clear.overlay { Image(uiImage: photo!).resizable().scaledToFill() }.clipped()
+        case _ where backdrop.isPattern:
+            PatternBackdrop(kind: backdrop, custom: custom)
+        default:
+            if let mesh = backdrop.mesh {
+                // The middle points sit off-centre, so the colours flow rather than form a grid.
+                MeshGradient(width: 3, height: 3, points: [
+                    [0, 0], [0.5, 0], [1, 0],
+                    [0, 0.45], [0.62, 0.42], [1, 0.55],
+                    [0, 1], [0.4, 1], [1, 1],
+                ], colors: paint(mesh), smoothsColors: true)
+            } else {
+                LinearGradient(colors: paint(backdrop.colors), startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
+        }
+    }
+
+    private func paint(_ colors: [Color]) -> [Color] {
+        switch tone {
+        case .natural: colors
+        case .pastel: colors.map { $0.lifted() }
+        case .deep: colors.map { $0.deepened() }
+        }
+    }
+}
+
+/// How the gradient and mesh backdrops are toned to suit Light or Dark.
+enum BackdropTone: Equatable {
+    case natural, pastel, deep
+}
+
+extension Color {
+    /// Brightened to `brightness` (linear luminance), so dark colours turn pastel and pale ones
+    /// are left as they are. The colour itself is brightened first and white only makes up the
+    /// rest, so Midnight turns periwinkle rather than grey.
+    func lifted(to brightness: Float = 0.45) -> Color {
+        let c = resolve(in: EnvironmentValues())
+        var rgb = [c.linearRed, c.linearGreen, c.linearBlue]
+        func luminance() -> Float { 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] }
+        guard luminance() < brightness else { return self }
+        let gain = min(brightness / max(luminance(), 0.001), 1 / max(rgb.max()!, 0.001))
+        rgb = rgb.map { $0 * gain }
+        let t = max(0, (brightness - luminance()) / (1 - luminance()))
+        rgb = rgb.map { $0 + (1 - $0) * t }
+        return Color(Color.Resolved(colorSpace: .sRGBLinear, red: rgb[0], green: rgb[1], blue: rgb[2], opacity: c.opacity))
+    }
+}
+
+extension Color {
+    /// Darkened to at most `brightness` (linear luminance), keeping the hue, so pale colours
+    /// turn deep and dark ones are left as they are. The mirror of `lifted`.
+    func deepened(to brightness: Float = 0.08) -> Color {
+        let c = resolve(in: EnvironmentValues())
+        let luminance = 0.2126 * c.linearRed + 0.7152 * c.linearGreen + 0.0722 * c.linearBlue
+        guard luminance > brightness else { return self }
+        let gain = brightness / luminance
+        return Color(Color.Resolved(colorSpace: .sRGBLinear, red: c.linearRed * gain, green: c.linearGreen * gain,
+                                    blue: c.linearBlue * gain, opacity: c.opacity))
+    }
+}
+
+/// The photo chosen as a backdrop, kept in the app's own storage.
+enum BackdropPhoto {
+    private static var url: URL {
+        URL.applicationSupportDirectory.appending(path: "backdrop.jpg")
+    }
+
+    static func load() -> UIImage? {
+        (try? Data(contentsOf: url)).flatMap(UIImage.init(data:))
+    }
+
+    /// Stores a picked photo, scaled down to at most 2400 pt on its long side.
+    static func save(_ data: Data) -> UIImage? {
+        guard let image = UIImage(data: data) else { return nil }
+        let longest = max(image.size.width, image.size.height)
+        let scale = min(1, 2400 / longest)
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? resized.jpegData(compressionQuality: 0.85)?.write(to: url)
+        return resized
+    }
+}
+
+/// The overall arrangement of the app.
+enum InterfaceStyle: String, CaseIterable, Identifiable {
+    /// The preview and one scrolling list of settings, side by side or stacked.
+    case classic
+    /// A glass sidebar of settings groups, the preview filling the window, and the chosen
+    /// group's controls in an inspector on the right (like Keynote or Freeform). From the
+    /// panels-prototype research, References/panel-layout-proposal.md on that branch.
+    case panels
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .classic: "Classic"
+        case .panels: "Panels"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .classic: "rectangle.split.2x1"
+        case .panels: "rectangle.split.3x1"
+        }
+    }
+}
+
+/// The groups of settings, in the order a clock is designed: what it shows, how it looks, then
+/// how the app behaves. The Classic interface shows them as collapsible sections; Panels lists
+/// them in the sidebar.
+enum SettingsSection: String, CaseIterable, Identifiable {
+    case presets, layout, fonts, colour, effects, card, homeScreens, widget, accessibility
+    var id: Self { self }
+
+    /// The groups Classic shows; Panels has them all.
+    static let classic: [SettingsSection] = [.presets, .fonts, .colour]
+
+    var title: String {
+        switch self {
+        case .presets: "Presets"
+        case .layout: "Layout"
+        case .fonts: "Fonts"
+        case .colour: "Colour"
+        case .effects: "Effects"
+        case .card: "Card"
+        case .homeScreens: "Home Screens"
+        case .widget: "App"
+        case .accessibility: "Accessibility"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .presets: "sparkles"
+        case .layout: "rectangle.3.group"
+        case .fonts: "textformat"
+        case .colour: "paintpalette"
+        case .effects: "sun.max"
+        case .card: "rectangle.on.rectangle"
+        case .homeScreens: "circle.lefthalf.filled"
+        case .widget: "square.grid.2x2"
+        case .accessibility: "accessibility"
+        }
+    }
+
+    var footer: String? {
+        switch self {
+        case .presets:
+            "Save up to \(StyleLibrary.maxCustomPresets) of your own. Long-press one to update, rename or delete it."
+        case .effects:
+            "A shadow's Automatic colour is black. Pick white for a light shadow."
+        case .card:
+            "When your Home Screen uses the Clear or Tinted style, iPadOS supplies the card and colour. Liquid Glass text keeps its glass look."
+        case .homeScreens:
+            "iPadOS normally redraws widgets in its own glass and colour on these Home Screens. Turn these on to bring your colours forward instead. Needs iPadOS 27 for Clear Home Screens; iPadOS 26 applies its own glass there regardless."
+        case .widget:
+            "Your changes are kept in the app as you go. They reach the widget when you tap Apply to Widget, or when you leave the app if that's on. App look sets the app's style: Glass, Frosted, Colour (tinted with the app colour), or Home, which follows your Home Screen. Appearance follows your iPad unless you pick Light or Dark. To add the clock: long-press your Home Screen, tap Edit, then Add Widget, and choose Pip Sandbox."
+        case .accessibility:
+            "Simpler effects turns off the wiggle, lean, light sweeps and carousel motion. Reduce glass swaps the glass for solid panels; it's also on when Reduce Transparency is on in the iPad's Settings."
+        case .layout, .fonts, .colour:
+            nil
+        }
+    }
+}
+
+/// Lays its children out in rows, wrapping to a new row when one is full.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(subviews, width: proposal.width ?? .infinity)
+        return CGSize(width: proposal.width ?? rows.map(\.width).max() ?? 0,
+                      height: rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(0, rows.count - 1)))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                // Placed at exactly the size it measured; an open proposal let buttons squash.
+                subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2),
+                                      proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> [(indices: [Int], width: CGFloat, height: CGFloat)] {
+        var rows: [(indices: [Int], width: CGFloat, height: CGFloat)] = []
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            if let last = rows.last, last.width + spacing + size.width <= width {
+                rows[rows.count - 1].indices.append(index)
+                rows[rows.count - 1].width += spacing + size.width
+                rows[rows.count - 1].height = max(last.height, size.height)
+            } else {
+                rows.append(([index], size.width, size.height))
+            }
+        }
+        return rows
+    }
+}
+
+/// The app's look. Glass leans all the way into glass: clear, see-through panels, with every
+/// row of text on its own frosted backing so it stays readable (owner direction, 2026-10-21:
+/// "super glassy… but really focus on contrast"). Frosted is the standard, more opaque Liquid
+/// Glass; Colour tints it with the app colour.
+enum AppTheme: String, CaseIterable, Identifiable {
+    /// `home` matches the Home Screen style being previewed: Light and Dark set the app's
+    /// appearance, Clear is clear glass, and Tinted tints the glass with the app colour (owner
+    /// direction, 2026-10-21: the app should feel like your own Home Screen).
+    case glass, frosted, colour, home
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .glass: "Glass"
+        case .frosted: "Frosted"
+        case .colour: "Colour"
+        // Short, so it fits the four-way switch without being cut off (tap check, 2026-10-21).
+        case .home: "Home"
+        }
+    }
+
+    /// Clear glass with frosted cards: the Glass look, which My Home Screen builds on.
+    var isGlassy: Bool { self == .glass || self == .home }
+}
+
+/// The Home Screen style the app's own glass follows, when the app look is My Home Screen.
+extension EnvironmentValues {
+    @Entry var homeLook: HomeScreenStyle?
+    /// Moving the settings panel by holding a card's title bar.
+    @Entry var panelCarry: PanelCarry?
+    /// The design of headings when the app's text matches the clock font. A serif clock font
+    /// pairs serif headings with plain body text, which reads better at small sizes (owner
+    /// feedback, 2026-10-21).
+    @Entry var headingDesign: Font.Design?
+}
+
+/// What the groups are stuck onto, if anything.
+enum GroupsAttachment: String {
+    case none, widget, settings
+}
+
+/// What the panels do when the widget is moved under one (owner idea, 2026-10-21).
+enum PanelsMakeWay: String, CaseIterable, Identifiable {
+    case moveAside, hide
+    var id: Self { self }
+    var label: String { self == .moveAside ? "Move aside" : "Tuck away" }
+}
+
+/// Light, Dark, or following the iPad.
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case automatic, light, dark
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .automatic: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
+
+/// The app colour, for buttons, highlights and the Colour theme. Automatic is the system blue.
+enum AppColor {
+    static let keepsReadableKey = "appColourReadable"
+    /// The app's own blue for Automatic (owner, 25 Oct 2026: black felt off): a calm blue,
+    /// a little deeper in Light and a little lighter in Dark, so it reads on either.
+    static let standard = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.42, green: 0.66, blue: 1.0, alpha: 1)
+            : UIColor(red: 0.13, green: 0.40, blue: 0.86, alpha: 1)
+    })
+
+    static func resolve(_ raw: String) -> Color {
+        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : readable($0.color) } ?? standard
+    }
+
+    /// Any colour kept readable (owner, 25 Oct 2026: think about contrast on the colours you
+    /// can pick). In Light a pale one deepens until white text on it and it on pale glass both
+    /// read; in Dark it sits in a middle band, light enough to show on dark glass and dark
+    /// enough for a button's white text. The hue stays, so a pastel pick still looks like it.
+    static func readable(_ color: Color) -> Color {
+        // Off gives the exact colour picked (owner, same day: help people make any colour work,
+        // don't stop them), with Outline everything there to keep it clear.
+        guard UserDefaults.standard.object(forKey: keepsReadableKey) as? Bool ?? true else { return color }
+        return Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(color.lifted(to: 0.24).deepened(to: 0.34))
+                : UIColor(color.deepened(to: 0.16))
+        })
+    }
+
+    /// The app colour spelled out (blue for Automatic), for selected and primary things.
+    /// `accentColor` would pick up the black-and-white tint the Glass theme gives icons on
+    /// glass, and selected items should look the same everywhere (owner, 2026-10-21).
+    static func chosen(_ raw: String) -> Color {
+        ClockColor(rawValue: raw).flatMap { $0 == .auto ? nil : readable($0.color) } ?? standard
+    }
+}
+
+/// The app's main buttons: the app colour with white text, always. With Automatic, the
+/// inherited tint could be the Glass theme's black or white, which made some buttons white on
+/// white (Show Mine, Copy Values; tap check, 2026-10-21).
+struct ProminentButton: ViewModifier {
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    @AppStorage(AppColor.keepsReadableKey) private var keepsReadable = true
+    @AppStorage("appTheme") private var theme = AppTheme.home
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @Environment(\.homeLook) private var homeLook
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+
+    func body(content: Content) -> some View {
+        // Coloured glass in the Glass and Home looks (owner, 22 Oct 2026: "even the I'm Feeling
+        // Lucky button, maybe we could make that glass"); solid elsewhere.
+        if theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
+            content
+                .buttonStyle(.glassProminent)
+                .tint(AppColor.chosen(appColor))
+                .foregroundStyle(.white)
+        } else {
+            content
+                .buttonStyle(.borderedProminent)
+                .tint(AppColor.chosen(appColor))
+                .foregroundStyle(.white)
+        }
+    }
+}
+
+extension View {
+    func prominentButton() -> some View { modifier(ProminentButton()) }
+}
+
+/// Chips (Lucky Colours, starter styles…) as solid little beads of glass (owner, 22 Oct 2026:
+/// the system's see-through tinted chips washed out on clear glass, worst in Light). Dark text
+/// on a near-white bead in Light, white text on a smoky bead in Dark, both lit from above.
+struct ReadableChip: ViewModifier {
+    func body(content: Content) -> some View {
+        content.buttonStyle(GlassChipStyle())
+    }
+}
+
+struct GlassChipStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        let dark = scheme == .dark
+        configuration.label
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(dark ? Color.white : .black.opacity(0.85))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .modifier(ChipSurface(pressed: configuration.isPressed))
+            .opacity(isEnabled ? 1 : 0.5)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.snappy(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
+/// A chip's surface: light Liquid Glass in the Glass and Home looks (coloured when chosen), a
+/// solid bead everywhere else and with Reduce glass.
+struct ChipSurface: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.homeLook) private var homeLook
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var theme = AppTheme.home
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    var pressed = false
+    /// A chosen chip (a lock that's on): glass tinted with the app colour.
+    var selected = false
+
+    func body(content: Content) -> some View {
+        let dark = scheme == .dark
+        if selected && theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
+            // A lock that's on is glass tinted with the app colour. One that's off is lighter
+            // glass: clear glass on a glass panel lost its contrast (owner, 22 Oct 2026).
+            content.glassEffect(.regular.tint(AppColor.chosen(appColor)).interactive(), in: .capsule)
+        } else if theme.isGlassy && homeLook != .tinted && !reducesGlass && !systemReducesTransparency {
+            // Lighter glass (owner, dashboard 22 Oct 2026): regular glass, which softens what's
+            // behind it, under a strong light or dark wash, so the label keeps its contrast.
+            content.glassEffect(.regular.tint(dark ? .black.opacity(0.28) : .white.opacity(0.6)).interactive(), in: .capsule)
+        } else if selected {
+            content.background(AppColor.chosen(appColor), in: .capsule)
+        } else {
+            content.background {
+                Capsule().fill(LinearGradient(
+                    colors: dark ? [.white.opacity(0.26), .white.opacity(0.12)] : [.white.opacity(0.95), .white.opacity(0.75)],
+                    startPoint: .top, endPoint: .bottom)
+                    .shadow(.inner(color: .white.opacity(dark ? 0.35 : 0.9), radius: 1, y: 1))
+                    .shadow(.drop(color: .black.opacity(dark ? 0.3 : 0.14), radius: 3, y: 1.5)))
+            }
+        }
+    }
+}
+
+extension View {
+    func readableChip() -> some View { modifier(ReadableChip()) }
+}
+
+/// The app's own glass for panels and controls, in the chosen theme. When Reduce Transparency
+/// is on in iPadOS Settings, or the app's Reduce glass switch is, it's a calm solid surface
+/// instead, so the design doesn't lean on glass (HIG: Accessibility, Materials).
+struct AppGlass<S: Shape>: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @Environment(\.homeLook) private var homeLook
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var theme = AppTheme.home
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    @AppStorage(Outlines.key) private var outlines = false
+    @AppStorage(Outlines.widthKey) private var outlineWidth = Outlines.standardWidth
+    @AppStorage(Outlines.colourKey) private var outlineColour = OutlineColour.automatic
+    /// Read so the glass redraws when the contrast switch changes.
+    @AppStorage(AppColor.keepsReadableKey) private var keepsReadable = true
+    @AppStorage(GlassFrost.key) private var frostsGlass = true
+    var shape: S
+    var interactive = false
+    var tint: Color?
+    /// A big panel of settings rather than a small control: Crystal keeps a gentle tint behind
+    /// these so their text stays readable.
+    var panel = false
+
+    func body(content: Content) -> some View {
+        glassed(content)
+            .overlay {
+                if outlines { outline.allowsHitTesting(false) }
+            }
+    }
+
+    @ViewBuilder
+    private var outline: some View {
+        switch outlineColour {
+        case .automatic: shape.stroke(.primary.opacity(0.9), lineWidth: outlineWidth)
+        case .appColour: shape.stroke(AppColor.chosen(appColor), lineWidth: outlineWidth)
+        case .white: shape.stroke(.white, lineWidth: outlineWidth)
+        case .black: shape.stroke(.black, lineWidth: outlineWidth)
+        // A rim of light, like the edge of a glass pane: bright where the light catches it,
+        // fading round the far side, on a faint dark line so it still shows on pale backdrops.
+        // Plain strokes, no extra glass, so it costs nothing to draw.
+        case .glass:
+            ZStack {
+                shape.stroke(.black.opacity(colorScheme == .dark ? 0.35 : 0.18), lineWidth: outlineWidth + 1)
+                shape.stroke(LinearGradient(colors: [.white, .white.opacity(0.3), .white.opacity(0.75)],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing),
+                             lineWidth: outlineWidth)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func glassed(_ content: Content) -> some View {
+        if systemReducesTransparency || reducesGlass {
+            content
+                .background {
+                    shape.fill(.background.secondary)
+                        .overlay { if let tint { shape.fill(tint.opacity(0.2)) } }
+                        .overlay { shape.stroke(.separator, lineWidth: 1) }
+                }
+        } else {
+            content
+                // Contrast first (owner feedback, 2026-10-21): on clear glass a blue icon can
+                // vanish against a blue backdrop. Liquid Glass keeps content readable by flipping
+                // it between black and white to suit what's behind, which the primary colour
+                // does, so in the Glass theme icons and labels on glass use it. Selected items
+                // keep their colour on a solid fill, and the settings cards set their own tint.
+                // Automatic now uses the app's blue rather than black (owner, 25 Oct 2026); the
+                // backdrops are toned to suit Light and Dark, so it stays readable.
+                .tint(theme.isGlassy && tint == nil ? AppColor.chosen(appColor) : nil)
+                // Clear glass keeps its text readable with a soft halo in the opposite colour
+                // (owner, 22 Oct 2026: clear glass everywhere, but text must show). Small
+                // controls only: a shadow over a whole panel would cost smoothness.
+                .shadow(color: halo, radius: clearAndSmall ? 3 : 0)
+                .glassEffect(glass.interactive(interactive), in: shape)
+        }
+    }
+
+    private var glass: Glass {
+        if let tint { return .regular.tint(tint) }
+        if theme == .home, homeLook == .tinted {
+            return .clear.tint(AppColor.chosen(appColor).opacity(panel ? 0.3 : 0.38))
+        }
+        switch theme {
+        // Clear glass with a gentle dimming layer, the way Apple keeps the Clear Home Screen
+        // readable: darker in Dark, lighter in Light, so text stands off the backdrop while
+        // the glass stays see-through (owner, 22 Oct 2026).
+        case .glass, .home:
+            return GlassFrost.applies(frostsGlass, homeLook) ? .regular.tint(dim) : .clear.tint(dim)
+        case .frosted: return .regular
+        case .colour: return .regular.tint(AppColor.resolve(appColor).opacity(panel ? 0.22 : 0.3))
+        }
+    }
+
+    private var dim: Color {
+        colorScheme == .dark ? .black.opacity(panel ? 0.46 : 0.5) : .white.opacity(panel ? 0.6 : 0.65)
+    }
+
+    private var clearAndSmall: Bool { theme.isGlassy && tint == nil && !panel && homeLook != .tinted }
+
+    private var halo: Color {
+        guard clearAndSmall else { return .clear }
+        return colorScheme == .dark ? .black.opacity(0.6) : .white.opacity(0.85)
+    }
+}
+
+/// Outline everything (owner, 25 Oct 2026): an accessibility setting that draws a clear line
+/// round every piece of glass, panels and controls alike, with a slider for how thick.
+enum Outlines {
+    static let key = "outlines"
+    static let widthKey = "outlineWidth"
+    static let colourKey = "outlineColour"
+    static let standardWidth = 2.0
+}
+
+/// The outline's colour (owner, 25 Oct 2026: choose it, even a glass outline).
+enum OutlineColour: String, CaseIterable, Identifiable {
+    case automatic, appColour, glass, white, black
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .appColour: "App Colour"
+        case .glass: "Glass"
+        case .white: "White"
+        case .black: "Black"
+        }
+    }
+}
+
+/// Corner rounding, kept concentric (owner feedback 2026-10-21): a box inside a panel is
+/// rounded by the panel's radius minus the gap between them, so their curves run parallel.
+enum Corner {
+    /// The floating panels.
+    /// (Panel corners and gaps can be tuned live in Design Tweaks.)
+    static var panel: CGFloat { CGFloat(Tweak.panel.value) }
+    /// The gap between cards (the panel's edge has its own padding, `edge`).
+    static var inset: CGFloat { CGFloat(Tweak.gap.value) }
+    /// The padding between a panel's edge and its cards.
+    static var edge: CGFloat { CGFloat(Tweak.panelEdge.value) }
+    /// The cards of settings inside a panel: concentric with the panel, like the app icon tiles
+    /// (owner, 22 Oct 2026: every inner corner follows the one around it).
+    static var card: CGFloat { max(4, panel - edge) }
+    /// Padding inside a card, around its rows.
+    static var cardPadding: CGFloat { CGFloat(Tweak.cardPadding.value) }
+}
+
+/// One group of settings as a card on its panel, its rows split by thin lines. In the Glass
+/// theme the card is its own layer of glass on top of the panel's glass (owner request,
+/// 2026-10-21), with the Glass amount slider setting how much frost sits behind the text.
+struct SettingsCard<Content: View>: View {
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var theme = AppTheme.home
+    @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    @Environment(\.colorScheme) private var colorScheme
+    // Design Tweaks: read here so the cards redraw as the sliders move.
+    @AppStorage(Tweak.panel.key) private var tweakPanel = Tweak.panel.standard
+    @AppStorage(Tweak.gap.key) private var tweakGap = Tweak.gap.standard
+    @AppStorage(Tweak.frost.key) private var frost = Tweak.frost.standard
+    @AppStorage(Tweak.focus.key) private var focusStrength = Tweak.focus.standard
+    @AppStorage(Tweak.cardPadding.key) private var tweakCardPadding = Tweak.cardPadding.standard
+    @AppStorage(Tweak.rowSpacing.key) private var rowSpacing = Tweak.rowSpacing.standard
+    @AppStorage(Tweak.rim.key) private var rim = Tweak.rim.standard
+    @AppStorage(Tweak.panelEdge.key) private var tweakEdge = Tweak.panelEdge.standard
+    @AppStorage(Tweak.titleBar.key) private var titleBar = Tweak.titleBar.standard
+    @AppStorage(Tweak.footer.key) private var footerPadding = Tweak.footer.standard
+    @AppStorage(GlassFrost.key) private var frostsGlass = true
+    @Environment(\.homeLook) private var homeLook
+    /// The group's title, tucked inside the top of the card (owner feedback, 2026-10-21).
+    var title: String?
+    var icon: String?
+    var highlighted = false
+    /// Whether this is the card being used. In the Glass theme the others go clearer and a
+    /// little faded, and this one frosts over, comes forward and reads more clearly (owner
+    /// idea, 2026-10-21).
+    var focused = true
+    /// A short note at the bottom of the card.
+    var footer: String?
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Corner.card, style: .continuous)
+        let glassy = theme.isGlassy && !systemReducesTransparency && !reducesGlass
+        // Like a small window (owner idea, 2026-10-21): a title bar across the top and a
+        // quieter strip along the bottom, each a shade apart from the rows between.
+        VStack(alignment: .leading, spacing: 0) {
+            if let title {
+                Label {
+                    Text(title).foregroundStyle(highlighted ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                } icon: {
+                    if let icon { Image(systemName: icon).foregroundStyle(.tint) }
+                }
+                .font(.title3.weight(.bold))
+                .headingFont()
+                .padding(.horizontal, Corner.cardPadding)
+                .padding(.top, titleBar)
+                .padding(.bottom, max(4, titleBar - 4))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(windowBand)
+                .overlay(alignment: .bottom) { Divider().opacity(0.6) }
+                // Hold the title bar, then drag, to move the whole panel (owner, 22 Oct 2026).
+                // Only the title bar, so switches and sliders in the rows always answer taps.
+                .contentShape(.rect)
+                .gesture(titleHold)
+                .simultaneousGesture(titleFlick)
+                .accessibilityAddTraits(.isHeader)
+            }
+            Group(subviews: content) { rows in
+                ForEach(rows) { row in
+                    row.padding(.vertical, rowSpacing)
+                    if row.id != rows.last?.id { Divider() }
+                }
+            }
+            .padding(.horizontal, Corner.cardPadding)
+            .padding(.top, title == nil ? 4 : 6)
+            .padding(.bottom, footer == nil ? 10 : 6)
+            if let footer {
+                Text(footer)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, Corner.cardPadding)
+                    .padding(.vertical, footerPadding)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(windowBand)
+                    .overlay(alignment: .top) { Divider().opacity(0.6) }
+            }
+        }
+        // The same app colour for every button and selection, in Light and Dark alike.
+        .tint(tint)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Overdone for now, to judge it (owner, 2026-10-21): resting cards fade back and soften.
+        // Resting cards fade back a little, never so far that their text is hard to read.
+        // (Resting cards no longer fade, owner 22 Oct 2026: the glass shows which is in use.)
+        .background {
+            ZStack {
+                if glassy {
+                    // Clear glass with a dimming wash, no frost (owner, 22 Oct 2026: clear glass
+                    // everywhere, readable through contrast rather than blur).
+                    GlassAmount.backing(glassAmount, in: shape)
+                } else {
+                    shape.fill(.background.secondary)
+                }
+            }
+        }
+        // Jumped to from the groups: a bright rim and a sweep of light across the glass,
+        // rather than a wash of colour (owner direction, 2026-10-21).
+        // (No drawn rim, owner 22 Oct 2026: it looked glitched at the edges. The glass keeps its
+        // own edge, and the sweep of light marks a card jumped to.)
+        // The whole card is one Form row, so a tap on its plain text or empty space went to the
+        // row and opened a picker in it (Appearance, in the App card). The card keeps those taps
+        // for itself; switches, pickers and buttons still answer their own.
+        .background { shape.fill(.clear).contentShape(shape).onTapGesture {} }
+        .shimmer(trigger: highlighted, in: shape)
+        .modifier(CardGlass(on: glassy, frosted: GlassFrost.applies(frostsGlass, homeLook), shape: shape))
+        .shadow(color: .black.opacity(glassy && focused ? 0.16 * min(1, focusStrength) : 0), radius: 18, y: 8)
+        // Like a carousel: cards grow as they near the middle of the list and shrink away
+        // from it, smoothly as they scroll.
+        // Like a carousel turning under the finger: cards ease back and drift together a little as
+        // they move from the middle of the list, smoothly as they scroll. Done on the GPU, so it
+        // costs nothing extra while scrolling.
+        // (The squash as cards scroll is gone, owner 22 Oct 2026: one effect, the frosted focus.)
+        .animation(.spring(response: 0.45, dampingFraction: 0.78), value: focused)
+    }
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
+    @Environment(\.panelCarry) private var panelCarry
+
+    /// A quick sideways flick on the title bar pushes the panel aside (see `PanelCarry`).
+    private var titleFlick: some Gesture {
+        DragGesture(minimumDistance: 20, coordinateSpace: .global)
+            .onEnded { drag in
+                let dx = drag.predictedEndTranslation.width
+                guard let panelCarry, abs(dx) > 240,
+                      abs(drag.translation.width) > abs(drag.translation.height) * 1.5 else { return }
+                panelCarry.flicked(dx < 0)
+            }
+    }
+
+    private var titleHold: some Gesture {
+        LongPressGesture(minimumDuration: 0.22)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .onChanged { value in
+                guard let panelCarry, case .second(true, let drag) = value else { return }
+                if let drag { panelCarry.grabbed(CarryGrab(point: drag.startLocation, title: title, icon: icon)) }
+                panelCarry.moved(drag?.translation ?? .zero)
+            }
+            .onEnded { value in
+                guard let panelCarry else { return }
+                if case .second(true, let drag?) = value { panelCarry.ended(drag.translation) } else { panelCarry.ended(nil) }
+            }
+    }
+
+    private var tint: Color { AppColor.chosen(appColor) }
+
+    /// The title bar and bottom strip: a faint wash, lighter in Dark and darker in Light.
+    private var windowBand: Color {
+        colorScheme == .dark ? .white.opacity(0.05) : .black.opacity(0.035)
+    }
+}
+
+/// Headings in the heading design (serif when the clock font is serif, see `headingDesign`).
+private struct HeadingFont: ViewModifier {
+    @Environment(\.headingDesign) private var design
+
+    func body(content: Content) -> some View {
+        if let design { content.fontDesign(design) } else { content }
+    }
+}
+
+extension View {
+    func headingFont() -> some View { modifier(HeadingFont()) }
+}
+
+private struct CardGlass<S: Shape>: ViewModifier {
+    var on: Bool
+    var frosted = false
+    var shape: S
+
+    func body(content: Content) -> some View {
+        if on {
+            content.glassEffect(frosted ? .regular : .clear, in: shape)
+        } else {
+            content
+        }
+    }
+}
+
+/// Text that sits straight on a panel (section titles, notes) gets a small frosted backing in
+/// the Glass theme, where the panel itself is clear: white titles over a bright backdrop were
+/// hard to read in Dark (simulator, 2026-10-21).
+struct PanelLabelBacking: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var systemReducesTransparency
+    @AppStorage("reduceGlass") private var reducesGlass = false
+    @AppStorage("appTheme") private var theme = AppTheme.home
+    @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        if theme.isGlassy && !systemReducesTransparency && !reducesGlass {
+            // Pills, like the app's other small controls.
+            content
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background { GlassAmount.backing(glassAmount, in: Capsule()) }
+                .glassEffect(.clear.tint(colorScheme == .dark ? .black.opacity(0.3) : .white.opacity(0.35)), in: Capsule())
+        } else {
+            content
+        }
+    }
+}
+
+/// Frost on the Glass look (owner, 25 Oct 2026: "we've lost the frostiness"). It's Liquid
+/// Glass's own frostier glass with the Light or Dark wash under it, never the older blur
+/// materials, so it stays one kind of glass. Clear and Tinted Home Screens stay clear glass,
+/// to match what the system draws there.
+enum GlassFrost {
+    static let key = "glassFrost"
+
+    static func applies(_ on: Bool, _ homeLook: HomeScreenStyle?) -> Bool {
+        on && homeLook != .clear && homeLook != .tinted
+    }
+}
+
+/// How clear the Glass theme is (owner request, 2026-10-21): 0 is the frosted backing rows had
+/// before, 1 is the clearest that still keeps text readable, a very thin frost over the glass.
+enum GlassAmount {
+    static let standard = 0.5
+
+    /// A Glass amount made frostier by `frost` (Design Tweaks): 1 leaves it, 2 doubles the frost.
+    static func frosted(_ amount: Double, by frost: Double) -> Double {
+        min(1, max(0, 1 - (1 - min(1, max(0, amount))) * frost))
+    }
+
+    /// The frosted backing behind text: a thin frost always, plus a thicker one that fades out
+    /// as the amount goes up.
+    static func backing<S: Shape>(_ amount: Double, in shape: S) -> some View {
+        GlassBacking(amount: amount, shape: shape)
+    }
+}
+
+/// Contrast comes first (owner direction, 2026-10-21): glass is a fun effect, never a reason
+/// text can't be read. So under the frost there's always a light wash in Light and a dark
+/// wash in Dark, pushing the backdrop away from the text's colour, a little more as the
+/// Glass amount slider moves towards Frosted.
+private struct GlassBacking<S: Shape>: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.homeLook) private var homeLook
+    @AppStorage("appColor") private var appColor = ClockColor.auto.rawValue
+    var amount: Double
+    var shape: S
+
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    var body: some View {
+        ZStack {
+            // No frost any more (owner, 22 Oct 2026): clear glass with a dimming wash, darker
+            // in Dark and lighter in Light, so text stands off the backdrop. The Glass slider
+            // sets how strong the wash is.
+            shape.fill(colorScheme == .dark ? Color.black : .white)
+                // A firmer wash (owner, 25 Oct 2026: things mustn't get lost, even at some cost
+                // to the look), and firmer still with Increase Contrast on in the iPad's Settings.
+                .opacity((colorScheme == .dark ? 0.4 : 0.52) + 0.3 * (1 - amount) + (contrast == .increased ? 0.15 : 0))
+            // A Tinted Home Screen's glass carries the tint all through.
+            if homeLook == .tinted {
+                shape.fill(AppColor.chosen(appColor).opacity(0.32))
+            }
+        }
+    }
+}
+
+extension View {
+    func panelLabelBacking() -> some View { modifier(PanelLabelBacking()) }
+
+    /// A settings card as a whole Form row: no system background, separators or insets, so
+    /// the card draws its own.
+    func settingsCardRow() -> some View {
+        listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+    }
+
+    func wrappedInSettingsCard() -> some View {
+        SettingsCard { self }.settingsCardRow()
+    }
+
+    func appGlass<S: Shape>(_ shape: S, interactive: Bool = false, tint: Color? = nil, panel: Bool = false) -> some View {
+        modifier(AppGlass(shape: shape, interactive: interactive, tint: tint, panel: panel))
+    }
+}
+
+/// The Home Screen style the person uses. iPadOS doesn't tell apps (and a widget is pre-drawn
+/// in every style, so it can't tell either), so the person says once and the preview opens on
+/// it. Automatic is Light or Dark following the iPad's appearance.
+enum MyHomeScreen: String, CaseIterable, Identifiable {
+    case unknown, automatic, light, dark, clear, tinted
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .unknown: "Not set"
+        case .automatic: "Light or Dark (Automatic)"
+        case .light: "Light"
+        case .dark: "Dark"
+        case .clear: "Clear"
+        case .tinted: "Tinted"
+        }
+    }
+
+    /// The preview style that matches, for the iPad's current appearance. Nil until it's set.
+    func style(in colorScheme: ColorScheme) -> HomeScreenStyle? {
+        switch self {
+        case .unknown: nil
+        case .automatic: colorScheme == .dark ? .dark : .light
+        case .light: .light
+        case .dark: .dark
+        case .clear: .clear
+        case .tinted: .tinted
+        }
+    }
+}
+
+extension PreviewSize {
+    /// How many Home Screen slots the widget covers, across and down. A slot is a Small widget.
+    var span: (columns: Int, rows: Int) {
+        switch self {
+        case .small: (1, 1)
+        case .medium: (2, 1)
+        case .large: (2, 2)
+        case .extraLarge: (4, 2)
+        }
+    }
+}
+
+/// A Home Screen-style grid of widget slots filling the preview area. The spacing is iPadOS's:
+/// a Small widget is 170 pt and a Medium one 378.5 pt, which puts slots 208.5 pt apart with a
+/// 38.5 pt gap (HIG widget sizes for the 13-inch iPad), so every size lines up exactly.
+struct HomeGrid {
+    static let slot: CGFloat = 170
+    static let gap: CGFloat = 38.5
+
+    let columns: Int
+    let rows: Int
+    let step: CGFloat
+    let gap: CGFloat
+    let origin: CGPoint
+
+    /// - Parameter scale: below 1 when the area is too small for the widget at its real size.
+    init(area: CGSize, scale: CGFloat) {
+        // Classic can lay the preview out at zero size for a moment, which made the scale and
+        // step zero and the grid maths infinite, crashing the app on opening Classic
+        // (owner, 2026-10-21). A tiny floor keeps every step finite.
+        let scale = scale.isFinite ? max(scale, 0.05) : 1
+        step = (Self.slot + Self.gap) * scale
+        gap = Self.gap * scale
+        columns = Self.count(area.width, gap: gap, step: step)
+        rows = Self.count(area.height, gap: gap, step: step)
+        let width = CGFloat(columns) * step - gap, height = CGFloat(rows) * step - gap
+        origin = CGPoint(x: (area.width - width) / 2, y: (area.height - height) / 2)
+    }
+
+    private static func count(_ length: CGFloat, gap: CGFloat, step: CGFloat) -> Int {
+        let value = (length + gap) / step
+        return value.isFinite ? max(1, min(Int(value), 50)) : 1
+    }
+
+    /// The frame of a widget covering `span` slots from `column`, `row`.
+    func frame(column: Int, row: Int, span: (columns: Int, rows: Int)) -> CGRect {
+        CGRect(x: origin.x + CGFloat(column) * step, y: origin.y + CGFloat(row) * step,
+               width: CGFloat(span.columns) * step - gap, height: CGFloat(span.rows) * step - gap)
+    }
+
+    /// The nearest position where a widget of `span` fits, for a widget centred at `point`.
+    /// A widget too big for the grid sits at its centre (and spills over evenly).
+    func nearest(to point: CGPoint, span: (columns: Int, rows: Int)) -> (column: Int, row: Int) {
+        func axis(_ value: CGFloat, start: CGFloat, count: Int, size: Int) -> Int {
+            guard count >= size else { return 0 }
+            let leading = (value - start - (CGFloat(size) * step - gap) / 2) / step
+            return min(count - size, max(0, Int(leading.rounded())))
+        }
+        return (axis(point.x, start: origin.x, count: columns, size: span.columns),
+                axis(point.y, start: origin.y, count: rows, size: span.rows))
+    }
+
+    /// A stored position kept inside the grid; -1 (never placed) means the middle.
+    func clamped(column: Int, row: Int, span: (columns: Int, rows: Int)) -> (column: Int, row: Int) {
+        let maxColumn = max(0, columns - span.columns), maxRow = max(0, rows - span.rows)
+        return (column < 0 ? maxColumn / 2 : min(column, maxColumn),
+                row < 0 ? maxRow / 2 : min(row, maxRow))
+    }
+
+    /// Frames of every empty slot, for the outlines shown while dragging.
+    var slotFrames: [CGRect] {
+        (0..<rows).flatMap { row in
+            (0..<columns).map { column in frame(column: column, row: row, span: (1, 1)) }
+        }
+    }
+}
+
+/// A single sweep of light across a piece of glass each time `trigger` changes, like light
+/// catching it as it moves: used to mark what's just been picked or jumped to.
+struct Shimmer<S: Shape>: ViewModifier {
+    var trigger: Bool
+    var shape: S
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @AppStorage("simpleMotion") private var simpleMotion = false
+    private var reduceMotion: Bool { systemReduceMotion || simpleMotion }
+    @Environment(\.colorScheme) private var colorScheme
+    /// How bright the sweep is (Design Tweaks).
+    @AppStorage(Tweak.shimmer.key) private var strength = Tweak.shimmer.standard
+
+    /// A wide, soft wash of light (in Dark) or shade (in Light) that glides once across the
+    /// whole shape (owner feedback, 2026-10-21: the narrow tilted band looked clipped at the
+    /// edges). It fades in and out at the ends, so no edge of it is ever seen.
+    func body(content: Content) -> some View {
+        content.overlay {
+            if !reduceMotion && strength > 0 {
+                let wash: Color = colorScheme == .dark ? .white : .black
+                // Read here, outside the animator's closure, which runs off the main actor.
+                let peak = (colorScheme == .dark ? 0.32 : 0.12) * strength
+                Color.clear
+                    .keyframeAnimator(initialValue: 0.0, trigger: trigger) { view, x in
+                        view.overlay {
+                            LinearGradient(stops: [
+                                .init(color: wash.opacity(0), location: 0),
+                                .init(color: wash.opacity(peak), location: 0.5),
+                                .init(color: wash.opacity(0), location: 1),
+                            ], startPoint: UnitPoint(x: x * 2.2 - 1.6, y: 0.2), endPoint: UnitPoint(x: x * 2.2 - 0.6, y: 0.8))
+                            // Strongest mid-sweep, nothing at either end.
+                            .opacity(sin(.pi * x))
+                        }
+                    } keyframes: { _ in
+                        LinearKeyframe(0, duration: 0.01)
+                        CubicKeyframe(1, duration: 1.1)
+                    }
+                    .clipShape(shape)
+                    // Only when it turns on, not again as it fades.
+                    .opacity(trigger ? 1 : 0)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+extension View {
+    func shimmer<S: Shape>(trigger: Bool, in shape: S) -> some View {
+        modifier(Shimmer(trigger: trigger, shape: shape))
+    }
+}
+
+/// While a panel is carried by its bar, it shrinks to a small stand-in (a title card or a
+/// puck) that's easy to move, and springs back to full size where it's dropped. The panel
+/// itself stays (all but invisible) under the finger so the drag carries on. With Simpler
+/// effects the stand-in just fades in, without the shrink.
+struct CarriedShape: ViewModifier {
+    var carried: Bool
+    var style: CarryStyle
+    var icon: String
+    var title: String
+    var simple: Bool
+    /// Where the finger picked it up, in the view's own space, and the view's size: it shrinks
+    /// into the finger and the stand-in sits under it, rather than at the top of the panel
+    /// (owner, 22 Oct 2026: it stuck above the Presets card when grabbed).
+    var hold: CGPoint? = nil
+    var size: CGSize = .zero
+
+    func body(content: Content) -> some View {
+        let shrinks = carried && style != .lift
+        let anchor = hold.map { size.width > 0 && size.height > 0
+            ? UnitPoint(x: $0.x / size.width, y: $0.y / size.height) : .top } ?? .top
+        content
+            .opacity(shrinks ? 0.02 : 1)
+            .scaleEffect(shrinks && !simple ? 0.35 : 1, anchor: anchor)
+            .overlay(alignment: .top) {
+                if shrinks {
+                    standIn
+                        .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
+                        .transition(simple ? .opacity : .opacity.combined(with: .scale(scale: 2.2, anchor: .top)))
+                        .allowsHitTesting(false)
+                        .position(x: hold?.x ?? size.width / 2, y: hold?.y ?? 26)
+                }
+            }
+            .animation(simple ? .easeOut(duration: 0.15) : .spring(response: 0.35, dampingFraction: 0.78), value: shrinks)
+    }
+
+    @ViewBuilder
+    private var standIn: some View {
+        if style == .puck {
+            Image(systemName: icon)
+                .font(.title2.weight(.semibold))
+                .frame(width: 64, height: 64)
+                .appGlass(.circle)
+        } else {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .padding(.horizontal, 20)
+                .frame(height: 52)
+                .fixedSize()
+                .appGlass(.capsule)
+        }
+    }
+}
+
+/// What holding and dragging a card's title bar does: moves the panel it's in.
+struct PanelCarry {
+    /// Where the title bar was picked up (in the window) and which card it belongs to.
+    var grabbed: (CarryGrab) -> Void = { _ in }
+    var moved: (CGSize) -> Void
+    /// The final distance, or nil if it was let go without moving.
+    var ended: (CGSize?) -> Void
+    /// A quick sideways flick, without holding first: true towards the leading side.
+    var flicked: (Bool) -> Void = { _ in }
+}
+
+/// The card a panel was picked up by, and where (in the window).
+struct CarryGrab: Equatable {
+    var point: CGPoint
+    var title: String?
+    var icon: String?
+}
+
+/// Where things are while a finger moves them. Kept apart from the main screen's own state so
+/// a drag only redraws the piece that moves, not the whole screen (owner, 22 Oct 2026: "it just
+/// feels slow"). Each value is read only by the small modifiers below.
+@Observable final class LiveMotion {
+    var cardDrag = CGSize.zero
+    var clockPinch: CGFloat = 1
+    /// Where between the fingers the pinch started, so the widget grows from there.
+    var pinchAnchor = UnitPoint.center
+    var cardLean = CGSize.zero
+    var groupsMove = CGSize.zero
+    var settingsMove = CGSize.zero
+    var railMove = CGSize.zero
+    var panelPull: CGFloat = 0
+    /// No movement, for a view that only sometimes follows one of the others.
+    let none = CGSize.zero
+}
+
+/// Moves a view by one of the live distances.
+struct LiveOffset: ViewModifier {
+    var motion: LiveMotion
+    var path: KeyPath<LiveMotion, CGSize>
+
+    func body(content: Content) -> some View {
+        content.offset(motion[keyPath: path])
+    }
+}
+
+/// The widget's lean while it's dragged: a soft tilt towards where it's going and a slight
+/// stretch along the way.
+struct LiveLean: ViewModifier {
+    var motion: LiveMotion
+    var strength: CGFloat
+    var still: Bool
+
+    func body(content: Content) -> some View {
+        let lean = still ? .zero : motion.cardLean
+        let turn = Double(lean.width * strength) * 7, tip = Double(-lean.height * strength) * 7
+        let stretchX = 1 + (abs(lean.width) * 0.035 - abs(lean.height) * 0.015) * strength
+        let stretchY = 1 + (abs(lean.height) * 0.035 - abs(lean.width) * 0.015) * strength
+        // A flat lean rather than a 3D turn: Liquid Glass inside a 3D turn can't see the backdrop
+        // behind it, so the widget went dark the whole time it was carried (simulator frames,
+        // 22 Oct 2026). A slight roll towards where it's heading reads the same and keeps it clear.
+        content
+            .rotationEffect(.degrees((turn - tip * 0.4) * 0.35))
+            .scaleEffect(x: stretchX, y: stretchY)
+            // Lively while moving, but it eases back upright without a wobble when let go, so
+            // the landing reads as one calm motion (owner, 22 Oct 2026).
+            .animation(lean == .zero ? .smooth(duration: 0.4) : .interactiveSpring(response: 0.32, dampingFraction: 0.62), value: lean)
+    }
+}
+
+/// The widget grows and shrinks with the fingers while pinching.
+struct LivePinch: ViewModifier {
+    var motion: LiveMotion
+    var still: Bool
+
+    /// Follows the fingers freely, only stiffening past the smallest and largest sizes (owner,
+    /// 22 Oct 2026: "it needs to follow the finger a little bit more freely").
+    func body(content: Content) -> some View {
+        let m = motion.clockPinch
+        let free = m < 0.3 ? 0.3 - (0.3 - m) * 0.25 : m > 2.6 ? 2.6 + (m - 2.6) * 0.25 : m
+        content.scaleEffect(still ? 1 : free, anchor: motion.pinchAnchor)
+    }
+}
+
+/// How far the preview leans while a swipe is under way: it follows the finger at first,
+/// then stiffens, so a swipe feels like pulling on something.
+struct LivePull: ViewModifier {
+    var motion: LiveMotion
+    var still: Bool
+
+    func body(content: Content) -> some View {
+        let x = motion.panelPull, limit: CGFloat = 36
+        content.offset(x: still ? 0 : limit * (1 - exp(-abs(x) / 120)) * (x < 0 ? -1 : 1))
+    }
+}
+
+/// Where a carried panel would settle if let go now. It changes only a few times in a drag, so
+/// the outline showing it costs little.
+struct CarryTarget: Equatable {
+    var groups: Bool
+    var leading: Bool
+    var top: Bool
+    var attach: GroupsAttachment?
+    /// For the groups: lying flat above or below the settings, or along the top or bottom.
+    var landing: GroupsLanding? = nil
+}
+
+/// Where the groups lie flat when they're let go.
+enum GroupsLanding: Equatable {
+    case stacked(above: Bool), alongTop, alongBottom
+}
+
+/// The app's selection mark: a glossy bead of glass lit from above, with an inner highlight
+/// and a soft shadow, rather than an outline (owner, 22 Oct 2026: "go full glass").
+struct GlossyBead<S: Shape>: View {
+    var shape: S
+
+    var body: some View {
+        shape.fill(LinearGradient(colors: [.white.opacity(0.34), .white.opacity(0.08)],
+                                  startPoint: .top, endPoint: .bottom)
+            .shadow(.inner(color: .white.opacity(0.45), radius: 1, y: 1))
+            .shadow(.inner(color: .black.opacity(0.12), radius: 2, y: -1))
+            .shadow(.drop(color: .black.opacity(0.22), radius: 4, y: 2)))
+    }
+}
+
+/// A segmented switch in glass: the chosen option sits in a glossy bead that glides between
+/// options, instead of the system's grey segmented control.
+struct GlassPicker<T: Hashable>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var space
+    var title: String
+    @Binding var selection: T
+    var options: [T]
+    var label: (T) -> String
+    /// Bigger text and taller options, for switches used often (the widget sizes).
+    var large = false
+
+    init(_ title: String, selection: Binding<T>, options: [T], large: Bool = false, label: @escaping (T) -> String) {
+        self.title = title
+        self.large = large
+        _selection = selection
+        self.options = options
+        self.label = label
+    }
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(options, id: \.self) { option in
+                let chosen = option == selection
+                Button {
+                    withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) { selection = option }
+                } label: {
+                    Text(label(option))
+                        .font((large ? Font.body : .subheadline).weight(chosen ? .semibold : .regular))
+                        .lineLimit(1)
+                        // Large switches show every word in full, each option as wide as its
+                        // word (owner, 22 Oct 2026: "Extra L…" read as broken).
+                        .fixedSize(horizontal: large, vertical: false)
+                        .minimumScaleFactor(large ? 1 : 0.8)
+                        .foregroundStyle(chosen ? .primary : .secondary)
+                        .padding(.horizontal, large ? 14 : 6)
+                        .frame(maxWidth: large ? nil : .infinity, minHeight: large ? 44 : 32)
+                        .background {
+                            if chosen {
+                                GlossyBead(shape: Capsule())
+                                    .matchedGeometryEffect(id: "bead", in: space)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(chosen ? .isSelected : [])
+            }
+        }
+        .padding(large ? 4 : 3)
+        .background(Capsule().fill(.primary.opacity(0.08)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title)
+    }
+}
+
+/// A soft shadow under a lifted card, cut away inside the card's shape so it never darkens
+/// clear glass from behind.
+struct LiftShadow: View {
+    var radius: CGFloat
+    var shown: Bool
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        shape.fill(.black)
+            .shadow(color: .black.opacity(shown ? 0.3 : 0), radius: 28, y: 14)
+            .mask {
+                Rectangle().padding(-80)
+                    .overlay { shape.blendMode(.destinationOut) }
+                    .compositingGroup()
+            }
+            .opacity(shown ? 1 : 0)
+            .allowsHitTesting(false)
+    }
+}
+
+/// Saves where the panels were put. They're plain view state rather than @AppStorage, whose
+/// updates reached the screen a frame late and made a dropped panel slide back first.
+struct SavesPanelPlaces: ViewModifier {
+    var settingsLeading: Bool
+    var groupsTrailing: Bool
+    var groupsTop: Double
+    var groupsAlongBottom: Bool
+    var groupsAlongTop: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: settingsLeading) { _, value in UserDefaults.standard.set(value, forKey: "settingsLeading") }
+            .onChange(of: groupsTrailing) { _, value in UserDefaults.standard.set(value, forKey: "groupsTrailing") }
+            .onChange(of: groupsTop) { _, value in UserDefaults.standard.set(value, forKey: "groupsTop") }
+            .onChange(of: groupsAlongBottom) { _, value in UserDefaults.standard.set(value, forKey: "groupsAlongBottom") }
+            .onChange(of: groupsAlongTop) { _, value in UserDefaults.standard.set(value, forKey: "groupsAlongTop") }
+    }
+}
+
+/// The settings folded away: a slim glass rail down the edge with every group's heading
+/// running along it, so it's clear the panel is there and what's in it (owner, 22 Oct 2026).
+/// Tap a heading to open the settings at it, or swipe the rail inwards to bring them back.
+struct SettingsRail: View {
+    static let width: CGFloat = 44
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The screen edge it sits on. Down a side it runs tall with its names turned; when the iPad
+    /// is turned so its edge is along the top or bottom, it lies flat with the names upright
+    /// (owner, 25 Oct 2026: the rail stays put when you turn the iPad to read it).
+    var edge: Edge
+    var sections: [SettingsSection]
+    var open: () -> Void
+    var go: (SettingsSection) -> Void
+    /// Hold the rail and drag it to put it on another edge; it's told where it was let go, in
+    /// global points (owner, 25 Oct 2026: "grab it and pull it anywhere", e.g. flat at the bottom).
+    var moved: ((CGPoint) -> Void)? = nil
+    @GestureState private var carried: CGSize?
+    /// Names down the rail, or icons only (owner, 22 Oct 2026: "try both"; a switch in Panels).
+    @AppStorage("railNames") private var showsNames = true
+
+    private var leading: Bool { edge == .leading }
+    private var flat: Bool { edge == .top || edge == .bottom }
+
+    var body: some View {
+        Group {
+            if flat {
+                ViewThatFits(in: .horizontal) {
+                    if showsNames { flatRail(labelled: true) }
+                    flatRail(labelled: false)
+                }
+                .frame(height: Self.width)
+            } else {
+                ViewThatFits(in: .vertical) {
+                    if showsNames { rail(labelled: true) }
+                    rail(labelled: false)
+                }
+                .frame(width: Self.width)
+            }
+        }
+        .appGlass(.capsule, interactive: true)
+        .contentShape(.capsule)
+        .scaleEffect(carried == nil ? 1 : 1.04)
+        .shadow(color: .black.opacity(carried == nil ? 0 : 0.18), radius: 16, y: 6)
+        .offset(carried ?? .zero)
+        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8), value: carried == nil)
+        .sensoryFeedback(.impact(weight: .medium), trigger: carried == nil)
+        // Alongside the headings' own taps, not over them: as a high-priority gesture it
+        // swallowed every tap (owner, 25 Oct 2026: the buttons stopped opening anything).
+        .simultaneousGesture(LongPressGesture(minimumDuration: 0.3)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .updating($carried) { value, state, _ in
+                guard moved != nil, case .second(true, let drag) = value else { return }
+                state = drag?.translation ?? .zero
+            }
+            .onEnded { value in
+                guard case .second(true, let drag?) = value else { return }
+                moved?(drag.location)
+            })
+        .gesture(DragGesture(minimumDistance: 10).onEnded { drag in
+            let inwards = switch edge {
+            case .leading: drag.translation.width > 30
+            case .trailing: drag.translation.width < -30
+            case .top: drag.translation.height > 30
+            case .bottom: drag.translation.height < -30
+            }
+            if inwards { open() }
+        })
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Settings, folded away")
+        .accessibilityAction(named: "Show settings", open)
+    }
+
+    /// Each heading's icon, with its name turned to run down the rail when there's room.
+    private func rail(labelled: Bool) -> some View {
+        VStack(spacing: labelled ? 14 : 10) {
+            ForEach(sections) { section in
+                Button { go(section) } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: section.icon)
+                            .font(.body.weight(.medium))
+                        if labelled {
+                            Text(section.title)
+                                .font(.caption.weight(.semibold))
+                                .fixedSize()
+                                .rotationEffect(.degrees(leading ? -90 : 90))
+                                .frame(width: 16, height: section.title.size(withFont: 12) + 2)
+                        }
+                    }
+                    .frame(width: Self.width)
+                    .padding(.vertical, 4)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.title)
+            }
+        }
+        .padding(.vertical, 14)
+    }
+
+    /// The same headings in a row along the top or bottom, names the right way up.
+    private func flatRail(labelled: Bool) -> some View {
+        HStack(spacing: labelled ? 18 : 10) {
+            ForEach(sections) { section in
+                Button { go(section) } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: section.icon)
+                            .font(.body.weight(.medium))
+                        if labelled {
+                            Text(section.title)
+                                .font(.caption.weight(.semibold))
+                                .fixedSize()
+                        }
+                    }
+                    .frame(height: Self.width)
+                    .padding(.horizontal, labelled ? 4 : 8)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.title)
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+}
+
+private extension String {
+    /// Roughly how long this reads in a semibold caption of `size`, for laying it out turned.
+    func size(withFont size: CGFloat) -> CGFloat {
+        (self as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: .semibold)]).width
+    }
+}
+
+/// A soft wash behind the status bar (owner, dashboard 22 Oct 2026: the clock and battery were
+/// faint on pale backdrops). Dark behind the white status text in Dark, light behind the black
+/// text in Light, fading out just below it, so they read on any backdrop.
+struct StatusScrim: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                LinearGradient(colors: [(colorScheme == .dark ? Color.black : .white).opacity(0.42), .clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: geometry.safeAreaInsets.top + 28)
+                Spacer(minLength: 0)
+            }
+            .ignoresSafeArea(edges: .top)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}

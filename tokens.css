@@ -1,0 +1,34 @@
+/* Layout: full-bleed backdrop stage. Glass rail on one edge, floating glass panels that can open child panels, hero clock card, the companion on top. */
+:root{
+  --ink:#17161e; --ink2:rgba(23,22,30,.72); --ink3:rgba(23,22,30,.54);
+  --glass:rgba(255,255,255,.58); --glass-strong:rgba(255,255,255,.84); --glass-solid:rgba(250,250,253,.94);
+  --rim:rgba(255,255,255,.9); --rim-in:rgba(255,255,255,.65);
+  --shade:rgba(40,28,80,.16); --shade-lift:rgba(40,28,80,.3);
+  --hair:rgba(23,22,30,.12); --wash:rgba(23,22,30,.05); --knob:#ffffff;
+  --lg:rgba(255,255,255,.3); --lg-rim:rgba(255,255,255,.95);
+  --card-ink:#ffffff; --eye:#1d1830; --danger:#c8372f; --ok:#1f8a5b;
+  --accent:#4f7be8; --bg:#e9ecf3;
+  --ui:-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --f-system:-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
+  --f-rounded:ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+  --f-serif:ui-serif, "New York", "Newsreader", Georgia, serif;
+  --clockf:var(--f-system);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#f6f4fb; --ink2:rgba(246,244,251,.74); --ink3:rgba(246,244,251,.54);
+    --glass:rgba(24,22,32,.5); --glass-strong:rgba(255,255,255,.18); --glass-solid:rgba(28,26,36,.94);
+    --rim:rgba(255,255,255,.22); --rim-in:rgba(255,255,255,.12);
+    --shade:rgba(0,0,0,.32); --shade-lift:rgba(0,0,0,.52);
+    --hair:rgba(255,255,255,.15); --wash:rgba(255,255,255,.06); --bg:#121218; --danger:#ff7b72; --ok:#5fd39a; color-scheme:dark;
+    --lg:rgba(28,26,38,.34); --lg-rim:rgba(255,255,255,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#f6f4fb; --ink2:rgba(246,244,251,.74); --ink3:rgba(246,244,251,.54);
+  --glass:rgba(24,22,32,.5); --glass-strong:rgba(255,255,255,.18); --glass-solid:rgba(28,26,36,.94);
+  --rim:rgba(255,255,255,.22); --rim-in:rgba(255,255,255,.12);
+  --shade:rgba(0,0,0,.32); --shade-lift:rgba(0,0,0,.52);
+  --hair:rgba(255,255,255,.15); --wash:rgba(255,255,255,.06); --bg:#121218; --danger:#ff7b72; --ok:#5fd39a; color-scheme:dark;
+  --lg:rgba(28,26,38,.34); --lg-rim:rgba(255,255,255,.4);
+}

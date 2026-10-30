@@ -1,0 +1,87 @@
+{
+ "syncedAt": "2026-10-29T19:45:00Z",
+ "source": "Glass Clock Progress",
+ "url": "https://claude.ai/artifact/UQ9Yo6F6RBNdoUn8B9sqeW",
+ "status": {
+  "headline": "Tue 27 Oct, 7:15 pm: iPad app reinstalled and working (sign-in lasts to 3 Nov). Fresh widgets are at the top, widgets pack together (Float in Arrange), Figma button added, brand board started in Figma. Waiting for the Wednesday 2 pm reset: pricing research, Moods plan, in-app fairy.",
+  "ipadBuild": "Clean reinstall · 7:05 pm",
+  "ipadNote": "Same app, freshly signed. Your saved styles were reset by the reinstall. Free sign-in expires Tue 3 Nov.",
+  "updatedAt": "Tue 27 Oct, 7:15 pm"
+ },
+ "needsYou": [
+  {
+   "q": "Where does Navi live on this board for now?",
+   "suggested": "Brief only, no panel (suggested)"
+  },
+  {
+   "q": "Should Navi be a little bit more present for unpaid users?",
+   "suggested": "Same for everyone, tiny and switch-off-able (suggested)"
+  },
+  {
+   "q": "Should the Wednesday Build list go ahead now?",
+   "suggested": "Yes, send Build: when ready, list as saved (suggested)"
+  }
+ ],
+ "upNext": [
+  {
+   "area": "Dashboard",
+   "title": "Make the dashboard feel alive (small touches)"
+  }
+ ],
+ "builds": [
+  {
+   "at": "2026-10-27T19:05:00Z",
+   "title": "Clean reinstall after the sign-in expired",
+   "changes": [
+    "Xcode signed back in; app trusted on the iPad",
+    "Widget updates again (it had frozen at 3:47 pm)",
+    "Saved styles were reset by the reinstall"
+   ]
+  },
+  {
+   "at": "2026-10-25T18:45:00Z",
+   "title": "Friend test build 2",
+   "changes": [
+    "Accessibility: Outline everything, with an Outline width slider",
+    "Automatic app colour: a calm blue, deeper in Light, lighter in Dark"
+   ]
+  },
+  {
+   "at": "2026-10-25T18:37:00Z",
+   "title": "Friend test build",
+   "changes": [
+    "Moods: quick cross-fade, fast taps queue",
+    "Arrange menu: Best for This Window, Groups Along the Bottom, Settings Only"
+   ]
+  }
+ ],
+ "usage": {
+  "plan": "Pro",
+  "at": "2026-10-27T21:00:52Z",
+  "windows": [
+   {
+    "label": "5-hour limit",
+    "percentUsed": 0
+   },
+   {
+    "label": "Weekly · all models",
+    "percentUsed": 98
+   }
+  ]
+ },
+ "reminders": [
+  {
+   "title": "Check Canva trial and cancel",
+   "due": "2026-11-03T09:00:00Z"
+  }
+ ],
+ "principles": [
+  "The default works every time",
+  "Small, specific wins",
+  "One job per feature",
+  "Undo everything",
+  "Contrast first, then glass",
+  "Right first time, not final",
+  "Design is his"
+ ]
+}
