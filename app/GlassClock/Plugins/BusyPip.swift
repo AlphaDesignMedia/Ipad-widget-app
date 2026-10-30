@@ -8,6 +8,8 @@ import QuartzCore
 // actually open, how smoothly the screen ran, and up to three proper questions a session. Otherwise it's pretend:
 // confident nonsense and a clipboard of doodles. Opt-in (off by default), stops the moment you touch the screen,
 // does nothing with Pip off, and only shows a clipboard line under simpler motion.
+// Joy: host.joy sets how many stops and how chatty (0 = clipboard only). Wonder: Pip signs off each round with a
+// little tick stamp on the clipboard; at higher joy it sparkles.
 // Where: the clipboard button in the plugin bar. Real rounds file a report in the Dashboard ("Pip's rounds").
 
 struct BusyPip: SandboxPlugin {
@@ -32,8 +34,9 @@ struct BusyPip: SandboxPlugin {
     enum Lines {
         static let start = ["Right. Rounds.", "Clipboard out. Let's have a look.", "Quick check while you're away."]
         static let done = ["All done. The report's in the Dashboard.", "Rounds finished. Nothing on fire."]
-        static let switchedOff = "Switched off. It's in Settings if you want it back."
+        static let switchedOff = "Up to the loft it goes. It's switched off, not gone: bring it back in Settings."
         static let kept = "Keeping it. I won't ask again for a while."
+        static let joyAsk = ["Is %@ still sparking joy?", "Does %@ still make you smile?"]
         static let later = "Fair enough. I'll ask another time."
         static let pretend = [
             "Re-fluffing the tick buffers…", "Carrying the seven… done-ish.", "Polishing the seconds. They were sticky.",
@@ -51,6 +54,7 @@ struct BusyPip: SandboxPlugin {
     struct Question: Equatable {
         let plugin: String
         let text: String
+        var joy = false             // the "still sparking joy?" kind
     }
 
     // MARK: Logic
@@ -60,10 +64,12 @@ struct BusyPip: SandboxPlugin {
         var busy = false
         var checking = ""                   // the plugin name on the clipboard ("" shows doodles)
         var question: Question?
+        var stamped = false                 // the tick stamp on the clipboard at the end of a round
         @ObservationIgnored var lastTouch = Date.now
         @ObservationIgnored var lastRound = Date.distantPast
         @ObservationIgnored var lastOpen: String?
         @ObservationIgnored var asked = 0
+        @ObservationIgnored var askedJoy = false
         @ObservationIgnored var askLater: Set<String> = []
         @ObservationIgnored var watcher: BusyTouchWatch?
         @ObservationIgnored var loop: Task<Void, Never>?
@@ -142,10 +148,11 @@ struct BusyPip: SandboxPlugin {
         host.say(Lines.start.randomElement()!, for: 2)
         var report: [String] = []
         let stops = roundStops(host)
-        for (i, p) in picks(host).enumerated() {
+        let moves = !host.simpler && host.joy > 0
+        for (i, p) in picks(host).prefix(Self.stopCount(host.joy)).enumerated() {
             await pause(2)
             guard !Task.isCancelled else { probe.cancel(); return }
-            if !host.simpler, !stops.isEmpty { host.move(to: stops[i % stops.count]) }
+            if moves, !stops.isEmpty { host.move(to: stops[i % stops.count]) }
             withAnimation(.easeInOut(duration: 0.3)) { state.checking = p.info.name }
             await pause(1.6)
             let line = describe(p, host)
@@ -171,19 +178,20 @@ struct BusyPip: SandboxPlugin {
             if state.question == q { answer(.later, host) }
         }
         guard !Task.isCancelled else { return }
+        await signOff(host)
         host.say(Lines.done.randomElement()!, for: 2.4)
         save(report, host)
     }
 
     private func pretendRound(_ host: PipHost) async {
         host.react(.curious, for: 1.5)
-        let count = host.simpler ? 1 : 3
+        let count = host.simpler || host.joy == 0 ? 1 : Self.stopCount(host.joy)
         let stops = roundStops(host)
         var lines = Lines.pretend.shuffled()
         for i in 0..<count {
             await pause(2)
             guard !Task.isCancelled else { return }
-            if !host.simpler, !stops.isEmpty { host.move(to: stops[i % stops.count]) }
+            if !host.simpler, host.joy > 0, !stops.isEmpty { host.move(to: stops[i % stops.count]) }
             await pause(1.4)
             host.say(lines.removeFirst(), for: 2.6)
             if i == 1 {
@@ -191,21 +199,34 @@ struct BusyPip: SandboxPlugin {
                 host.say(Lines.pretendNumbers.randomElement()!, for: 2.2)
             }
         }
-        if !host.simpler, Int.random(in: 0..<3) == 0 {
+        if !host.simpler, host.joy > 0, Int.random(in: 0..<max(1, 4 - host.joy)) == 0 {
             await pause(3)
             host.say(Lines.pretendQuestions.randomElement()!, for: 3)
         }
         await pause(3.2)
         guard !Task.isCancelled else { return }
+        await signOff(host)
         host.say(Lines.pretendDone.randomElement()!, for: 2.2)
     }
 
-    /// Up to three plugins to look at: ones you haven't opened in a while first, then a random few.
+    /// How many stops a round makes: 1 when still, 3 when calm, up to 5 when unhinged.
+    static func stopCount(_ joy: Int) -> Int { [1, 3, 3, 4, 5, 5][min(max(joy, 0), 5)] }
+
+    /// The small wonder: Pip stamps a tick on the clipboard. Calm at joy 1; a cheer and a sparkle as joy grows.
+    private func signOff(_ host: PipHost) async {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) { state.stamped = true }
+        if host.joy >= 2 { host.cheer() }
+        if host.joy >= 3 { NotificationCenter.default.post(name: Notification.Name("pip.emote"), object: "✨") }
+        await pause(1.4)
+        withAnimation(.easeInOut(duration: 0.4)) { state.stamped = false }
+    }
+
+    /// Up to five plugins to look at: ones you haven't opened in a while first, then a random few.
     private func picks(_ host: PipHost) -> [any SandboxPlugin] {
         let on = host.plugins.filter { host.isOn($0.info.id) && $0.info.id != "busypip" }
         let stale = on.filter { $0.hasCard && daysSinceOpened($0.info.id, host) ?? .infinity >= Tune.unusedDays }
         let rest = on.filter { p in !stale.contains { $0.info.id == p.info.id } }.shuffled()
-        return Array((stale.shuffled() + rest).prefix(3))
+        return Array((stale.shuffled() + rest).prefix(5))
     }
 
     private func daysSinceOpened(_ id: String, _ host: PipHost) -> Double? {
@@ -246,9 +267,27 @@ struct BusyPip: SandboxPlugin {
             if let d = daysSinceOpened(id, host) { return d >= Tune.unusedDays }
             return watchedDays(host) >= Tune.watchedDays
         }
+        if candidate == nil || (!state.askedJoy && Bool.random()) {
+            if let j = joyQuestion(host, kept: kept) { return j }
+        }
         guard let p = candidate else { return nil }
         let when = daysSinceOpened(p.info.id, host).map { "in \(Int($0)) days" } ?? "since I started watching"
         return Question(plugin: p.info.id, text: "You haven't opened \(p.info.name) \(when). Keep it on?")
+    }
+
+    /// Once a session: is a plugin you do use still sparking joy? Keep / Move to the loft / Ask later. Never deletes.
+    private func joyQuestion(_ host: PipHost, kept: [String: Double]) -> Question? {
+        guard !state.askedJoy else { return nil }
+        let now = Date.now.timeIntervalSince1970
+        let p = host.plugins.filter { p in
+            let id = p.info.id
+            guard id != "busypip", host.isOn(id), p.hasCard, !state.askLater.contains(id) else { return false }
+            if let k = kept[id], (now - k) / 86_400 < Tune.keepDays { return false }
+            return true
+        }.randomElement()
+        guard let p else { return nil }
+        state.askedJoy = true
+        return Question(plugin: p.info.id, text: String(format: Lines.joyAsk.randomElement()!, p.info.name), joy: true)
     }
 
     enum Answer { case keep, off, later }
@@ -263,11 +302,12 @@ struct BusyPip: SandboxPlugin {
             kept[q.plugin] = Date.now.timeIntervalSince1970
             host.setValue(kept, "busypip", "kept")
             host.say(Lines.kept, for: 2)
-            appendReport("You said keep \(name).", host)
+            if q.joy, host.joy >= 1 { host.cheer() }
+            appendReport(q.joy ? "\(name) still sparks joy. Kept." : "You said keep \(name).", host)
         case .off:
             host.setOn(q.plugin, false)
             host.say(Lines.switchedOff, for: 2.4)
-            appendReport("You switched off \(name).", host)
+            appendReport("You moved \(name) to the loft (switched off, kept).", host)
         case .later:
             state.askLater.insert(q.plugin)
             host.say(Lines.later, for: 2)
@@ -354,7 +394,8 @@ struct BusyPip: SandboxPlugin {
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                     HStack(spacing: 4) {
-                        Image(systemName: "list.clipboard.fill")
+                        Image(systemName: state.stamped ? "checkmark.seal.fill" : "list.clipboard.fill")
+                            .scaleEffect(state.stamped && !host.simpler ? 1.25 : 1)
                         if state.checking.isEmpty {
                             Image(systemName: "scribble.variable")
                         } else {
@@ -389,9 +430,9 @@ struct BusyPip: SandboxPlugin {
                     Button("Keep") { plugin.answer(.keep, host) }
                         .buttonStyle(PluginCardButton(on: true))
                         .accessibilityLabel("Keep it on")
-                    Button("Switch off") { plugin.answer(.off, host) }
+                    Button("Move to the loft") { plugin.answer(.off, host) }
                         .buttonStyle(PluginCardButton())
-                        .accessibilityLabel("Switch it off")
+                        .accessibilityLabel("Move it to the loft: switched off, but kept")
                     Button("Ask later") { plugin.answer(.later, host) }
                         .buttonStyle(PluginCardButton())
                         .accessibilityLabel("Ask me later")
