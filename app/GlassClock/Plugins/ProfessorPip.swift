@@ -82,6 +82,7 @@ struct ProfessorPip: SandboxPlugin {
         case .rest: "Pip came to rest"
         case .ink(let ink): "Drawing: \(ink)"
         case .custom(let name): "Plugin message: \(name)"
+        default: "Event: \(event)"
         }
     }
 

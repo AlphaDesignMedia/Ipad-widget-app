@@ -13,5 +13,9 @@ enum Plugins {
         HelperDial(),
         OpeningNight(),
         ProfessorPip(),
+        PipBond(),
+        PipEmotes(),
+        DoodleDuet(),
+        SetInTheirWays(),
     ]
 }
