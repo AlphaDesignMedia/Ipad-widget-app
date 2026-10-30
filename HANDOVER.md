@@ -56,9 +56,9 @@ Read `CLAUDE.md` first. This file is where things stand and what's next.
 - Simulator only: the build, the first meeting's look, the "Tap to wake" bubble, the plugin bar's button and the icon.
 - Not checked at all: touch (flick, pinch, bar and card taps), VoiceOver, reduced motion, rotation, and the notebook card's look.
 - **Sketch:** Aaron tried it on the iPad on 30 Oct ("I love how Sketch is working"). Not tested since: the panel.
-- **The drawing panel and Wonders (30 Oct):**
-  - Seen in the simulator: the panel with its Draw, Page and Wonders cards (`-sketchDemo YES`), and Pip following a pretend Pencil (`-followDemo YES`: Pip ended where the Pencil stopped).
-  - Not tested at all: carrying the panel to the other side, tucking it, real Pencil hover and follow, Pip's answers since they moved to Wonders, and VoiceOver on the panel.
+- **The drawing panel and Pencil Wonders (30 Oct):**
+  - Seen in the simulator: the panel with its Draw, Page and Wonders cards (now titled Pencil Wonders) (`-sketchDemo YES`), and Pip following a pretend Pencil (`-followDemo YES`: Pip ended where the Pencil stopped).
+  - Not tested at all: carrying the panel to the other side, tucking it, real Pencil hover and follow, Pip's answers since they moved to Pencil Wonders. Native Wonders, Helper Dial, Opening Night and Professor Pip: built only, not run, and VoiceOver on the panel.
   - The tucked panel's VoiceOver label is the app's own "Bring the settings back" (from `Peek`).
 
 ## Reminders
