@@ -9,5 +9,6 @@ enum Plugins {
         PlaygroundBridge(),
         PluginDesk(),
         NativeWonders(),
+        HelperDial(),
     ]
 }
