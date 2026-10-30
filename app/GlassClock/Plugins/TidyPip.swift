@@ -22,8 +22,11 @@ struct TidyPip: SandboxPlugin {
         static let step = 0.1                   // how far each answer nudges Tidiness
         static let quiet = 0.15                 // below this, Pip stops asking
         static let start = 0.5
-        /// How long something sits untouched before Pip asks: 30 s when spotless, 3 min when cosy.
-        static func wait(_ tidiness: Double) -> Double { 30 + (1 - tidiness) * 150 }
+        /// How long something sits untouched before Pip asks: about 5 min at joy 1 and middling tidiness,
+        /// sooner as joy rises, longer when cosy (1.5× at the cosy end, 0.5× when spotless). Joy 0 never asks.
+        static func wait(_ tidiness: Double, joy: Int) -> Double {
+            [Double.infinity, 300, 220, 160, 110, 75][min(max(joy, 0), 5)] * (1.5 - tidiness)
+        }
     }
 
     enum Lines {
@@ -69,7 +72,9 @@ struct TidyPip: SandboxPlugin {
               (host.value("tidypip", "never") as Bool?) != true,
               let open = host.openCard, open != "tidypip", open != tidy.askedAbout else { return }
         let t = tidiness(host)
-        guard t >= Tune.quiet, Date.now.timeIntervalSince(tidy.lastTouch) >= Tune.wait(t) else { return }
+        guard t >= Tune.quiet, Date.now.timeIntervalSince(tidy.lastTouch) >= Tune.wait(t, joy: host.joy),
+              BusyPip.floorFree(host) else { return }
+        BusyPip.takeFloor(host, for: 15)
         tidy.asked += 1
         tidy.askedAbout = open
         withAnimation(.easeInOut(duration: 0.3)) { tidy.asking = true }
@@ -81,6 +86,7 @@ struct TidyPip: SandboxPlugin {
 
     fileprivate func answer(_ a: Answer, _ host: PipHost) {
         withAnimation(.easeInOut(duration: 0.3)) { tidy.asking = false }
+        BusyPip.takeFloor(host, for: 3)
         switch a {
         case .tidy:
             guard let id = host.openCard else { return }
@@ -250,9 +256,9 @@ struct TidyPip: SandboxPlugin {
         private var readout: String {
             switch tidiness {
             case ..<TidyPip.Tune.quiet: "Very cosy: Pip has stopped asking."
-            case ..<0.4: "Lived-in: Pip waits a good while before asking."
-            case ..<0.7: "In between: Pip asks now and then."
-            default: "Spotless: Pip asks fairly soon."
+            case ..<0.4: "Lived-in: Pip waits a good while before asking (about 7 minutes at calm joy)."
+            case ..<0.7: "In between: Pip asks after about 5 minutes at calm joy."
+            default: "Spotless: Pip asks after about 3 minutes at calm joy."
             }
         }
 
