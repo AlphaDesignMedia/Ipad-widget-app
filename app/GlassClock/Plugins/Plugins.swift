@@ -26,5 +26,6 @@ enum Plugins {
         PipsWeight(),
         Dashboard(),
         NextAction(),
+        IdeaInbox(),
     ]
 }
