@@ -27,16 +27,13 @@ Pip Sandbox is now a separate native iPad app with 32 plugins.
 | Step | Status |
 |---|---|
 | 1. Merge `dashboard-30oct.json` into `data/dashboard.json` (status, builds, needsYou only) | **Waiting.** The file isn't on the Mac yet. Aaron needs to save it into the `pip-sandbox-claude-code` folder. |
-| 2. Scrub the old homage name from what's packed into the app | **Done, not built yet.** The two questions in `data/dashboard.json` now say "Pip". The Dashboard plugin's name filter no longer writes the old name out. |
+| 2. Scrub the old homage name from what's packed into the app | **Handed to Rob** (the Mac plugin agent), because `data/dashboard.json` and the Dashboard plugin are on the plugin branch. He changes the two questions to "Pip" and rewrites the plugin's name filter so the old name is never written out. |
 | 3. One plain text file of ideas | **Done:** `IDEAS-FOR-DASHBOARD.txt`, also copied in section 8 below. Not added to the dashboard. |
-| 4. Fix the two auto-update flaws | **Done, not run yet.** A build clash now retries in 2 minutes instead of counting as a failure. The report lists only what the plugin agents' merge brings in. |
+| 4. Fix the two auto-update flaws | **Done and pushed (254a7bf), not run yet.** A build clash now retries in 2 minutes instead of counting as a failure. The report lists only what the plugin agents' merge brings in. |
 | 5. Core asks that clash with keeping Glass Clock untouched | **None directly.** Watch two: the menu split ("used most" / "extras") and the restraint ladder ("Glass Clock opens as just the clock"). Both are Glass Clock decisions, so they stay sandbox-only until Aaron says yes. |
 
-**Not yet committed or pushed:** steps 2–4, this file and `DASHBOARD-HANDOVER.md`.
-- They still need a simulator build check.
-- That check failed because macOS blocks Xcode's image tool from reading files in Google Drive. This is a Mac privacy setting, not a code bug.
-- A build from a copy outside Google Drive was started and then stopped, because copying out of Drive stalled.
-- **Next for the Mac agent:** build the change in the auto-updater's copy (`~/PipSandboxAutoUpdate`), then commit and push.
+**Builds:** macOS blocks Xcode from reading app files inside Google Drive, so builds now happen only in copies outside Drive: the auto-updater's (`~/PipSandboxAutoUpdate`) and Rob's (`~/PipSandboxRob`).
+- **Rob's job now** (Aaron, 30 Oct): 30 minutes making the app strong and stable. He builds everything on `pip-plugins`, fixes errors and warnings, and makes sure the auto-updater gets a green build onto the iPad.
 
 ---
 
