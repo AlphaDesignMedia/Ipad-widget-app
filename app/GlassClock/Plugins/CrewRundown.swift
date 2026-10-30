@@ -79,46 +79,62 @@ struct CrewRundown: SandboxPlugin {
         var since: String? = nil
         @ObservationIgnored var offers = 0
         @ObservationIgnored var played = false
-        @ObservationIgnored var run = 0
+        @ObservationIgnored var chat: Task<Void, Never>?
+        @ObservationIgnored var steam: Task<Void, Never>?
     }
     private let session = Session()
 
-    /// Panel opened: Pip says one line (3 times a session at most) and the chat plays once.
+    /// Panel opened: Pip says one line (3 times a session at most) and the chat plays once. With Pip off: neither.
     func opened(_ host: PipHost) {
+        guard host.pipHere else { return }
         if session.offers < Tune.maxOffers {
             let line = CrewRundown.pipLines[min(session.offers, CrewRundown.pipLines.count - 1)]
             host.later(Tune.greetDelay) {
-                if host.say(line, for: 2.2) { session.offers += 1 }
+                if host.openCard == info.id, host.say(line, for: 2.2) { session.offers += 1 }
             }
         }
         if !session.played { play(host) }
     }
 
-    /// Shows the chat one line at a time (all at once at Joy 0). Under simpler motion the lines only fade.
-    func play(_ host: PipHost) {
-        session.played = true
-        session.run += 1
-        let run = session.run
-        let gap = Tune.gap(joy: host.joy)
-        session.shown = 0
+    /// Panel closed (or Pip gone): the chat and the steam stop. A chat cut short plays again next time.
+    func closed() {
+        session.chat?.cancel()
+        session.steam?.cancel()
+        session.chat = nil
+        session.steam = nil
         session.steaming = false
+        if session.shown < CrewRundown.chat.count { session.played = false }
+    }
+
+    /// Shows the chat one line at a time (all at once at Joy 0). Under simpler motion the lines only fade.
+    /// Runs only while Pip is here and the panel is open.
+    func play(_ host: PipHost) {
+        closed()
+        session.played = true
+        session.shown = 0
+        let gap = Tune.gap(joy: host.joy)
         guard gap > 0 else { session.shown = CrewRundown.chat.count; return }
-        for i in CrewRundown.chat.indices {
-            host.later(gap * Double(i + 1)) {
-                guard session.run == run else { return }
+        session.chat = Task { @MainActor in
+            for i in CrewRundown.chat.indices {
+                try? await Task.sleep(for: .seconds(gap))
+                guard !Task.isCancelled else { return }
+                guard host.pipHere else { closed(); return }
                 withAnimation(.easeOut(duration: 0.35)) { session.shown = i + 1 }
-                if i == CrewRundown.flaskLine { steam(host, run: run) }
+                if i == CrewRundown.flaskLine { steam(host) }
             }
+            session.chat = nil
         }
     }
 
     /// The wonder: a wisp of steam from Bob's flask.
-    private func steam(_ host: PipHost, run: Int) {
+    private func steam(_ host: PipHost) {
         guard Tune.wisps(joy: host.joy) > 0 else { return }
         session.steaming = true
-        host.later(Tune.steamFor) {
-            guard session.run == run else { return }
+        session.steam = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(Tune.steamFor))
+            guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 0.8)) { session.steaming = false }
+            session.steam = nil
         }
     }
 
@@ -127,6 +143,7 @@ struct CrewRundown: SandboxPlugin {
     func card(_ host: PipHost) -> some View {
         Board(plugin: self, session: session, host: host)
             .onAppear { opened(host) }
+            .onDisappear { closed() }
     }
 
     struct Board: View {

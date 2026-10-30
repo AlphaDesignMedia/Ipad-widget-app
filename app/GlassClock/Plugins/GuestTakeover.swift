@@ -71,13 +71,24 @@ struct GuestTakeover: SandboxPlugin {
 
     func start(_ host: PipHost) throws {
         visit.last = .now.addingTimeInterval(-60 * (Tune.gap(joy: 1) - Tune.firstVisit))
-        guard visit.loop == nil else { return }
+        wake(host)
+    }
+
+    /// Runs the 60-second check only while Guest Takeover is on and "Guests may drop by" is on; it ends itself
+    /// when either goes off. Switching the plugin on calls `start`, and the card's switch calls this again.
+    fileprivate func wake(_ host: PipHost) {
+        guard visit.loop == nil, running(host) else { return }
         visit.loop = Task { @MainActor in
-            while !Task.isCancelled {
+            while !Task.isCancelled, running(host) {
                 try? await Task.sleep(for: .seconds(Tune.tick))
                 tick(host)
             }
+            visit.loop = nil
         }
+    }
+
+    private func running(_ host: PipHost) -> Bool {
+        host.isOn("guests") && ((host.value("guests", "on") as Bool?) ?? false)
     }
 
     private func tick(_ host: PipHost) {
@@ -188,6 +199,7 @@ struct GuestTakeover: SandboxPlugin {
                 Toggle("Guests may drop by", isOn: $on)
                     .font(.system(size: 13.5))
                     .accessibilityLabel("Let guests drop by now and then")
+                    .onChange(of: on) { if on { plugin.wake(host) } }
                 HStack(spacing: PluginBarLook.cardGap) {
                     ForEach(Guest.allCases, id: \.self) { guest in
                         Button("Invite \(guest.name)") {

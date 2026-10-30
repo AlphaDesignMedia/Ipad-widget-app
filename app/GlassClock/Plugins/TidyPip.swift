@@ -58,11 +58,13 @@ struct TidyPip: SandboxPlugin {
 
     func start(_ host: PipHost) throws {
         guard tidy.loop == nil else { return }
+        // Ends itself when Tidy Pip is switched off; switching it on calls `start` again.
         tidy.loop = Task { @MainActor in
-            while !Task.isCancelled {
+            while !Task.isCancelled, host.isOn("tidypip") {
                 tick(host)
                 try? await Task.sleep(for: .seconds(2))
             }
+            tidy.loop = nil
         }
     }
 

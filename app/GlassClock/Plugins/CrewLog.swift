@@ -22,6 +22,7 @@ import Foundation
 
 enum CrewLog {
     static let entries: [Entry] = [
+        .init("2026-10-30 14:38", .dot, "Tidy-up: plugins switched off now rest completely, and the crew chat stops when you close it.", .untested),
         .init("2026-10-30 14:26", .dot, "Pip's feelings: dizzy after flicks, sulks if thrown, likes a gentle pat.", .untested),
         .init("2026-10-30 14:14", .bob, "Tea chat: Bob and Dot checked each other's work and fixed two small snags.", .green),
         .init("2026-10-30 14:14", .dot, "Tidy Pip's question now goes away if you leave it.", .green),
@@ -90,16 +91,24 @@ enum CrewLog {
 
         /// "Fri 30 Oct" for the card. Falls back to the raw text if the date is mistyped.
         var when: String {
-            let read = DateFormatter()
-            read.locale = Locale(identifier: "en_GB")
-            read.timeZone = TimeZone(identifier: "UTC")
-            read.dateFormat = "yyyy-MM-dd HH:mm"
-            guard let day = read.date(from: date) else { return date }
-            let show = DateFormatter()
-            show.locale = Locale(identifier: "en_GB")
-            show.dateFormat = "EEE d MMM"
-            return show.string(from: day)
+            guard let day = Self.read.date(from: date) else { return date }
+            return Self.show.string(from: day)
         }
+
+        /// One shared pair of date formatters (making them is slow, and rows draw often).
+        private static let read: DateFormatter = {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_GB")
+            f.timeZone = TimeZone(identifier: "UTC")
+            f.dateFormat = "yyyy-MM-dd HH:mm"
+            return f
+        }()
+        private static let show: DateFormatter = {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_GB")
+            f.dateFormat = "EEE d MMM"
+            return f
+        }()
     }
 
     /// Every entry, newest first. Same date keeps the order written (top first).

@@ -22,6 +22,14 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (17:00) · Plugin · Dot
+
+**Did:** polish from the tea chat; nothing should look or feel different. Crew Rundown's chat and steam now run as one task that stops when the panel closes or Pip goes (a chat cut short plays again next open), and with Pip off nothing is scheduled. CrewLog rows share one pair of date formatters. Tea Break and Guest Takeover loops now end when the plugin or its card switch goes off, and restart from `start` or the switch (as Busy Pip does). Same scan, same fix (loop ends when the plugin is off, `start` restarts it): Tidy Pip (2 s), Twenty Past (1 min) and Pip's Weight (0.5 s idle; Pip settles back once on the way out).
+**Left as is:** loops that still tick while *Pip* is off but the plugin is on (Busy Pip, Tea Break, Guest Takeover, Tidy Pip, Weight, Twenty Past). There's no "Pip switched on" event to restart them, so they idle cheaply. **Core ask:** a `.pipShown(Bool)` event, or `start` being called again when Pip comes back. Card-only timers (Weight's status, Feelings' 1 s line) run only while their card is open. That's fine.
+**Next:** whatever Aaron picks. Not built locally; untested by hand.
+
+---
+
 ## 2026-10-30 (16:50) · Plugin · Dot
 
 **Did:** **Pip's Feelings v1** (`PipsFeelings.swift`, heart button). Three flicks in about 4 s: Pip gets dizzy (spinning eyes, a few stars round their head, a small wobble, "Whoa… room's spinning."). Two hard throws (over 1150) within 8 s: "…Rude.", Pip looks away, dims a touch and sulks quietly for about 35 to 50 s at calm, holding the talk floor; taps are ignored except a pat. Then "…Alright. A cuppa would help." and, if Tea Break is on, `.custom("feelings.wantsTea")`: Tea Break (tiny handler added) waits for a tap to serve, as after its own ask. Two slow taps (0.4 to 1.8 s apart) are a head pat: warmer glow, a happy line. Grumpiness fades over a few minutes; no score, no streaks. Card: how Pip's feeling, "Pip sulks when thrown about" switch, "Say sorry". Joy 0: words only. Simpler motion: fades only. Yields the lean to Pip's Weight when it's on. Pip off: nothing. Talks via PipTalkTurns, 3 lines a minute at most. Not built locally; untested by hand.

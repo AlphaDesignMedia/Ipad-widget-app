@@ -154,11 +154,14 @@ struct PipsWeight: SandboxPlugin {
         body.lastZone = Self.zone(body.feel)
         body.lastPos = host.pipPosition
         guard body.loop == nil else { return }
+        // Ends itself when Pip's Weight is switched off (Pip settles back first); switching it on calls `start` again.
         body.loop = Task { @MainActor in
-            while !Task.isCancelled {
+            while !Task.isCancelled, host.isOn("weight") {
                 let active = tick(host)
                 try? await Task.sleep(for: .milliseconds(active ? 16 : 500))
             }
+            relax(host.pip)
+            body.loop = nil
         }
     }
 

@@ -65,14 +65,23 @@ struct TeaBreak: SandboxPlugin {
         return host.isOn("teabreak") && asks && host.pipHere && !host.pipAsleep
     }
 
-    func start(_ host: PipHost) throws {
-        guard session.loop == nil else { return }
+    func start(_ host: PipHost) throws { wake(host) }
+
+    /// Runs the 30-second check only while Tea Break is on and "Pip asks for tea" is on; it ends itself when
+    /// either goes off. Switching the plugin on calls `start`, and the card's switch calls this again.
+    fileprivate func wake(_ host: PipHost) {
+        guard session.loop == nil, running(host) else { return }
         session.loop = Task { @MainActor in
-            while !Task.isCancelled {
+            while !Task.isCancelled, running(host) {
                 try? await Task.sleep(for: .seconds(Tune.tick))
                 tick(host)
             }
+            session.loop = nil
         }
+    }
+
+    private func running(_ host: PipHost) -> Bool {
+        host.isOn("teabreak") && ((host.value("teabreak", "asks") as Bool?) ?? true)
     }
 
     private func tick(_ host: PipHost) {
@@ -223,6 +232,7 @@ struct TeaBreak: SandboxPlugin {
                 Toggle("Pip asks for tea", isOn: $asks)
                     .font(.system(size: 13.5))
                     .accessibilityLabel("Let Pip ask for tea after working hard")
+                    .onChange(of: asks) { if asks { plugin.wake(host) } }
                 Button("Put the kettle on") { plugin.serve(host) }
                     .buttonStyle(PluginCardButton())
                     .disabled(!host.pipHere)

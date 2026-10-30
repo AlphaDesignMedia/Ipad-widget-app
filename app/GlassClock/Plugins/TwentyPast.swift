@@ -62,7 +62,8 @@ struct TwentyPast: SandboxPlugin {
                 try? await Task.sleep(for: .seconds(6))
                 await play(host)
             }
-            while !Task.isCancelled {
+            // Ends itself when Twenty Past is switched off; switching it on calls `start` again.
+            while !Task.isCancelled, host.isOn(info.id) {
                 let slot = Self.slot(around: .now)
                 let wait = slot.timeIntervalSinceNow
                 // Checks in once a minute at most, so a sleeping iPad or a changed clock can't make it miss.
@@ -73,6 +74,7 @@ struct TwentyPast: SandboxPlugin {
                 }
                 try? await Task.sleep(for: .seconds(61))
             }
+            show.waiting = nil
         }
     }
 
