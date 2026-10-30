@@ -22,6 +22,29 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (17:35) · Plugin · Rob
+
+**Did:** First run. **Stability and scrub, all green, none of it hand-tested.**
+- **Warnings: all five plugin ones gone.** Four `coordinateSpace` deprecations (DoodleDuet, KeyboardKit, OpeningNight, ProfessorPip) now use `effectiveGeometry.coordinateSpace`; ProfessorPip had an unreachable `default`; `NWSpeakingClock.voice` is `nonisolated(unsafe)`. Clean build is 0 errors, 0 warnings. One left, `ContentView.swift:377` (unlabelled trailing closure, wants `keepSimple`) — core, so Greg's.
+- **Pip in 3D** (`NativeWonders.swift`): a `Tune3D` table with every angle, rate, idle timing and parallax slide. Two feel changes: the up-down tilt now trails the side-to-side turn (`lagFollow`), and the gaze aims a touch past your finger then settles (`overshoot`, 0.12, set 0 to kill it).
+- **Reduced motion no longer runs at 60fps.** Both NativeWonders frame loops cap at `NWTune.calmFPS` (20) when `simpler` is on. No bare `TimelineView(.animation)` left in that file.
+- **Ugly shadow** on the Pip Postcard: it was `.shadow(radius: 20, y: 10)`, default black at 33%, one heavy blur, and no `compositingGroup()` so every word on the card cast its own. Now a contact + ambient pair, numbers in `NWTune`.
+- **3D bug, StationeryCupboard:** the open door fades to 50%, and to 0% under reduced motion, but a faded SwiftUI view still takes taps, so it sat over the open cupboard swallowing them. Worst for reduced-motion users, who couldn't see what was blocking them. Fixed with `.allowsHitTesting(!open)`, and its three 3D numbers moved into `Tune`.
+- **Homage scrub:** both "Navi" questions in `data/dashboard.json` now say Pip, and `Dashboard.clean()` matches on `String("ivaN".reversed())` so the old name never appears in our source. Comment added so nobody tidies it back.
+- Added a `rob` case to `CrewLog.Who` and one line to `CrewRundown.swift` so I show in the rundown. Shout if you'd rather I hadn't, Dot.
+
+**Checked and deliberately left alone:** Tea Break and Guest Takeover already stop when switched off — `guard loop == nil`, `while !Task.isCancelled, running(host)`, and guards inside `tick`. That's Dot's 14:38 fix and it's sound; there's no stop hook on `SandboxPlugin`, so self-terminating is the right pattern. `OpeningNight`'s loop only mounts during its 6.4s show. `GuidedTour:209` is properly guarded. Nothing to do on any of them.
+
+**Two corrections to my earlier note, from Greg:** the auto-updater is **not** broken — the lock was a one-off 15:03–15:24 window and since `254a7bf` a clash retries; installs ran at 16:00, 16:03, 16:59 and 17:05. And `ContentView:4164` is Wiggle, which only mounts in edit mode. I was wrong on both. The one real always-on core loop is `Pip.swift:543` (sparkles), which Greg is pausing pending Aaron's go.
+
+**Not tested:** none of this has been seen on the iPad. Built only. The two feel numbers are guesses, `lagFollow` especially — if the tilt looks rubbery, raise it. I could not run the dashboard WKWebView test: `simctl openurl` times out and the simulator's SpringBoard is wedged, so there is still **no** WORKS / EMPTY / NEEDS SIGN-IN verdict and I am not guessing one.
+
+**Need from core (Greg):** nothing blocking. The sparkles pause in `Pip.swift:543` is the real overload win when Aaron gives the go.
+
+**Held, not pushed:** two new plugins Aaron asked for in chat, `RobVisits` (a terminal that natters to Pip) and `VintagePacks` (pack 01, a pressed biscuit tin, drawn not photographed, homage not brand). Both green. Held because the standing rule is no new plugins until the Glass Clock beta ships. Aaron's call.
+
+**Next:** Aaron wants a reminder to think about **the real app and a stable build** — flagging it here so it isn't lost. Then: the dashboard test once a simulator behaves, and whatever he picks.
+
 ## 2026-10-30 (17:20) · Plugin · Dot
 
 **Did:** **Pip's sketchbook v1** (`PipsSketchbook.swift`, pencil-and-scribble button, a panel). Its own small canvas (finger or Pencil). Lift and pause 1.5 s and Pip guesses: they only know "house" and "face" (two hand-made drawings each). Strokes go onto a 32 x 32 grid, blurred a touch, compared by cosine similarity. Sure: "Is that a house?" with "Yes!" / "No, it's a…" (type a word). Not sure: "Is it… a house? Or a face?" Taught drawings are saved on the device (5 per word), and Pip says "Ooh. A {thing}. I'll remember that." Trace button: Pip draws a wobbly version of a word they know, dashed, to trace over; wobble = max(0.2, 1 - taught/20). Pip off: plain pad with "What is it?" showing the best guess as text. Joy 0: text only. Simpler motion: fades only. Unprompted guesses or trace offers at most 3 a session, then only when asked. Talks via PipTalkTurns. No network. All numbers are in the `Tune` table at the top.

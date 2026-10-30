@@ -87,7 +87,7 @@ struct OpeningNight: SandboxPlugin {
     @MainActor func premiere(_ host: PipHost, encore: Bool = false) {
         guard show.kind == nil else { return }
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        let bounds = scene?.coordinateSpace.bounds.size ?? CGSize(width: 1024, height: 768)
+        let bounds = scene?.effectiveGeometry.coordinateSpace.bounds.size ?? CGSize(width: 1024, height: 768)
         show.targets = Self.points(spelling: "Hello!", width: min(bounds.width * 0.7, 640),
                                    centre: CGPoint(x: bounds.width / 2, y: bounds.height * 0.38))
         show.seeds = show.targets.indices.map { _ in Double.random(in: 0...1) }

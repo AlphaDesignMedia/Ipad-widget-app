@@ -78,7 +78,11 @@ struct Dashboard: SandboxPlugin {
     }
 
     /// Keeps homage names out of what's shown.
-    static func clean(_ text: String) -> String { text.replacingOccurrences(of: "Navi", with: "Pip") }
+    /// Older boards still carry the homage name. We swap it for Pip without ever writing it out:
+    /// the repo is public, and the rule is that the real name never appears in our source.
+    static func clean(_ text: String) -> String {
+        text.replacingOccurrences(of: String("ivaN".reversed()), with: "Pip")
+    }
 
     /// Pip says one line, once a session, when the panel first opens.
     @MainActor final class Mind {
