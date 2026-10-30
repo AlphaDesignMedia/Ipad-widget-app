@@ -47,6 +47,7 @@ enum Plugins {
         RobVisits(),        // Rob: pops in unprompted at joy 2+, not hand-tested
         VintagePacks(),     // Rob: passive
         GlassMemory(),      // Dot: faint Pip trails that stay, and a frosted ink look; trails off at Joy 0
+        DirectorsCall(),    // Dot: tap Action! and Pip performs a scene. Starts only on tap; never unprompted
         PipFlags(),         // Rob: new. No loop, does nothing until opened. Park it if you'd rather.
     ]
 }
