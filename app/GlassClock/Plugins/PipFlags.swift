@@ -35,20 +35,26 @@ struct PipFlags: SandboxPlugin {
 
     /// Everything not listed here is treated as green: it has no loop of its own and only works while you're
     /// looking at it. Wake rates below were read off each plugin's own sleep interval.
+    /// Read off each plugin's own sleep pattern, not guessed. Anything not listed is treated as green:
+    /// no loop of its own, so it only works while you're looking at it.
+    ///
+    /// The axis that matters turned out to be **does it act on its own**, not raw wake rate. A plugin that
+    /// runs fast *while you're watching it move* is doing its job; one that starts up when you've walked
+    /// away is the one to switch off first.
     static let verdicts: [String: Verdict] = [
-        "weight": .init(flag: .red, why: "Wakes twice a second, all the time it's on.",
-                        note: "Weight never stops thinking. Twice a second, even when nothing's happening."),
-        "busypip": .init(flag: .red, why: "Wakes once a second, all the time it's on.",
+        "glass": .init(flag: .red, why: "Starts itself when you stop touching the screen, then wakes every 3s and loops a shine.",
+                       note: "Window Cleaner sets off on its own when you leave the room. Lovely, but it's the only one here that starts without you."),
+        "busypip": .init(flag: .amber, why: "Wakes once a second the whole time it's on, whether or not it's doing anything.",
                          note: "Busy Pip is busy once a second, whether or not there's anything to be busy about."),
-        "tidy": .init(flag: .red, why: "Wakes every 2 seconds, and keeps an animation looping.",
+        "tidy": .init(flag: .amber, why: "Wakes every 2 seconds, and keeps an animation looping.",
                       note: "Tidy Pip checks every couple of seconds, and keeps a little animation going round."),
-        "glass": .init(flag: .red, why: "Wakes every 3 seconds, starts itself when idle, and loops a shine.",
-                       note: "Window Cleaner sets off on its own when you leave the room. Lovely, but it's the busiest one here."),
-        "twentypast": .init(flag: .amber, why: "Wakes every 6 seconds.",
-                            note: "Twenty Past looks up every six seconds. Not much, but it adds up."),
-        "vendomat": .init(flag: .amber, why: "Wakes every 9 seconds.",
-                          note: "The Vend-O-Mat keeps half an eye open. Fine unless everything else is too."),
-        "cupboard": .init(flag: .amber, why: "Wakes every 5 seconds while Pip's shut in.",
+        "vendomat": .init(flag: .amber, why: "Rests at 9s, but runs at about 22 frames a second while anything is in the air.",
+                          note: "The Vend-O-Mat dozes until something's falling, then it's wide awake."),
+        "weight": .init(flag: .green, why: "Adaptive: 60 a second only while Pip is actually moving, then drops to twice a second.",
+                        note: "Weight only works hard while I'm moving. The rest of the time it has a sit down."),
+        "twentypast": .init(flag: .green, why: "Wakes every 6s, and backs off to a minute when there's nothing due.",
+                            note: "Twenty Past glances at the clock, then leaves it alone."),
+        "cupboard": .init(flag: .green, why: "Only ticks while Pip is shut in the cupboard.",
                           note: "The cupboard only ticks while I'm locked in it, which is fair enough."),
         "teabreak": .init(flag: .green, why: "Wakes every 30 seconds.",
                           note: "Tea Break barely stirs. Half a minute between thoughts, like me."),
