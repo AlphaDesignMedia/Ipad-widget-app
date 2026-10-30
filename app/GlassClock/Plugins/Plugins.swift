@@ -7,5 +7,6 @@ enum Plugins {
         PipRemembers(),
         Sketch(),
         PlaygroundBridge(),
+        PluginDesk(),
     ]
 }
