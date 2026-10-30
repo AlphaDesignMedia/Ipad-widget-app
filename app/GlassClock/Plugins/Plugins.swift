@@ -10,5 +10,6 @@ enum Plugins {
         PluginDesk(),
         NativeWonders(),
         HelperDial(),
+        OpeningNight(),
     ]
 }
