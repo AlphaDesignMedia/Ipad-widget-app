@@ -19,6 +19,7 @@ struct TidyPip: SandboxPlugin {
     enum Tune {
         static let asksPerSession = 3
         static let undoSeconds: Double = 10
+        static let answerWait: Double = 15      // an unanswered ask quietly goes away (nothing nudged)
         static let step = 0.1                   // how far each answer nudges Tidiness
         static let quiet = 0.15                 // below this, Pip stops asking
         static let start = 0.5
@@ -74,12 +75,17 @@ struct TidyPip: SandboxPlugin {
         let t = tidiness(host)
         guard t >= Tune.quiet, Date.now.timeIntervalSince(tidy.lastTouch) >= Tune.wait(t, joy: host.joy),
               PipTalkTurns.floorFree(host) else { return }
-        PipTalkTurns.takeFloor(host, for: 15)
+        PipTalkTurns.takeFloor(host, for: Tune.answerWait)
         tidy.asked += 1
         tidy.askedAbout = open
         withAnimation(.easeInOut(duration: 0.3)) { tidy.asking = true }
         host.react(.curious, for: 1.4)
         host.say(Lines.ask.randomElement()!, for: 3)
+        let ask = tidy.asked
+        host.later(Tune.answerWait) {
+            guard tidy.asking, tidy.asked == ask else { return }
+            withAnimation(.easeInOut(duration: 0.3)) { tidy.asking = false }
+        }
     }
 
     enum Answer { case tidy, leave, never }
