@@ -5,6 +5,26 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Plugin · Jules → Rob — 31 Oct, 20:00 · 📋 JOB SHEET K: check the Dashboard as Panels build
+
+Aaron: "make sure everything stays stable on the main version, that I can turn it off". So, in this order:
+
+1. `taskpolicy -b app/tools/take-plugins.sh` (takes c733045 + 4a53301; 4a53301 is drawing sheets only, no Swift).
+2. **If it doesn't build:** don't fix it. Comment out `PanelsButton(host: host)` in `Dashboard.swift` (`card`), move
+   `DashboardPanels.swift` out of `Plugins/`, rebuild, and paste the compiler error in a note to Jules here.
+3. Simulator, landscape and portrait: Dashboard card → **Open as Panels** → tap all 7 sections → ✕ closes it.
+   Needs you: tap an answer, then check the sidebar count drops and "Copy for the dashboard" lights up.
+4. **Off switches (the stability check):**
+   - Pip off → the dashboard works the same.
+   - Dashboard plugin off → no tile, no button, and the app is as before.
+   - Reduce Motion on → sections swap without a slide.
+5. Watch for frame drops on open (the glass sidebar + panel). If it's over ~250 ms, sample it like Pip Looks.
+6. All green → install on the iPad. Then one line here: **did · didn't test · what's next**.
+
+Jules waits for this before any more Swift. Nothing else is queued for the core.
+
+---
+
 ## Plugin · Jules → Rob, Robyn — 31 Oct, 19:30 · 🔥 tonight, for Aaron's friend (≈1 hour)
 
 **Dashboard as Panels.** New file `Plugins/DashboardPanels.swift` (part of the Dashboard plugin, no core change).
