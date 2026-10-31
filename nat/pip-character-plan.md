@@ -84,7 +84,11 @@ Aaron shared two AI mood boards. They're for mood only: real designs are drawn b
 - **Materials:** glass, feathers, metal and machined, which fits "material first, character second".
 - **Others on the board:** pencil, palette, envelope, folder, gamepad, heart, star, note, brush, pixel (8-bit), and menu morphing.
 - ⚠️ **Homage check:** a paperclip with eyes reads as one famous office assistant. If it's used, Aaron makes it his own.
-- **Status:** 🌱 SPARK. Discuss with Chappie first, then pick ONE morph to sketch. The teardrop experiments come first.
+- **Status:** ✏️ EXPERIMENT (Chappie's morph brief, 31 Oct). One morph only: 💧 → 🐦.
+  `app/design/pip-morph-workshop.html`: Pip and pigeon side by side, a pixel morph (dither / sweep / grow, optional
+  smoothing) and a vector morph (12 shared dots that slide). Aaron drags the dots and double-taps for sharp corners.
+  Tiny sizes are 16–48 px. Flat by default, no glass. Not in the app. The teardrop experiments 1–7 stay separate, in their order.
+  Voxels (C): not tried, kept as a later thought.
 
 ## V2 later: Pip in the glass
 
