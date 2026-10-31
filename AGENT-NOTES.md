@@ -26,6 +26,49 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## Plugin · Jules → Workshop — 31 Oct, 14:50 · JOB SHEETS (thinking done; please build)
+
+Aaron's ask: "pass off work, but do the bulk of the thinking for them." So here's each job with the design already
+decided. Do them **in this order**, one save point each. Simulator first, and nothing goes on the iPad until Aaron says so.
+Answers from Aaron today: the two plugins he switched off by hand were **Window Cleaner** and **Glass Memory** (both
+are now parked in code and made light). The map agent is **Mappy**. He wants me linked to the Mac (he's adding the folder in Remote Control).
+
+### F · Rob · polite Mac (first: Aaron can't change songs while we test)
+- Run every heavy job at background priority: `taskpolicy -b <command>` around xcodebuild, `check.sh`, `take-plugins.sh` and Tess.
+- `xcodebuild ... -jobs 4`. One simulator only, and `xcrun simctl shutdown all` when a run ends.
+- Tess runs only after `take-plugins.sh`, never on a loop. `watch-plugins.sh` polls every 2 min or more.
+- Put this in CLAUDE.md under "Run and test". **Done when:** music skips instantly during a build.
+
+### B · Rob · hire Tess the Tester
+- `.claude/agents/tester.md`. She builds with `-frameMeter YES`, then runs one XCUITest (add a small UI test target if none):
+  for each plugin-bar button: tap it, wait 1 s, scroll the card or panel to the bottom, flip each toggle once and back, close it.
+  Then Settings, Pause all, and resume.
+- She records per plugin: a crash (yes or no), a hang over 1 s (MetricKit via `CrashReports`, or the test timing out), and late
+  frames from `FrameWatch`. She writes one line per plugin into `TESTS.md` (a table), plus a ticket in `TICKETS.md`
+  for anything red: plugin problems for Jules, core problems for Greg.
+- Red means a crash, a hang, or more than 10 late frames while a card is open. **Done when:** one full run, with the table pushed.
+
+### E · Greg · buttons follow the app's look (one edit, every plugin follows)
+- `PluginCardButton` (PluginBar.swift:246) is hard-coded: on = `PipLook.accent` (Pip teal), and it ignores the theme.
+- Decided: **on = `AppColor.chosen(appColor)`** (the app's accent, read via an inner View with `@AppStorage("appColor")`),
+  and **off stays `Color.primary.opacity(0.08)`**, which already follows Dark and Light. The corner is `Corner.card`-concentric (or 12).
+- **Not** `appGlass` per button: Plugin Desk shows 40+ rows of buttons, and a glass effect each is exactly the kind of
+  cost that made the menus stutter. Glass belongs on the cards; buttons stay flat fills that take the theme's colour.
+- **Done when:** switching Glass, Tinted, Dark and Light in Settings changes every plugin card's selected buttons to match. Check two themes.
+
+### D · Greg · plugins in the top bar (Aaron: moods, eras, timeline and dashboard up top, not dev tools)
+- `PluginInfo` gains `var topBar = false`. In `ContentView.toolbarItems`, after `arrangeMenu`: one `ToolbarItem(.topBarLeading)`
+  per plugin that's on and has `topBar`, showing its icon and opening `anyCard(host)` in a `.popover` with the app's glass.
+- A `topBar` plugin is left out of the dev plugin bar, so it lives in one place only. Switch it off and it leaves the top bar.
+- Cap it at 4 (more go into a "…" menu), so the bar never overflows. Respect `liquidToolbar` spacers like the others.
+- **Done when:** I flip `topBar: true` on Dashboard and it appears up top, opens, and disappears when switched off.
+
+### C · withdrawn, I'll do it in the plugin
+- I'll build the dashboard tile as a plugin overlay that you drag to place, with its spot saved and drawn under the panels,
+  so there's no core work. If Aaron later wants it in the Arrange/Float system, that's a bigger core job, and I'll ask first.
+
+**Next from me:** the draggable dashboard tile, then a light pass on the three plugins with hard-coded colours.
+
 ## Plugin · Jules — 31 Oct, 14:15 · Glass Memory and Window Cleaner made light; new ticket route
 
 **Did**
