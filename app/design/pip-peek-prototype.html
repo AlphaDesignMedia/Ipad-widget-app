@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pip peek · first interaction prototype</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font: 15px/1.35 -apple-system, system-ui, "Helvetica Neue", sans-serif; color: #fff;
+         background: linear-gradient(135deg, #3d3f8f 0%, #2f7f86 55%, #c98a55 100%); user-select: none; -webkit-user-select: none; }
+  /* soft light blobs, like the Aurora backdrop */
+  body::before { content: ""; position: fixed; inset: -20%; pointer-events: none;
+    background: radial-gradient(40% 35% at 70% 30%, rgba(255,255,255,.18), transparent 70%),
+                radial-gradient(35% 30% at 25% 80%, rgba(255,200,150,.22), transparent 70%); }
+
+  #world { position: absolute; inset: 0; }
+  /* The panel and Pip move together; Pip sits UNDER the panel, so the frosted glass blurs them while hidden. */
+  #rig { position: absolute; left: 32px; top: 32px; bottom: 120px; width: 360px; transition: transform .55s cubic-bezier(.3,.8,.3,1); }
+  #rig.closed { transform: translateX(calc(-100% - 60px)); }
+  #pip { position: absolute; width: 190px; height: 190px; left: 0; top: 0; transform-origin: 50% 92%; cursor: pointer;
+         transition: opacity .45s ease; touch-action: none; }
+  #pip svg { width: 100%; height: 100%; overflow: visible; display: block; }
+  #panel { position: absolute; inset: 0; border-radius: 30px; padding: 26px 24px;
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.38);
+    -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5);
+    box-shadow: 0 20px 50px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.35); }
+  #panel h2 { margin: 0 0 2px; font-size: 13px; font-weight: 600; letter-spacing: 1.2px; opacity: .75; }
+  #time { font-size: 86px; font-weight: 200; letter-spacing: -2px; line-height: 1; margin: 6px 0 4px; }
+  #date { opacity: .8; margin-bottom: 22px; }
+  .card { background: rgba(255,255,255,.14); border-radius: 18px; padding: 6px 16px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,.14); }
+  .row:last-child { border-bottom: 0; }
+  .sw { width: 50px; height: 30px; border-radius: 15px; background: rgba(255,255,255,.25); position: relative; cursor: pointer; transition: background .2s; }
+  .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .sw.on { background: #4f7be8; } .sw.on::after { transform: translateX(20px); }
+
+  /* the control strip: for trying it, not part of the design */
+  #bar { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+         padding: 8px; border-radius: 22px; background: rgba(20,22,40,.35); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+         border: 1px solid rgba(255,255,255,.2); max-width: calc(100% - 24px); }
+  #bar button { font: inherit; font-size: 14px; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border: 0; border-radius: 14px;
+                padding: 9px 14px; cursor: pointer; }
+  #bar button.on { background: #4f7be8; }
+  #bar .gap { width: 1px; background: rgba(255,255,255,.2); margin: 4px 2px; }
+
+  #notes { position: absolute; right: 28px; top: 28px; width: 300px; padding: 16px 18px; border-radius: 22px;
+           background: rgba(20,22,40,.28); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.18);
+           font-size: 13.5px; }
+  #notes h3 { margin: 0 0 6px; font-size: 15px; }
+  #notes p { margin: 6px 0; opacity: .88; }
+  #notes .state { font-size: 22px; font-weight: 700; margin: 2px 0 8px; }
+  #tiny { display: flex; gap: 12px; align-items: flex-end; margin-top: 10px; padding: 10px; background: #fff; border-radius: 12px; }
+  #tiny svg { display: block; }
+  #tiny small { color: #666; font-size: 10px; display: block; text-align: center; }
+  #notes.folded p, #notes.folded #tiny { display: none; }
+  @media (max-width: 900px) { #notes { display: none; } }
+</style>
+</head>
+<body>
+<div id="world">
+  <div id="rig">
+    <div id="pip" role="img" aria-label="Pip, peeking round the panel"><svg viewBox="0 0 100 100"></svg></div>
+    <div id="panel" aria-label="Clock panel">
+      <h2>GLASS CLOCK</h2>
+      <div id="time">10:24</div>
+      <div id="date">Saturday 31 October</div>
+      <div class="card">
+        <div class="row"><span>Seconds</span><div class="sw on" role="switch" aria-checked="true" tabindex="0"></div></div>
+        <div class="row"><span>24-hour</span><div class="sw" role="switch" aria-checked="false" tabindex="0"></div></div>
+        <div class="row"><span>Glass</span><div class="sw on" role="switch" aria-checked="true" tabindex="0"></div></div>
+      </div>
+      <div class="card">
+        <div class="row"><span>Pip</span><div class="sw on" id="pipSwitch" role="switch" aria-checked="true" tabindex="0"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="notes">
+    <h3>💧 Pip peek · prototype</h3>
+    <div class="state" id="stateName">Hidden</div>
+    <p id="stateWhat"></p>
+    <p><b>Try:</b> open and close the panel · tap Pip · flick a switch · wave the pointer fast near Pip · leave it alone for 10 seconds.</p>
+    <div id="tiny"></div>
+  </div>
+
+  <div id="bar">
+    <button data-s="hidden">Hidden</button>
+    <button data-s="peeking">Peeking</button>
+    <button data-s="emerging">Emerging</button>
+    <span class="gap"></span>
+    <button id="openBtn">Close panel</button>
+    <button id="autoBtn">▶ Play all</button>
+    <button id="calmBtn">Simpler motion</button>
+    <button id="foldBtn">Notes</button>
+  </div>
+</div>
+
+<script>
+// Pip peek: the first interaction prototype (Jules, 31 Oct 2026, from Chappie's brief and Aaron's Procreate drawing
+// of Pip peeking round a vertical panel). Pip's geometry is the blobby Pip from Sheet A: three circles (body, head, the
+// point), wrapped tightly. Pip lives UNDER the glass panel, so while hidden the frost blurs them: only a soft shape
+// and the very tip show. Three states, each just three numbers (how far out, the lean, where the eyes look), eased
+// with a soft spring. No wings, no ear, no menus yet (the brief says not yet). No mouth. Nothing here touches the app.
+
+const NS = 'http://www.w3.org/2000/svg';
+const reduceOS = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── Data
+const SHAPE = [[50, 66, 26], [51, 45, 22], [56, 6, 3]];      // body, head, point (Sheet A, "three circles: blobby")
+const EYES = [[42, 61], [58, 61]];
+const SIZE = 190;                                               // px; Pip's 100-unit box
+const STATES = {
+  hidden:   { out: -64, lean: -6,  look: 0,   y: .62, what: 'Tucked behind the glass. You only see a soft shape through the frost, and the tip of their point.' },
+  peeking:  { out: 6,   lean: 20,  look: 1,   y: .62, what: 'Leaning round the edge. Their eyes find you. Most of them stays behind the panel.' },
+  emerging: { out: 78,  lean: 5,   look: 1,   y: .63, what: 'A little further out, with a gentle sway. Then they settle back to peeking.' },
+};
+const SPRING = { k: .055, damp: .80 };                          // slow and soft: organic, not bouncy
+
+// ── State
+let state = 'hidden', calm = reduceOS, pipOn = true, panelOpen = true;
+const cur = { out: STATES.hidden.out, lean: STATES.hidden.lean, look: 0, y: STATES.hidden.y }, vel = { out: 0, lean: 0, look: 0, y: 0 };
+let target = { ...STATES.hidden }, eye = { x: 0, y: 0 }, eyeT = { x: 0, y: 0 }, blink = 0, sway = 0, swayT = 0;
+let lastTouch = performance.now(), timers = [], running = false, autoRun = false;
+
+const $ = s => document.querySelector(s);
+const rig = $('#rig'), pip = $('#pip'), svg = pip.querySelector('svg'), panel = $('#panel');
+
+// ── Pip's outline: the tight wrap round the circles (as in the drawing sheets and the Morph Workshop)
+function hull(circles) {
+  const pts = [];
+  for (const [x, y, r] of circles) for (let i = 0; i < 96; i++) { const a = i / 96 * Math.PI * 2; pts.push([x + r * Math.cos(a), y + r * Math.sin(a)]); }
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length > 1 && cross(lo.at(-2), lo.at(-1), p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length > 1 && cross(up.at(-2), up.at(-1), p) <= 0) up.pop(); up.push(p); }
+  return 'M' + lo.slice(0, -1).concat(up.slice(0, -1)).map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join('L') + 'Z';
+}
+const OUTLINE = hull(SHAPE);
+
+function el(name, attrs, parent) { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; }
+
+/** Draws Pip into an svg. Pearl body, soft shading, Aaron's ink line. */
+function drawPip(target, id, flat) {
+  const defs = el('defs', {}, target);
+  const g = el('radialGradient', { id: 'body' + id, cx: '38%', cy: '40%', r: '70%' }, defs);
+  el('stop', { offset: '0%', 'stop-color': '#ffffff' }, g);
+  el('stop', { offset: '60%', 'stop-color': '#e9edf5' }, g);
+  el('stop', { offset: '100%', 'stop-color': '#a9b2c4' }, g);
+  el('path', { d: OUTLINE, fill: flat ? '#111' : `url(#body${id})`, stroke: '#16181f', 'stroke-width': flat ? 0 : 2.6, 'stroke-linejoin': 'round' }, target);
+  if (!flat) el('ellipse', { cx: 40, cy: 50, rx: 9, ry: 5, fill: '#fff', opacity: .75, transform: 'rotate(-25 40 50)' }, target);  // a soft highlight
+  const eyes = el('g', {}, target);
+  for (const [x, y] of EYES) el('ellipse', { cx: x, cy: y, rx: 3.3, ry: 4.6, fill: flat ? '#fff' : '#16181f' }, eyes);
+  return eyes;
+}
+const eyesG = drawPip(svg, 'main');
+
+// ── Motion
+function edgeX() { return rig.offsetWidth; }
+function place() {
+  const x = edgeX() + cur.out + sway * 6 - SIZE / 2;
+  const y = rig.offsetHeight * cur.y - SIZE * .46;
+  pip.style.transform = `translate(${x}px, ${y}px) rotate(${cur.lean + sway * 4}deg) scale(${1 - blink * 0}, 1)`;
+  // eyes: lean towards the user, then follow the pointer a touch
+  const lx = cur.look * (2.4 + eye.x * 2.2), ly = cur.look * (eye.y * 1.6);
+  eyesG.setAttribute('transform', `translate(${lx.toFixed(2)} ${ly.toFixed(2)}) translate(50 61) scale(1 ${(1 - blink * .9).toFixed(2)}) translate(-50 -61)`);
+}
+
+function tick(now) {
+  let moving = false;
+  for (const k of ['out', 'lean', 'look', 'y']) {
+    vel[k] = (vel[k] + (target[k] - cur[k]) * SPRING.k) * SPRING.damp;
+    cur[k] += vel[k];
+    if (Math.abs(target[k] - cur[k]) > .02 || Math.abs(vel[k]) > .02) moving = true;
+  }
+  eye.x += (eyeT.x - eye.x) * .12; eye.y += (eyeT.y - eye.y) * .12;
+  if (Math.abs(eyeT.x - eye.x) + Math.abs(eyeT.y - eye.y) > .01) moving = true;
+  if (swayT > now) { sway = Math.sin((swayT - now) / 260) * Math.min(1, (swayT - now) / 600); moving = true; } else sway = 0;
+  if (blink > 0) { blink = Math.max(0, blink - .12); moving = true; }
+  place();
+  if (moving) requestAnimationFrame(tick); else running = false;   // nothing draws while Pip is still
+}
+function wake() { if (!running) { running = true; requestAnimationFrame(tick); } }
+
+// ── States
+function go(s, why) {
+  state = s; target = { ...STATES[s] };
+  if (calm) {   // simpler motion: fade, don't move
+    pip.style.opacity = 0;
+    clearTimeout(go.fade);
+    go.fade = setTimeout(() => { Object.assign(cur, target); for (const k in vel) vel[k] = 0; place(); pip.style.opacity = pipOn ? 1 : 0; }, 260);
+  } else {
+    wake();
+  }
+  if (s === 'emerging' && !calm) swayT = performance.now() + 1400;
+  $('#stateName').textContent = s[0].toUpperCase() + s.slice(1) + (why ? ` · ${why}` : '');
+  $('#stateWhat').textContent = STATES[s].what;
+  document.querySelectorAll('#bar [data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s));
+  pip.setAttribute('aria-label', { hidden: 'Pip, hidden behind the panel', peeking: 'Pip, peeking round the panel', emerging: 'Pip, coming out to say hello' }[s]);
+}
+function later(ms, fn) { const t = setTimeout(fn, ms); timers.push(t); return t; }
+function clearLater() { timers.forEach(clearTimeout); timers = []; }
+
+// ── Behaviour: when Pip appears, responds and retreats
+function touched() { lastTouch = performance.now(); }
+
+// 1. A panel opens → Pip arrives hidden, then peeks once it has settled.
+function openPanel(open) {
+  clearLater(); panelOpen = open;
+  rig.classList.toggle('closed', !open);
+  $('#openBtn').textContent = open ? 'Close panel' : 'Open panel';
+  if (open) { go('hidden', 'panel opened'); later(1100, () => pipOn && go('peeking', 'settled in')); }
+  else go('hidden', 'panel closing');   // 3. retreats before the panel goes
+}
+
+// 2. Tap Pip → they come out, sway, then settle back.
+pip.addEventListener('pointerdown', e => {
+  e.stopPropagation(); touched(); clearLater();
+  if (state === 'hidden') { go('peeking', 'you found them'); return; }
+  go('emerging', 'you tapped'); blink = 1;
+  later(2600, () => go('peeking'));
+});
+
+// 2. Using the panel → Pip glances at what you touched (and peeks if they were hidden).
+panel.addEventListener('pointerdown', e => {
+  touched();
+  const sw = e.target.closest('.sw');
+  if (sw) {
+    sw.classList.toggle('on'); sw.setAttribute('aria-checked', sw.classList.contains('on'));
+    if (sw.id === 'pipSwitch') return setPip(sw.classList.contains('on'));
+  }
+  if (!pipOn) return;
+  if (state === 'hidden') go('peeking', 'heard a tap');
+  const r = pip.getBoundingClientRect();
+  eyeT = { x: Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / 200)), y: Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / 200)) };
+  blink = 1; wake();
+});
+
+// Eyes follow the pointer gently. A fast wave close by → shy: they tuck away, then peek again.
+let lastMove = { x: 0, y: 0, t: 0 };
+addEventListener('pointermove', e => {
+  if (!pipOn || state === 'hidden') { lastMove = { x: e.clientX, y: e.clientY, t: performance.now() }; return; }
+  const r = pip.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  eyeT = { x: Math.max(-1, Math.min(1, (e.clientX - cx) / 260)), y: Math.max(-1, Math.min(1, (e.clientY - cy) / 260)) };
+  const now = performance.now(), dt = Math.max(1, now - lastMove.t), speed = Math.hypot(e.clientX - lastMove.x, e.clientY - lastMove.y) / dt;
+  if (speed > 2.2 && Math.hypot(e.clientX - cx, e.clientY - cy) < 140 && !autoRun) {
+    clearLater(); go('hidden', 'a bit shy'); later(2200, () => go('peeking', 'coast is clear'));
+  }
+  lastMove = { x: e.clientX, y: e.clientY, t: now }; wake();
+});
+addEventListener('pointerdown', touched);
+
+// 3. Left alone → Pip tucks away. Not distracting: no fidgeting while you ignore them.
+setInterval(() => {
+  if (!autoRun && pipOn && state !== 'hidden' && performance.now() - lastTouch > 10000) go('hidden', 'gone quiet');
+  if (pipOn && state !== 'hidden' && !calm && Math.random() < .25) { blink = 1; wake(); }   // the odd blink, nothing more
+}, 2500);
+
+// Pip off: the panel works exactly the same.
+function setPip(on) {
+  pipOn = on; clearLater();
+  pip.style.opacity = on ? 1 : 0; pip.style.pointerEvents = on ? '' : 'none';
+  if (on) { go('hidden', 'switched on'); later(700, () => go('peeking')); } else $('#stateName').textContent = 'Pip off';
+}
+
+// ── The control strip
+document.querySelectorAll('#bar [data-s]').forEach(b => b.addEventListener('click', () => { clearLater(); touched(); go(b.dataset.s); }));
+$('#openBtn').addEventListener('click', () => openPanel(!panelOpen));
+$('#calmBtn').addEventListener('click', e => { calm = !calm; e.target.classList.toggle('on', calm); });
+$('#foldBtn').addEventListener('click', () => $('#notes').classList.toggle('folded'));
+$('#autoBtn').addEventListener('click', () => {
+  clearLater(); autoRun = true; touched();
+  const steps = [[0, () => openPanel(false)], [900, () => openPanel(true)], [1100, () => {}], [2600, () => { go('emerging', 'saying hello'); blink = 1; }],
+                 [5000, () => go('peeking')], [7200, () => go('hidden', 'back behind the glass')], [8600, () => { autoRun = false; }]];
+  steps.forEach(([ms, fn]) => setTimeout(fn, ms));
+});
+if (calm) $('#calmBtn').classList.add('on');
+
+// ── Tiny check: the peeking silhouette at 24, 32, 48 px against a panel edge (Aaron: always check small sizes)
+for (const px of [16, 24, 32, 48]) {
+  const box = document.createElement('div');
+  const t = el('svg', { width: px * 1.6, height: px * 1.25, viewBox: '0 0 160 125' });
+  el('rect', { x: 0, y: 0, width: 80, height: 125, rx: 14, fill: '#d9dde6' }, t);   // the panel
+  const g = el('g', { transform: 'translate(46 6) rotate(24 50 92)' });
+  t.insertBefore(g, t.firstChild);                                                   // Pip behind the panel
+  drawPip(g, 'tiny' + px, true);
+  box.appendChild(t);
+  box.insertAdjacentHTML('beforeend', `<small>${px}</small>`);
+  $('#tiny').appendChild(box);
+}
+
+// ── Start: the panel is open, Pip arrives hidden and then peeks
+addEventListener('resize', place);
+place(); go('hidden'); later(1200, () => go('peeking', 'settled in'));
+window.__peek = { go, openPanel, setPip, clear: clearLater };
+</script>
+</body>
+</html>
