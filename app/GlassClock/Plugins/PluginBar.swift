@@ -200,9 +200,15 @@ struct PluginPanel: View {
     private var cards: some View {
         VStack(spacing: Corner.inset) {
             plugin.anyCard(host)
-            ForEach(addOns.indices, id: \.self) { i in
-                let p = addOns[i]
-                SettingsCard(title: p.info.name, icon: p.info.icon) { p.anyAddOn(host) }
+            // Other plugins' sections, folded into one card until you open one, so a panel stays short
+            // (Aaron, 31 Oct 2026: the drawing menus, condensed into Sketch's panel). Each remembers its own fold.
+            if !addOns.isEmpty {
+                SettingsCard(title: "More", icon: "square.stack") {
+                    ForEach(addOns.indices, id: \.self) { i in
+                        let p = addOns[i]
+                        DevFold(id: "panel.\(plugin.info.id).\(p.info.id)", title: p.info.name) { p.anyAddOn(host) }
+                    }
+                }
             }
         }
         .padding(Corner.edge)

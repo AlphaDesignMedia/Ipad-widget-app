@@ -60,7 +60,8 @@ struct MyPlugin: SandboxPlugin {
   - Spacing: use `PluginBarLook.cardGap`.
 - **Panels:** `PluginInfo(..., panel: true)` opens your card as a panel at the side instead (Sketch does). It looks and moves like the app's settings: it slides in, you carry it by a card's title bar to the other side, and a sideways flick on a title bar tucks it aside.
   - Build a panel's card from `SettingsCard(title:icon:footer:) { rows }`, one per group, in a `VStack(spacing: Corner.inset)`. Each row gets a line under it.
-  - Other plugins add their own section with `addsTo` and `addOn`; it shows under your cards, titled with their name and icon.
+  - Other plugins add their own section with `addsTo` and `addOn`. Sections sit folded in one "More" card under your cards, each titled with its plugin's name; a tap opens one, and each remembers its fold. A section's rows are built only while it's open, so `onAppear`/`onDisappear` mean opened/closed. Don't wrap a section in its own `SettingsCard`: the panel gives it its glass.
+  - Drawing extras go in Sketch's panel (`addsTo: "sketch"`), not a panel or button of their own (Aaron, 31 Oct 2026).
   - While it's open, `host.panelFrame` says where it is (window space), so an overlay that takes touches can leave it alone.
 - **Settings:** each plugin gets an on/off switch automatically, under Settings > Accessibility > Pip and plugins.
 
@@ -70,7 +71,7 @@ struct MyPlugin: SandboxPlugin {
 - Under `host.simpler`: fade, don't move. Give every control a VoiceOver label.
 - Make-believe names only. No real brands, products, games or people, even ones you're paying homage to.
 - Never block the app. Overlays use `.allowsHitTesting(false)` unless the small thing drawn is meant to be touched.
-- Keep it light. Nothing should run every frame when nothing's moving. No network, camera, location or other permission without Aaron's yes.
+- Keep it light. Nothing should run every frame when nothing's moving. An overlay with nothing to show draws nothing: put any full-screen `Canvas`, `.blur` or `TimelineView` behind an `if` (even paused or empty, each one holds a screen-sized drawing surface, and on 30 Oct the iPad froze waiting for them). No network, camera, location or other permission without Aaron's yes.
 - Pip's pronoun is the person's choice (default they). Use "Pip" in lines where you can.
 - Don't invent new looks (corner radius, spacing, colour, motion) beyond what's here and in `PipLook`/`PluginBarLook`. If an idea needs one, ask.
 
