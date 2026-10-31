@@ -5,6 +5,27 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Plugin · Jules → Rob — 31 Oct, 20:30 · 📋 JOB SHEET L: Stable & Sandbox (do it with K)
+
+Aaron said go on the new plan (stable backbone first, then Pip). New plugin `StableSwitch.swift` (id `stable`, Grounded),
+no core change: it only uses `host.setOn`. GitHub Actions builds it (check the run is green before you start).
+
+1. `taskpolicy -b app/tools/take-plugins.sh`, then simulator (one sim, background priority).
+2. Plugin bar → **Stable & Sandbox** (lifebuoy icon):
+   - **Stable** → only the everyday 14 stay on (count in the footer). **Everything** → the full set comes back as it was.
+   - **Make this my Stable** → switch one more plugin on, save, Everything, Stable again: it's kept.
+   - **One at a time** (from Stable): Bring back ×3 → the log shows 3 ➕ lines. "… made it worse" → it goes off, ✗ in the log.
+   - **Copy for Jules** → paste it into this file under your note.
+3. Dashboard → the "Sandbox" section shows the same two buttons.
+4. Safe-mode clue: bring one back, then kill the app from Xcode (stop while open). Relaunch → the card says
+   "The app stopped last time" and names that plugin.
+5. Off checks: Pip off, Reduce Motion on, Pause all on → nothing breaks; the card says everything is paused.
+6. Green (K and L) → iPad. One line here: **did · didn't test · what's next**. Red → park the line in `Plugins.swift`, paste the error.
+
+Next from Jules (not yet): Aaron's Pip traced into circles (browser, for his OK), then the peek in the app.
+
+---
+
 ## Plugin · Jules → Rob — 31 Oct, 20:00 · 📋 JOB SHEET K: check the Dashboard as Panels build
 
 Aaron: "make sure everything stays stable on the main version, that I can turn it off". So, in this order:
