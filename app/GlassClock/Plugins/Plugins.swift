@@ -25,6 +25,7 @@ enum Plugins {
         PipNotices(),
         PipsWeight(),
         Dashboard(),
+        StableSwitch(),     // Jules: Stable ⇄ Everything, one at a time, log. No loop, nothing drawn
         NextAction(),
         IdeaInbox(),
         BusyPip(),

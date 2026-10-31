@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Pip drawing sheets</title>
+<style>
+  @page { size: 1600px 1200px; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #ddd; font: 18px/1.35 -apple-system, system-ui, "Helvetica Neue", sans-serif; color: #111; }
+  .page { width: 1600px; height: 1200px; background: #fff; margin: 0 auto 24px; position: relative; overflow: hidden;
+          page-break-after: always; break-after: page; }
+  .page:last-child { page-break-after: auto; }
+  .head { position: absolute; left: 56px; top: 40px; }
+  .head h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.3px; }
+  .head p { margin: 4px 0 0; color: #666; font-size: 17px; }
+  .foot { position: absolute; left: 56px; right: 56px; bottom: 28px; display: flex; justify-content: space-between; color: #999; font-size: 14px; }
+  svg { position: absolute; left: 0; top: 0; }
+  @media print { body { background: #fff; } .page { margin: 0; } }
+</style>
+</head>
+<body>
+<div id="pages"></div>
+<script>
+// Pip drawing sheets: black and white, built from circles, lines and curves. Starting points for Aaron's own drawings.
+// Shapes: groups of circles [x, y, r] in a 100×100 box. Each group is wrapped tightly (straight lines between circles);
+// groups are joined. The same idea as the Morph Workshop.
+
+const NS = 'http://www.w3.org/2000/svg';
+const GREY = '#b9b9b9', LIGHT = '#e4e4e4';
+
+function hull(circles) {
+  const pts = [];
+  for (const [x, y, r] of circles) {
+    if (r < .05) { pts.push([x, y]); continue; }
+    for (let i = 0; i < 120; i++) { const a = i / 120 * Math.PI * 2; pts.push([x + r * Math.cos(a), y + r * Math.sin(a)]); }
+  }
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length > 1 && cross(lo.at(-2), lo.at(-1), p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length > 1 && cross(up.at(-2), up.at(-1), p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+const dOf = groups => groups.map(g => 'M' + hull(g).map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join('L') + 'Z').join('');
+
+// ── Shapes
+const S = {
+  drop:    { groups: [[[50, 64, 27], [53, 9, 1.2]]], eyes: [[42, 62], [58, 62]], anchors: 2 },
+  blob:    { groups: [[[50, 66, 26], [51, 45, 22], [56, 6, 3]]], eyes: [[42, 62], [58, 62]], anchors: 3 },
+  ball:    { groups: [[[50, 56, 32]]], eyes: [[42, 54], [58, 54]], anchors: 1 },
+  squish:  { groups: [[[34, 70, 20], [66, 70, 20], [50, 56, 22]]], eyes: [[42, 62], [58, 62]], anchors: 3 },
+  pigeon:  { groups: [[[48, 64, 25], [67, 31, 12], [8, 70, 2]], [[67, 31, 12], [88, 37, .8]]], eyes: [[69, 28]],
+             leg: [54, 86, 52, 97], wingFold: [[26, 56], [50, 48], [70, 70]], anchors: 4 },
+  pRound:  { groups: [[[50, 60, 30], [71, 28, 11], [10, 62, 2]], [[71, 28, 11], [89, 33, .8]]], eyes: [[73, 25]], leg: [52, 88, 50, 98] },
+  pTall:   { groups: [[[48, 68, 21], [62, 26, 13], [16, 84, 2]], [[62, 26, 13], [81, 30, .8]]], eyes: [[65, 23]], leg: [52, 87, 50, 98] },
+  pPeck:   { groups: [[[44, 56, 25], [76, 74, 11], [6, 46, 2]], [[76, 74, 11], [90, 89, .8]]], eyes: [[77, 70]], leg: [42, 79, 42, 97] },
+  pPuff:   { groups: [[[50, 62, 31], [62, 30, 12], [12, 74, 2]], [[62, 30, 12], [80, 33, .8]]], eyes: [[64, 27]], leg: [50, 91, 49, 99] },
+  // Aaron's wedge pigeon (31 Oct video): tail far down-left, one long sloped back to the head, round belly, flat bottom.
+  wedge:   { groups: [[[63, 76, 13], [64, 30, 10], [8, 86, 3]], [[64, 30, 10], [86, 34, .8]]], eyes: [[66, 27]],
+             leg: [58, 89, 57, 99], anchors: 4 },
+};
+
+// ── Drawing helpers
+function el(name, attrs, parent) {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function text(svg, x, y, s, size = 17, opts = {}) {
+  const t = el('text', { x, y, 'font-size': size, fill: opts.fill || '#111', 'font-weight': opts.weight || 400,
+    'text-anchor': opts.anchor || 'start', 'font-family': '-apple-system, system-ui, Helvetica Neue, sans-serif' }, svg);
+  t.textContent = s; return t;
+}
+/** One Pip-ish shape at (x, y), size = width of its 100-box in px.
+    style: 'line' black outline · 'fill' solid black · 'ghost' pale grey to draw over. build: show construction circles. */
+function shape(svg, sh, x, y, size, o = {}) {
+  const k = size / 100, g = el('g', { transform: `translate(${x - size / 2},${y - size / 2}) scale(${k})` }, svg);
+  const w = 1 / k, style = o.style || 'line';
+  if (sh.wings && o.wings !== false) wings(g, sh.wings, w, style);
+  if (sh.leg && o.leg !== false) {
+    const [hx, hy, fx, fy] = sh.leg, toe = 6;
+    el('path', { d: `M${hx},${hy}L${fx},${fy}M${fx},${fy}L${fx + toe},${fy}M${fx},${fy}L${fx + toe * .75},${fy - toe * .45}M${fx},${fy}L${fx - toe * .5},${fy}`,
+      fill: 'none', stroke: style === 'ghost' ? LIGHT : '#111', 'stroke-width': style === 'fill' ? 4 : 2.4 * w, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
+  }
+  const d = dOf(sh.groups);
+  if (style === 'fill') el('path', { d, fill: '#111' }, g);
+  else {
+    // outer edge only: a double-width stroke, then white fill on top, so the joins between circles don't show
+    el('path', { d, fill: 'none', stroke: style === 'ghost' ? LIGHT : '#111', 'stroke-width': 4.8 * w, 'stroke-linejoin': 'round' }, g);
+    el('path', { d, fill: '#fff' }, g);
+  }
+  if (o.build) for (const grp of sh.groups) for (const [cx, cy, r] of grp) {
+    if (r > 1.5) el('circle', { cx, cy, r, fill: 'none', stroke: GREY, 'stroke-width': 1.2 * w, 'stroke-dasharray': `${5 * w} ${4 * w}` }, g);
+    el('circle', { cx, cy, r: 3 * w, fill: GREY }, g);
+  }
+  if (style === 'line' && sh.wingFold && o.fold !== false) {
+    const [[ax, ay], [bx, by], [cx2, cy2]] = sh.wingFold;
+    el('path', { d: `M${ax},${ay}Q${bx},${by} ${cx2},${cy2}`, fill: 'none', stroke: '#111', 'stroke-width': 2 * w, 'stroke-linecap': 'round' }, g);
+  }
+  if (style !== 'fill' && o.eyes !== false) for (const [ex, ey] of (sh.eyes || []))
+    el('ellipse', { cx: ex, cy: ey, rx: 3.1, ry: 4.9, fill: style === 'ghost' ? LIGHT : '#111' }, g);
+  if (o.build && o.anchors !== false && sh.anchors) text(svg, x, y + size / 2 + 26, `${sh.anchors} circle${sh.anchors > 1 ? 's' : ''}`, 15, { anchor: 'middle', fill: '#888' });
+  return g;
+}
+/** A leaf wing: root to tip, bulging out to one side. [rootX, rootY, tipX, tipY, bulge] */
+function wings(g, list, w, style) {
+  for (const [rx, ry, tx, ty, b] of list) {
+    const mx = (rx + tx) / 2, my = (ry + ty) / 2, dx = tx - rx, dy = ty - ry, L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L;
+    const d = `M${rx},${ry}Q${mx + nx * b},${my + ny * b} ${tx},${ty}Q${mx - nx * b * .45},${my - ny * b * .45} ${rx},${ry}Z`;
+    el('path', { d, fill: style === 'fill' ? '#111' : '#fff', stroke: style === 'ghost' ? LIGHT : '#111', 'stroke-width': 2.2 * w, 'stroke-linejoin': 'round' }, g);
+  }
+}
+/** Tiny-size check: filled silhouettes at 16, 24, 32, 48 px (true size on the sheet). */
+function tiny(svg, shapes, x, y) {
+  text(svg, x, y, 'Tiny check: 16 · 24 · 32 · 48 px', 15, { fill: '#888' });
+  let cy = y + 18;
+  for (const sh of shapes) {
+    let cx = x;
+    for (const s of [16, 24, 32, 48]) { shape(svg, sh, cx + s / 2, cy + 24, s, { style: 'fill' }); cx += s + 18; }
+    cy += 60;
+  }
+}
+function box(svg, x, y, w, h, label, o = {}) {
+  el('rect', { x, y, width: w, height: h, rx: o.rx ?? 18, fill: o.fill || 'none', stroke: o.stroke || '#cfcfcf', 'stroke-width': o.sw || 1.5,
+    'stroke-dasharray': o.dash || '' }, svg);
+  if (label) text(svg, x + 16, y + 30, label, 17, { weight: 600 });
+  if (o.sub) text(svg, x + 16, y + 52, o.sub, 15, { fill: '#888' });
+}
+/** Faint dot grid for free drawing. */
+function dots(svg, x, y, w, h, gap = 40) {
+  for (let i = x + gap / 2; i < x + w; i += gap) for (let j = y + gap / 2; j < y + h; j += gap) el('circle', { cx: i, cy: j, r: 1.4, fill: '#d8d8d8' }, svg);
+}
+function page(letter, title, sub) {
+  const p = document.createElement('section'); p.className = 'page';
+  p.innerHTML = `<div class="head"><h1>Sheet ${letter} · ${title}</h1><p>${sub}</p></div>
+    <div class="foot"><span>Pip drawing sheets · 31 Oct 2026 · draw over anything, nothing here is final</span><span>${letter}</span></div>`;
+  const svg = el('svg', { width: 1600, height: 1200, viewBox: '0 0 1600 1200' });
+  p.prepend(svg); document.getElementById('pages').appendChild(p);
+  return svg;
+}
+
+// ── Sheet A: core geometry
+{
+  const s = page('A', "Pip's core geometry", 'Circles, lines and curves. As few as you can. Grey = the circles underneath, black = the outline.');
+  const row = [['One circle + a point', S.drop], ['Three circles: blobby', S.blob], ['Just a circle', S.ball], ['Squish: three circles', S.squish]];
+  row.forEach(([label, sh], i) => {
+    const x = 200 + i * 300;
+    text(s, x, 160, label, 17, { anchor: 'middle', weight: 600 });
+    shape(s, sh, x, 300, 220, { build: true });
+  });
+  tiny(s, [S.drop, S.blob, S.ball, S.squish], 1270, 150);
+  box(s, 56, 500, 740, 640, 'Your Pip: start from one circle', { sub: 'Add a point, a second circle, or nothing at all.' });
+  dots(s, 56, 560, 740, 580);
+  for (const [cx, cy, r] of [[426, 860, 110]]) el('circle', { cx, cy, r, fill: 'none', stroke: LIGHT, 'stroke-width': 2, 'stroke-dasharray': '8 7' }, s);
+  box(s, 820, 500, 724, 640, 'Push and pull', { sub: 'Ghosts to stretch, squash, lean or tip over.' });
+  [[S.blob, 960, 720], [S.drop, 1180, 720], [S.ball, 1400, 720], [S.squish, 960, 960], [S.blob, 1180, 960], [S.drop, 1400, 960]]
+    .forEach(([sh, x, y]) => shape(s, sh, x, y, 170, { style: 'ghost' }));
+}
+
+// ── Sheet B: wings and movement
+{
+  const s = page('B', 'Wings and movement', 'Wings as an ability, not part of the body. Same Pip, two ways to get about.');
+  const fairy = { ...S.blob, wings: [[40, 48, 8, 18, 14], [60, 48, 92, 18, -14], [41, 62, 16, 80, -8], [59, 62, 84, 80, 8]] };
+  text(s, 260, 160, 'With wings: flies, flutters, follows', 17, { anchor: 'middle', weight: 600 });
+  shape(s, fairy, 260, 320, 240);
+  text(s, 640, 160, 'Without: blobs about', 17, { anchor: 'middle', weight: 600 });
+  shape(s, S.blob, 640, 320, 240);
+  // a few simple wing shapes
+  text(s, 880, 160, 'Wing shapes: one curve each side', 17, { weight: 600 });
+  const wingRow = [[[10, 60, 90, 30, 22]], [[10, 60, 90, 40, 40]], [[10, 60, 70, 20, 18], [10, 60, 80, 70, -10]], [[10, 60, 90, 50, 8]]];
+  wingRow.forEach((ws, i) => { const g = el('g', { transform: `translate(${880 + i * 165},200) scale(1.3)` }, s); wings(g, ws, 1 / 1.3, 'line'); });
+  text(s, 880, 360, 'Leaf · round · two-pair (the fairy) · slim', 15, { fill: '#888' });
+  // moving without wings: little poses along a floor line
+  box(s, 56, 450, 1488, 250, 'Wingless moves', { sub: 'Blob along an edge, squash, stretch, hop. Draw the in-betweens.' });
+  el('line', { x1: 100, y1: 660, x2: 1500, y2: 660, stroke: '#111', 'stroke-width': 2 }, s);
+  const moves = [
+    { groups: [[[50, 70, 24], [50, 50, 20], [53, 14, 2]]], eyes: [[43, 60], [57, 60]] },             // stand
+    { groups: [[[30, 84, 14], [70, 84, 14], [50, 76, 18], [56, 52, 2]]], eyes: [[44, 74], [58, 74]] }, // squash
+    { groups: [[[70, 82, 16], [40, 64, 14], [12, 50, 2]]], eyes: [[66, 76], [78, 76]] },             // lean to go
+    { groups: [[[24, 86, 12], [76, 86, 12], [50, 84, 14]]], eyes: [[62, 82], [72, 82]] },              // long slide
+    { groups: [[[50, 50, 24], [53, 14, 2]]], eyes: [[43, 46], [57, 46]] },                            // hop (in the air)
+  ];
+  moves.forEach((m, i) => shape(s, m, 220 + i * 280, i === 4 ? 560 : 600, 140));
+  ['stand', 'squash', 'lean', 'slide', 'hop'].forEach((w, i) => text(s, 220 + i * 280, 690, w, 15, { anchor: 'middle', fill: '#888' }));
+  box(s, 56, 730, 730, 410, 'Draw Pip flying');
+  dots(s, 56, 770, 730, 370);
+  box(s, 814, 730, 730, 410, 'Draw Pip getting about without wings');
+  dots(s, 814, 770, 730, 370);
+}
+
+// ── Sheet C: pigeon morph
+{
+  const s = page('C', 'Pigeon morph', 'Chunky, round, one leg at least. Body circle, head circle, a beak point, a tail point.');
+  text(s, 240, 160, 'How it is built', 17, { anchor: 'middle', weight: 600 });
+  shape(s, S.pigeon, 240, 320, 250, { build: true });
+  const variants = [['Round', S.pRound], ['Tall', S.pTall], ['Pecking', S.pPeck], ['Puffed up', S.pPuff]];
+  variants.forEach(([label, sh], i) => {
+    const x = 540 + i * 210;
+    text(s, x, 160, label, 17, { anchor: 'middle', weight: 600 });
+    shape(s, sh, x, 300, 180);
+  });
+  tiny(s, [S.pigeon, S.pRound, S.pPeck], 1360, 150);
+  // pigeon with a wing out
+  const flap = { ...S.pigeon, wings: [[40, 52, 22, 6, -16]], wingFold: null };
+  text(s, 540, 470, 'Wing out', 17, { anchor: 'middle', weight: 600 });
+  shape(s, flap, 540, 600, 180);
+  text(s, 760, 470, 'Pip → pigeon', 17, { anchor: 'start', weight: 600 });
+  [[S.blob, 0], [{ groups: [[[49, 65, 25], [60, 37, 17], [26, 76, 3]], [[60, 37, 17], [72, 22, 2]]], eyes: [[55, 44], [66, 40]] }, 1], [S.pigeon, 2]]
+    .forEach(([sh, i]) => { shape(s, sh, 820 + i * 190, 600, 150); if (i < 2) text(s, 905 + i * 190, 606, '→', 26, { anchor: 'middle', fill: '#888' }); });
+  box(s, 56, 720, 1488, 420, 'Your pigeon', { sub: 'Body, head, beak, tail, a leg. Then shrink it: does it still read at 16 px?' });
+  dots(s, 56, 780, 1488, 360);
+  shape(s, S.pigeon, 300, 960, 260, { style: 'ghost' });
+}
+
+// ── Sheet D: interface interaction
+{
+  const s = page('D', 'Living in the interface', 'Panels are the world. Pip peeks, clips on, stretches and squeezes. Panels are drawn over Pip.');
+  const panel = (x, y, w, h) => el('rect', { x, y, width: w, height: h, rx: 22, fill: '#fff', stroke: '#111', 'stroke-width': 2.4 }, s);
+  // 1. peeking out from behind a panel
+  text(s, 70, 160, 'Peeking out', 17, { weight: 600 });
+  shape(s, S.blob, 260, 262, 200);
+  panel(80, 320, 330, 160);
+  // 2. clipped onto a corner: hangs over the top edge
+  text(s, 450, 160, 'Clipped on', 17, { weight: 600 });
+  panel(470, 300, 300, 180);
+  shape(s, { groups: [[[50, 46, 30], [44, 82, 13], [70, 80, 11]]], eyes: [[42, 42], [58, 42]] }, 730, 280, 150, { white: true });
+  // 3. stretching round an edge
+  text(s, 830, 160, 'Stretching round an edge', 17, { weight: 600 });
+  panel(860, 220, 240, 260);
+  shape(s, { groups: [[[50, 20, 16], [64, 50, 12], [56, 86, 9]]], eyes: [[44, 18], [58, 18]] }, 1110, 300, 210, { white: true });
+  // 4. squeezed into a corner between two panels
+  text(s, 1190, 160, 'Squeezed in', 17, { weight: 600 });
+  shape(s, { groups: [[[50, 60, 30], [52, 18, 2]]], eyes: [[42, 56], [58, 56]] }, 1370, 360, 180);
+  panel(1190, 380, 150, 120); panel(1400, 380, 150, 120); panel(1190, 200, 110, 140);
+  // big blank layouts to draw on
+  box(s, 56, 560, 1488, 580, 'Your turn: where does Pip live in here?', { sub: 'Two empty panels and a clock. Draw Pip anywhere: behind, on top, in between.' });
+  panel(120, 660, 520, 380); panel(700, 660, 380, 180); panel(700, 880, 380, 160);
+  text(s, 890, 775, '10:24', 64, { anchor: 'middle', weight: 300, fill: '#bbb' });
+  dots(s, 1120, 640, 400, 480);
+}
+// ── Sheet E: Aaron's wedge pigeon (from his Morph Workshop video, 31 Oct)
+{
+  /** Turns a shape round a point, for poses. */
+  const turn = (sh, deg, cx = 50, cy = 70) => {
+    const a = deg * Math.PI / 180, c = Math.cos(a), si = Math.sin(a);
+    const pt = (x, y) => [cx + (x - cx) * c - (y - cy) * si, cy + (x - cx) * si + (y - cy) * c];
+    return { ...sh, groups: sh.groups.map(g => g.map(([x, y, r]) => [...pt(x, y), r])),
+      eyes: sh.eyes && sh.eyes.map(([x, y]) => pt(x, y)), leg: sh.leg && [...pt(sh.leg[0], sh.leg[1]), ...pt(sh.leg[2], sh.leg[3])] };
+  };
+  const W = S.wedge;
+  const s = page('E', "Aaron's wedge pigeon", 'Your shape from the Morph Workshop: one long sloped back, a round belly, head up top. Four circles and a leg.');
+  text(s, 240, 160, 'How it is built', 17, { anchor: 'middle', weight: 600 });
+  shape(s, W, 240, 320, 250, { build: true });
+  const poses = [
+    ['Pecking', turn(W, 28)],
+    ['Proud', { ...W, groups: [[[60, 74, 15], [62, 24, 11], [10, 88, 3]], [[62, 24, 11], [85, 27, .8]]], eyes: [[64, 21]], leg: [57, 89, 56, 99] }],
+    ['Sitting (no leg)', { ...W, groups: [[[63, 80, 14], [64, 36, 10], [6, 92, 3]], [[64, 36, 10], [86, 40, .8]]], eyes: [[66, 33]], leg: null }],
+    ['Looking back', { ...W, groups: [[[63, 76, 13], [58, 30, 10], [8, 86, 3]], [[58, 30, 10], [37, 33, .8]]], eyes: [[56, 27]] }],
+  ];
+  poses.forEach(([label, sh], i) => {
+    const x = 540 + i * 210;
+    text(s, x, 160, label, 17, { anchor: 'middle', weight: 600 });
+    shape(s, sh, x, 300, 180);
+  });
+  tiny(s, [W, poses[0][1], poses[2][1]], 1360, 150);
+  text(s, 540, 470, 'Wing out', 17, { anchor: 'middle', weight: 600 });
+  shape(s, { ...W, wings: [[40, 60, 18, 14, -18]] }, 540, 600, 180);
+  text(s, 760, 470, 'Pip → wedge pigeon', 17, { anchor: 'start', weight: 600 });
+  const mid = { groups: [[[57, 72, 19], [58, 38, 15], [28, 82, 3]], [[58, 38, 15], [72, 26, 2]]], eyes: [[54, 44], [65, 38]] };
+  [[S.blob, 0], [mid, 1], [W, 2]]
+    .forEach(([sh, i]) => { shape(s, sh, 820 + i * 190, 600, 150); if (i < 2) text(s, 905 + i * 190, 606, '→', 26, { anchor: 'middle', fill: '#888' }); });
+  box(s, 56, 720, 1488, 420, 'Your wedge pigeon, your way', { sub: 'Push the tail further, round the belly, try a second leg. Then shrink it: does it read at 16 px?' });
+  dots(s, 56, 780, 1488, 360);
+  shape(s, W, 300, 960, 260, { style: 'ghost' });
+  shape(s, turn(W, 28), 620, 960, 200, { style: 'ghost' });
+}
+</script>
+</body>
+</html>
