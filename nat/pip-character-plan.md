@@ -106,6 +106,15 @@ Source: `app/design/pip-drawing-sheets.html` (edit there, re-render).
 
 Why all four at once: they're light and mostly blank, so Aaron picks whichever one he fancies. No need to do them all.
 
+### 👀 What to watch on Sheet F (Chappie, 31 Oct)
+
+- **Squash before the spring:** could become Pip's signature move.
+- **Ears = wings:** learn their full range (tucked → up → back → down), not just extended.
+- **A mid-flight hesitation** (a wobble, a check, a little correction) for personality. Chappie's idea. Not the
+  "tiny check" box on the sheet, which is the 16–48 px size test.
+- **The six in-betweens:** the animation, not just the poses.
+- Golden rule: discovering Pip, not redesigning Pip. No committee: Aaron's pencil first.
+
 ### 🪽 Wings as an ability (a hypothesis, not a build)
 
 ```
