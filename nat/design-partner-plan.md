@@ -59,3 +59,9 @@ So: **grow Idea inbox, don't add a new plugin.**
 - 🟨 Peter: "Pip is non-AI. A live AI inside Pip would change who Pip is." → v1 keeps AI outside, behind a copy button.
 - Feature creep: three idea places (inbox, shelf, Chappie's garden) → merge into one list.
 - Performance: Idea inbox has no overlay and no animation, so the cost is near zero. We'll confirm it with Rob's stress run.
+
+## Chappie's V1 creative brief (31 Oct, later): agreed points
+- Five garden stages: **SPARK · EXPERIMENT · DEVELOP · APPROVED · PARKED**. Only APPROVED moves to the dashboard shelf (🔨 building, ✅ done); the garden itself never makes tasks.
+- V1 scope: Pip's presence in the panel, a simple workspace, idea capture and stages, a FOR CHAPPIE copy button, kept on the iPad, its own switch.
+- Not in V1: compare and references (Sketch already does the drawing), personality sliders (Pip's own settings already cover Joy).
+- Waiting on Aaron's "go".
