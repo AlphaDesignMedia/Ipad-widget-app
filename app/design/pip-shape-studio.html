@@ -44,7 +44,15 @@
       <div class="seg" style="margin-top:8px"><button id="playBtn">▶ Play</button></div>
     </div>
     <div class="card"><h3>View</h3>
-      <div class="seg" id="views"><button data-v="sil" class="on">◼ Silhouette</button><button data-v="line">Outline</button><button data-v="build">Build</button></div>
+      <div class="seg" id="views"><button data-v="sil" class="on">◼ Silhouette</button><button data-v="line">Outline</button><button data-v="build">Build</button><button data-v="soft">🌫 Feathered</button></div>
+      <div id="softBox" style="display:none;margin-top:10px">
+        <label class="row" style="color:#555"><span>Feather</span><span id="fv"></span></label>
+        <input type="range" id="feather" min="0" max="14" step="0.5" value="5" aria-label="How soft the edge is">
+        <label class="row" style="color:#555;margin-top:6px"><span>Glow</span><span id="gv"></span></label>
+        <input type="range" id="glow" min="0" max="1" step="0.05" value="0.6" aria-label="How much it glows">
+        <div class="seg" style="margin-top:8px" id="tones"><button data-c="ink" class="on">Ink</button><button data-c="fairy">Fairy blue</button><button data-c="pearl">Pearl</button></div>
+        <p class="note">The edge fades out like a gradient, the middle stays solid, the eyes stay crisp.</p>
+      </div>
     </div>
     <div class="card"><h3>Tiny check · 16 · 24 · 32 · 48</h3><div id="tiny"></div></div>
     <div class="card"><h3>Keep it</h3>
@@ -134,7 +142,21 @@ function draw(ctx, S, size, style, opts = {}) {
   ctx.scale(size / 100, size / 100);
   const k = 100 / size, ink = '#16181f';
   const body = silhouette(S);
-  if (style === 'sil') {
+  if (style === 'soft') {
+    // Feathered: a blurred glow underneath, then the solid core, shrunk in by the feather and blurred a touch,
+    // so the edge reads as a gradient rather than a line.
+    const f = SOFT.feather, tone = TONES[SOFT.tone];
+    ctx.save();
+    ctx.filter = `blur(${(f * 1.6 * size / 100).toFixed(1)}px)`;
+    ctx.globalAlpha = SOFT.glow; ctx.fillStyle = tone.glow; ctx.fill(body, 'nonzero');
+    ctx.restore();
+    ctx.save();
+    ctx.filter = `blur(${(f * .55 * size / 100).toFixed(1)}px)`;
+    const g = ctx.createRadialGradient(S.head[0] - 8, S.head[1] - 10, 2, S.head[0], S.head[1] + 6, 70);
+    g.addColorStop(0, tone.light); g.addColorStop(.55, tone.mid); g.addColorStop(1, tone.dark);
+    ctx.fillStyle = g; ctx.fill(body, 'nonzero');
+    ctx.restore();
+  } else if (style === 'sil') {
     ctx.fillStyle = ink; ctx.fill(body, 'nonzero');
   } else {
     ctx.lineJoin = 'round'; ctx.lineWidth = 2.6 * 2 * (opts.px ? 1 : Math.max(k * 4, .6)) ; ctx.strokeStyle = ink;
@@ -144,7 +166,7 @@ function draw(ctx, S, size, style, opts = {}) {
     ctx.strokeStyle = ink; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
     const [hx, hy, fx, fy] = S.leg; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(fx, fy); ctx.lineTo(fx + 5, fy); ctx.stroke();
   }
-  ctx.fillStyle = style === 'sil' ? '#fff' : ink;
+  ctx.fillStyle = style === 'sil' ? '#fff' : style === 'soft' ? TONES[SOFT.tone].eye : ink;
   S.eyes.forEach(([x, y], i) => {
     const sc = i === 1 ? (S.eyeR ?? 1) : 1; if (sc < .05) return;
     ctx.save(); ctx.translate(x, y); ctx.rotate(-.21); ctx.scale(1, sc); ctx.beginPath(); ctx.ellipse(0, 0, 2.6 * Math.max(1, opts.eyeBoost || 1), 4.2 * Math.max(1, opts.eyeBoost || 1), 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
@@ -152,6 +174,13 @@ function draw(ctx, S, size, style, opts = {}) {
   ctx.restore();
 }
 
+// Feathered view settings. Fairy blue is the fairy Pip's own colours (PipLook: accent #4f7be8, orb light and deep).
+const SOFT = { feather: 5, glow: .6, tone: 'ink' };
+const TONES = {
+  ink:   { light: '#3a3d48', mid: '#1d2029', dark: '#16181f', glow: '#16181f', eye: '#fff' },
+  fairy: { light: '#ffffff', mid: '#bccdf6', dark: '#4165be', glow: '#4f7be8', eye: '#16181f' },
+  pearl: { light: '#ffffff', mid: '#eceef3', dark: '#a9b0bf', glow: '#c9d1e6', eye: '#16181f' },
+};
 const stage = document.getElementById('stage'), sctx = stage.getContext('2d');
 const PAD = 100, BOX = 800;   // the 100 box drawn at 800 px with 100 px around it
 function current() { return t <= 0 ? shapes.pip : t >= 1 ? shapes.pigeon : mix(shapes.pip, shapes.pigeon, ease(t)); }
@@ -162,6 +191,7 @@ function render() {
   for (let x = PAD; x <= PAD + BOX; x += 80) for (let y = PAD; y <= PAD + BOX; y += 80) { sctx.beginPath(); sctx.arc(x, y, 2, 0, 7); sctx.fill(); }
   const editing = (who === 'pip' && t === 0) || (who === 'pigeon' && t === 1);
   sctx.save(); sctx.translate(PAD, PAD);
+  if (view === 'soft' && SOFT.tone !== 'ink') { sctx.fillStyle = '#1b1d2a'; sctx.fillRect(-PAD, -PAD, 1000, 1000); }
   draw(sctx, current(), BOX, view === 'build' ? 'line' : view);
   if (view === 'build' && editing) {
     const S = shapes[who];
@@ -224,7 +254,7 @@ document.querySelectorAll('#who button').forEach(b => b.onclick = () => {
   who = b.dataset.w; document.querySelectorAll('#who button').forEach(x => x.classList.toggle('on', x === b));
   t = who === 'pip' ? 0 : 1; tEl.value = t; view = 'build'; document.querySelectorAll('#views button').forEach(x => x.classList.toggle('on', x.dataset.v === 'build')); render(); });
 document.querySelectorAll('#views button').forEach(b => b.onclick = () => {
-  view = b.dataset.v; document.querySelectorAll('#views button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+  view = b.dataset.v; document.getElementById('softBox').style.display = view === 'soft' ? '' : 'none'; document.querySelectorAll('#views button').forEach(x => x.classList.toggle('on', x === b)); render(); });
 document.getElementById('playBtn').onclick = () => {
   if (playing) return; const from = t > .5 ? 1 : 0, start = performance.now();
   playing = requestAnimationFrame(function step(now) {
@@ -241,8 +271,15 @@ document.getElementById('copyBtn').onclick = async () => {
   try { await navigator.clipboard.writeText(text); document.getElementById('copied').textContent = 'Copied. Paste it to Jules.'; }
   catch { document.getElementById('copied').textContent = text; }
 };
+const fEl = document.getElementById('feather'), gEl = document.getElementById('glow');
+const showSoft = () => { document.getElementById('fv').textContent = SOFT.feather; document.getElementById('gv').textContent = Math.round(SOFT.glow * 100) + '%'; };
+fEl.oninput = () => { SOFT.feather = +fEl.value; showSoft(); render(); };
+gEl.oninput = () => { SOFT.glow = +gEl.value; showSoft(); render(); };
+document.querySelectorAll('#tones button').forEach(b => b.onclick = () => {
+  SOFT.tone = b.dataset.c; document.querySelectorAll('#tones button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+showSoft();
 render();
-window.__studio = { set: (v, tt) => { view = v; t = tt; render(); } };
+window.__studio = { set: (v, tt) => { view = v; t = tt; render(); }, soft: (f, g, tone) => { Object.assign(SOFT, { feather: f, glow: g, tone }); render(); } };
 </script>
 </body>
 </html>
