@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pip Blob Workshop</title>
+<style>
+/* A night-sky stage where Pip floats over a frosted panel, with a column of dials beside it (stacks on phones). */
+:root{
+  --bg:#eef1f6; --ink:#17202e; --muted:#5b6578; --panel:#ffffffcc; --line:#d5dbe6; --accent:#2f6bff;
+  --display:ui-rounded,"SF Pro Rounded",system-ui,sans-serif; --body:system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{--bg:#0b0f18; --ink:#e7ecf5; --muted:#98a3b8; --panel:#151c2bcc; --line:#26304a; --accent:#7aa2ff; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;
+  padding:18px max(16px,env(safe-area-inset-right,0px)) 18px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:18px}
+header h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,4vw,42px);margin:0;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:66ch;line-height:1.45}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.stage{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:4/3;background:#0f1830}
+canvas{width:100%;height:100%;display:block;touch-action:none;cursor:pointer}
+.hint{position:absolute;left:14px;bottom:12px;color:#c9d4ee;font-size:13px;opacity:.8;pointer-events:none}
+.meter{position:absolute;right:12px;top:10px;color:#c9d4ee;font:12px ui-monospace,monospace;opacity:.7;pointer-events:none}
+.side{display:grid;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;backdrop-filter:blur(10px)}
+.side h2{font-family:var(--display);font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-weight:700;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:7px 13px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.dial{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.dial label{font-size:14px}
+.dial output{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.dial input{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.group{display:grid;gap:10px}
+pre{margin:0;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Pip Blob Workshop</h1>
+    <p>Pip as a soft glass blob with a trailing tail, and no wings. The character comes from the shape, the material and the way they move. Turn the dials until it feels like Pip, then copy your picks for the team.</p>
+  </header>
+  <div class="main">
+    <div class="stage">
+      <canvas id="c" aria-label="Pip blob preview. Tap Pip to boing, drag Pip to move them, tap anywhere to send them there."></canvas>
+      <div class="hint">Tap Pip to boing · drag to move · tap anywhere to send Pip there</div>
+      <div class="meter" id="meter"></div>
+    </div>
+    <aside class="side">
+      <div class="group"><h2>Start from</h2><div class="row" id="presets"></div></div>
+      <div class="group"><h2>Shape</h2><div class="group" id="gShape"></div></div>
+      <div class="group"><h2>Tail</h2><div class="group" id="gTail"></div></div>
+      <div class="group"><h2>Movement</h2><div class="group" id="gMove"></div></div>
+      <div class="group"><h2>Glass</h2><div class="group" id="gGlass"></div></div>
+      <div class="group"><h2>Eyes</h2><div class="group" id="gEyes"></div></div>
+      <div class="group"><h2>Try</h2>
+        <div class="row">
+          <button id="tFollow" aria-pressed="false">Follow my finger</button>
+          <button id="tRest" aria-pressed="false">Resting</button>
+          <button id="tBead" aria-pressed="false">Tail bead</button>
+          <button id="tSimple" aria-pressed="false">Simpler motion</button>
+        </div></div>
+      <div class="group"><h2>Your picks</h2>
+        <button id="copy">Copy picks for the team</button>
+        <pre id="out"></pre></div>
+    </aside>
+  </div>
+</div>
+<script>
+(() => {
+// ---------- Data: every dial, with its group, range and default ----------
+const DIALS = [
+  ["size",    "gShape", "Size",            20, 70, 1,    40],
+  ["drop",    "gShape", "Teardrop",        0.3, 0.95, 0.01, 0.72],
+  ["tail",    "gTail",  "Tail length",     0.5, 4, 0.05, 2.4],
+  ["taper",   "gTail",  "Taper",           0.6, 2.5, 0.05, 1.35],
+  ["tilt",    "gTail",  "Tail hangs (°)",  0, 180, 1,    72],
+  ["floppy",  "gTail",  "Floppiness",      0, 1, 0.01,   0.55],
+  ["wiggle",  "gTail",  "Wiggle",          0, 1, 0.01,   0.35],
+  ["float",   "gMove",  "Float",           0, 1, 0.01,   0.5],
+  ["bounce",  "gMove",  "Springiness",     0, 1, 0.01,   0.4],
+  ["squash",  "gMove",  "Squash",          0, 1, 0.01,   0.45],
+  ["hue",     "gGlass", "Tint",            0, 360, 1,    224],
+  ["clear",   "gGlass", "Glassiness",      0, 1, 0.01,   0.55],
+  ["shine",   "gGlass", "Shine",           0, 1, 0.01,   0.8],
+  ["eyeGap",  "gEyes",  "Eye spacing",     0.15, 0.6, 0.01, 0.34],
+  ["eyeSize", "gEyes",  "Eye size",        0.08, 0.26, 0.005, 0.15],
+];
+const PRESETS = {
+  "Calm":   {},
+  "Lively": {float:0.85, bounce:0.75, squash:0.7, wiggle:0.6, floppy:0.35},
+  "Sleepy": {float:0.25, bounce:0.15, squash:0.2, wiggle:0.15, floppy:0.8, tail:2.0},
+  "Squiggle": {tail:3.6, taper:1.0, wiggle:0.8, floppy:0.3, drop:0.55},
+};
+const P = {}; for (const d of DIALS) P[d[0]] = d[6];
+const T = {follow:false, rest:false, bead:false, simple: matchMedia("(prefers-reduced-motion: reduce)").matches};
+
+// ---------- Dials UI ----------
+const inputs = {};
+for (const [k, g, label, min, max, step, def] of DIALS) {
+  const wrap = document.createElement("div"); wrap.className = "dial";
+  wrap.innerHTML = `<label for="d_${k}">${label}</label><output id="o_${k}"></output>
+    <input id="d_${k}" type="range" min="${min}" max="${max}" step="${step}" value="${def}">`;
+  document.getElementById(g).appendChild(wrap);
+  const inp = wrap.querySelector("input"), out = wrap.querySelector("output");
+  const show = () => out.textContent = step >= 1 ? String(Math.round(P[k])) : Number(P[k]).toFixed(2);
+  inp.addEventListener("input", () => { P[k] = +inp.value; show(); writePicks(); if (k === "tilt" || k === "tail" || k === "size") resetTail(); });
+  inputs[k] = {inp, show}; show();
+}
+const pre = document.getElementById("presets");
+for (const name of Object.keys(PRESETS)) {
+  const b = document.createElement("button"); b.textContent = name;
+  b.onclick = () => { for (const d of DIALS) P[d[0]] = PRESETS[name][d[0]] ?? d[6];
+    for (const k in inputs) { inputs[k].inp.value = P[k]; inputs[k].show(); } resetTail(); writePicks(); };
+  pre.appendChild(b);
+}
+function toggle(id, key) {
+  const b = document.getElementById(id);
+  const paint = () => { b.classList.toggle("on", T[key]); b.setAttribute("aria-pressed", T[key]); };
+  b.onclick = () => { T[key] = !T[key]; paint(); writePicks(); }; paint();
+}
+toggle("tFollow", "follow"); toggle("tRest", "rest"); toggle("tBead", "bead"); toggle("tSimple", "simple");
+function writePicks() {
+  const picks = {}; for (const d of DIALS) picks[d[0]] = +Number(P[d[0]]).toFixed(3);
+  picks.bead = T.bead;
+  document.getElementById("out").textContent = "FOR JULES · Pip blob picks\n" + JSON.stringify(picks);
+}
+document.getElementById("copy").onclick = async (e) => {
+  try { await navigator.clipboard.writeText(document.getElementById("out").textContent); e.target.textContent = "Copied ✓"; }
+  catch { e.target.textContent = "Select the text below to copy"; }
+  setTimeout(() => e.target.textContent = "Copy picks for the team", 1800);
+};
+writePicks();
+
+// ---------- Stage ----------
+const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+const bg = document.createElement("canvas"), bctx = bg.getContext("2d");
+let W = 0, H = 0, dpr = 1;
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = bg.width = Math.round(W * dpr); cv.height = bg.height = Math.round(H * dpr);
+  // The background is drawn once per resize, not every frame.
+  bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const g = bctx.createRadialGradient(W * .3, H * .2, 0, W * .4, H * .4, Math.max(W, H));
+  g.addColorStop(0, "#1d2b52"); g.addColorStop(1, "#0a1126");
+  bctx.fillStyle = g; bctx.fillRect(0, 0, W, H);
+  for (const [x, y, r, c] of [[.25, .7, .28, "rgba(255,140,190,.35)"], [.78, .3, .3, "rgba(90,220,200,.28)"], [.6, .85, .22, "rgba(255,210,120,.25)"]]) {
+    const gg = bctx.createRadialGradient(W * x, H * y, 0, W * x, H * y, W * r);
+    gg.addColorStop(0, c); gg.addColorStop(1, "rgba(0,0,0,0)");
+    bctx.fillStyle = gg; bctx.fillRect(0, 0, W, H);
+  }
+  // A frosted glass panel, so Pip's glass has something to show through.
+  bctx.fillStyle = "rgba(255,255,255,.07)"; bctx.strokeStyle = "rgba(255,255,255,.16)";
+  bctx.beginPath(); bctx.roundRect(W * .56, H * .12, W * .34, H * .5, 24); bctx.fill(); bctx.stroke();
+  if (!home.x) { home.x = W * .38; home.y = H * .42; pos.x = home.x; pos.y = home.y; resetTail(); }
+}
+
+// ---------- Pip's state ----------
+const pos = {x: 0, y: 0}, vel = {x: 0, y: 0}, home = {x: 0, y: 0};
+const N = 28; let tail = [];
+let kick = 0, look = {x: 0, y: 0}, blinkAt = 2, blinkT = -1, pointer = null, grab = null, t = 0, last = 0;
+const v = (x, y) => ({x, y}), len = (a) => Math.hypot(a.x, a.y);
+const norm = (a) => { const l = len(a) || 1; return v(a.x / l, a.y / l); };
+function restDir() { const a = P.tilt * Math.PI / 180; return v(Math.cos(a), Math.sin(a)); }
+function seg() { return P.size * (1 + P.tail) / N; }
+function resetTail() { const d = restDir(); tail = []; for (let i = 0; i <= N; i++) tail.push(v(pos.x + d.x * seg() * i, pos.y + d.y * seg() * i)); }
+
+// ---------- Logic: one step of movement ----------
+function step(dt) {
+  const R = P.size, simple = T.simple;
+  // Where Pip wants to be: home plus a slow float, or your finger.
+  const amp = simple || T.rest ? P.float * R * .12 : P.float * R * .9;
+  const sp = T.rest ? .4 : 1;
+  let target = v(home.x + Math.sin(t * .5 * sp) * amp * .6, home.y + Math.sin(t * .73 * sp + 1) * amp);
+  if (T.follow && pointer && !grab) target = v(pointer.x, pointer.y - R * 1.4);
+  if (grab) { pos.x = grab.x; pos.y = grab.y; vel.x = vel.y = 0; }
+  else {
+    // A spring: a little overshoot and settle, more with Springiness. Simpler motion: no overshoot.
+    const w = T.follow && pointer ? 4.2 : 3.2, z = simple ? 1 : 1 - P.bounce * .72;
+    vel.x += (w * w * (target.x - pos.x) - 2 * z * w * vel.x) * dt;
+    vel.y += (w * w * (target.y - pos.y) - 2 * z * w * vel.y) * dt;
+    pos.x += vel.x * dt; pos.y += vel.y * dt;
+  }
+  // Tail: each bead follows the one before at a fixed distance, hangs toward its rest direction, and wiggles.
+  const s = seg(), rd = restDir(), speed = len(vel);
+  const pull = (.04 + (1 - P.floppy) * .22) * dt * 60;
+  tail[0] = v(pos.x, pos.y);
+  for (let i = 1; i <= N; i++) {
+    const p = tail[i - 1], c = tail[i];
+    let d = v(c.x - p.x, c.y - p.y); const dn = norm(d);
+    const wig = simple ? 0 : P.wiggle * Math.sin(t * (T.rest ? 1.2 : 2.4) - i * .5) * (i / N) * (.25 + Math.min(speed / 300, 1)) * .9;
+    d = v(dn.x + rd.x * pull - dn.y * wig, dn.y + rd.y * pull + dn.x * wig);
+    const dd = norm(d); tail[i] = v(p.x + dd.x * s, p.y + dd.y * s);
+  }
+  // Eyes look where Pip is going, or at your finger, and drift a little when idle.
+  let want = v(Math.sin(t * .37) * .35, Math.sin(t * .29 + 2) * .2);
+  if (speed > 20) want = v(vel.x / 400, vel.y / 400);
+  if (pointer && T.follow) want = v((pointer.x - pos.x) / (R * 4), (pointer.y - pos.y) / (R * 4));
+  want = v(Math.max(-1, Math.min(1, want.x)), Math.max(-1, Math.min(1, want.y)));
+  const e = simple ? 1 : Math.min(1, dt * 6);
+  look.x += (want.x - look.x) * e; look.y += (want.y - look.y) * e;
+  kick *= Math.exp(-dt * 5);
+  if (t > blinkAt) { blinkT = 0; blinkAt = t + (T.rest ? 2.5 : 3.5) + Math.random() * 3; }
+  if (blinkT >= 0) { blinkT += dt; if (blinkT > .16) blinkT = -1; }
+}
+
+// ---------- The shape: one tube with a smooth radius, from the nose through the body to the tail tip ----------
+function smax(a, b, k) { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.max(a, b) + h * h * k * .25; }
+function outline() {
+  const breathe = T.simple ? 1 : 1 + .018 * Math.sin(t * 1.6);
+  const R = P.size * breathe, total = P.size * (1 + P.tail);
+  const back = norm(v(tail[2].x - pos.x, tail[2].y - pos.y)), fwd = v(-back.x, -back.y);
+  const spine = [];                       // {p, n, r}
+  const radius = (d) => {
+    const circ = Math.sqrt(Math.max(0, R * R - d * d));
+    if (d < 0) return circ;
+    const tl = P.drop * R * Math.pow(Math.max(0, 1 - d / total), P.taper);
+    return Math.max(.6, smax(circ, tl, R * .35));
+  };
+  const nrm = (dir) => v(-dir.y, dir.x);
+  for (let k = 0; k < 10; k++) {          // the nose cap, sampled closely where it curves most
+    const th = k / 10 * Math.PI / 2, d = -R * Math.cos(th);
+    spine.push({p: v(pos.x + back.x * d, pos.y + back.y * d), n: nrm(back), r: radius(d)});
+  }
+  for (let i = 0; i <= N; i++) {
+    const a = tail[Math.max(0, i - 1)], b = tail[Math.min(N, i + 1)];
+    const dir = i === 0 ? back : norm(v(b.x - a.x, b.y - a.y));
+    spine.push({p: tail[i], n: nrm(dir), r: radius(i * seg())});
+  }
+  spine[0].r = 0;
+  const left = spine.map(s => v(s.p.x + s.n.x * s.r, s.p.y + s.n.y * s.r));
+  const right = spine.map(s => v(s.p.x - s.n.x * s.r, s.p.y - s.n.y * s.r)).reverse();
+  let pts = left.concat(right.slice(1));
+  // Squash and stretch along the way Pip moves (and after a boing), strongest at the body, none down the tail.
+  const sp = len(vel), u = sp > 1 ? v(vel.x / sp, vel.y / sp) : v(0, 1);
+  let s = T.simple ? 0 : Math.min(sp / 700, 1) * P.squash * .28 - kick * P.squash;
+  s = Math.max(-.3, Math.min(.35, s));
+  if (Math.abs(s) > .002) pts = pts.map(q => {
+    const dx = q.x - pos.x, dy = q.y - pos.y, w = Math.max(0, 1 - Math.hypot(dx, dy) / (P.size * 1.7));
+    const a = dx * u.x + dy * u.y, b = -dx * u.y + dy * u.x;
+    const a2 = a * (1 + s * w), b2 = b / (1 + s * w);
+    return v(pos.x + a2 * u.x - b2 * u.y, pos.y + a2 * u.y + b2 * u.x);
+  });
+  // A smooth path through the points (midpoint curves), so no corners anywhere.
+  const path = new Path2D(), n = pts.length, mid = (a, b) => v((a.x + b.x) / 2, (a.y + b.y) / 2);
+  let m = mid(pts[n - 1], pts[0]); path.moveTo(m.x, m.y);
+  for (let i = 0; i < n; i++) { const c = pts[i], nm = mid(c, pts[(i + 1) % n]); path.quadraticCurveTo(c.x, c.y, nm.x, nm.y); }
+  path.closePath();
+  return {path, R, fwd};
+}
+
+// ---------- Draw ----------
+function draw() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bg, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const {path, R} = outline(), h = P.hue, L = v(pos.x - R * .42, pos.y - R * .5);
+  // 1. A soft shadow behind, drawn from a copy far off-canvas so only the shadow lands.
+  ctx.save(); ctx.translate(-5000, 0); ctx.shadowColor = "rgba(0,0,20,.32)"; ctx.shadowBlur = R * .7;
+  ctx.shadowOffsetX = 5000 * dpr; ctx.shadowOffsetY = R * .35 * dpr; ctx.fillStyle = "#000"; ctx.fill(path); ctx.restore();
+  // 2. The glass body: one radial gradient with many eased stops, lit from the top left (the light stays put on screen).
+  const g = ctx.createRadialGradient(L.x, L.y, 0, L.x, L.y, R * 3.4);
+  for (let i = 0; i <= 10; i++) {
+    const x = i / 10, e = x * x * (3 - 2 * x);
+    const light = 90 - e * 48, a = (1 - P.clear) * .55 + .35 + e * .1;
+    g.addColorStop(x, `hsla(${h},${62 + e * 12}%,${light}%,${Math.min(1, a)})`);
+  }
+  ctx.fillStyle = g; ctx.fill(path);
+  ctx.save(); ctx.clip(path);
+  // 3. Light through the glass, pooling at the far side.
+  const c = ctx.createRadialGradient(pos.x + R * .35, pos.y + R * .6, 0, pos.x + R * .35, pos.y + R * .6, R * 1.1);
+  c.addColorStop(0, `hsla(${h + 25},100%,82%,${.42 * P.shine})`); c.addColorStop(1, `hsla(${h + 25},100%,82%,0)`);
+  ctx.globalCompositeOperation = "screen"; ctx.fillStyle = c; ctx.fillRect(pos.x - R * 2, pos.y - R * 2, R * 4, R * 4);
+  ctx.globalCompositeOperation = "source-over";
+  // 4. A soft bright rim on the inside edge (an inner glow), which is what makes it read as glass.
+  const ring = new Path2D(); ring.rect(-W, -H, W * 3, H * 3); ring.addPath(path);
+  ctx.shadowColor = `hsla(${h},100%,96%,${.75 * P.shine})`; ctx.shadowBlur = R * .45 * dpr;
+  ctx.fillStyle = "#000"; ctx.fill(ring, "evenodd"); ctx.shadowColor = "transparent";
+  ctx.restore();
+  // 5. The shine: one soft highlight and one tiny sharp one.
+  ctx.save(); ctx.translate(pos.x - R * .36, pos.y - R * .44); ctx.rotate(-.6); ctx.scale(1, .58);
+  const hl = ctx.createRadialGradient(0, 0, 0, 0, 0, R * .48);
+  hl.addColorStop(0, `rgba(255,255,255,${.85 * P.shine})`); hl.addColorStop(.5, `rgba(255,255,255,${.3 * P.shine})`); hl.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = hl; ctx.beginPath(); ctx.arc(0, 0, R * .48, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = `rgba(255,255,255,${.9 * P.shine})`; ctx.beginPath(); ctx.arc(pos.x - R * .52, pos.y - R * .5, R * .07, 0, 7); ctx.fill();
+  // 6. Tail bead (optional).
+  if (T.bead) { const e = tail[N]; const bg2 = ctx.createRadialGradient(e.x - 2, e.y - 2, 0, e.x, e.y, R * .2);
+    bg2.addColorStop(0, `hsla(${h},90%,92%,.95)`); bg2.addColorStop(1, `hsla(${h},70%,55%,.8)`);
+    ctx.fillStyle = bg2; ctx.beginPath(); ctx.arc(e.x, e.y, R * .16, 0, 7); ctx.fill(); }
+  // 7. Two simple eyes on the front of the ball: they slide and narrow as Pip looks, like a turning sphere.
+  const es = P.eyeSize * R, blink = blinkT >= 0 ? Math.max(.1, Math.abs(1 - blinkT / .08)) : (T.rest ? .55 : 1);
+  for (const side of [-1, 1]) {
+    const ex = pos.x + look.x * R * .3 + side * P.eyeGap * R * (1 - .22 * Math.abs(look.x)) - look.x * side * es * .15;
+    const ey = pos.y - R * .06 + look.y * R * .22;
+    ctx.fillStyle = "#1d1830"; ctx.beginPath();
+    ctx.ellipse(ex, ey, es * .62 * (1 - .28 * Math.abs(look.x)), es * blink, 0, 0, 7); ctx.fill();
+    if (blink > .5) { ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(ex - es * .18, ey - es * .38, es * .17, 0, 7); ctx.fill(); }
+  }
+}
+
+// ---------- Loop: 60 a second while moving, 30 when Pip is settled ----------
+let frames = 0, fpsT = 0, skip = false;
+function frame(now) {
+  const dt = Math.min(.05, (now - (last || now)) / 1000); last = now;
+  t += dt; step(dt);
+  const settled = len(vel) < 4 && !grab && kick < .01 && (T.rest || T.simple || P.float < .05);
+  skip = settled ? !skip : false;
+  if (!skip) { draw(); frames++; }
+  fpsT += dt; if (fpsT > 1) { document.getElementById("meter").textContent = `${frames} frames/s${settled ? " · resting" : ""}`; frames = 0; fpsT = 0; }
+  requestAnimationFrame(frame);
+}
+
+// ---------- Touch ----------
+const at = (e) => { const r = cv.getBoundingClientRect(); return v(e.clientX - r.left, e.clientY - r.top); };
+let down = null;
+cv.addEventListener("pointerdown", (e) => {
+  const p = at(e); down = {p, moved: false, onPip: Math.hypot(p.x - pos.x, p.y - pos.y) < P.size * 1.2};
+  if (down.onPip) { grab = p; cv.setPointerCapture(e.pointerId); }
+});
+cv.addEventListener("pointermove", (e) => {
+  pointer = at(e);
+  if (down && Math.hypot(pointer.x - down.p.x, pointer.y - down.p.y) > 6) down.moved = true;
+  if (grab) { grab = pointer; home.x = pointer.x; home.y = pointer.y; }
+});
+cv.addEventListener("pointerup", (e) => {
+  const p = at(e);
+  if (down && !down.moved) {
+    if (down.onPip) { kick = .9; vel.y -= 220; }                 // boing
+    else {                                                     // go there, with a little lean back first
+      const d = norm(v(p.x - pos.x, p.y - pos.y)); vel.x -= d.x * 90; vel.y -= d.y * 90;
+      home.x = p.x; home.y = p.y;
+    }
+  }
+  if (grab) { vel.x = vel.y = 0; }
+  grab = null; down = null;
+});
+cv.addEventListener("pointerleave", () => { if (!grab) pointer = null; });
+addEventListener("resize", resize);
+resize(); requestAnimationFrame(frame);
+window.__pip = {P, T, pos, vel, home, step: (n) => { for (let i = 0; i < n; i++) { t += 1 / 60; step(1 / 60); } draw(); }};
+})();
+</script>
+</body>
+</html>
