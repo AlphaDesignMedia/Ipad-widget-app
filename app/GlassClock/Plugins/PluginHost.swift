@@ -164,7 +164,8 @@ final class PipHost {
     /// nil: the shared glass bar.
     var barLook: BarLook?
     /// The bar look, while its owner is on.
-    var activeBarLook: BarLook? { barLook.flatMap { isOn($0.owner) ? $0 : nil } }
+    /// (Its owner's own switch, not whether it's running, so the look holds steady while plugins are paused.)
+    var activeBarLook: BarLook? { barLook.flatMap { chosen($0.owner) ? $0 : nil } }
     /// How lively plugins should be: 0 still, 1 calm (the default), 2 cosy, 3 playful, 4 giddy, 5 unhinged.
     /// One setting for every plugin; the Joy Slider sets it. Read `joy`, which respects simpler motion.
     var joySetting = UserDefaults.standard.object(forKey: "pipJoy") as? Int ?? 1 {
