@@ -295,30 +295,36 @@ struct DoodleDuet: SandboxPlugin {
                             })
                         .accessibilityLabel("Drawing canvas for Doodle Duet")
                 }
-                TimelineView(.animation(paused: !busy)) { timeline in
-                    let now = timeline.date
-                    Canvas { ctx, _ in
-                        for l in lines {
-                            var reveal = 1.0, alpha = 1.0, width = l.byPip ? Look.pipWidth : Look.yourWidth
-                            if l.byPip { reveal = min(1, now.timeIntervalSince(l.born) / Look.drawSeconds) }
-                            if simpler { alpha = reveal; reveal = 1 }
-                            if let eaten = l.eaten {
-                                let k = min(1, now.timeIntervalSince(eaten) / Look.eatSeconds)
-                                alpha *= 1 - k
-                                width *= 1 - k * 0.8
+                // The ink layer exists only when there is ink. A full-screen Canvas that is mounted with
+                // nothing in it still asks the render server for a drawing surface, and the main thread waits
+                // on it: that was the freeze Greg traced in the iPad's hang reports. Pausing the TimelineView
+                // stops the ticking but not the surface, so the `if` is the part that matters. (Rob, 31 Oct)
+                if !lines.isEmpty || !live.isEmpty {
+                    TimelineView(.animation(paused: !busy)) { timeline in
+                        let now = timeline.date
+                        Canvas { ctx, _ in
+                            for l in lines {
+                                var reveal = 1.0, alpha = 1.0, width = l.byPip ? Look.pipWidth : Look.yourWidth
+                                if l.byPip { reveal = min(1, now.timeIntervalSince(l.born) / Look.drawSeconds) }
+                                if simpler { alpha = reveal; reveal = 1 }
+                                if let eaten = l.eaten {
+                                    let k = min(1, now.timeIntervalSince(eaten) / Look.eatSeconds)
+                                    alpha *= 1 - k
+                                    width *= 1 - k * 0.8
+                                }
+                                ctx.stroke(DoodleDuet.path(l.points, upTo: reveal),
+                                           with: .color((l.byPip ? PipLook.accent : Color.primary).opacity(alpha)),
+                                           style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
                             }
-                            ctx.stroke(DoodleDuet.path(l.points, upTo: reveal),
-                                       with: .color((l.byPip ? PipLook.accent : Color.primary).opacity(alpha)),
-                                       style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
-                        }
-                        if live.count > 1 {
-                            ctx.stroke(DoodleDuet.path(live), with: .color(.primary),
-                                       style: StrokeStyle(lineWidth: Look.yourWidth, lineCap: .round, lineJoin: .round))
+                            if live.count > 1 {
+                                ctx.stroke(DoodleDuet.path(live), with: .color(.primary),
+                                           style: StrokeStyle(lineWidth: Look.yourWidth, lineCap: .round, lineJoin: .round))
+                            }
                         }
                     }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 }
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
                 if page.on {
                     Button("Done") { plugin.close(host) }
                         .buttonStyle(PluginCardButton(on: true))
