@@ -539,40 +539,43 @@ struct PipLayer: View {
     }
 
     /// The falling twinkle with its trail, and the little bursts when Pip lands or bounces.
-    private var sparkles: some View {
-        // Paused when nothing's falling or bursting, so it costs nothing the rest of the time.
-        TimelineView(.animation(paused: pip.twinkle == nil && pip.bursts.isEmpty)) { tl in
-            Canvas { gc, _ in
-                let now = tl.date
-                if let tw = pip.twinkle {
-                    let t = now.timeIntervalSince(tw.start) / PipArrival.fall
-                    for n in stride(from: 12, through: 0, by: -1) {
-                        let u = t - Double(n) * 0.035
-                        guard u > 0 else { continue }
-                        let p = fall(tw.from, tw.to, ease(min(u, 1)))
-                        let fade = 1 - Double(n) / 13
-                        let r = (n == 0 ? 10 + 1.5 * sin(t * 40) : 4 * fade + 1)
-                        let wobble = n == 0 ? 0 : sin(Double(n) * 1.7) * 3
-                        drawSparkle(gc, at: CGPoint(x: p.x + wobble, y: p.y), r: r, alpha: n == 0 ? 1 : fade * 0.8)
+    @ViewBuilder private var sparkles: some View {
+        // Only there while something's falling or bursting: even paused, a full-screen Canvas holds a
+        // drawing surface, and the iPad froze waiting for those (31 Oct 2026).
+        if pip.twinkle != nil || !pip.bursts.isEmpty {
+            TimelineView(.animation) { tl in
+                Canvas { gc, _ in
+                    let now = tl.date
+                    if let tw = pip.twinkle {
+                        let t = now.timeIntervalSince(tw.start) / PipArrival.fall
+                        for n in stride(from: 12, through: 0, by: -1) {
+                            let u = t - Double(n) * 0.035
+                            guard u > 0 else { continue }
+                            let p = fall(tw.from, tw.to, ease(min(u, 1)))
+                            let fade = 1 - Double(n) / 13
+                            let r = (n == 0 ? 10 + 1.5 * sin(t * 40) : 4 * fade + 1)
+                            let wobble = n == 0 ? 0 : sin(Double(n) * 1.7) * 3
+                            drawSparkle(gc, at: CGPoint(x: p.x + wobble, y: p.y), r: r, alpha: n == 0 ? 1 : fade * 0.8)
+                        }
                     }
-                }
-                for b in pip.bursts {
-                    let p = min(1, now.timeIntervalSince(b.start) / PipArrival.burst)
-                    let out = 1 - pow(1 - p, 3)
-                    let ring = 6 + 30 * out
-                    gc.stroke(Path(ellipseIn: CGRect(x: b.at.x - ring, y: b.at.y - ring, width: ring * 2, height: ring * 2)),
-                              with: .color(PipLook.accent.opacity(0.5 * (1 - p))), lineWidth: 1.5)
-                    for i in 0..<9 {
-                        let a = Double(i) / 9 * 2 * .pi + 0.3
-                        let d = 8 + 34 * out
-                        drawSparkle(gc, at: CGPoint(x: b.at.x + cos(a) * d, y: b.at.y + sin(a) * d),
-                                    r: 3.5 * (1 - p) + 0.6, alpha: 1 - p)
+                    for b in pip.bursts {
+                        let p = min(1, now.timeIntervalSince(b.start) / PipArrival.burst)
+                        let out = 1 - pow(1 - p, 3)
+                        let ring = 6 + 30 * out
+                        gc.stroke(Path(ellipseIn: CGRect(x: b.at.x - ring, y: b.at.y - ring, width: ring * 2, height: ring * 2)),
+                                  with: .color(PipLook.accent.opacity(0.5 * (1 - p))), lineWidth: 1.5)
+                        for i in 0..<9 {
+                            let a = Double(i) / 9 * 2 * .pi + 0.3
+                            let d = 8 + 34 * out
+                            drawSparkle(gc, at: CGPoint(x: b.at.x + cos(a) * d, y: b.at.y + sin(a) * d),
+                                        r: 3.5 * (1 - p) + 0.6, alpha: 1 - p)
+                        }
                     }
                 }
             }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 
     private func drawSparkle(_ gc: GraphicsContext, at p: CGPoint, r: Double, alpha: Double) {
