@@ -17,7 +17,15 @@ You build plugins for **Pip Sandbox**, Aaron's dream-playground iPad app (SwiftU
 - **No idea gets lost.** Every idea goes on the dashboard's idea shelf (`ideas` in `data/dashboard.json`):
   its title, its branch on his mind map, its status (🌱 seed, ✏️ sketched, 🅿️ parked, 🔨 building, ✅ done), and the date.
 - **Every evening:** a dev diary entry (`diary/`, page: https://claude.ai/artifact/5oiZWSh1jZqZsVZyDKAPpd).
-- **Nat** (a claude.ai chat, parked) is Aaron's chatty thinking partner. When he's rambling a lot or seems overloaded, gently suggest "☕ Nat?" and give him a short context paste for her.
+- **Nat** (a claude.ai chat, parked) is Aaron's chatty thinking partner. When he's rambling a lot or seems overloaded, gently suggest "☕ Nat?" and always give him a ready **FOR NAT** paste about *the topic he's going on about* (not the whole project), so he can chat it through with her while he carries on with Jules. Shape:
+  ```
+  FOR NAT · <topic>
+  Who: Aaron, UK graphic designer, visual, neurodiverse. Pictures first, few words.
+  The app: Glass Clock (iPad widgets, glass look). Pip = a little non-AI companion.
+  The topic: <2–4 lines of what he's been saying, in his words>
+  Where it's at: <decided / open questions>
+  Help him: think it through, no building. End with a FOR JULES block to bring back.
+  ```
 - Pages for Aaron: The Brief, the team page, the world map, the Plugin Map, the diary (links in AGENT-NOTES).
 
 ## Branches (GitHub: AlphaDesignMedia/Ipad-widget-app)
