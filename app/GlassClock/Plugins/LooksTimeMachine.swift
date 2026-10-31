@@ -39,7 +39,8 @@ struct LooksTimeMachine: SandboxPlugin {
         let look = looks[i]
         UserDefaults.standard.set(look.whole, forKey: LiquidIcons.wholeKey)
         host.setOn("liquid", look.liquid)
-        if look.liquid { LiquidIcons.apply(host) }
+        // Only if Liquid Icons is in the app: a parked plugin still reads as "chosen" (ticket 31 Oct).
+        if look.liquid, host.plugins.contains(where: { $0.info.id == "liquid" }) { LiquidIcons.apply(host) }
     }
 
     static func kept(_ key: String) -> Bool { !skip.contains { key.hasPrefix($0) } }
@@ -69,7 +70,7 @@ struct LooksTimeMachine: SandboxPlugin {
             host.setOn(p.info.id, !off.contains(p.info.id))
         }
         host.joySetting = saved["pipJoy"] as? Int ?? 1
-        if host.isOn("liquid") { LiquidIcons.apply(host) }
+        if host.isOn("liquid"), host.plugins.contains(where: { $0.info.id == "liquid" }) { LiquidIcons.apply(host) }
         host.say("Back in time!", for: 1.6)
     }
 
