@@ -8,6 +8,11 @@ import SwiftUI
 // come from reading how often each plugin wakes up and whether it starts itself. A red flag means "worth
 // switching off first if the app feels slow", not "this is broken". Say so on the card, every time.
 //
+// AND WHAT IT CANNOT SEE. On 31 Oct the app's real freeze turned out to be full-screen drawing layers that
+// existed while empty: the main thread sat waiting on the render server using almost no processor. Greg found
+// it in 327 hang reports; this panel had every one of those plugins marked green, because it only looks at
+// how often things wake up. If Aaron says "frozen" rather than "slow", the answer is probably not in here.
+//
 // GROWING THIS. Add to `verdicts` and nothing else. If you tune a plugin so it wakes less often, move it down
 // and change the reason. If a flag ever feels unfair to a plugin, it probably is: say why in `note`.
 
@@ -50,6 +55,8 @@ struct PipFlags: SandboxPlugin {
                        note: "Window Cleaner sets off on its own when you leave the room. Lovely, but it's the only one here that starts without you."),
         "glassmemory": .init(flag: .amber, why: "Its faint marks are blurred layers that sit over the whole app on every frame, and they stay for good.",
                              note: "Glass Memory used to leave dark little marks on the screen. I've turned those off; the frosted-ink half is untouched."),
+        "liquid": .init(flag: .amber, why: "About forty live glass drops merged in one GlassEffectContainer, always on screen because the bar is, and by default it does the settings rail and top buttons too.",
+                        note: "Liquid Icons is the loveliest thing in here and it never stops working, because the bar never goes away. Try it on 'Drops' and app-only before you switch it off."),
         "busypip": .init(flag: .green, why: "Looks once a second only while Pip could start something; every 5s when Pip's asleep, away or already busy.",
                          note: "Busy Pip has learned to sit still when there's nothing to be busy about."),
         "tidy": .init(flag: .amber, why: "Wakes every 2 seconds, and keeps an animation looping.",
