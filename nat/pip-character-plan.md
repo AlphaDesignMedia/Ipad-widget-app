@@ -70,6 +70,22 @@ until he's picked a direction.
   🔬 Developer only       motion blur, reflections, glass that "tickles"
 ```
 
+## 🌱 Inspiration board: shape-shifting Pip (31 Oct, AI images, NOT final designs)
+
+Aaron shared two AI mood boards. They're for mood only: real designs are drawn by Aaron.
+
+```
+  💧 core ──▶ 🐦 pigeon ──▶ 📎 tool ──▶ ⚙️ settings      one Pip, many forms
+  (glass)     (feathers)    (metal)     (machined)       the material changes with the form
+```
+
+- **The idea:** Pip keeps their eyes and personality and changes shape to fit where you are (clock, tools, settings, drawing).
+- **Pigeon Park:** a theme idea. "Absolutely stays" on the board.
+- **Materials:** glass, feathers, metal and machined, which fits "material first, character second".
+- **Others on the board:** pencil, palette, envelope, folder, gamepad, heart, star, note, brush, pixel (8-bit), and menu morphing.
+- ⚠️ **Homage check:** a paperclip with eyes reads as one famous office assistant. If it's used, Aaron makes it his own.
+- **Status:** 🌱 SPARK. Discuss with Chappie first, then pick ONE morph to sketch. The teardrop experiments come first.
+
 ## V2 later: Pip in the glass
 
 Behind panels, partly through the glass, "That tickles!" when you touch a glass control. 📌 The parked glass plugins
