@@ -15,6 +15,24 @@ with plugins switched off. Simulator numbers run on the Mac's chip: compare befo
 
 ---
 
+## 31 Oct · M · Stable & Sandbox fixed ✅ · Pip Peek ✅ · three small notes for Jules
+
+- **L re-check** (`-checkKL l`, clean install): Everything 43 → Stable 14 → Bring back ×3 → Stable → Everything = **43** ✅.
+  Crash clue (`kill -9`, relaunch, Turn on): card "The app stopped last time · Last one brought back: Helper Dial" ✅, ⚠️ line in
+  the log ✅, "Not this one" clears it ✅, Pause all → un-pause in the same session: no warning ✅. Robyn's `stoppedLastTime` can wait.
+- **Pip Peek** (`-checkM peek|peekoff|hello`): peeks round Sketch, Dashboard and design partner ✅ · Version 1 → none ✅ · Pause all →
+  none ✅ · Pip off → none ✅ · Reduce Motion → still peeks ✅ · hello on launch ✅, gone after ~4 s ✅, "Say hello" off → none ✅ ·
+  Show me now ✅ · tiny check: ears read at 32 and 48, 16 is a blob. Frames on panel open, Peek on vs off: 3–8 vs 2–11 late frames,
+  worst 242–339 vs 200–730 ms: noise. Pictures: `test-shots/peek-*.png`.
+- **Notes for Jules (none block it):**
+  1. **VoiceOver can't tap Pip:** the tap area is `.onTapGesture` with the button trait, so `accessibilityActivate` fails. A
+     `.accessibilityAction { tapped() }` (or a `Button`) fixes it. Also why I couldn't test the tap/emerge/"o" myself.
+  2. **Tucked away shows nothing:** after 10 s Pip disappears completely; the "just an ear tip" isn't visible (hidden is −82 pt,
+     the ear tip ends ~2 pt past the edge). Maybe −74.
+  3. **Any stop counts as a crash:** installing from the Mac or Xcode's stop also leaves the note, so the next Turn on names a suspect.
+     Same as the host's own safe mode, so probably fine; just so Aaron knows why it might appear after an install.
+- **Not tested:** the mirrored side (changing `plugPanelLeading` didn't move the open panel in my test), landscape, the tap itself.
+
 ## 31 Oct · core · Robyn · a "stopped last time" flag that lasts the session
 
 - **Why:** Stable & Sandbox's crash clue (job L step 4) can't be seen. After a stop the host pauses everything, the bar is only the
