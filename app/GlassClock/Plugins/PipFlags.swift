@@ -105,12 +105,22 @@ private struct FlagsCard: View {
     @State private var settling = false
     @State private var open: String?              // which flagged row is expanded
 
+    /// The ids *this panel* switched off, kept on the device. "Put them back" restores only these.
+    /// It used to switch on everything that was currently off, which also undid the plugins Aaron had
+    /// parked himself in Settings. It gets worse with Greg's safe mode: there, every plugin reads as off
+    /// at launch, so one tap would have turned the lot on. A panel for switching things off should never
+    /// be able to switch on something it didn't switch off.
+    @AppStorage("plug.flags.settled") private var settledCSV = ""
+    private var settled: [String] {
+        settledCSV.split(separator: ",").map(String.init).filter { !$0.isEmpty }
+    }
+
     /// Worked out once, in `onAppear`, not in `body`. The list and the flags never change while the panel
     /// is open: only the switches do. Sorting and re-reading two dozen plugins on every redraw made the
     /// panel about performance the slowest thing in the app, which rather defeated the point of it.
     @State private var watch: [Row] = []          // the flagged ones: all this card shows
     @State private var lightCount = 0             // the rest, as a number
-    @State private var offCount = 0               // how many are switched off right now
+    @State private var offCount = 0               // of ours, how many are off right now
     @State private var redOn: [PluginInfo] = []   // flagged and still on: what the big button settles
 
     struct Row: Identifiable {
@@ -133,7 +143,7 @@ private struct FlagsCard: View {
     /// The only thing that changes while the panel is open, so it's the only thing recounted.
     private func counts() {
         redOn = watch.filter { host.isOn($0.info.id) }.map(\.info)
-        offCount = host.plugins.filter { $0.info.id != "flags" && !host.isOn($0.info.id) }.count
+        offCount = settled.filter { !host.isOn($0) }.count
     }
 
     var body: some View {
@@ -144,7 +154,7 @@ private struct FlagsCard: View {
 
             // The one thing this card exists for: settle the suspects, in one tap.
             if redOn.isEmpty {
-                Label("All \(watch.count) flagged ones are off.", systemImage: "checkmark.circle")
+                Label("None of the \(watch.count) flagged ones is running.", systemImage: "checkmark.circle")
                     .font(.system(size: 14)).frame(minHeight: 44)
             } else {
                 Button { settle() } label: {
@@ -164,22 +174,21 @@ private struct FlagsCard: View {
 
             ForEach(watch) { row($0) }
 
-            Text(offCount == 0
-                 ? "The other \(lightCount) have no loop of their own, so Pip isn't watching them."
-                 : "The other \(lightCount) look light. \(offCount) switched off altogether.")
+            Text("The other \(lightCount) have no loop of their own, so Pip isn't watching them.")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             if offCount > 0 {
-                Button { allBackOn() } label: {
-                    Label("Switch everything back on", systemImage: "arrow.uturn.backward")
+                Button { putBack() } label: {
+                    Label("Put back the \(offCount) I switched off", systemImage: "arrow.uturn.backward")
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.bordered)
                 .disabled(settling)
+                .accessibilityHint("Only the ones this panel switched off. Anything you switched off yourself stays off.")
             }
 
-            Text("Switched off, never deleted. Plugin Desk above has the full list.")
+            Text("Switched off, never deleted. Plugin Desk above has the full list, and anything you switched off yourself is left alone.")
                 .font(.system(size: 11)).foregroundStyle(.tertiary)
         }
         .onAppear { build(); pipSays() }
@@ -249,6 +258,7 @@ private struct FlagsCard: View {
     private func settle() {
         settling = true
         let list = redOn
+        settledCSV = Array(Set(settled + list.map(\.id))).sorted().joined(separator: ",")
         for (i, p) in list.enumerated() {
             host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(p.id, false) }
         }
@@ -259,13 +269,15 @@ private struct FlagsCard: View {
         }
     }
 
-    private func allBackOn() {
+    /// Only what this panel switched off, and then it forgets them.
+    private func putBack() {
         settling = true
-        let list = host.plugins.map(\.info).filter { !host.isOn($0.id) }
-        for (i, p) in list.enumerated() {
-            host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(p.id, true) }
+        let list = settled.filter { !host.isOn($0) }
+        for (i, id) in list.enumerated() {
+            host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(id, true) }
         }
         host.later(Double(list.count) * PipFlags.Tune.settleGap + 0.1) {
+            settledCSV = ""
             settling = false
             counts()
         }
