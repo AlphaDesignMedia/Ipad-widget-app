@@ -268,7 +268,7 @@ struct PipPeek: SandboxPlugin {
     // MARK: Geometry
 
     /// A leaf: two smooth curves from base to tip, fattest a third of the way along.
-    static func leaf(_ base: CGPoint, _ tip: CGPoint, _ w: Double) -> Path {
+    nonisolated static func leaf(_ base: CGPoint, _ tip: CGPoint, _ w: Double) -> Path {
         let dx = tip.x - base.x, dy = tip.y - base.y, len = max(hypot(dx, dy), 1)
         let nx = -dy / len, ny = dx / len, mx = base.x + dx * 0.38, my = base.y + dy * 0.38
         var p = Path()
@@ -280,7 +280,7 @@ struct PipPeek: SandboxPlugin {
     }
 
     /// The body: two circles joined by their outer tangent lines (so it stays smooth).
-    static func tube(_ a: (x: Double, y: Double, r: Double), _ b: (x: Double, y: Double, r: Double)) -> Path {
+    nonisolated static func tube(_ a: (x: Double, y: Double, r: Double), _ b: (x: Double, y: Double, r: Double)) -> Path {
         let d = max(hypot(b.x - a.x, b.y - a.y), 0.001)
         let ang = atan2(b.y - a.y, b.x - a.x)
         let phi = acos(max(-1, min(1, (a.r - b.r) / d)))

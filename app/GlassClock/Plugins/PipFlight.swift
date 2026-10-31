@@ -129,7 +129,7 @@ struct PipFlight: SandboxPlugin {
         var body: some View {
             if let start = session.flying, host.pipOn {
                 GeometryReader { geo in
-                    TimelineView(.animation) { tl in
+                    TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: host.simpler)) { tl in
                         let t = tl.date.timeIntervalSince(start)
                         let p = min(max(t / PipFlight.flightFor, 0), 1)
                         let x = -90 + p * (geo.size.width + 180)
@@ -220,7 +220,7 @@ struct PipFlight: SandboxPlugin {
 
         @ViewBuilder private var stage: some View {
             if let start = playing, !host.simpler {
-                TimelineView(.animation) { tl in
+                TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: host.simpler)) { tl in
                     let s = tl.date.timeIntervalSince(start)
                     if let pos = PipFlight.position(after: s) {
                         Figure(pose: PipFlight.pose(at: pos), face: face)
