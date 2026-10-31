@@ -28,14 +28,14 @@
 <body>
 <header>
   <h1>🫧 Pip Shape Studio</h1>
-  <p>Pip as one solid blob, built like your pigeon: circles joined by straight lines. Silhouette first. Drag to shape it; the styling comes later.</p>
+  <p>Pip as a solid teardrop, built like your pigeon: circles joined by straight lines. Silhouette first. Drag to shape it; the styling comes later.</p>
 </header>
 <main>
   <div><div id="stageWrap"><canvas id="stage" width="1000" height="1000"></canvas></div></div>
   <aside>
     <div class="card"><h3>Edit</h3>
       <div class="seg" id="who"><button data-w="pip" class="on">💧 Pip</button><button data-w="pigeon">🐦 Your pigeon</button></div>
-      <div class="seg" style="margin-top:8px"><button id="dropBtn">💧 Start Pip from the Drop</button><button id="earsBtn">🍃 Start Pip with leaf ears</button></div>
+      <div class="seg" style="margin-top:8px"><button id="dropBtn">💧 Teardrop (default)</button><button id="earsBtn">🍃 Start Pip with leaf ears</button></div>
       <p class="note">Drag a dot to move a circle, the orange dot to resize it. Fewer circles is better.</p>
     </div>
     <div class="card"><h3>Pip ⇄ pigeon</h3>
@@ -69,7 +69,7 @@
 // Pip: head + body + a tail point (the drop), and two ears, each a root circle and a tip. Pigeon: Aaron's wedge.
 // No glass, no colour, no wings yet. Those come after the shape is agreed.
 
-const KEY = 'pipStudio.shapes3';
+const KEY = 'pipStudio.shapes5';
 const PIP = () => ({
   head: [62, 48, 21], body: [42, 63, 22], tail: [12, 72, 6],
   upRoot: [63, 33, 5], upMid: [67, 20, 6.5], upTip: [70, 5, 2.5],
@@ -78,9 +78,9 @@ const PIP = () => ({
 });
 // The Drop look (Pip Looks): one round body and a point. Here the point is up, like an ear. Ears tucked away.
 const DROP = () => ({
-  head: [51, 52, 24], body: [50, 64, 26], tail: [56, 6, 3],
+  head: [50, 64, 28], body: [50, 64, 28], tail: [54, 4, 3],   // two circles: the round body and the point
   upRoot: [51, 52, 0], upMid: [51, 52, 0], upTip: [51, 52, 0], backRoot: [51, 52, 0], backMid: [51, 52, 0], backTip: [51, 52, 0],
-  beak: [51, 52, 0], leg: null, eyes: [[42, 62], [58, 62]],
+  beak: [51, 52, 0], leg: null, eyes: [[42, 63], [58, 63]],
 });
 const PIGEON = () => ({
   head: [64, 30, 10], body: [63, 76, 13], tail: [8, 86, 3],
@@ -90,7 +90,7 @@ const PIGEON = () => ({
 const GROUPS = [['head', 'body', 'tail'], ['upRoot', 'upMid', 'upTip'], ['backRoot', 'backMid', 'backTip'], ['head', 'beak']];
 const EDITABLE = { pip: ['head', 'body', 'tail', 'upRoot', 'upMid', 'upTip', 'backRoot', 'backMid', 'backTip'], pigeon: ['head', 'body', 'tail', 'beak'] };
 
-let shapes = { pip: PIP(), pigeon: PIGEON() };
+let shapes = { pip: DROP(), pigeon: PIGEON() };   // Aaron, 31 Oct: "teardrop"
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.pip && s.pigeon) shapes = s; } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(shapes)); } catch (e) {} };
 let who = 'pip', view = 'sil', t = 0, undo = [], playing = null;
@@ -265,7 +265,7 @@ document.getElementById('playBtn').onclick = () => {
 document.getElementById('dropBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes.pip = DROP(); save(); t = 0; tEl.value = 0; render(); };
 document.getElementById('earsBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes.pip = PIP(); save(); t = 0; tEl.value = 0; render(); };
 document.getElementById('undoBtn').onclick = () => { if (undo.length) { shapes = JSON.parse(undo.pop()); save(); render(); } };
-document.getElementById('resetBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes[who] = who === 'pip' ? PIP() : PIGEON(); save(); render(); };
+document.getElementById('resetBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes[who] = who === 'pip' ? DROP() : PIGEON(); save(); render(); };
 document.getElementById('copyBtn').onclick = async () => {
   const text = 'FOR JULES · Pip Shape Studio (Aaron\'s shapes)\n' + JSON.stringify(shapes);
   try { await navigator.clipboard.writeText(text); document.getElementById('copied').textContent = 'Copied. Paste it to Jules.'; }
