@@ -10,9 +10,30 @@ About a minute later the numbers are in the app's `Documents/Diagnostics/stress-
 `-holdMenu dashboard` just opens a menu and leaves it, for `sample <pid> 5` or Instruments. `-plugsOff '(liquid)'` starts
 with plugins switched off. Simulator numbers run on the Mac's chip: compare before with after, not with the iPad.
 
+`-checkKL k|l|clue` walks job sheets K and L (Dashboard as Panels, Stable & Sandbox) and writes `kl-<phase>.txt`.
 `-checkIdeas YES` walks Pip, design partner the way Aaron would (see the ticket below) and writes `ideas-check.txt` there too.
 
 ---
+
+## 31 Oct · core · Robyn · a "stopped last time" flag that lasts the session
+
+- **Why:** Stable & Sandbox's crash clue (job L step 4) can't be seen. After a stop the host pauses everything, the bar is only the
+  "Plugins paused after a stop. Turn on" pill, and Turn on → `setPaused(false)` → `safeMode = false`. So by the time any card
+  can open, nobody can tell the app stopped. Measured (`-checkKL clue` after `kill -9`): suspect "helper" while paused, "none" after Turn on.
+- **Ask:** `private(set) var stoppedLastTime = false` on `PipHost`, set alongside `safeMode` in `init`, never cleared by `setPaused`.
+  One line plus one in `init`, generic (any plugin can use it). Jules then reads it instead of `safeMode`.
+- **Parked:** Stable & Sandbox (also for the bug below).
+
+## 31 Oct · plugin · stable · Jules · Stable & Sandbox: Everything forgets the full set · parked
+
+- **How:** Everything (41 on) → Stable (15) → Bring back ×3 → Stable → Everything = **17 on**. `bringBack` sets mode `.custom`,
+  and `goStable` saves `onNow` as `fullSet` whenever the mode isn't `.stable`. Details and a fix idea in AGENT-NOTES (pip-plugins).
+- **Parked:** `StableSwitch()` in `Plugins.swift` on `pip-plugins` (10861ac).
+
+## 31 Oct · K · Dashboard as Panels: green, but slow to open while Pip's about
+
+- `-checkKL k`: worst frame on open 216–769 ms with Pip on; with Pip off and Reduce Motion 99–733 ms but late frames drop from ~9
+  to ~2 per step. Pip's bob still redraws the layer under the full screen: the `PerFrame` ticket below. Not sampled.
 
 ## 31 Oct · plugin · ideainbox · Jules · Pip, design partner: checked, works, nothing parked
 
