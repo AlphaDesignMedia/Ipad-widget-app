@@ -5,8 +5,9 @@ import UIKit
 // Glass Clock, because that's how it all started", and it shouldn't slow the app down.
 // 1. The widget: the dashboard as one Glass Clock glass tile, in the app's own glass (`appGlass`). Where we are,
 //    the next step, and how many things need you. Built from the packed dashboard.json once; no timers, nothing
-//    animates, so it costs nothing while it sits there. Until the core can put a plugin's widget on the canvas
-//    (asked of Greg in AGENT-NOTES), it shows at the top of the Dashboard card.
+//    animates, so it costs nothing while it sits there. It sits on the canvas (drag it anywhere, and its spot is
+//    kept; tap it to open the dashboard), and also at the top of the Dashboard card. "On the canvas" in the card
+//    switches the canvas one off.
 // 2. Answering: each "Needs you" question gets three big buttons. Your answers stay on the iPad, and "Copy for
 //    the dashboard" makes a FOR DASHBOARD paste to send on. Nothing leaves the app on its own.
 // Pip: at most one short line, and only when you answer everything. Works the same with Pip off.
@@ -139,12 +140,16 @@ extension Dashboard {
         /// Bumped on every tap, so the counts and buttons redraw (answers live in storage).
         @State private var taps = 0
         @State private var copied = false
+        @AppStorage("plug.dashboard.tileShown") private var onCanvas = true
 
         var body: some View {
             let asks = data.needsYou ?? []
             let _ = taps
             let waiting = asks.filter { Dashboard.answer($0.q, host) == nil }.count
             VStack(alignment: .leading, spacing: Corner.inset) {
+                Toggle("On the canvas", isOn: $onCanvas)
+                    .font(.system(size: 13.5))
+                    .accessibilityHint("Shows this tile on the canvas, where you can drag it anywhere.")
                 GlassTile(data: data, waiting: waiting)
                     .frame(maxWidth: .infinity)
                 if !asks.isEmpty {
@@ -194,4 +199,42 @@ extension Dashboard {
             .padding(.vertical, 4)
         }
     }
+
+    /// The tile on the canvas: drag to place it (the spot is kept), tap to open the dashboard. Only the tile takes
+    /// touches; there's no full-screen layer, and nothing redraws until you move it or the board changes.
+    struct CanvasTile: View {
+        let host: PipHost
+        @AppStorage("plug.dashboard.tileShown") private var shown = true
+        @AppStorage("plug.dashboard.tileX") private var x = 40.0
+        @AppStorage("plug.dashboard.tileY") private var y = 120.0
+        @GestureState private var drag = CGSize.zero
+
+        var body: some View {
+            if shown {
+                let data = Dashboard.feed.data
+                let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
+                GeometryReader { geo in
+                    GlassTile(data: data, waiting: waiting)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(width: Dashboard.widgetWidth)
+                        .offset(x: clampX(x + drag.width, geo.size.width), y: clampY(y + drag.height, geo.size.height))
+                        .gesture(
+                            DragGesture(minimumDistance: 8)
+                                .updating($drag) { v, state, _ in state = v.translation }
+                                .onEnded { v in
+                                    x = clampX(x + v.translation.width, geo.size.width)
+                                    y = clampY(y + v.translation.height, geo.size.height)
+                                }
+                        )
+                        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { host.openCard = "dashboard" } }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("Opens the dashboard. Drag to move it.")
+                }
+            }
+        }
+
+        private func clampX(_ v: Double, _ w: CGFloat) -> Double { min(max(v, 8), max(8, Double(w) - Double(Dashboard.widgetWidth) - 8)) }
+        private func clampY(_ v: Double, _ h: CGFloat) -> Double { min(max(v, 8), max(8, Double(h) - 180)) }
+    }
+
 }

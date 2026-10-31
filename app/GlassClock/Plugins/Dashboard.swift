@@ -100,6 +100,9 @@ struct Dashboard: SandboxPlugin {
 
     // MARK: Views
 
+    /// The Glass Clock-style tile on the canvas (DashboardWidget.swift).
+    func overlay(_ host: PipHost) -> some View { CanvasTile(host: host) }
+
     func card(_ host: PipHost) -> some View {
         // The Glass Clock-style widget and the answerable questions first (DashboardWidget.swift), then the rest.
         VStack(spacing: Corner.inset) {
