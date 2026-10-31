@@ -70,7 +70,7 @@
     <div class="card side">
       <h3>How it works</h3>
       <p>Both shapes share the same 14 numbered dots. In the vector morph, dot 1 slides to dot 1, and so on. The dashed line is the other shape.</p>
-      <p>👆 <b>Drag</b> a dot to reshape. <b>Double-tap</b> a dot to switch it between smooth and a sharp corner (◆), for the tip and the beak. Rings are the eyes: drag them, or double-tap one to hide it (side-on pigeons show one eye).</p>
+      <p>👆 <b>Drag</b> a dot to reshape. <b>Double-tap</b> a dot to switch it between smooth and a sharp corner (◆), for the tip and the beak. Rings are the eyes: drag them, or double-tap one to hide it (side-on pigeons show one eye). The two squares are the leg's hip and foot: drag them, or double-tap to tuck the leg away.</p>
       <h3>Tiny sizes</h3>
       <div class="tiny" id="tiny"></div>
       <h3>Look</h3>
@@ -96,26 +96,30 @@
 // ── Data: two shapes, 12 dots each. [x, y, sharp 0..1] in a 100×100 box. Eyes: [x, y, shown 0..1].
 const N = 14;
 function teardrop() {
-  const pts = [[58, 8, 1]];
-  const cx = 50, cy = 60, r = 28, a0 = -23, a1 = 221;   // where the two sides from the tip touch the circle   // the arc meets the point's two straight-ish sides
-  for (let i = 0; i < N - 1; i++) {
-    const a = (a0 + (a1 - a0) * i / (N - 2)) * Math.PI / 180;
-    pts.push([+(cx + r * Math.cos(a)).toFixed(1), +(cy + r * Math.sin(a)).toFixed(1), 0]);
+  // a true drop curve: the sides bulge all the way up to a soft point (no straight sides, no shoulders).
+  // x = sin t · sin(t/2)^m, y = (1 − cos t)/2. Lower m = blobbier. The point leans a touch to the right.
+  const m = .75, W = 41, top = 4, H = 88, lean = 6, pts = [];
+  for (let i = 0; i < N; i++) {
+    const t = 2 * Math.PI * i / N;
+    const x = 50 + W * Math.sin(t) * Math.pow(Math.sin(t / 2), m) + lean * (1 + Math.cos(t)) / 2;
+    const y = top + H * (1 - Math.cos(t)) / 2;
+    pts.push([+x.toFixed(1), +y.toFixed(1), i === 0 ? .45 : 0]);
   }
-  return { pts, eyes: [[42, 60, 1], [58, 60, 1]], eyeR: 4.2 };
+  return { pts, eyes: [[42, 64, 1], [58, 64, 1]], eyeR: 4.4, leg: [50, 91, 50, 91] };   // no leg: hip = foot
 }
 function pigeon() {
   // chunky and round: a big belly, a small head, a short beak and a stubby tail
   // pigeon, not duck: chest juts forward, small head, beak tips down, back slopes away, tail points DOWN
-  return { pts: [[87, 35, 1], [79, 37, 0], [75, 43, 0], [85, 58, 0], [83, 74, 0], [67, 86, 0], [45, 89, 0],
-                 [27, 81, 0], [4, 79, 1], [15, 70, 0], [33, 56, 0], [49, 41, 0], [59, 26, 0], [72, 21, 0]],
-           eyes: [[72, 29, 1], [72, 29, 0]], eyeR: 3.6 };
+  // rounder: a plump back, a soft tail end, no long straight edges (only the beak stays sharp)
+  return { pts: [[88, 35, 1], [79, 38, 0], [75, 44, 0], [86, 58, 0], [84, 75, 0], [67, 87, 0], [44, 89, 0],
+                 [24, 82, 0], [6, 76, .4], [12, 66, 0], [28, 52, 0], [44, 38, 0], [57, 24, 0], [72, 19, 0]],
+           eyes: [[72, 29, 1], [72, 29, 0]], eyeR: 3.6, leg: [56, 84, 54, 97] };   // leg: hip x,y then foot x,y
 }
 const START = { a: teardrop(), b: pigeon() };
 const clone = o => JSON.parse(JSON.stringify(o));
 let shapes = clone(START);
-try { const s = JSON.parse(localStorage.getItem('pipMorph.v2')); if (s && s.a && s.b && s.a.pts.length === N) shapes = s; } catch (e) {}
-const save = () => { try { localStorage.setItem('pipMorph.v2', JSON.stringify(shapes)); } catch (e) {} };
+try { const s = JSON.parse(localStorage.getItem('pipMorph.v5')); if (s && s.a && s.b && s.a.pts.length === N && s.a.leg) shapes = s; } catch (e) {}
+const save = () => { try { localStorage.setItem('pipMorph.v5', JSON.stringify(shapes)); } catch (e) {} };
 let version = 0;   // bumps on every edit, so the pixel masks are rebuilt only then
 
 // ── Geometry
@@ -124,7 +128,7 @@ const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 function mix(A, B, k) {
   return { pts: A.pts.map((p, i) => [lerp(p[0], B.pts[i][0], k), lerp(p[1], B.pts[i][1], k), lerp(p[2], B.pts[i][2], k)]),
            eyes: A.eyes.map((e, i) => [lerp(e[0], B.eyes[i][0], k), lerp(e[1], B.eyes[i][1], k), lerp(e[2], B.eyes[i][2], k)]),
-           eyeR: lerp(A.eyeR, B.eyeR, k) };
+           eyeR: lerp(A.eyeR, B.eyeR, k), leg: A.leg.map((v, i) => lerp(v, B.leg[i], k)) };
 }
 /** A closed smooth curve through the dots (Catmull-Rom as Béziers). A sharp dot pulls its handles in to a corner. */
 function outline(S, map) {
@@ -142,12 +146,27 @@ function outline(S, map) {
   return path;
 }
 
+/** The leg: a rounded stroke from hip to foot, with short toes pointing forward. Grows from nothing on Pip. */
+function legPath(S, map) {
+  const [hx, hy, fx, fy] = S.leg, len = Math.hypot(fx - hx, fy - hy);
+  if (len < .6) return null;
+  const p = new Path2D(), a = map(hx, hy), b = map(fx, fy), toe = Math.min(6, len * .55);
+  p.moveTo(a[0], a[1]); p.lineTo(b[0], b[1]);
+  const t1 = map(fx + toe, fy), t2 = map(fx + toe * .75, fy - toe * .45), t3 = map(fx - toe * .5, fy);
+  p.moveTo(b[0], b[1]); p.lineTo(t1[0], t1[1]); p.moveTo(b[0], b[1]); p.lineTo(t2[0], t2[1]);
+  p.moveTo(b[0], b[1]); p.lineTo(t3[0], t3[1]);
+  return p;
+}
+
 // ── Look
 const ui = id => document.getElementById(id);
 const look = () => document.body.classList.contains('sil') ? { fill: 'sil', hue: 0, glow: 0 }
   : { fill: ui('fill').value, hue: +ui('hue').value, glow: +ui('glow').value };
 function paint(ctx, S, map, scale, L, opts = {}) {
   const path = outline(S, map), body = `hsl(${L.hue} 70% 74%)`, deep = `hsl(${L.hue} 45% 52%)`;
+  const leg = legPath(S, map);
+  if (leg) { ctx.save(); ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1.2, 3.2 * scale);
+    ctx.strokeStyle = L.fill === 'sil' ? '#111' : `hsl(${L.hue} 40% 58%)`; ctx.stroke(leg); ctx.restore(); }
   ctx.save();
   if (L.glow > 0) { ctx.shadowColor = `hsl(${L.hue} 90% 70% / ${L.glow})`; ctx.shadowBlur = 22 * scale * L.glow; }
   if (L.fill === 'line') {
@@ -198,7 +217,8 @@ function masks(G) {
     if (eyes) { cx.fillStyle = '#000';
       for (const [x, y, a] of S.eyes) { if (a < .5) continue; cx.beginPath();
         cx.ellipse(x * s, y * s, Math.max(.5, S.eyeR * .72 * s), Math.max(.6, S.eyeR * 1.15 * s), 0, 0, Math.PI * 2); cx.fill(); } }
-    else { cx.fillStyle = '#000'; cx.fill(outline(S, map)); }
+    else { cx.fillStyle = '#000'; cx.fill(outline(S, map));
+      const leg = legPath(S, map); if (leg) { cx.strokeStyle = '#000'; cx.lineCap = 'round'; cx.lineWidth = Math.max(1, 3.2 * s); cx.stroke(leg); } }
     const d = cx.getImageData(0, 0, G, G).data, m = new Uint8Array(G * G);
     for (let i = 0; i < G * G; i++) m[i] = d[i * 4 + 3] > 110 ? 1 : 0;
     if (eyes) for (const [x, y, a] of S.eyes) if (a >= .5) {   // an eye is always at least one pixel
@@ -264,7 +284,8 @@ function hslToRgb(h, s, l) {
 function vectorShape(t) {
   const k = ease(t), S = mix(shapes.a, shapes.b, k), q = +ui('squash').value * Math.sin(Math.PI * t);
   if (q) { const cy = 85; S.pts = S.pts.map(([x, y, s]) => [50 + (x - 50) * (1 + q), cy + (y - cy) * (1 - q), s]);
-           S.eyes = S.eyes.map(([x, y, a]) => [50 + (x - 50) * (1 + q), cy + (y - cy) * (1 - q), a]); }
+           S.eyes = S.eyes.map(([x, y, a]) => [50 + (x - 50) * (1 + q), cy + (y - cy) * (1 - q), a]);
+           S.leg = [S.leg[0], S.leg[1], S.leg[2], S.leg[3]].map((v, i) => i % 2 ? cy + (v - cy) * (1 - q) : 50 + (v - 50) * (1 + q)); }
   return S;
 }
 
@@ -292,6 +313,7 @@ const ed = ui('ed');
 function handles() {
   const S = shapes[editing], list = S.pts.map((p, i) => ({ kind: 'pt', i, x: p[0], y: p[1] }));
   S.eyes.forEach((e, i) => list.push({ kind: 'eye', i, x: e[0], y: e[1] }));
+  list.push({ kind: 'hip', i: 0, x: S.leg[0], y: S.leg[1] }, { kind: 'foot', i: 0, x: S.leg[2], y: S.leg[3] });
   return list;
 }
 function drawEditor() {
@@ -326,6 +348,12 @@ function drawEditor() {
     ctx.beginPath(); ctx.ellipse(x, y, S.eyeR * .72 * B.s, S.eyeR * 1.15 * B.s, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.setLineDash([]);
   });
+  // leg handles: small squares
+  [[S.leg[0], S.leg[1]], [S.leg[2], S.leg[3]]].forEach(([lx, ly], i) => {
+    const [x, y] = B.map(lx, ly), r = 8 * d;
+    ctx.fillStyle = i ? '#ffd27a' : '#c9a35a'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * d;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.strokeRect(x - r, y - r, r * 2, r * 2);
+  });
 }
 function pick(ev) {
   const r = ed.getBoundingClientRect(), d = window.devicePixelRatio || 1;
@@ -342,7 +370,8 @@ ed.addEventListener('pointerdown', ev => {
   if (lastTap.id === id && now - lastTap.at < 320) {           // double-tap
     const S = shapes[editing];
     if (best.kind === 'pt') S.pts[best.i][2] = S.pts[best.i][2] > .5 ? 0 : 1;
-    else S.eyes[best.i][2] = S.eyes[best.i][2] > .5 ? 0 : 1;
+    else if (best.kind === 'eye') S.eyes[best.i][2] = S.eyes[best.i][2] > .5 ? 0 : 1;
+    else S.leg = [S.leg[0], S.leg[1], S.leg[0], S.leg[1]];   // double-tap the leg: tuck it away
     lastTap = { id: null, at: 0 }; changed(); return;
   }
   lastTap = { id, at: now }; drag = best;
@@ -352,7 +381,8 @@ ed.addEventListener('pointermove', ev => {
   const { at } = pick(ev), x = Math.max(0, Math.min(100, at[0])), y = Math.max(0, Math.min(100, at[1]));
   const S = shapes[editing];
   if (drag.kind === 'pt') { S.pts[drag.i][0] = +x.toFixed(1); S.pts[drag.i][1] = +y.toFixed(1); }
-  else { S.eyes[drag.i][0] = +x.toFixed(1); S.eyes[drag.i][1] = +y.toFixed(1); }
+  else if (drag.kind === 'eye') { S.eyes[drag.i][0] = +x.toFixed(1); S.eyes[drag.i][1] = +y.toFixed(1); }
+  else { const o = drag.kind === 'hip' ? 0 : 2; S.leg[o] = +x.toFixed(1); S.leg[o + 1] = +y.toFixed(1); }
   changed();
 });
 const endDrag = () => { drag = null; };
@@ -371,7 +401,7 @@ ui('sil').onclick = () => {
 ui('copy').onclick = () => {
   const r = a => a.map(v => v.map(n => +(+n).toFixed(1)));
   const txt = 'FOR JULES · Pip → pigeon shapes (from the Morph Workshop)\n' + JSON.stringify({
-    pip: { dots: r(shapes.a.pts), eyes: r(shapes.a.eyes) }, pigeon: { dots: r(shapes.b.pts), eyes: r(shapes.b.eyes) },
+    pip: { dots: r(shapes.a.pts), eyes: r(shapes.a.eyes) }, pigeon: { dots: r(shapes.b.pts), eyes: r(shapes.b.eyes), leg: shapes.b.leg }, pipLeg: shapes.a.leg,
     look: look(), pixel: { grid: +ui('grid').value, order: ui('order').value, smooth: ui('smooth').checked }, squash: +ui('squash').value });
   (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Copied. Paste it to Jules.'), () => { prompt('Copy this:', txt); });
 };
