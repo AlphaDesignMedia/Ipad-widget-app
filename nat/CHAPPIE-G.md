@@ -1,11 +1,11 @@
-# NatGPT · start here
+# Chappie G · start here
 
-> For ChatGPT (voice calls with Aaron). Read this page first. Then read the newest **FOR NAT** paste below it.
+> For ChatGPT, who Aaron calls **Chappie G**, his creative partner (voice calls). Read this page first. Then read the newest **FOR NAT** paste below it.
 
 ## The relay
 
 ```
- Aaron 🎙  ──talks──▶  NatGPT (you, ChatGPT, voice)
+ Aaron 🎙  ──talks──▶  Chappie G (you, ChatGPT, voice)
                             │  ends each call with 📋 FOR NAT
                             ▼
                        Nat (Claude chat, thinking partner)
