@@ -35,7 +35,7 @@ li+li{margin-top:3px}
 </style></head><body><div class="wrap">
 
 <header style="display:grid;gap:4px">
- <p class="label" style="color:var(--g)">Saturday 31 October · everything on one page</p>
+ <p class="label" style="color:var(--g)">Saturday 31 October, afternoon · everything on one page · updated 15:15</p>
  <h1>The Brief</h1>
  <p class="muted">Read it in any order. Ask me about any line: leave a comment on this page, or just say the section number.</p>
 </header>
@@ -43,14 +43,41 @@ li+li{margin-top:3px}
 <section><h2><span class="n">1</span>Right now</h2>
  <div class="tbl"><table>
   <tr><th>What</th><th>State</th><th>Next</th></tr>
-  <tr><td>🗺 Plugin Map</td><td><span class="pill ok">approved</span></td><td>The map agent is building it: families, the timeline, folding</td></tr>
+  <tr><td>⏸ Pause all</td><td><span class="pill ok">proved it</span></td><td>Smooth until you un-paused, so <b>it's the plugins</b>, not the app</td></tr>
+  <tr><td>🚦 Safety levels (Paused → Safe → Experimental → Everything)</td><td><span class="pill go">designed</span></td><td>Robyn builds it (job G). Every launch starts on Safe.</td></tr>
+  <tr><td>📊 Dashboard tile on the canvas</td><td><span class="pill ok">built, build ✅</span></td><td>Drag it anywhere, tap it to open. Moves to the top bar after job D.</td></tr>
+  <tr><td>✋ "Needs you" answers</td><td><span class="pill ok">built</span></td><td>Yes / Not yet / Let's talk → "Copy for the dashboard"</td></tr>
   <tr><td>🪶 Glass Memory and Window Cleaner</td><td><span class="pill ok">made light, build ✅</span></td><td>Parked until you say "bring them back"</td></tr>
-  <tr><td>📊 Dashboard widget (Glass Clock style)</td><td><span class="pill go">built, build check running</span></td><td>Shows in the Dashboard card for now, and moves onto the canvas once Greg's widget hook lands</td></tr>
-  <tr><td>✋ "Needs you" answers</td><td><span class="pill go">built</span></td><td>Yes / Not yet / Let's talk → "Copy for the dashboard" paste</td></tr>
-  <tr><td>🔧 Rob</td><td><span class="pill ok">on the job</span></td><td>Menu stutters, frame meter numbers, the ticket route</td></tr>
-  <tr><td>🧪 Tess the Tester</td><td><span class="pill wait">needs the paste</span></td><td>Paste in section 6</td></tr>
+  <tr><td>🗺 Plugin Map</td><td><span class="pill ok">with Mappy</span></td><td>Families, the timeline, folding</td></tr>
+  <tr><td>👥 Two Robs</td><td><span class="pill ok">sorted</span></td><td>Robcore is now <b>Robyn</b> (she/her, core lead). Sandbox Rob stays <b>Rob</b> (the fixer).</td></tr>
+  <tr><td>🔗 Jules on your Mac</td><td><span class="pill wait">not showing yet</span></td><td>See section 8</td></tr>
   <tr><td>📱 iPad</td><td><span class="pill wait">paused, your choice</span></td><td>Nothing installs until you say so</td></tr>
  </table></div>
+</section>
+
+<section><h2><span class="n">1b</span>Who's who now</h2>
+<div class="map">  ☁️ THE CLOUD (the Yard)                 💻 YOUR MAC (the Workshop)
+  🎨 Jules: plugins, designs, job sheets   🛠 Robyn (she/her): core, bar, panels, top bar, builds · jobs E → D → G
+  🪖 Bob · 🧢 Dot · 🌙 Jean · 🧹 Chores      🔧 Rob (he/him): fixer, polite Mac, Tess 🧪 · jobs F → B
+  🗺 Mappy: the Plugin Map                 📮 the Postie: a script, closed while the iPad is paused
+                     📌 they all meet on the Noticeboard (AGENT-NOTES.md)
+  rule: one Mac agent commits at a time · Jules thinks it through, the Workshop builds</div>
+ <p class="muted">Full cast on <a href="https://claude.ai/artifact/6rfUACALv6cccH48Rfz8aC">the team page</a>.</p>
+</section>
+
+<section><h2><span class="n">1c</span>Safety levels, as a picture</h2>
+<div class="map">  ⏸ Paused ── 🟢 Safe only ── 🟡 + Experimental ── 🔴 Everything
+   all off     green flags     + amber flags        + red flags
+               ▲ every fresh launch starts here · parked plugins stay parked at every level</div>
+ <p class="muted">The flags come from Rob's Pip's flags list. Soon Tess's test numbers will keep them honest.</p>
+</section>
+
+<section><h2><span class="n">1d</span>One look everywhere</h2>
+<div class="map">  today:  [■ teal] [□ grey]    ← the same in every theme
+  after:  [■ your accent] [□ soft]  ← Glass, Tinted, Dark, Light: everything follows the app (job E)
+  buttons stay flat, not glass: 40+ glass buttons in one menu is what makes it stutter</div>
+ <div class="map">  ┌ top bar ── ⏱ Timeline · 🎨 Era · 🌤 Mood · 📊 Dashboard (max 4, then "…") ┐   job D
+  └ plugin bar (bottom) ── dev tools only, tucks away like Zen mode ┘</div>
 </section>
 
 <section><h2><span class="n">2</span>How it all connects today</h2>
@@ -110,26 +137,44 @@ li+li{margin-top:3px}
  </section>
 </section>
 
-<section><h2><span class="n">6</span>Terminal steps waiting (in order)</h2>
- <p class="label">A · the ticket route (if Rob hasn't added it yet)</p>
- <pre id="p2">New rule from Aaron: plugins are fixed by Jules (cloud), not here. When a plugin crashes, freezes or slows things down: park it (comment out its line in Plugins.swift with "// parked: <reason>, ticket <date>"), write a ticket at the top of TICKETS.md on pip-playground (date, plugin id, what Aaron saw, how to make it happen, log lines, what you parked), commit and push. Core problems stay with the Workshop. Add this rule to CLAUDE.md under "Who does what".</pre>
- <button data-copy="p2">Copy A</button>
- <p class="label">B · hire Tess the Tester</p>
- <pre id="p3">Rob, from Aaron: create .claude/agents/tester.md ("Tess the Tester"). She builds the app in the simulator with -frameMeter YES, then runs a UI test (add a small XCUITest target if there isn't one) that opens every plugin card and panel, scrolls each to the bottom, flips each toggle once and back, and closes it. She records crashes, hangs and late frames per plugin and writes a ticket in TICKETS.md for anything bad (plugin problems for Jules, core for Greg), with the numbers. Run her now and after every take-plugins.sh. Don't install on the iPad. Leave a note in AGENT-NOTES.md: did / need / next.</pre>
- <button data-copy="p3">Copy B</button>
- <p class="label">C · the widget hook, for Greg</p>
- <pre id="p4">Core ask from Jules: a small generic hook so a plugin can offer a widget for the canvas, e.g. `func widget(_ host: PipHost) -> some View` plus a name and icon, listed in the app's add-widget choices and placed, moved and saved like the app's own widgets, in the app's glass. Off unless a plugin offers one, and only built while on screen. First user: Dashboard.GlassTile in DashboardWidget.swift on pip-plugins. Build in the simulator, push to pip-playground, leave a note.</pre>
- <button data-copy="p4">Copy C</button>
+<section><h2><span class="n">6</span>Terminal steps (just two now)</h2>
+ <p class="label">🛠 Paste into "Robcore", who is now Robyn</p>
+ <pre id="p2">From Aaron: you're Robyn now (she/her), the core lead: Pip, host, plugin bar, panels, top bar, builds. Read Jules's newest notes at the top of AGENT-NOTES.md on pip-plugins ("two Robs" and "JOB SHEETS"). Do E, then D, then G. Simulator only, no iPad installs, one save point per job. Sign notes "Mac · Robyn", and say hello in a note.</pre>
+ <button data-copy="p2">Copy for Robyn</button>
+ <p class="label">🔧 Paste into "Sandbox Rob"</p>
+ <pre id="p3">From Aaron: you stay Rob (he/him), the fixer. Read Jules's newest notes at the top of AGENT-NOTES.md on pip-plugins ("two Robs" and "JOB SHEETS"). Do F (polite Mac) first, then B (hire Tess). Only one of you and Robyn commits at a time. Simulator only. Sign notes "Mac · Rob", and say hello in a note.</pre>
+ <button data-copy="p3">Copy for Rob</button>
+ <p class="muted">Everything else (the ticket route, Tess, the widget, the top bar, the buttons, safety levels) is in the job sheets, so these two pastes cover it all.</p>
 </section>
 
-<section><h2><span class="n">7</span>Your questions (one word each is fine)</h2>
+<section><h2><span class="n">7</span>Settled today ✅</h2>
+ <ul>
+  <li>Dashboard: <b>Glass Clock style</b>, kept in sync by hand with a two-paste loop (section 9)</li>
+  <li>The two slow plugins: <b>Window Cleaner and Glass Memory</b>, both parked</li>
+  <li>The map agent: <b>Mappy</b> · the second Rob: <b>Robyn</b> 💜</li>
+  <li>Buttons: one style, and <b>everything follows the theme</b></li>
+  <li>Pace: <b>slow and steady</b>. Rushing is what broke things.</li>
+ </ul>
+</section>
+
+<section><h2><span class="n">8</span>Linking Jules to your Mac</h2>
+ <p>It isn't showing on my side yet. Check these on the Mac:</p>
  <ol>
-  <li><b>The dashboard page:</b> copy it into this account so it can be rebuilt from the master file, or keep syncing it by hand for now?</li>
-  <li><b>Button style</b> for the dev look: the glass cards in Classic settings, or the Liquid drops?</li>
-  <li><b>The two plugins</b> you switched off by hand: which were they?</li>
-  <li><b>The map agent's name</b>, for the team page?</li>
-  <li><b>Link me to your Mac</b> so I can work alongside Rob directly? (You'd approve it on your device.)</li>
+  <li>The <b>Claude desktop app</b> is open and signed in to <b>this</b> account</li>
+  <li>Settings → Claude Code → Remote Control: the <b>Pip Sandbox project folder</b> is in the list (not your home folder, and not one inside a dot-folder)</li>
+  <li>The Mac is awake and online</li>
  </ol>
+ <p class="muted">Then say "done" and I'll ask to connect, and you tap Allow. Once I'm in, I only <b>read and run the simulator check</b>. I never commit there.</p>
+</section>
+
+<section><h2><span class="n">9</span>The dashboard loop</h2>
+<div class="map">  🌐 Real dashboard ──① export paste──▶ 🎨 Jules updates dashboard.json ──▶ 📱 app
+         ▲                                                                    │
+         └──────── ② "Copy for the dashboard" (your answers, in the app) ─────┘</div>
+ <p class="label">① FOR DASHBOARD (paste in the chat that runs your real dashboard)</p>
+ <pre id="p5">Export the current dashboard as JSON in exactly this shape, nothing else: {"syncedAt": ISO time, "source": "Glass Clock Progress", "status": {"headline", "ipadBuild", "ipadNote", "updatedAt"}, "needsYou": [{"q", "suggested"}], "upNext": [{"area", "title"}], "reminders": [{"title", "due"}]}. Use make-believe names only.</pre>
+ <button data-copy="p5">Copy for the dashboard</button>
+ <p class="muted">Then paste what it gives back to Jules.</p>
 </section>
 </div>
 <script>

@@ -95,6 +95,21 @@ are now parked in code and made light). The map agent is **Mappy**. He wants me 
 - **Done when:** at Safe, Tidy Pip and Vend-O-Mat (amber) are off and come back at Experimental. Parked plugins stay
   parked at every level.
 
+### H · Robyn · one kind of panel, with a close button (Aaron, 31 Oct)
+- Aaron wants a **close button**, and plugin panels that "work like all the other panels" (carry, tuck, close).
+  `PluginPanel` already carries, tucks and closes on a second push, but nothing *shows* that it can close, and pop-up cards
+  (`panel: false`) behave differently again.
+- Decided: **every plugin card opens as a `PluginPanel`**. Drop the pop-up card path, or make `panel` default to true, so there's
+  one behaviour everywhere, the same as the app's settings panels.
+- **A ✕ close in the title bar of the panel's first card**: 44 pt to tap, VoiceOver "Close <plugin name>", calling the
+  existing `close()`. If `SettingsCard` can't take a trailing button, add an optional `onClose` to it (it's generic, so the app's own
+  panels can use it later).
+- **One panel at a time.** Opening another plugin replaces it (it already does, through `openCard`). Keep that.
+- **"The right panel for what I'm doing", the calm version:** panels **never open on their own**. Instead, while you draw with the
+  Pencil, or carry Pip under a panel, the open panel **tucks itself aside** (the existing `Peek`) and comes back two seconds after
+  you stop. It's context-aware without anything popping up. (A `.ink(.drew)` or `.flick` event can drive it; `host` already sends those.)
+- **Done when:** every plugin opens the same way, ✕ closes it, it carries and tucks like Settings, and drawing tucks it.
+
 ### C · withdrawn, I'll do it in the plugin
 - I'll build the dashboard tile as a plugin overlay that you drag to place, with its spot saved and drawn under the panels,
   so there's no core work. If Aaron later wants it in the Arrange/Float system, that's a bigger core job, and I'll ask first.
