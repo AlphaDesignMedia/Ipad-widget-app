@@ -19,6 +19,8 @@ struct BusyPip: SandboxPlugin {
     // MARK: Data
 
     enum Tune {
+        static let tick = 1.0            // seconds between looks while Pip could start something
+        static let restingTick = 5.0     // and while Pip is asleep, away, or already busy
         static let idle: Double = 45            // seconds without a touch before a round starts
         static let realGap: Double = 300        // a real round at most every 5 minutes
         static let pretendGap: Double = 600     // pretend rounds are rarer
@@ -94,7 +96,11 @@ struct BusyPip: SandboxPlugin {
         state.loop = Task { @MainActor in
             while !Task.isCancelled, host.isOn("busypip"), enabled(host) {
                 tick(host)
-                try? await Task.sleep(for: .seconds(1))
+                // Back off when there's nothing it could possibly do: Pip asleep, away, or already
+                // mid-round. Same trick Pip's Weight uses. A second is right when Pip is about to
+                // start something; it's wasted the rest of the time.
+                let idle = state.busy || !host.pipHere || host.pipAsleep
+                try? await Task.sleep(for: .seconds(idle ? Tune.restingTick : Tune.tick))
             }
             if state.busy { stop() }
             state.loop = nil
