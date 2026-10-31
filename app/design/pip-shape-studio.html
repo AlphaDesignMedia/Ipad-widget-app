@@ -35,7 +35,7 @@
   <aside>
     <div class="card"><h3>Edit</h3>
       <div class="seg" id="who"><button data-w="pip" class="on">💧 Pip</button><button data-w="pigeon">🐦 Your pigeon</button></div>
-      <div class="seg" style="margin-top:8px"><button id="dropBtn">💧 Start Pip from the Drop</button><button id="earsBtn">🐰 Start Pip with ears</button></div>
+      <div class="seg" style="margin-top:8px"><button id="dropBtn">💧 Start Pip from the Drop</button><button id="earsBtn">🍃 Start Pip with leaf ears</button></div>
       <p class="note">Drag a dot to move a circle, the orange dot to resize it. Fewer circles is better.</p>
     </div>
     <div class="card"><h3>Pip ⇄ pigeon</h3>
@@ -61,25 +61,26 @@
 // Pip: head + body + a tail point (the drop), and two ears, each a root circle and a tip. Pigeon: Aaron's wedge.
 // No glass, no colour, no wings yet. Those come after the shape is agreed.
 
-const KEY = 'pipStudio.shapes2';
+const KEY = 'pipStudio.shapes3';
 const PIP = () => ({
   head: [62, 48, 21], body: [42, 63, 22], tail: [12, 72, 6],
-  upRoot: [62, 32, 8], upTip: [74, 6, 3.5], backRoot: [52, 33, 8], backTip: [34, 9, 3.5],
+  upRoot: [63, 33, 5], upMid: [67, 20, 6.5], upTip: [70, 5, 2.5],
+  backRoot: [50, 36, 5], backMid: [36, 28, 6.5], backTip: [20, 24, 2.5],
   beak: [62, 48, 0], leg: null, eyes: [[57, 47], [69, 45]],
 });
 // The Drop look (Pip Looks): one round body and a point. Here the point is up, like an ear. Ears tucked away.
 const DROP = () => ({
   head: [51, 52, 24], body: [50, 64, 26], tail: [56, 6, 3],
-  upRoot: [51, 52, 0], upTip: [51, 52, 0], backRoot: [51, 52, 0], backTip: [51, 52, 0],
+  upRoot: [51, 52, 0], upMid: [51, 52, 0], upTip: [51, 52, 0], backRoot: [51, 52, 0], backMid: [51, 52, 0], backTip: [51, 52, 0],
   beak: [51, 52, 0], leg: null, eyes: [[42, 62], [58, 62]],
 });
 const PIGEON = () => ({
   head: [64, 30, 10], body: [63, 76, 13], tail: [8, 86, 3],
-  upRoot: [64, 30, 0], upTip: [64, 30, 0], backRoot: [64, 30, 0], backTip: [64, 30, 0],
+  upRoot: [64, 30, 0], upMid: [64, 30, 0], upTip: [64, 30, 0], backRoot: [64, 30, 0], backMid: [64, 30, 0], backTip: [64, 30, 0],
   beak: [86, 34, .8], leg: [58, 89, 57, 99], eyes: [[66, 27], [66, 27]],
 });
-const GROUPS = [['head', 'body', 'tail'], ['upRoot', 'upTip'], ['backRoot', 'backTip'], ['head', 'beak']];
-const EDITABLE = { pip: ['head', 'body', 'tail', 'upRoot', 'upTip', 'backRoot', 'backTip'], pigeon: ['head', 'body', 'tail', 'beak'] };
+const GROUPS = [['head', 'body', 'tail'], ['upRoot', 'upMid', 'upTip'], ['backRoot', 'backMid', 'backTip'], ['head', 'beak']];
+const EDITABLE = { pip: ['head', 'body', 'tail', 'upRoot', 'upMid', 'upTip', 'backRoot', 'backMid', 'backTip'], pigeon: ['head', 'body', 'tail', 'beak'] };
 
 let shapes = { pip: PIP(), pigeon: PIGEON() };
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.pip && s.pigeon) shapes = s; } catch (e) {}
