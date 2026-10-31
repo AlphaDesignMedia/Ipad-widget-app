@@ -2,7 +2,7 @@ import SwiftUI
 
 // GLASS MEMORY · plugin v1 (Dream). The glass remembers. Two small ideas in one plugin:
 // 1. Pip trails: when Pip is flicked or bumps an edge, they leave a very faint, soft smudge or two where they flew.
-//    The marks fade in slowly, stay on the device (capped at 24, the oldest go first) and grow a little stronger over
+//    The marks appear softly, stay on the device (capped at 24, the oldest go first) and grow a little stronger over
 //    a few days, like a ghost sketch layer. They never take a touch. Joy 0: none. Joy 1: barely there.
 //    OFF BY DEFAULT since 31 Oct: Aaron reported "dark marks on the screen" and that was these. A blurred
 //    Color.primary blob is black in Light mode, and they were building up and darkening with age. Now they're
@@ -10,7 +10,8 @@ import SwiftUI
 //    "Clean the glass" wipes them; so does Window Cleaner Pip when it finishes (it posts "glass.cleaned").
 // 2. Glass ink: how Sketch's drawings look. Normal (as ever), Soft (see-through) or Frosted glass (blurred edge, a
 //    glassy glint). Works with Pip off. Sketch reads the choice (see `Layer` in Sketch.swift); Normal changes nothing.
-// Simpler motion: marks just appear, no fade, no shimmer. Pip off: no new trails.
+// Light: all the marks are one Canvas with one blur, and nothing is drawn while there are none (31 Oct, Jules).
+// Simpler motion: marks just appear, no shimmer. Pip off: no new trails.
 // Where: the dashed-square button in the plugin bar.
 
 struct GlassMemory: SandboxPlugin {
@@ -25,7 +26,7 @@ struct GlassMemory: SandboxPlugin {
         static let maxTicks = 30                // a flight is followed for 3 seconds at most
         static let gap: CGFloat = 46            // how far Pip travels between marks
         static let perFlight = 5                // marks per flight, at most
-        static let fadeIn = 9.0                 // seconds for a new mark to appear
+        static let blur: CGFloat = 6            // one soft blur for all the marks together
         static let growDays = 5.0               // days for a mark to reach full strength
         static let newborn = 0.6                // how strong a brand-new mark is, as a share of full
         static let shortest = 26.0
@@ -125,7 +126,7 @@ struct GlassMemory: SandboxPlugin {
             }
         }
 
-        /// A mark grows from a quarter to full strength over a few days.
+        /// A mark grows from `newborn` to full strength over a few days.
         func strength(_ m: Mark) -> Double {
             let days = max(0, Date.now.timeIntervalSince1970 - m.made) / 86400
             return min(1, Tune.newborn + (1 - Tune.newborn) * days / Tune.growDays)
@@ -190,7 +191,10 @@ struct GlassMemory: SandboxPlugin {
     func overlay(_ host: PipHost) -> some View { Smudges(mem: mem, host: host) }
     func card(_ host: PipHost) -> some View { MemoryCard(mem: mem, host: host) }
 
-    /// The marks, under Pip and the bar, touching nothing.
+    /// The marks, under Pip and the bar, touching nothing. Lightened 31 Oct (Jules): one Canvas with one blur for
+    /// every mark (it was a blurred view each, so up to 24 offscreen passes on every frame of the whole app), soft
+    /// white like a smudge on glass (it was Color.primary, black in Light mode), and nothing at all when there's
+    /// nothing to show. Marks now simply appear at their strength; no fade-in to animate.
     struct Smudges: View {
         let mem: Memory
         let host: PipHost
@@ -198,37 +202,22 @@ struct GlassMemory: SandboxPlugin {
 
         var body: some View {
             let top = Tune.strength(joy: host.joy)
-            ZStack(alignment: .topLeading) {
-                if marksOn, top > 0 {
-                    ForEach(mem.marks) { m in
-                        Smudge(mark: m, opacity: top * mem.strength(m), still: host.simpler)
+            if marksOn, top > 0, !mem.marks.isEmpty {
+                let marks = mem.marks.map { ($0, top * mem.strength($0)) }
+                Canvas { ctx, _ in
+                    ctx.drawLayer { layer in
+                        layer.addFilter(.blur(radius: Tune.blur))
+                        for (m, opacity) in marks {
+                            let shape = Path(roundedRect: CGRect(x: -m.len / 2, y: -m.w / 2, width: m.len, height: m.w),
+                                             cornerRadius: m.w / 2)
+                            let place = CGAffineTransform(translationX: m.x, y: m.y).rotated(by: m.angle)
+                            layer.fill(shape.applying(place), with: .color(.white.opacity(opacity)))
+                        }
                     }
                 }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-        }
-    }
-
-    struct Smudge: View {
-        let mark: Mark
-        let opacity: Double
-        let still: Bool
-        @State private var shown = false
-
-        var body: some View {
-            Capsule()
-                .fill(Color.primary)
-                .frame(width: mark.len, height: mark.w)
-                .blur(radius: mark.w * 0.45)
-                .rotationEffect(.radians(mark.angle))
-                .position(x: mark.x, y: mark.y)
-                .opacity(shown ? opacity : 0)
-                .transition(.opacity)
-                .onAppear {
-                    if still { shown = true } else { withAnimation(.easeIn(duration: Tune.fadeIn)) { shown = true } }
-                }
         }
     }
 
@@ -249,7 +238,7 @@ struct GlassMemory: SandboxPlugin {
                     Text("Off by default. Switched on, Pip leaves very faint smudges where they fly.")
                         .font(.system(size: 12)).foregroundStyle(.tertiary)
                 }
-                Text(count == 0 ? "The glass is clean." : "\(count) faint \(count == 1 ? "mark" : "marks") on the glass. They fade in slowly and show at Joy 1 or more.")
+                Text(count == 0 ? "The glass is clean." : "\(count) faint \(count == 1 ? "mark" : "marks") on the glass. They show at Joy 1 or more.")
                     .font(.system(size: 13.5)).foregroundStyle(.secondary)
                 Button("Clean the glass") {
                     withAnimation(.easeOut(duration: 0.6)) { mem.clear() }

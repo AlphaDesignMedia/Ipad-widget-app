@@ -14,6 +14,8 @@ import UIKit.UIGestureRecognizerSubclass
 // then; the glass gets cleaned, no Pip.
 // Behind the glass is real for plugin cards and panels (the plugin bar draws over Pip). Pip can't be made smaller or
 // dimmer from a plugin yet: asked of the core.
+// Light (31 Oct, Jules): the overlay draws nothing unless something is happening, and the touch watcher steps aside
+// the moment a finger lands, so it never sits under menus or scrolling.
 // Where: the bubbles button in the plugin bar.
 
 struct GlassCleaner: SandboxPlugin {
@@ -294,7 +296,14 @@ struct GlassCleaner: SandboxPlugin {
         let wipe: Wipe
         let host: PipHost
 
+        /// Something to draw right now. Otherwise the overlay is nothing at all, not an empty full-screen layer.
+        private var showing: Bool { wipe.shining || wipe.wiping || wipe.team != nil || !wipe.puffs.isEmpty }
+
         var body: some View {
+            if showing { glass }
+        }
+
+        private var glass: some View {
             ZStack(alignment: .topLeading) {
                 if let pane = wipe.pane, wipe.shining {
                     Shine(still: wipe.still, strength: wipe.faint ? Tune.faint : Tune.bright)
@@ -547,7 +556,12 @@ final class GlassTouchWatch: UIGestureRecognizer, UIGestureRecognizerDelegate {
         delegate = self
     }
 
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) { onTouch?() }
+    /// Hears the touch, then bows out at once, so it's never part of a scroll, a drag or a menu. (31 Oct, Jules:
+    /// it used to stay listening until the finger lifted, on every touch in the app, plugin menus included.)
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        onTouch?()
+        state = .failed
+    }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { state = .failed }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { state = .failed }
 

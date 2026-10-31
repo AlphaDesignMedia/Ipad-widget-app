@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pip Plugin Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+:root{--bg:#eef1f6;--ink:#17202e;--muted:#5b6578;--card:#fff;--line:#d5dbe6;--accent:#2a7f6f;--soft:#e3f2ee;--fold:#3c5fa8;--foldbg:#e6ecf8;--park:#8a5a00;--parkbg:#fff1d9;
+ --display:"Bricolage Grotesque",ui-rounded,system-ui,sans-serif;--body:"Atkinson Hyperlegible",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#0b0f18;--ink:#e7ecf5;--muted:#98a3b8;--card:#151c2b;--line:#26304a;--accent:#5fd0b8;--soft:#123029;--fold:#8fb0f5;--foldbg:#17223d;--park:#f0b35a;--parkbg:#2c2210;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+ padding:24px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+.wrap{max-width:880px;margin:0 auto;display:grid;gap:16px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,5vw,44px);margin:0;letter-spacing:-.02em}
+h2{font-family:var(--display);font-weight:800;font-size:22px;margin:0}
+p{margin:0}.muted{color:var(--muted)}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:grid;gap:12px;min-width:0}
+/* the dial */
+.dial{display:grid;gap:14px}
+.track{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:10px}
+.track b{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stops{position:relative;display:flex;justify-content:space-between;padding:0 6px}
+.stops::before{content:"";position:absolute;left:12px;right:12px;top:11px;height:3px;background:var(--line);border-radius:3px}
+.stop{position:relative;display:grid;justify-items:center;gap:4px;font-size:13px;text-align:center;width:20%}
+.dot{width:24px;height:24px;border-radius:50%;background:var(--card);border:3px solid var(--accent)}
+.stop.on .dot{background:var(--accent)}
+.skins{display:flex;flex-wrap:wrap;gap:6px}
+.skin{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px}
+@media (max-width:560px){.track{grid-template-columns:1fr}.stop{font-size:11px}}
+/* families */
+.fam-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tag{font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;background:var(--soft);color:var(--accent);white-space:nowrap}
+.row{display:grid;grid-template-columns:1fr auto;gap:6px 14px;padding:10px 0;border-top:1px solid var(--line);align-items:center}
+.row .name{font-weight:700}.row .what{font-size:14px;color:var(--muted)}
+.row .why{font-size:14px;grid-column:1/-1}
+.pick{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.pick button{font:inherit;font-size:13px;font-weight:700;border:0;background:transparent;color:var(--muted);padding:5px 11px;cursor:pointer;min-height:32px}
+.pick button+button{border-left:1px solid var(--line)}
+.pick button[aria-pressed="true"][data-v="keep"]{background:var(--soft);color:var(--accent)}
+.pick button[aria-pressed="true"][data-v="fold"]{background:var(--foldbg);color:var(--fold)}
+.pick button[aria-pressed="true"][data-v="park"]{background:var(--parkbg);color:var(--park)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.changed .name::after{content:" · your change";font-weight:400;font-size:12px;color:var(--accent)}
+.sum{display:flex;gap:10px;flex-wrap:wrap}
+.sum span{font-weight:700;border-radius:12px;padding:8px 14px;background:var(--bg)}
+.copy{font:inherit;font-weight:700;justify-self:start;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;padding:8px 16px;cursor:pointer}
+pre{margin:0;white-space:pre-wrap;font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;display:none}
+ul{margin:0;padding-left:20px}
+</style></head><body><div class="wrap">
+
+<header><h1>Plugin map</h1>
+<p class="muted">43 plugins → 4 buttons and one timeline. Nothing gets deleted. "Fold" means it becomes a section inside another plugin, and "Park" means it's saved for later. My pick is already selected, so just tap where you disagree.</p></header>
+
+<section class="dial"><h2>The timeline, with two tracks</h2>
+ <div class="track"><b>How much Pip</b>
+  <div class="stops">
+   <div class="stop"><span class="dot"></span>Just the app</div>
+   <div class="stop on"><span class="dot"></span>Pip helps</div>
+   <div class="stop on"><span class="dot"></span>Pip's character</div>
+   <div class="stop"><span class="dot"></span>Make things</div>
+   <div class="stop"><span class="dot"></span>Play</div>
+  </div></div>
+ <div class="track"><b>Which look</b>
+  <div class="skins"><span class="skin">Glass (today)</span><span class="skin">Liquid</span><span class="skin">Biscuit tin</span><span class="skin">Drop Pip</span><span class="skin">…the old eras, later</span></div></div>
+ <p class="muted">The top track replaces Tuck away, Grounded and Dream: slide left to calm things down, and right to show off. The bottom track is your "extended skins": the whole look of the app and Pip, chosen without changing how much Pip there is.</p>
+</section>
+
+<div id="fams"></div>
+
+<section><h2>Your picks</h2>
+ <div class="sum" id="sum"></div>
+ <button class="copy" id="copy">Copy my picks for Jules</button>
+ <pre id="out"></pre>
+</section>
+
+<section><h2>Still to think about (no rush)</h2>
+ <ul>
+  <li><b>Surprises:</b> these are the plugins that act on their own, and they're the biggest source of "too much". I'd put them all under one switch, sharing Pip's Manners' talk limit, and only from the Play stop.</li>
+  <li><b>Pencil Wonders</b> was going to fold into Native Wonders. By family it fits better in Draw, so I've moved it there.</li>
+  <li><b>Skins:</b> should a skin change only the look (my pick), or also how Pip behaves?</li>
+ </ul>
+</section>
+</div>
+
+<script>
+const K="keep",F="fold",P="park";
+const fams=[
+ {name:"Basics",tag:"always there, no button",note:"Not Pip and not a toy. These just make the app nicer.",rows:[
+  ["Keyboard Kit","Hide-keyboard chip and shortcuts",K,"Useful with Pip off too."],
+ ]},
+ {name:"💬 Pip",tag:"stops: Pip helps → Pip's character",note:"One Pip button, with one dial for how chatty Pip is.",rows:[
+  ["Pip's Manners","Stops Pip chatting too much",K,"This becomes the home of the Pip dial: Joy, chattiness and tips."],
+  ["Helper Dial","Tips, and how often",F,"Folds into Manners. Two dials do the same job."],
+  ["Pip Remembers","Greets you and keeps a notebook",K,"Stop: Pip helps."],
+  ["Pip's News","What's new, once or twice",F,"Folds into Remembers. Both are \"hello, here's what changed\"."],
+  ["Opening Night","Pip's launch as a little show",K,"First launch only, as the welcome."],
+  ["Tidy Pip","Shows you how to tidy, then offers",K,"Stop: Pip helps. Genuinely useful."],
+  ["Pip's Feelings","Dizzy, sulks, likes a pat",K,"Home of Pip's character. Stop: Pip's character."],
+  ["Pip's Weight","Gets tired, rests on ledges",F,"Folds into Feelings."],
+  ["Pip's Bond","Warms to you over time",F,"Folds into Feelings."],
+  ["Pip's Emotes","Emoji bubbles over Pip",K,"Stays, because other plugins use it behind the scenes. It doesn't need a button."],
+  ["Pip Notices","Comments when you change things",K,"Stop: Pip's character."],
+  ["Pip Doesn't Like Change","Grumbles at changes",F,"Folds into Notices as its grumpy option. Same trigger, two moods."],
+ ]},
+ {name:"✏️ Draw",tag:"stop: Make things",note:"Sketch is the home, and the others become modes in its panel. You're already doing this.",rows:[
+  ["Sketch","Draw over the app",K,"The home of Draw."],
+  ["Pencil Wonders","Pip follows the Pencil",F,"Becomes a \"Pip follows\" toggle in Sketch."],
+  ["Pip's sketchbook","Pip guesses what you drew",F,"Becomes a mode in Sketch."],
+  ["Doodle Duet","Pip copies and finishes lines",F,"Becomes a mode in Sketch."],
+  ["The Draw-off","Bob and Dot draw, and you judge",F,"Becomes a mode in Sketch, at the Play stop only."],
+  ["Glass Memory","Trails, and frosted ink",F,"The ink becomes a Sketch option. The trails move to Looks."],
+ ]},
+ {name:"🎨 Looks",tag:"the second track: skins",note:"Everything that changes how the app or Pip looks. This is the skins idea.",rows:[
+  ["Looks Time Machine","Slide back through the looks",K,"Turns into the timeline itself. It also keeps the \"save how I had it\" feature."],
+  ["Pip Looks","Classic or Drop Pip",K,"Pip's skin."],
+  ["Liquid Icons","Bar icons as liquid drops",K,"Part of the Liquid skin."],
+  ["Vintage packs","The clock as a biscuit tin",K,"Clock skins."],
+  ["Native Wonders","Liquid Time and tilt",F,"Folds into the skins as \"what this skin does when you tilt\"."],
+ ]},
+ {name:"🎪 Play",tag:"stop: Play",note:"Things you open. They never start on their own.",rows:[
+  ["Vend-O-Mat","Crush the rubbish, flick it in",K,""],
+  ["The Stationery Cupboard","Let Pip out of the cupboard",K,""],
+  ["Director's Call","Action! Pip performs",K,""],
+ ]},
+ {name:"🎲 Surprises",tag:"stop: Play · one switch",note:"Things that happen on their own. One switch for all of them, sharing Manners' limit.",rows:[
+  ["Window Cleaner Pip","Cleans behind the panels",K,"The best one. It'll be even better with the depth hook."],
+  ["Tea Break","Asks for a cuppa",K,""],
+  ["Twenty Past","Something at twenty past four",K,"Once a day at most, so it's calm."],
+  ["Busy Pip","Rounds with a clipboard when idle",F,"Folds into Window Cleaner as one \"idle life\" plugin. They do the same job."],
+  ["Guest Takeover","A guest does Pip's job",P,"Fun, but it's the most \"too much\" of the lot."],
+  ["Rob pops in","Rob leans in for a chat",F,"Folds into Crew rundown, so it only happens when you ask."],
+ ]},
+ {name:"🛠 Crew",tag:"hidden · developer mode only",note:"For you and the builders. Normal users never see these.",rows:[
+  ["Plugin Desk","Review, switch and note every plugin",K,"The home of Crew."],
+  ["Pip's flags","Which plugins are slow",F,"Already folded into the Desk by your other agents."],
+  ["Pip checks themselves","After updates, \"still feel like me?\"",F,"Folds into the Desk."],
+  ["Professor Pip","Debug mode and bug reports",K,""],
+  ["Dashboard","Your progress dashboard",K,""],
+  ["Dashboard queue","Ideas waiting for the dashboard",F,"Folds into Dashboard."],
+  ["Next action","The next step, big and clear",F,"Folds into Dashboard as its top card."],
+  ["Idea inbox","Jot an idea",K,""],
+  ["Crew rundown","What the builders did",K,""],
+  ["Pip's Playground","Joy Slider and Idle Life demo",P,"Its job is now done by the timeline and Manners."],
+  ["Show Modes","Tuck away, Grounded, Dream",F,"Replaced by the top track of the timeline."],
+ ]},
+];
+const store=(()=>{try{return JSON.parse(localStorage.getItem("pipmap")||"{}")}catch{return{}}})();
+const save=()=>{try{localStorage.setItem("pipmap",JSON.stringify(store))}catch{}};
+const host=document.getElementById("fams");
+fams.forEach(f=>{
+ const s=document.createElement("section");
+ s.innerHTML=`<div class="fam-head"><h2>${f.name}</h2><span class="tag">${f.tag}</span></div><p class="muted">${f.note}</p>`;
+ f.rows.forEach(([n,what,mine,why])=>{
+  const r=document.createElement("div");r.className="row";
+  r.innerHTML=`<div><div class="name">${n}</div><div class="what">${what}</div></div>
+   <div class="pick" role="group" aria-label="${n}">${[[K,"Keep"],[F,"Fold"],[P,"Park"]].map(([v,l])=>`<button data-v="${v}">${l}</button>`).join("")}</div>
+   ${why?`<div class="why">${why}</div>`:""}`;
+  const set=v=>{r.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));r.classList.toggle("changed",v!==mine)};
+  set(store[n]||mine);
+  r.querySelectorAll("button").forEach(b=>b.onclick=()=>{if(b.dataset.v===mine)delete store[n];else store[n]=b.dataset.v;save();set(b.dataset.v);tally()});
+  r.dataset.n=n;r.dataset.mine=mine;s.appendChild(r)});
+ host.appendChild(s)});
+function picks(){return [...document.querySelectorAll(".row")].map(r=>({n:r.dataset.n,mine:r.dataset.mine,v:store[r.dataset.n]||r.dataset.mine}))}
+function tally(){const p=picks(),c=v=>p.filter(x=>x.v===v).length;
+ document.getElementById("sum").innerHTML=`<span>Keep ${c(K)}</span><span>Fold ${c(F)}</span><span>Park ${c(P)}</span><span>Changed by you ${p.filter(x=>x.v!==x.mine).length}</span>`}
+tally();
+document.getElementById("copy").onclick=async e=>{
+ const p=picks(),ch=p.filter(x=>x.v!==x.mine);
+ const t="FOR JULES · plugin map picks\n"+(ch.length?ch.map(x=>`- ${x.n}: ${x.v} (Jules said ${x.mine})`).join("\n"):"- Agree with all of Jules's picks");
+ const o=document.getElementById("out");o.textContent=t;o.style.display="block";
+ try{await navigator.clipboard.writeText(t);e.currentTarget.textContent="Copied ✓"}catch{e.currentTarget.textContent="Shown below, copy it from there"}};
+</script></body></html>

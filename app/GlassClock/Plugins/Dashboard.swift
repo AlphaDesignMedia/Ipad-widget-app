@@ -100,9 +100,16 @@ struct Dashboard: SandboxPlugin {
 
     // MARK: Views
 
+    /// The Glass Clock-style tile on the canvas (DashboardWidget.swift).
+    func overlay(_ host: PipHost) -> some View { CanvasTile(host: host) }
+
     func card(_ host: PipHost) -> some View {
-        Board(data: Dashboard.feed.data)
-            .onAppear { mind.greet(host) }
+        // The Glass Clock-style widget and the answerable questions first (DashboardWidget.swift), then the rest.
+        VStack(spacing: Corner.inset) {
+            Front(data: Dashboard.feed.data, host: host)
+            Board(data: Dashboard.feed.data)
+        }
+        .onAppear { mind.greet(host) }
     }
 
     struct Board: View {
@@ -123,21 +130,6 @@ struct Dashboard: SandboxPlugin {
                                 }
                             }
                             .accessibilityElement(children: .combine)
-                        }
-                    }
-                }
-                if let asks = data.needsYou, !asks.isEmpty {
-                    SettingsCard(title: "Needs you", icon: "questionmark.bubble") {
-                        DevFold(id: "dash.needs", title: "questions", summary: "\(asks.count) waiting") {
-                            ForEach(asks.indices, id: \.self) { i in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(Dashboard.clean(asks[i].q))
-                                    if let s = asks[i].suggested {
-                                        Text(Dashboard.clean(s)).font(.caption).foregroundStyle(.secondary)
-                                    }
-                                }
-                                .accessibilityElement(children: .combine)
-                            }
                         }
                     }
                 }

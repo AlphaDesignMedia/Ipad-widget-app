@@ -514,32 +514,46 @@ struct Sketch: SandboxPlugin {
             let strokes = ink.strokes
             let look = (ink.host?.isOn("glassmemory") ?? false) ? glassInk : "normal"
             ZStack {
-                Group {
-                    switch look {
-                    case "soft":
-                        Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
-                            .opacity(0.5)
-                    case "frosted":
-                        ZStack {
-                            Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
-                                .blur(radius: 3)
-                                .opacity(0.4)
+                // The paper first, on its own, so it shows on a blank page too.
+                if ink.open && ink.paper { Paper().transition(.opacity) }
+                // No strokes, no layer: an empty full-screen Canvas still costs the iPad a drawing surface
+                // (the freezes on 30 Oct were the app waiting for those, 31 Oct 2026).
+                if !strokes.isEmpty {
+                    Group {
+                        switch look {
+                        case "soft":
                             Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
                                 .opacity(0.5)
-                                .shadow(color: .white.opacity(0.55), radius: 0.5, x: -0.8, y: -0.8)
+                        case "frosted":
+                            ZStack {
+                                Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
+                                    .blur(radius: 3)
+                                    .opacity(0.4)
+                                Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
+                                    .opacity(0.5)
+                                    .shadow(color: .white.opacity(0.55), radius: 0.5, x: -0.8, y: -0.8)
+                            }
+                        default:
+                            Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
                         }
-                    default:
-                        Canvas { ctx, _ in for s in strokes { Sketch.draw(s, in: ctx) } }
                     }
+                    .opacity(ink.clearing ? 0 : 1)
                 }
-                .opacity(ink.clearing ? 0 : 1)
-                .background { if ink.open && ink.paper { Paper().transition(.opacity) } }
-                LiveInk(ink: ink)
+                LiveSlot(ink: ink)
                 Tracker(ink: ink)
             }
             .contentShape(Rectangle())
             .allowsHitTesting(ink.blocking)
             .accessibilityHidden(true)
+        }
+    }
+
+    /// LiveInk only while there's a stroke or a hovering Pencil. Its own view, so the finished ink above
+    /// doesn't redraw as the Pencil moves.
+    struct LiveSlot: View {
+        let ink: Ink
+        var body: some View {
+            if ink.live != nil || ink.cursor != nil { LiveInk(ink: ink) }
         }
     }
 

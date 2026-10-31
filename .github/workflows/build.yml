@@ -16,6 +16,9 @@ jobs:
         run: |
           sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
           xcodebuild -version
+      - name: Plugin check (warnings only, never fails the build)
+        continue-on-error: true
+        run: app/tools/plugin-check.sh
       - name: Build
         working-directory: app
         # Compiler errors are also posted as annotations, which the plugin agent can read without the logs.

@@ -1,51 +1,59 @@
 {
- "syncedAt": "2026-10-29T19:45:00Z",
+ "syncedAt": "2026-10-31T15:15:00Z",
  "source": "Glass Clock Progress",
  "url": "https://claude.ai/artifact/UQ9Yo6F6RBNdoUn8B9sqeW",
  "status": {
-  "headline": "Fri 30 Oct, evening: show-off build ready (everything on, Tuck away button). Next up: putting the Drop Pip look in the app. Pip images: https://claude.ai/artifact/NhFoab44i6YsKoSPif8Zxu",
+  "headline": "Sat 31 Oct: slow and steady day. Pause all proved the stutters are plugins, not the app. Glass Memory and Window Cleaner made light and parked. Dashboard is now a Glass Clock tile on the canvas. Robyn and Rob have job sheets; Peter and Monty joined the team. The Brief: https://claude.ai/artifact/Crwy8KDwPoVGB4pp5Z1qKP",
   "ipadBuild": "Clean reinstall · 7:05 pm",
   "ipadNote": "Same app, freshly signed. Your saved styles were reset by the reinstall. Free sign-in expires Tue 3 Nov.",
-  "updatedAt": "Fri 30 Oct, 6:55 pm"
+  "updatedAt": "Sat 31 Oct, 3:15 pm"
  },
  "needsYou": [
   {
-   "q": "Where does Pip live on this board for now?",
-   "suggested": "Brief only, no panel (suggested)"
+   "q": "Pick your tester circle (family and friends with iPads)?",
+   "suggested": "Start with 3 to 5, including one 'Dad test' tester (suggested)"
   },
   {
-   "q": "Should Pip be a little bit more present for unpaid users?",
-   "suggested": "Same for everyone, tiny and switch-off-able (suggested)"
-  },
-  {
-   "q": "Should the Wednesday Build list go ahead now?",
-   "suggested": "Yes, send Build: when ready, list as saved (suggested)"
+   "q": "Keep a Pandora's Box page (every worry as a joke disaster, with its real guard)?",
+   "suggested": "Yes, small and fun (suggested)"
   }
  ],
  "upNext": [
   {
-   "area": "Pip",
-   "title": "Priority: put the Drop Pip look in the app (Classic stays default, one tap back)"
+   "area": "Launch",
+   "title": "TestFlight beta for Glass Clock. North star: the Dad test (a 75-year-old adds a Glass Clock widget alone)"
   },
   {
-   "area": "Pip",
-   "title": "Backbone: Pip depth hook, so Pip can sit behind panels and peek"
+   "area": "Launch",
+   "title": "A one-page, big-text tester guide: install TestFlight, add a widget, tell Aaron how it felt"
   },
   {
-   "area": "Pip",
-   "title": "Backbone: Pip style hook, so Pip can wear looks and costumes"
+   "area": "Stability",
+   "title": "Rob: polite Mac, then hire Tess the Tester (simulator only)"
   },
   {
-   "area": "Look",
-   "title": "Glass Kit: Still Water glass style (press-to-grow and melt are settings)"
+   "area": "Core",
+   "title": "Robyn: buttons follow the theme, then plugins in the top bar"
   },
   {
-   "area": "Sandbox",
-   "title": "Waiting to land: Pip's Manners, the Draw-off, glass smudges and ink"
+   "area": "Core",
+   "title": "Robyn: safety levels on Pause (Paused, Safe, Experimental, Everything)"
+  },
+  {
+   "area": "Core",
+   "title": "Robyn: one kind of panel, with a close button"
+  },
+  {
+   "area": "Plugins",
+   "title": "Plugin Kit: checker live on every push; next, shared parts and a starter template"
+  },
+  {
+   "area": "Plugins",
+   "title": "Mappy: families and the timeline, from the Plugin Map"
   },
   {
    "area": "Dashboard",
-   "title": "Make the dashboard feel alive (small touches)"
+   "title": "Dashboard tile moves to the top bar once Robyn's hook lands"
   }
  ],
  "builds": [

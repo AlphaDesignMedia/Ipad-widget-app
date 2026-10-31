@@ -9,7 +9,7 @@ import SwiftUI
 //   and munches it.
 // Pip reads the room: draw quickly and steadily and Pip backs off to a corner to watch; pause and Pip comes back.
 // Each behaviour has a switch. Under simpler motion, lines appear and go with a fade.
-// Where: the pencil-and-sparkles button in the plugin bar; "Done" closes the canvas.
+// Where: a folded section of the Sketch panel; "Done" closes the canvas.
 
 struct DoodleDuet: SandboxPlugin {
     let info = PluginInfo(id: "duet", name: "Doodle Duet", version: "v1", shelf: .dream,
@@ -74,6 +74,8 @@ struct DoodleDuet: SandboxPlugin {
     static func habitOn(_ h: Habit, _ host: PipHost) -> Bool { host.value("duet", h.rawValue) ?? true }
 
     func open(_ host: PipHost) {
+        // Opened from the Sketch panel: close it, so Sketch's pens don't catch the Pencil as well.
+        host.openCard = nil
         page.on = true
         host.say(Lines.open.randomElement()!, for: 2)
         watch(host)
@@ -272,7 +274,9 @@ struct DoodleDuet: SandboxPlugin {
 
     func overlay(_ host: PipHost) -> some View { Canvas2(plugin: self, page: page, host: host) }
 
-    func card(_ host: PipHost) -> some View { DuetCard(plugin: self, page: page, host: host) }
+    // A folded section of the Sketch panel, so every drawing menu lives in one panel (Aaron, 31 Oct 2026).
+    var addsTo: String? { "sketch" }
+    func addOn(_ host: PipHost) -> some View { DuetCard(plugin: self, page: page, host: host) }
 
     /// The play canvas. Takes touches only while the duet is on; otherwise it just shows lines Pip hasn't eaten yet.
     struct Canvas2: View {
@@ -295,30 +299,36 @@ struct DoodleDuet: SandboxPlugin {
                             })
                         .accessibilityLabel("Drawing canvas for Doodle Duet")
                 }
-                TimelineView(.animation(paused: !busy)) { timeline in
-                    let now = timeline.date
-                    Canvas { ctx, _ in
-                        for l in lines {
-                            var reveal = 1.0, alpha = 1.0, width = l.byPip ? Look.pipWidth : Look.yourWidth
-                            if l.byPip { reveal = min(1, now.timeIntervalSince(l.born) / Look.drawSeconds) }
-                            if simpler { alpha = reveal; reveal = 1 }
-                            if let eaten = l.eaten {
-                                let k = min(1, now.timeIntervalSince(eaten) / Look.eatSeconds)
-                                alpha *= 1 - k
-                                width *= 1 - k * 0.8
+                // The ink layer exists only when there is ink. A full-screen Canvas that is mounted with
+                // nothing in it still asks the render server for a drawing surface, and the main thread waits
+                // on it: that was the freeze Greg traced in the iPad's hang reports. Pausing the TimelineView
+                // stops the ticking but not the surface, so the `if` is the part that matters. (Rob, 31 Oct)
+                if !lines.isEmpty || !live.isEmpty {
+                    TimelineView(.animation(paused: !busy)) { timeline in
+                        let now = timeline.date
+                        Canvas { ctx, _ in
+                            for l in lines {
+                                var reveal = 1.0, alpha = 1.0, width = l.byPip ? Look.pipWidth : Look.yourWidth
+                                if l.byPip { reveal = min(1, now.timeIntervalSince(l.born) / Look.drawSeconds) }
+                                if simpler { alpha = reveal; reveal = 1 }
+                                if let eaten = l.eaten {
+                                    let k = min(1, now.timeIntervalSince(eaten) / Look.eatSeconds)
+                                    alpha *= 1 - k
+                                    width *= 1 - k * 0.8
+                                }
+                                ctx.stroke(DoodleDuet.path(l.points, upTo: reveal),
+                                           with: .color((l.byPip ? PipLook.accent : Color.primary).opacity(alpha)),
+                                           style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
                             }
-                            ctx.stroke(DoodleDuet.path(l.points, upTo: reveal),
-                                       with: .color((l.byPip ? PipLook.accent : Color.primary).opacity(alpha)),
-                                       style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
-                        }
-                        if live.count > 1 {
-                            ctx.stroke(DoodleDuet.path(live), with: .color(.primary),
-                                       style: StrokeStyle(lineWidth: Look.yourWidth, lineCap: .round, lineJoin: .round))
+                            if live.count > 1 {
+                                ctx.stroke(DoodleDuet.path(live), with: .color(.primary),
+                                           style: StrokeStyle(lineWidth: Look.yourWidth, lineCap: .round, lineJoin: .round))
+                            }
                         }
                     }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 }
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
                 if page.on {
                     Button("Done") { plugin.close(host) }
                         .buttonStyle(PluginCardButton(on: true))

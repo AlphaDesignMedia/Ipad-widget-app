@@ -19,7 +19,7 @@ enum Plugins {
         SetInTheirWays(),
         KeyboardKit(),
         TwentyPast(),
-        LiquidIcons(),
+        // LiquidIcons(),   // parked: ~40 live glass drops cost up to half a core at idle (sim), ticket 31 Oct
         PipsNews(),
         LooksTimeMachine(),
         PipNotices(),
@@ -42,11 +42,15 @@ enum Plugins {
         DrawOff(),
         PipLooks(),         // Bob: Classic or Drop look; Drop shows in its card until the core look hook lands
         // All on for Aaron's show-off build (30 Oct). Comment a line out to park it again.
-        GlassCleaner(),     // Bob: back on for show-off (Aaron, 30 Oct); rare at calm, stops on touch
+        // PARKED 31 Oct, Aaron's call, after the evening build ran badly. Uncomment to bring either back.
+        // GlassCleaner(),  // Bob: the only plugin that starts itself when you stop touching the screen.
+        //                  //      Wakes every 3s and loops a shine. Suspect two.
         PipChecks(),        // Greg: speaks 8s after launch, not hand-tested
         RobVisits(),        // Rob: pops in unprompted at joy 2+, not hand-tested
         VintagePacks(),     // Rob: passive
-        GlassMemory(),      // Dot: faint Pip trails that stay, and a frosted ink look; trails off at Joy 0
+        // GlassMemory(),   // Dot: up to 60 separately blurred layers over the whole app, saved to disk, so it
+        //                  //      got heavier every session. Suspect one. (Its marks are off by default as of
+        //                  //      249bbe5, so it may be safe to bring back; the frosted ink look goes with it.)
         DirectorsCall(),    // Dot: tap Action! and Pip performs a scene. Starts only on tap; never unprompted
         PipFlags(),         // Rob: new. No loop, does nothing until opened. Park it if you'd rather.
     ]

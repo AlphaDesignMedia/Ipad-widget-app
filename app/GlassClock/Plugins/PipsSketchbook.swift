@@ -13,13 +13,12 @@ import SwiftUI
 // Pip off: a plain sketch pad with a "What is it?" button that shows the best guess as text.
 // Joy 0: text only (Pip says nothing aloud, the trace just appears). Simpler motion: fades only.
 // Pip offers to guess or trace on their own at most 3 times a session, then only when asked.
-// Where: the pencil-and-scribble button in the plugin bar (opens as a panel).
+// Where: a folded section of the Sketch panel (it had its own panel until 31 Oct 2026).
 
 struct PipsSketchbook: SandboxPlugin {
     let info = PluginInfo(id: "sketchbook", name: "Pip's sketchbook", version: "v1", shelf: .dream,
                           icon: "pencil.and.scribble",
-                          what: "Pip watches you draw and guesses: a house or a face. Teach them more.",
-                          panel: true)
+                          what: "Pip watches you draw and guesses: a house or a face. Teach them more.")
 
     // MARK: Tune (feel numbers, in one place so they can be dialled in)
 
@@ -517,7 +516,8 @@ struct PipsSketchbook: SandboxPlugin {
 
     // MARK: Views
 
-    func card(_ host: PipHost) -> some View {
+    var addsTo: String? { "sketch" }
+    func addOn(_ host: PipHost) -> some View {
         Pad(book: book, host: host)
             .onAppear { book.load(host) }
             .onDisappear { book.leave() }
@@ -534,11 +534,11 @@ struct PipsSketchbook: SandboxPlugin {
         }
 
         var body: some View {
-            VStack(spacing: Corner.inset) {
-                SettingsCard(title: "Pip's sketchbook", icon: "pencil.and.scribble", footer: footer) {
-                    InkPad(book: book, host: host)
-                    Talk(book: book, host: host)
-                }
+            // The panel gives the section its title and glass.
+            VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
+                InkPad(book: book, host: host)
+                Talk(book: book, host: host)
+                Text(footer).font(.caption).foregroundStyle(.secondary)
             }
         }
     }

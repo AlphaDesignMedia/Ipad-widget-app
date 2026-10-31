@@ -8,6 +8,11 @@ import SwiftUI
 // come from reading how often each plugin wakes up and whether it starts itself. A red flag means "worth
 // switching off first if the app feels slow", not "this is broken". Say so on the card, every time.
 //
+// AND WHAT IT CANNOT SEE. On 31 Oct the app's real freeze turned out to be full-screen drawing layers that
+// existed while empty: the main thread sat waiting on the render server using almost no processor. Greg found
+// it in 327 hang reports; this panel had every one of those plugins marked green, because it only looks at
+// how often things wake up. If Aaron says "frozen" rather than "slow", the answer is probably not in here.
+//
 // GROWING THIS. Add to `verdicts` and nothing else. If you tune a plugin so it wakes less often, move it down
 // and change the reason. If a flag ever feels unfair to a plugin, it probably is: say why in `note`.
 
@@ -50,6 +55,8 @@ struct PipFlags: SandboxPlugin {
                        note: "Window Cleaner sets off on its own when you leave the room. Lovely, but it's the only one here that starts without you."),
         "glassmemory": .init(flag: .amber, why: "Its faint marks are blurred layers that sit over the whole app on every frame, and they stay for good.",
                              note: "Glass Memory used to leave dark little marks on the screen. I've turned those off; the frosted-ink half is untouched."),
+        "liquid": .init(flag: .amber, why: "About forty live glass drops merged in one GlassEffectContainer, always on screen because the bar is, and by default it does the settings rail and top buttons too.",
+                        note: "Liquid Icons is the loveliest thing in here and it never stops working, because the bar never goes away. Try it on 'Drops' and app-only before you switch it off."),
         "busypip": .init(flag: .green, why: "Looks once a second only while Pip could start something; every 5s when Pip's asleep, away or already busy.",
                          note: "Busy Pip has learned to sit still when there's nothing to be busy about."),
         "tidy": .init(flag: .amber, why: "Wakes every 2 seconds, and keeps an animation looping.",
@@ -98,12 +105,22 @@ private struct FlagsCard: View {
     @State private var settling = false
     @State private var open: String?              // which flagged row is expanded
 
+    /// The ids *this panel* switched off, kept on the device. "Put them back" restores only these.
+    /// It used to switch on everything that was currently off, which also undid the plugins Aaron had
+    /// parked himself in Settings. It gets worse with Greg's safe mode: there, every plugin reads as off
+    /// at launch, so one tap would have turned the lot on. A panel for switching things off should never
+    /// be able to switch on something it didn't switch off.
+    @AppStorage("plug.flags.settled") private var settledCSV = ""
+    private var settled: [String] {
+        settledCSV.split(separator: ",").map(String.init).filter { !$0.isEmpty }
+    }
+
     /// Worked out once, in `onAppear`, not in `body`. The list and the flags never change while the panel
     /// is open: only the switches do. Sorting and re-reading two dozen plugins on every redraw made the
     /// panel about performance the slowest thing in the app, which rather defeated the point of it.
     @State private var watch: [Row] = []          // the flagged ones: all this card shows
     @State private var lightCount = 0             // the rest, as a number
-    @State private var offCount = 0               // how many are switched off right now
+    @State private var offCount = 0               // of ours, how many are off right now
     @State private var redOn: [PluginInfo] = []   // flagged and still on: what the big button settles
 
     struct Row: Identifiable {
@@ -125,19 +142,23 @@ private struct FlagsCard: View {
 
     /// The only thing that changes while the panel is open, so it's the only thing recounted.
     private func counts() {
-        redOn = watch.filter { host.isOn($0.info.id) }.map(\.info)
-        offCount = host.plugins.filter { $0.info.id != "flags" && !host.isOn($0.info.id) }.count
+        // chosen(), not isOn(): isOn is false for everything while the app is paused, so counting with it
+        // would tell Aaron his plugins are off when they're only resting. (Greg's core, 31 Oct)
+        redOn = watch.filter { host.chosen($0.info.id) }.map(\.info)
+        offCount = settled.filter { !host.chosen($0) }.count
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if host.paused { restingBanner }
+
             Text("A hunch, not a measurement. Switch one off and see if the app feels better.")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             // The one thing this card exists for: settle the suspects, in one tap.
             if redOn.isEmpty {
-                Label("All \(watch.count) flagged ones are off.", systemImage: "checkmark.circle")
+                Label("All \(watch.count) flagged ones are switched off.", systemImage: "checkmark.circle")
                     .font(.system(size: 14)).frame(minHeight: 44)
             } else {
                 Button { settle() } label: {
@@ -157,25 +178,49 @@ private struct FlagsCard: View {
 
             ForEach(watch) { row($0) }
 
-            Text(offCount == 0
-                 ? "The other \(lightCount) have no loop of their own, so Pip isn't watching them."
-                 : "The other \(lightCount) look light. \(offCount) switched off altogether.")
+            Text("The other \(lightCount) have no loop of their own, so Pip isn't watching them.")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             if offCount > 0 {
-                Button { allBackOn() } label: {
-                    Label("Switch everything back on", systemImage: "arrow.uturn.backward")
+                Button { putBack() } label: {
+                    Label("Put back the \(offCount) I switched off", systemImage: "arrow.uturn.backward")
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.bordered)
                 .disabled(settling)
+                .accessibilityHint("Only the ones this panel switched off. Anything you switched off yourself stays off.")
             }
 
-            Text("Switched off, never deleted. Plugin Desk above has the full list.")
+            Text("Switched off, never deleted. Plugin Desk above has the full list, and anything you switched off yourself is left alone.")
                 .font(.system(size: 11)).foregroundStyle(.tertiary)
         }
         .onAppear { build(); pipSays() }
+    }
+
+    /// Everything is paused. The switches below still mean what they say, they just aren't running yet,
+    /// and saying so is the whole job of this box.
+    private var restingBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(host.safeMode ? "Everything's paused, because the app stopped last time while it was open."
+                                : "Everything's paused.",
+                  systemImage: host.safeMode ? "lifepreserver" : "pause.circle")
+                .font(.system(size: 14, weight: .medium))
+                .fixedSize(horizontal: false, vertical: true)
+            Text(host.safeMode
+                 ? "Nothing's lost. Switch off anything you don't trust below, then start them again."
+                 : "The switches below are still yours; they just aren't running yet.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { host.setPaused(false) } label: {
+                Label("Start them again", systemImage: "play.circle")
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityHint("Brings back every plugin that's switched on. Anything switched off stays off.")
+        }
+        .padding(12)
+        .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 12))
     }
 
     /// One flagged plugin: flag, name, switch. Tap the name for what it does and why it's flagged.
@@ -201,7 +246,7 @@ private struct FlagsCard: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(r.info.name), \(r.v.flag.word). \(expanded ? "Hide" : "Show") details.")
 
-                Toggle("", isOn: Binding(get: { host.isOn(r.info.id) },
+                Toggle("", isOn: Binding(get: { host.chosen(r.info.id) },
                                          set: { host.setOn(r.info.id, $0); counts() }))
                     .labelsHidden()
                     .accessibilityLabel("\(r.info.name) switched on")
@@ -231,8 +276,8 @@ private struct FlagsCard: View {
 
     /// Pip's note: one line about the heaviest thing that's actually on. Quiet at joy 0, silent with Pip off.
     private func pipSays() {
-        guard host.joy > 0, PipTalkTurns.floorFree(host) else { return }
-        let line = watch.first { host.isOn($0.info.id) }?.v.note
+        guard !host.paused, host.joy > 0, PipTalkTurns.floorFree(host) else { return }
+        let line = watch.first { host.chosen($0.info.id) }?.v.note
             ?? "Nothing heavy on. I feel quite light, actually."
         if host.say(line, for: PipFlags.Tune.sayFor) {
             PipTalkTurns.takeFloor(host, for: PipFlags.Tune.sayFor)
@@ -242,6 +287,7 @@ private struct FlagsCard: View {
     private func settle() {
         settling = true
         let list = redOn
+        settledCSV = Array(Set(settled + list.map(\.id))).sorted().joined(separator: ",")
         for (i, p) in list.enumerated() {
             host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(p.id, false) }
         }
@@ -252,13 +298,15 @@ private struct FlagsCard: View {
         }
     }
 
-    private func allBackOn() {
+    /// Only what this panel switched off, and then it forgets them.
+    private func putBack() {
         settling = true
-        let list = host.plugins.map(\.info).filter { !host.isOn($0.id) }
-        for (i, p) in list.enumerated() {
-            host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(p.id, true) }
+        let list = settled.filter { !host.chosen($0) }
+        for (i, id) in list.enumerated() {
+            host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(id, true) }
         }
         host.later(Double(list.count) * PipFlags.Tune.settleGap + 0.1) {
+            settledCSV = ""
             settling = false
             counts()
         }
