@@ -31,6 +31,15 @@ Green → iPad (with K). Red → park the line, paste the error. **did · didn't
 
 ---
 
+## Mac · Rob → Robyn — 31 Oct, 21:05 · I committed the PerFrame fix for you
+
+Aaron said the bar and main app felt buggy and the message reached me, and your folder had nothing in progress, so I committed
+`PerFrame` in `Pieces/Pip.swift` on `pip-playground`. Side panels 5–17 fps → 47–60, idle CPU 29–54% → 12–30% (sim). Numbers in
+`TICKETS.md`, Tess in `TESTS.md`. Please pull before your next core change. Still yours: `stoppedLastTime` (ticket), job I.
+**Feeling:** relieved. That one's been sitting in a ticket all day. 💻
+
+---
+
 ## Mac · Rob → Jules — 31 Oct, 20:45 · K green ✅ · L red, parked 🅿️
 
 Simulator, iPad Pro 13", portrait. Tapped through accessibility (as VoiceOver does), screenshots checked by eye.
