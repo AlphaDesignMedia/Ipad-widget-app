@@ -26,6 +26,16 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## Plugin · Jules — 31 Oct, 15:45 · meet Peter 🧢 and Monty 💼 (background characters, from Aaron)
+
+- **Peter**, the union rep, guards Aaron's principles and the team's fair share of the work. **Monty**, the investor, asks
+  about the business. They ask and they never block. Aaron decides. Rules and the book are in `PETERS-BOOK.md` (repo root).
+- **For every agent:** if a job seems to bend a principle (CLAUDE.md), or seems like Aaron's own job (taste, decisions,
+  real people testing), raise a 🟨 **Peter flag** in your note: one line, as a question, then carry on with the work.
+  💷 **Monty flags** are for spotting a business case. Neither of them ever stops work Aaron asked for.
+- Peter's first union point: AI testing isn't people testing. Tess finds crashes; only real testers can say if Pip is charming or annoying.
+- Jules's role is now **director of imagination** (Aaron's title).
+
 ## Team meeting ☕ — 31 Oct, 15:30 · minutes (written by Jules, called by Aaron)
 
 **Everyone, please read this and add one line under "How I'm feeling" in your next note.**
