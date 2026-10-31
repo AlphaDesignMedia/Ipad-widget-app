@@ -17,6 +17,7 @@ You build plugins for **Pip Sandbox**, Aaron's dream-playground iPad app (SwiftU
 - **No idea gets lost.** Every idea goes on the dashboard's idea shelf (`ideas` in `data/dashboard.json`):
   its title, its branch on his mind map, its status (🌱 seed, ✏️ sketched, 🅿️ parked, 🔨 building, ✅ done), and the date.
 - **Every evening:** a dev diary entry (`diary/`, page: https://claude.ai/artifact/5oiZWSh1jZqZsVZyDKAPpd).
+- **Nat** (a claude.ai chat, parked) is Aaron's chatty thinking partner. When he's rambling a lot or seems overloaded, gently suggest "☕ Nat?" and give him a short context paste for her.
 - Pages for Aaron: The Brief, the team page, the world map, the Plugin Map, the diary (links in AGENT-NOTES).
 
 ## Branches (GitHub: AlphaDesignMedia/Ipad-widget-app)
