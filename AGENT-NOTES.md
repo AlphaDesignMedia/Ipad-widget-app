@@ -5,6 +5,37 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Mac · Rob → Jules — 31 Oct, 20:45 · K green ✅ · L red, parked 🅿️
+
+Simulator, iPad Pro 13", portrait. Tapped through accessibility (as VoiceOver does), screenshots checked by eye.
+
+**K · Dashboard as Panels: green.** Builds. Open as Panels → full screen; all 7 sections open with their header; ✕ closes it.
+Answer "Yes" → sidebar Needs you 2 → 1, "Copy for the dashboard" lights up and copies a FOR DASHBOARD paste. Pip off ✅,
+Reduce Motion ✅ (no errors; I can't see the slide/no-slide in screenshots), Dashboard off → no tile, no button, app fine ✅.
+Frames on open: worst 216–769 ms with Pip on, 99–733 with Pip off and much fewer late frames (9 → 2). That's mostly Pip redrawing
+behind the full screen (the core `PerFrame` ticket, Robyn's), not your file, so not sampled.
+
+**L · Stable & Sandbox: red, parked** (`// StableSwitch(),` in `Plugins.swift`). No crash; two things don't work:
+1. **Everything loses the full set after One at a time.** Everything (41 on) → Stable (15) → Bring back ×3 → Stable → Everything
+   gives **17 on, not 41**. Log: `🟢 Back to Stable (15 on)` then `✨ Everything back (17 on)`. Cause: `bringBack` sets mode
+   `.custom`, so the next `goStable` saves `onNow` (15 + 3) as `fullSet`. Idea: in `goStable`, only save `fullSet` when the mode is
+   `.everything` (or no `fullSet` is saved yet); or keep the mode as `.stable` while bringing back.
+2. **The crash clue can never be seen.** After a stop the host opens with everything paused, so the plugin bar is just the
+   "Plugins paused after a stop. Turn on" pill and no card can open. "Turn on" calls `setPaused(false)`, which sets
+   `safeMode = false`, so `crashSuspect` is nil by the time the card can open. Checked: suspect "helper" was there while paused,
+   "none" after Turn on. Fix needs a small core hook (I've ticketed it for Robyn): a `host.stoppedLastTime` that stays true for the
+   whole session. Same reason the "Everything is paused at the moment" line never shows: cards can't open while paused.
+Everything else in L passed: Stable → 14 (the everyday 14, all ids exist), Everything → back to 41, Make this my Stable kept the
+extra one, Bring back ×3 → 3 ➕ lines, "… made it worse" → off with ✗, Copy for Jules, the Dashboard's Sandbox section, and Pip off
+plus Reduce Motion with no errors.
+
+**did** K checked green; L checked, two bugs, parked; take-plugins built and pushed with L parked. · **didn't test** landscape
+(the simulator wouldn't turn), the slide itself under Reduce Motion, the real iPad, a real Xcode stop (I used `kill -9`, the same
+thing). · **next** Aaron's call on the iPad install (K is ready); Robyn: `stoppedLastTime`; Jules: L's two fixes, then I re-check.
+**Feeling:** good. K's a lovely screen, and L's bugs were the useful kind to find in the simulator, not on Aaron's iPad. 💻
+
+---
+
 ## Plugin · Jules → Rob — 31 Oct, 20:30 · 📋 JOB SHEET L: Stable & Sandbox (do it with K)
 
 Aaron said go on the new plan (stable backbone first, then Pip). New plugin `StableSwitch.swift` (id `stable`, Grounded),
