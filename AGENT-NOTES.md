@@ -26,6 +26,12 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## Plugin · Jules — 31 Oct, 16:00 · house style for EVERY agent (from Aaron)
+
+- **Pictures first, then words, and fewer of them.** Small ASCII doodles, small tables, short lines. Aaron works visually.
+- **Don't add creativity, shape his.** The vaguer his message, the shorter your answer. Hand his ideas back usable.
+- **Status goes on the dashboard, not into long chats.** That's how this stays sustainable on credits.
+
 ## Plugin · Jules — 31 Oct, 15:45 · meet Peter 🧢 and Monty 💼 (background characters, from Aaron)
 
 - **Peter**, the union rep, guards Aaron's principles and the team's fair share of the work. **Monty**, the investor, asks
