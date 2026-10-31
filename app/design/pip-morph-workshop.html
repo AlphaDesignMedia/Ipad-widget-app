@@ -42,7 +42,7 @@
 <body>
 <main>
   <h1>💧 → 🐦 Pip Morph Workshop</h1>
-  <p class="sub">One morph: Pip to a pigeon. Silhouette first, no glass. Drag the dots below to shape both.</p>
+  <p class="sub">One morph: Pip to a pigeon. Silhouette first, no glass. Built from circles, lines and curves. Drag the circles below to shape both.</p>
 
   <div class="row">
     <div class="card tile"><canvas id="tA"></canvas><div class="lab">💧 Pip<small>the start</small></div></div>
@@ -65,12 +65,13 @@
         <button id="undo">↶ Undo</button>
         <button id="reset">Reset this shape</button>
       </div>
-      <canvas id="ed" aria-label="Shape editor. Drag the numbered dots to reshape."></canvas>
+      <canvas id="ed" aria-label="Shape editor. Drag the circles to reshape."></canvas>
     </div>
     <div class="card side">
       <h3>How it works</h3>
-      <p>Both shapes share the same 14 numbered dots. In the vector morph, dot 1 slides to dot 1, and so on. The dashed line is the other shape.</p>
-      <p>👆 <b>Drag</b> a dot to reshape. <b>Double-tap</b> a dot to switch it between smooth and a sharp corner (◆), for the tip and the beak. Rings are the eyes: drag them, or double-tap one to hide it (side-on pigeons show one eye). The two squares are the leg's hip and foot: drag them, or double-tap to tuck the leg away.</p>
+      <p>Each shape is just circles, like a logo grid. The outline wraps <b>Body</b>, <b>Head</b> and <b>Tail</b> with straight lines between, and the <b>Tip</b> wraps onto the head as a point (Pip's tip, the pigeon's beak). <b>Cut ⊖</b> bites a curve out (the chin).</p>
+      <p>👆 Drag a circle's <b>middle</b> to move it, its <b>edge ring</b> to resize it. Shrink one to nothing for a sharp point. Double-tap Cut's ring to switch it on or off. Eyes: drag, or double-tap to hide. Squares are the leg: drag, or double-tap to tuck it away.</p>
+      <p>In the vector morph each circle slides to its twin: Pip's tip becomes the beak.</p>
       <h3>Tiny sizes</h3>
       <div class="tiny" id="tiny"></div>
       <h3>Look</h3>
@@ -93,59 +94,61 @@
 
 <script>
 (() => {
-// ── Data: two shapes, 12 dots each. [x, y, sharp 0..1] in a 100×100 box. Eyes: [x, y, shown 0..1].
-const N = 14;
-function teardrop() {
-  // a true drop curve: the sides bulge all the way up to a soft point (no straight sides, no shoulders).
-  // x = sin t · sin(t/2)^m, y = (1 − cos t)/2. Lower m = blobbier. The point leans a touch to the right.
-  const m = .75, W = 41, top = 4, H = 88, lean = 6, pts = [];
-  for (let i = 0; i < N; i++) {
-    const t = 2 * Math.PI * i / N;
-    const x = 50 + W * Math.sin(t) * Math.pow(Math.sin(t / 2), m) + lean * (1 + Math.cos(t)) / 2;
-    const y = top + H * (1 - Math.cos(t)) / 2;
-    pts.push([+x.toFixed(1), +y.toFixed(1), i === 0 ? .45 : 0]);
-  }
-  return { pts, eyes: [[42, 64, 1], [58, 64, 1]], eyeR: 4.4, leg: [50, 91, 50, 91] };   // no leg: hip = foot
-}
-function pigeon() {
-  // chunky and round: a big belly, a small head, a short beak and a stubby tail
-  // pigeon, not duck: chest juts forward, small head, beak tips down, back slopes away, tail points DOWN
-  // rounder: a plump back, a soft tail end, no long straight edges (only the beak stays sharp)
-  return { pts: [[88, 35, 1], [79, 38, 0], [75, 44, 0], [86, 58, 0], [84, 75, 0], [67, 87, 0], [44, 89, 0],
-                 [24, 82, 0], [6, 76, .4], [12, 66, 0], [28, 52, 0], [44, 38, 0], [57, 24, 0], [72, 19, 0]],
-           eyes: [[72, 29, 1], [72, 29, 0]], eyeR: 3.6, leg: [56, 84, 54, 97] };   // leg: hip x,y then foot x,y
-}
+// ── Data: every shape is built from circles. [x, y, r] in a 100×100 box.
+// body, head, tip, tail make the silhouette: the outline wraps round all four, so straight lines join them.
+// cut is one circle that carves a bite out (a chin, a neck). r = 0 switches it off.
+// Eyes: [x, y, shown 0..1]. Leg: hip x,y then foot x,y (hip = foot means no leg).
+const PARTS = ['body', 'head', 'tip', 'tail'];
+const LABEL = { body: 'Body', head: 'Head', tip: 'Tip', tail: 'Tail', cut: 'Cut' };
+const COLOUR = { body: '#8fa2ff', head: '#7ed7c1', tip: '#ff8f8f', tail: '#ffc56b', cut: '#ff6b9a' };
+const teardrop = () => ({ body: [50, 66, 26], head: [51, 45, 22], tip: [56, 6, 3], tail: [44, 80, 4], cut: [92, 92, 0],
+  eyes: [[42, 62, 1], [58, 62, 1]], eyeR: 4.4, leg: [50, 90, 50, 90] });
+const pigeon = () => ({ body: [48, 64, 25], head: [67, 31, 12], tip: [88, 37, 0.8], tail: [8, 70, 2], cut: [92, 92, 0],
+  eyes: [[69, 28, 1], [69, 28, 0]], eyeR: 3.4, leg: [54, 86, 52, 97] });
 const START = { a: teardrop(), b: pigeon() };
 const clone = o => JSON.parse(JSON.stringify(o));
 let shapes = clone(START);
-try { const s = JSON.parse(localStorage.getItem('pipMorph.v5')); if (s && s.a && s.b && s.a.pts.length === N && s.a.leg) shapes = s; } catch (e) {}
-const save = () => { try { localStorage.setItem('pipMorph.v5', JSON.stringify(shapes)); } catch (e) {} };
+try { const s = JSON.parse(localStorage.getItem('pipMorph.circles5')); if (s && s.a && s.a.body && s.b && s.b.cut) shapes = s; } catch (e) {}
+const save = () => { try { localStorage.setItem('pipMorph.circles5', JSON.stringify(shapes)); } catch (e) {} };
 let version = 0;   // bumps on every edit, so the pixel masks are rebuilt only then
 
 // ── Geometry
 const lerp = (a, b, k) => a + (b - a) * k;
 const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const lerpArr = (A, B, k) => A.map((v, i) => lerp(v, B[i], k));
 function mix(A, B, k) {
-  return { pts: A.pts.map((p, i) => [lerp(p[0], B.pts[i][0], k), lerp(p[1], B.pts[i][1], k), lerp(p[2], B.pts[i][2], k)]),
-           eyes: A.eyes.map((e, i) => [lerp(e[0], B.eyes[i][0], k), lerp(e[1], B.eyes[i][1], k), lerp(e[2], B.eyes[i][2], k)]),
-           eyeR: lerp(A.eyeR, B.eyeR, k), leg: A.leg.map((v, i) => lerp(v, B.leg[i], k)) };
+  const S = { eyes: A.eyes.map((e, i) => lerpArr(e, B.eyes[i], k)), eyeR: lerp(A.eyeR, B.eyeR, k), leg: lerpArr(A.leg, B.leg, k) };
+  for (const p of [...PARTS, 'cut']) S[p] = lerpArr(A[p], B[p], k);
+  return S;
 }
-/** A closed smooth curve through the dots (Catmull-Rom as Béziers). A sharp dot pulls its handles in to a corner. */
+/** Two wrapped shapes stuck together, like a logo: body + head + tail, and head + tip (the beak or point).
+    Each wraps its circles tightly, with straight lines between; the beak can poke out on its own. */
+function hull(S, parts) {
+  const pts = [];
+  for (const p of parts) { const [x, y, r] = S[p];
+    if (r < .05) { pts.push([x, y]); continue; }
+    for (let i = 0; i < 96; i++) { const a = i / 96 * Math.PI * 2; pts.push([x + r * Math.cos(a), y + r * Math.sin(a)]); } }
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length > 1 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i];
+    while (up.length > 1 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
 function outline(S, map) {
-  const P = S.pts, path = new Path2D(), n = P.length, at = i => P[(i + n) % n];
-  const [x0, y0] = map(P[0][0], P[0][1]); path.moveTo(x0, y0);
-  for (let i = 0; i < n; i++) {
-    const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
-    const k1 = (1 - p1[2]) / 6, k2 = (1 - p2[2]) / 6;
-    const c1 = map(p1[0] + (p2[0] - p0[0]) * k1, p1[1] + (p2[1] - p0[1]) * k1);
-    const c2 = map(p2[0] - (p3[0] - p1[0]) * k2, p2[1] - (p3[1] - p1[1]) * k2);
-    const e = map(p2[0], p2[1]);
-    path.bezierCurveTo(c1[0], c1[1], c2[0], c2[1], e[0], e[1]);
+  const path = new Path2D();
+  for (const parts of [['body', 'head', 'tail'], ['head', 'tip']]) {
+    const H = hull(S, parts), sub = new Path2D();
+    H.forEach(([x, y], i) => { const [a, b] = map(x, y); i ? sub.lineTo(a, b) : sub.moveTo(a, b); });
+    sub.closePath(); path.addPath(sub);
   }
-  path.closePath();
   return path;
 }
-
+function cutPath(S, map, s) {
+  const [x, y, r] = S.cut; if (r < .3) return null;
+  const p = new Path2D(), [a, b] = map(x, y); p.arc(a, b, r * s, 0, Math.PI * 2); return p;
+}
 /** The leg: a rounded stroke from hip to foot, with short toes pointing forward. Grows from nothing on Pip. */
 function legPath(S, map) {
   const [hx, hy, fx, fy] = S.leg, len = Math.hypot(fx - hx, fy - hy);
@@ -162,22 +165,30 @@ function legPath(S, map) {
 const ui = id => document.getElementById(id);
 const look = () => document.body.classList.contains('sil') ? { fill: 'sil', hue: 0, glow: 0 }
   : { fill: ui('fill').value, hue: +ui('hue').value, glow: +ui('glow').value };
+const layers = new WeakMap();
+function layerFor(ctx) {
+  let c = layers.get(ctx);
+  if (!c) { c = document.createElement('canvas'); layers.set(ctx, c); }
+  if (c.width !== ctx.canvas.width || c.height !== ctx.canvas.height) { c.width = ctx.canvas.width; c.height = ctx.canvas.height; }
+  return c;
+}
 function paint(ctx, S, map, scale, L, opts = {}) {
-  const path = outline(S, map), body = `hsl(${L.hue} 70% 74%)`, deep = `hsl(${L.hue} 45% 52%)`;
+  const sil = L.fill === 'sil', body = sil ? '#111' : `hsl(${L.hue} 70% 74%)`, deep = `hsl(${L.hue} 45% 52%)`;
   const leg = legPath(S, map);
   if (leg) { ctx.save(); ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1.2, 3.2 * scale);
-    ctx.strokeStyle = L.fill === 'sil' ? '#111' : `hsl(${L.hue} 40% 58%)`; ctx.stroke(leg); ctx.restore(); }
+    ctx.strokeStyle = sil ? '#111' : `hsl(${L.hue} 40% 58%)`; ctx.stroke(leg); ctx.restore(); }
+  // body on its own layer, so the cutter only bites the body
+  const lay = layerFor(ctx), lc = lay.getContext('2d'), path = outline(S, map), cut = cutPath(S, map, scale);
+  lc.clearRect(0, 0, lay.width, lay.height);
+  if (L.fill === 'line') { lc.lineWidth = Math.max(1, 2.2 * scale); lc.strokeStyle = body; lc.lineJoin = 'round'; lc.stroke(path); }
+  else if (L.fill === 'soft') { const [gx, gy] = map(40, 40), g = lc.createRadialGradient(gx, gy, 2 * scale, gx, gy, 60 * scale);
+    g.addColorStop(0, `hsl(${L.hue} 80% 88%)`); g.addColorStop(.55, body); g.addColorStop(1, deep); lc.fillStyle = g; lc.fill(path); }
+  else { lc.fillStyle = body; lc.fill(path); }
+  if (cut) { lc.globalCompositeOperation = 'destination-out'; lc.fillStyle = '#000'; lc.fill(cut); lc.globalCompositeOperation = 'source-over'; }
   ctx.save();
   if (L.glow > 0) { ctx.shadowColor = `hsl(${L.hue} 90% 70% / ${L.glow})`; ctx.shadowBlur = 22 * scale * L.glow; }
-  if (L.fill === 'line') {
-    ctx.lineWidth = Math.max(1, 2.2 * scale); ctx.strokeStyle = body; ctx.stroke(path);
-  } else if (L.fill === 'soft') {
-    const [gx, gy] = map(40, 40), g = ctx.createRadialGradient(gx, gy, 2 * scale, gx, gy, 60 * scale);
-    g.addColorStop(0, `hsl(${L.hue} 80% 88%)`); g.addColorStop(.55, body); g.addColorStop(1, deep);
-    ctx.fillStyle = g; ctx.fill(path);
-  } else { ctx.fillStyle = L.fill === 'sil' ? '#111' : body; ctx.fill(path); }
-  ctx.restore();
-  if (opts.noEyes || L.fill === 'sil') return;   // the squint test: shape only
+  ctx.globalAlpha *= opts.alpha ?? 1; ctx.drawImage(lay, 0, 0); ctx.restore();
+  if (opts.noEyes || sil) return;   // the squint test: shape only
   ctx.fillStyle = L.fill === 'line' ? body : '#1b1d2b';
   for (const [x, y, a] of S.eyes) {
     if (a < .02) continue;
@@ -191,13 +202,12 @@ function paint(ctx, S, map, scale, L, opts = {}) {
 // ── Canvases (sharp on Retina)
 function fit(c) {
   const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
-  const w = Math.round(r.width * d), h = Math.round(r.height * d);
+  const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
   if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
   return { ctx: c.getContext('2d'), w, h, d };
 }
 const boxMap = (w, h, pad) => { const s = (Math.min(w, h) - pad * 2) / 100, ox = (w - s * 100) / 2, oy = (h - s * 100) / 2;
   return { s, map: (x, y) => [ox + x * s, oy + y * s], back: (px, py) => [(px - ox) / s, (py - oy) / s] }; };
-
 function drawShape(c, S, L) {
   const { ctx, w, h } = fit(c); ctx.clearRect(0, 0, w, h);
   const B = boxMap(w, h, w * .06); paint(ctx, S, B.map, B.s, L);
@@ -206,27 +216,23 @@ function drawShape(c, S, L) {
 // ── Pixel morph: both shapes as pixel masks; each pixel flips at its own moment.
 const BAYER = [0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,
                3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21];
-let maskCache = null;
+const maskCache = new Map();
 function masks(G) {
-  if (maskCache && maskCache.G === G && maskCache.v === version) return maskCache;
+  const key = G + ':' + version; if (maskCache.has(key)) return maskCache.get(key);
+  if (maskCache.size > 12) maskCache.clear();
   const off = document.createElement('canvas'); off.width = off.height = G;
-  const cx = off.getContext('2d', { willReadFrequently: true });
-  const grab = (S, eyes) => {
-    cx.clearRect(0, 0, G, G);
-    const s = G / 100, map = (x, y) => [x * s, y * s];
-    if (eyes) { cx.fillStyle = '#000';
-      for (const [x, y, a] of S.eyes) { if (a < .5) continue; cx.beginPath();
-        cx.ellipse(x * s, y * s, Math.max(.5, S.eyeR * .72 * s), Math.max(.6, S.eyeR * 1.15 * s), 0, 0, Math.PI * 2); cx.fill(); } }
-    else { cx.fillStyle = '#000'; cx.fill(outline(S, map));
-      const leg = legPath(S, map); if (leg) { cx.strokeStyle = '#000'; cx.lineCap = 'round'; cx.lineWidth = Math.max(1, 3.2 * s); cx.stroke(leg); } }
-    const d = cx.getImageData(0, 0, G, G).data, m = new Uint8Array(G * G);
-    for (let i = 0; i < G * G; i++) m[i] = d[i * 4 + 3] > 110 ? 1 : 0;
-    if (eyes) for (const [x, y, a] of S.eyes) if (a >= .5) {   // an eye is always at least one pixel
-      const i = Math.min(G - 1, Math.floor(y * s)) * G + Math.min(G - 1, Math.floor(x * s)); m[i] = 1; }
-    return m;
-  };
-  maskCache = { G, v: version, a: grab(shapes.a), b: grab(shapes.b), ea: grab(shapes.a, true), eb: grab(shapes.b, true) };
-  return maskCache;
+  const cx = off.getContext('2d', { willReadFrequently: true }), s = G / 100, map = (x, y) => [x * s, y * s];
+  const read = () => { const d = cx.getImageData(0, 0, G, G).data, m = new Uint8Array(G * G);
+    for (let i = 0; i < G * G; i++) m[i] = d[i * 4 + 3] > 110 ? 1 : 0; return m; };
+  const grab = S => { cx.clearRect(0, 0, G, G); paint(cx, S, map, s, { fill: 'sil', hue: 0, glow: 0 }); return read(); };
+  const grabEyes = S => { cx.clearRect(0, 0, G, G); cx.fillStyle = '#000';
+    for (const [x, y, a] of S.eyes) { if (a < .5) continue; cx.beginPath();
+      cx.ellipse(x * s, y * s, Math.max(.5, S.eyeR * .72 * s), Math.max(.6, S.eyeR * 1.15 * s), 0, 0, Math.PI * 2); cx.fill(); }
+    const m = read();
+    for (const [x, y, a] of S.eyes) if (a >= .5) m[Math.min(G - 1, Math.floor(y * s)) * G + Math.min(G - 1, Math.floor(x * s))] = 1;  // an eye is at least one pixel
+    return m; };
+  const M = { a: grab(shapes.a), b: grab(shapes.b), ea: grabEyes(shapes.a), eb: grabEyes(shapes.b) };
+  maskCache.set(key, M); return M;
 }
 function rank(x, y, G, order) {
   if (order === 'sweep') return (x + .5) / G;
@@ -255,12 +261,12 @@ function drawPixels(c, t, L) {
     if (!sil) for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (F.eye[y * G + x]) ctx.fillRect(ox + x * cell, oy + y * cell, Math.ceil(cell), Math.ceil(cell));
     return;
   }
-  // Smooth pixels: scale the pixel mask up softly, then cut it at half, so blocks become rounded vector-like edges.
+  // Smooth pixels: scale the pixel mask up softly, then cut it at half, so blocks become rounded edges.
   const S = Math.round(side);
   const up = (m, rgb) => {
     const small = document.createElement('canvas'); small.width = small.height = G;
     const sc = small.getContext('2d'), im = sc.createImageData(G, G);
-    for (let i = 0; i < G * G; i++) { im.data[i * 4 + 3] = m[i] ? 255 : 0; }
+    for (let i = 0; i < G * G; i++) im.data[i * 4 + 3] = m[i] ? 255 : 0;
     sc.putImageData(im, 0, 0);
     if (!smoothTmp || smoothTmp.width !== S) { smoothTmp = document.createElement('canvas'); smoothTmp.width = smoothTmp.height = S; }
     const tc = smoothTmp.getContext('2d', { willReadFrequently: true });
@@ -280,16 +286,17 @@ function hslToRgb(h, s, l) {
   return [f(0) * 255, f(8) * 255, f(4) * 255];
 }
 
-// ── Vector morph: dots slide; a little squash in the middle of the trip.
+// ── Vector morph: the circles slide and grow; a little squash in the middle of the trip.
 function vectorShape(t) {
   const k = ease(t), S = mix(shapes.a, shapes.b, k), q = +ui('squash').value * Math.sin(Math.PI * t);
-  if (q) { const cy = 85; S.pts = S.pts.map(([x, y, s]) => [50 + (x - 50) * (1 + q), cy + (y - cy) * (1 - q), s]);
-           S.eyes = S.eyes.map(([x, y, a]) => [50 + (x - 50) * (1 + q), cy + (y - cy) * (1 - q), a]);
-           S.leg = [S.leg[0], S.leg[1], S.leg[2], S.leg[3]].map((v, i) => i % 2 ? cy + (v - cy) * (1 - q) : 50 + (v - 50) * (1 + q)); }
+  if (q) { const cy = 85, sx = x => 50 + (x - 50) * (1 + q), sy = y => cy + (y - cy) * (1 - q);
+    for (const p of [...PARTS, 'cut']) S[p] = [sx(S[p][0]), sy(S[p][1]), S[p][2] * (1 + q * .3)];
+    S.eyes = S.eyes.map(([x, y, a]) => [sx(x), sy(y), a]);
+    S.leg = [sx(S.leg[0]), sy(S.leg[1]), sx(S.leg[2]), sy(S.leg[3])]; }
   return S;
 }
 
-// ── Tiny sizes: does it still read at icon size?
+// ── Tiny sizes: does it still read at icon size? (Always check these.)
 const SIZES = [16, 24, 32, 48];
 ui('tiny').innerHTML = SIZES.map(s => `<div><canvas data-v="${s}" style="width:${s}px;height:${s}px"></canvas><canvas data-p="${s}" style="width:${s}px;height:${s}px"></canvas>${s}px</div>`).join('');
 function drawTiny(t, L) {
@@ -297,49 +304,54 @@ function drawTiny(t, L) {
   for (const s of SIZES) {
     const cv = document.querySelector(`[data-v="${s}"]`), { ctx, w, h } = fit(cv);
     ctx.clearRect(0, 0, w, h); const B = boxMap(w, h, 0); paint(ctx, S, B.map, B.s, F);
-    // pixel version at true size: one pixel per cell
     const cp = document.querySelector(`[data-p="${s}"]`), fp = fit(cp); fp.ctx.clearRect(0, 0, fp.w, fp.h);
-    const P = pixelFrame(t, s, ui('order').value), cell = fp.w / s;
-    const sil = L.fill === 'sil'; fp.ctx.fillStyle = sil ? '#111' : `hsl(${L.hue} 70% 74%)`;
+    const P = pixelFrame(t, s, ui('order').value), cell = fp.w / s, sil = L.fill === 'sil';
+    fp.ctx.fillStyle = sil ? '#111' : `hsl(${L.hue} 70% 74%)`;
     for (let i = 0; i < s * s; i++) if (P.body[i]) fp.ctx.fillRect((i % s) * cell, Math.floor(i / s) * cell, Math.ceil(cell), Math.ceil(cell));
     fp.ctx.fillStyle = '#1b1d2b';
     if (!sil) for (let i = 0; i < s * s; i++) if (P.eye[i]) fp.ctx.fillRect((i % s) * cell, Math.floor(i / s) * cell, Math.ceil(cell), Math.ceil(cell));
   }
 }
 
-// ── Editor
+// ── Editor: drag a circle's middle to move it, its edge handle to resize it.
 let editing = 'a', drag = null, lastTap = { id: null, at: 0 }, undoStack = [];
 const ed = ui('ed');
 function handles() {
-  const S = shapes[editing], list = S.pts.map((p, i) => ({ kind: 'pt', i, x: p[0], y: p[1] }));
+  const S = shapes[editing], list = [];
+  for (const p of [...PARTS, 'cut']) { const [x, y, r] = S[p];
+    list.push({ kind: 'move', p, x, y }, { kind: 'size', p, x: x + Math.max(r, 3) * Math.cos(-.6), y: y + Math.max(r, 3) * Math.sin(-.6) }); }
   S.eyes.forEach((e, i) => list.push({ kind: 'eye', i, x: e[0], y: e[1] }));
-  list.push({ kind: 'hip', i: 0, x: S.leg[0], y: S.leg[1] }, { kind: 'foot', i: 0, x: S.leg[2], y: S.leg[3] });
+  list.push({ kind: 'hip', x: S.leg[0], y: S.leg[1] }, { kind: 'foot', x: S.leg[2], y: S.leg[3] });
   return list;
 }
 function drawEditor() {
   const { ctx, w, h, d } = fit(ed); ctx.clearRect(0, 0, w, h);
   const B = boxMap(w, h, w * .05), L = look(), other = shapes[editing === 'a' ? 'b' : 'a'], S = shapes[editing];
-  // grid, so Aaron can think in pixels
   ctx.strokeStyle = 'rgba(255,255,255,.04)'; ctx.lineWidth = 1;
   for (let g = 0; g <= 100; g += 10) { const [x0, y0] = B.map(g, 0), [x1, y1] = B.map(g, 100), [a0, b0] = B.map(0, g), [a1, b1] = B.map(100, g);
     ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.moveTo(a0, b0); ctx.lineTo(a1, b1); ctx.stroke(); }
-  // the other shape, dashed, with faint numbers: shows which dot goes where
-  ctx.setLineDash([6 * d, 6 * d]); ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1.5 * d;
+  // the other shape, dashed
+  ctx.setLineDash([6 * d, 6 * d]); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1.5 * d;
   ctx.stroke(outline(other, B.map)); ctx.setLineDash([]);
-  ctx.font = `${10 * d}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  other.pts.forEach((p, i) => { const [x, y] = B.map(p[0], p[1]); ctx.fillStyle = `hsl(${i * 30} 70% 70% / .45)`; ctx.fillText(i + 1, x, y); });
   // this shape
-  ctx.globalAlpha = .9; paint(ctx, S, B.map, B.s, L.fill === 'sil' ? { fill: 'flat', hue: +ui('hue').value, glow: 0 } : { ...L, glow: 0 }, { noEyes: true }); ctx.globalAlpha = 1;
-  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5 * d; ctx.stroke(outline(S, B.map));
-  // dots
-  S.pts.forEach((p, i) => {
-    const [x, y] = B.map(p[0], p[1]), r = 11 * d, col = `hsl(${i * 30} 75% 62%)`;
-    ctx.fillStyle = col; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * d; ctx.beginPath();
-    if (p[2] > .5) { ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r * 1.2, y); ctx.lineTo(x, y + r * 1.2); ctx.lineTo(x - r * 1.2, y); ctx.closePath(); }
-    else ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#10121a'; ctx.font = `bold ${11 * d}px system-ui`; ctx.fillText(i + 1, x, y + .5 * d);
-  });
+  paint(ctx, S, B.map, B.s, L.fill === 'sil' ? { fill: 'flat', hue: +ui('hue').value, glow: 0 } : { ...L, glow: 0 }, { noEyes: true, alpha: .85 });
+  // construction circles, like a logo grid
+  for (const p of [...PARTS, 'cut']) {
+    const [x, y, r] = S[p], [cx, cy] = B.map(x, y), col = COLOUR[p], rr = Math.max(r, 3) * B.s;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5 * d; ctx.setLineDash(p === 'cut' ? [5 * d, 4 * d] : []);
+    ctx.globalAlpha = p === 'cut' && r < .3 ? .35 : 1;
+    ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    // centre (move)
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx, cy, 7 * d, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * d; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = `600 ${11 * d}px system-ui`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(LABEL[p] + (p === 'cut' ? ' ⊖' : ''), cx + 10 * d, cy);
+    // edge (size)
+    const ex = cx + rr * Math.cos(-.6), ey = cy + rr * Math.sin(-.6);
+    ctx.fillStyle = '#15171f'; ctx.strokeStyle = col; ctx.lineWidth = 2.5 * d;
+    ctx.beginPath(); ctx.arc(ex, ey, 6 * d, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   // eyes
   S.eyes.forEach(([ex, ey, a]) => {
     const [x, y] = B.map(ex, ey);
@@ -350,7 +362,7 @@ function drawEditor() {
   });
   // leg handles: small squares
   [[S.leg[0], S.leg[1]], [S.leg[2], S.leg[3]]].forEach(([lx, ly], i) => {
-    const [x, y] = B.map(lx, ly), r = 8 * d;
+    const [x, y] = B.map(lx, ly), r = 6 * d;
     ctx.fillStyle = i ? '#ffd27a' : '#c9a35a'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * d;
     ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.strokeRect(x - r, y - r, r * 2, r * 2);
   });
@@ -358,31 +370,32 @@ function drawEditor() {
 function pick(ev) {
   const r = ed.getBoundingClientRect(), d = window.devicePixelRatio || 1;
   const B = boxMap(ed.width, ed.height, ed.width * .05), px = (ev.clientX - r.left) * d, py = (ev.clientY - r.top) * d;
-  let best = null, bd = 26 * d;
+  let best = null, bd = 24 * d;
   for (const hd of handles()) { const [x, y] = B.map(hd.x, hd.y), dd = Math.hypot(x - px, y - py); if (dd < bd) { bd = dd; best = hd; } }
   return { best, at: B.back(px, py) };
 }
 ed.addEventListener('pointerdown', ev => {
   const { best } = pick(ev); if (!best) return;
   ev.preventDefault(); ed.setPointerCapture(ev.pointerId);
-  const id = best.kind + best.i, now = performance.now();
+  const id = best.kind + (best.p || best.i || ''), now = performance.now();
   undoStack.push(clone(shapes)); if (undoStack.length > 80) undoStack.shift();
   if (lastTap.id === id && now - lastTap.at < 320) {           // double-tap
     const S = shapes[editing];
-    if (best.kind === 'pt') S.pts[best.i][2] = S.pts[best.i][2] > .5 ? 0 : 1;
-    else if (best.kind === 'eye') S.eyes[best.i][2] = S.eyes[best.i][2] > .5 ? 0 : 1;
-    else S.leg = [S.leg[0], S.leg[1], S.leg[0], S.leg[1]];   // double-tap the leg: tuck it away
+    if (best.kind === 'eye') S.eyes[best.i][2] = S.eyes[best.i][2] > .5 ? 0 : 1;
+    else if (best.kind === 'hip' || best.kind === 'foot') S.leg = [S.leg[0], S.leg[1], S.leg[0], S.leg[1]];   // tuck the leg away
+    else if (best.kind === 'size' && best.p === 'cut') S.cut[2] = S.cut[2] > .3 ? 0 : 8;                    // cutter on / off
     lastTap = { id: null, at: 0 }; changed(); return;
   }
   lastTap = { id, at: now }; drag = best;
 });
 ed.addEventListener('pointermove', ev => {
   if (!drag) return;
-  const { at } = pick(ev), x = Math.max(0, Math.min(100, at[0])), y = Math.max(0, Math.min(100, at[1]));
+  const { at } = pick(ev), x = +Math.max(0, Math.min(100, at[0])).toFixed(1), y = +Math.max(0, Math.min(100, at[1])).toFixed(1);
   const S = shapes[editing];
-  if (drag.kind === 'pt') { S.pts[drag.i][0] = +x.toFixed(1); S.pts[drag.i][1] = +y.toFixed(1); }
-  else if (drag.kind === 'eye') { S.eyes[drag.i][0] = +x.toFixed(1); S.eyes[drag.i][1] = +y.toFixed(1); }
-  else { const o = drag.kind === 'hip' ? 0 : 2; S.leg[o] = +x.toFixed(1); S.leg[o + 1] = +y.toFixed(1); }
+  if (drag.kind === 'move') { S[drag.p][0] = x; S[drag.p][1] = y; }
+  else if (drag.kind === 'size') { const c = S[drag.p], r = Math.hypot(x - c[0], y - c[1]); c[2] = +(r < 1.5 ? 0 : r).toFixed(1); }
+  else if (drag.kind === 'eye') { S.eyes[drag.i][0] = x; S.eyes[drag.i][1] = y; }
+  else { const o = drag.kind === 'hip' ? 0 : 2; S.leg[o] = x; S.leg[o + 1] = y; }
   changed();
 });
 const endDrag = () => { drag = null; };
@@ -399,9 +412,8 @@ ui('sil').onclick = () => {
   ui('sil').classList.toggle('on', on); ui('sil').setAttribute('aria-pressed', on); redraw();
 };
 ui('copy').onclick = () => {
-  const r = a => a.map(v => v.map(n => +(+n).toFixed(1)));
-  const txt = 'FOR JULES · Pip → pigeon shapes (from the Morph Workshop)\n' + JSON.stringify({
-    pip: { dots: r(shapes.a.pts), eyes: r(shapes.a.eyes) }, pigeon: { dots: r(shapes.b.pts), eyes: r(shapes.b.eyes), leg: shapes.b.leg }, pipLeg: shapes.a.leg,
+  const r = o => JSON.parse(JSON.stringify(o, (k, v) => typeof v === 'number' ? +v.toFixed(1) : v));
+  const txt = 'FOR JULES · Pip → pigeon circles (from the Morph Workshop)\n' + JSON.stringify({ pip: r(shapes.a), pigeon: r(shapes.b),
     look: look(), pixel: { grid: +ui('grid').value, order: ui('order').value, smooth: ui('smooth').checked }, squash: +ui('squash').value });
   (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Copied. Paste it to Jules.'), () => { prompt('Copy this:', txt); });
 };
@@ -432,17 +444,8 @@ function tick(now) {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
 
-function redrawMorph() {
-  const L = look();
-  drawPixels(ui('tP'), t, L);
-  drawShape(ui('tV'), vectorShape(t), L);
-  drawTiny(t, L);
-}
-function redraw() {
-  const L = look();
-  drawShape(ui('tA'), shapes.a, L); drawShape(ui('tB'), shapes.b, L);
-  redrawMorph(); drawEditor();
-}
+function redrawMorph() { const L = look(); drawPixels(ui('tP'), t, L); drawShape(ui('tV'), vectorShape(t), L); drawTiny(t, L); }
+function redraw() { const L = look(); drawShape(ui('tA'), shapes.a, L); drawShape(ui('tB'), shapes.b, L); redrawMorph(); drawEditor(); }
 function changed() { version++; save(); redraw(); }
 window.addEventListener('resize', redraw);
 tabs(); redraw();
