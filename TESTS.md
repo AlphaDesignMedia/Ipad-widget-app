@@ -4,6 +4,31 @@ Tess's runs, newest at the top. `app/tools/tess.sh` writes them; Rob keeps this 
 
 ---
 
+## 31 Oct 2026, 22:09 · Tess · `311f39b` · iPad Pro 13" simulator
+
+Red: a crash, a hang over 1 s, or more than 10 late frames while it was open. Simulator numbers: compare runs, not the iPad.
+
+| | Plugin | id | Crash | Hang > 1 s | Late frames | Worst ms | Switches flipped |
+|---|---|---|---|---|---|---|---|
+| 🟢 | Pip Remembers | `remembers` | no | no | 3 | 577 | 0 |
+| 🟢 | Sketch | `sketch` | no | no | 4 | 275 | 0 |
+| 🟢 | Pip's Playground | `playground` | no | no | 2 | 117 | 0 |
+| 🟢 | Plugin Desk | `desk` | no | no | 2 | 130 | 0 |
+| 🟢 | Native Wonders | `wonders` | no | no | 4 | 136 | 0 |
+| 🟢 | Helper Dial | `helper` | no | no | 2 | 118 | 0 |
+| 🔴 | Pip's Bond | `bond` | no | no | 11 | 302 | 2 |
+| 🟢 | Pip's Weight | `weight` | no | no | 2 | 80 | 0 |
+| 🔴 | Dashboard | `dashboard` | no | no | 16 | 226 | 0 |
+| 🟢 | Stable & Sandbox | `stable` | no | no | 2 | 116 | 0 |
+| 🟢 | Pip, design partner | `ideainbox` | no | no | 6 | 473 | 0 |
+| 🟢 | Pip's Feelings | `feelings` | no | no | 6 | 68 | 1 |
+| 🟢 | Pip's Manners | `manners` | no | no | 2 | 52 | 0 |
+| 🔴 | Pip Looks | `looks` | no | no | 50 | 281 | 0 |
+| 🟢 | Pause all, then resume | `pause` | no | no | 4 | 109 | 0 |
+
+**3 red.** Tickets for each red one go in `TICKETS.md` (plugins for Jules, core for Robyn).
+
+
 ## 31 Oct 2026, 20:59 · Tess · `f1456ce` · iPad Pro 13" simulator
 
 Red: a crash, a hang over 1 s, or more than 10 late frames while it was open. Simulator numbers: compare runs, not the iPad.
