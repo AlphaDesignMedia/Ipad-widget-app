@@ -48,7 +48,12 @@ struct PluginBar: View {
 
     var body: some View {
         let items = withCards
-        if !items.isEmpty {
+        if host.paused {
+            PausedPill(host: host)
+                .padding(.bottom, PluginBarLook.barBottom)
+                .padding(.leading, PluginBarLook.edge)
+                .frame(width: size.width, height: size.height, alignment: .bottomLeading)
+        } else if !items.isEmpty {
             let open = host.openCard.flatMap { id in items.first { $0.info.id == id } }
             ZStack {
                 if let open, open.info.panel {
@@ -74,6 +79,12 @@ struct PluginBar: View {
                             buttons
                                 .padding(PluginBarLook.barPadding)
                                 .glassEffect(.regular, in: .rect(cornerRadius: PluginBarLook.radius))
+                        }
+                    }
+                    // Hold the bar for the one-tap fix.
+                    .contextMenu {
+                        Button("Pause all plugins", systemImage: "pause.circle") {
+                            withAnimation(.easeOut(duration: 0.2)) { host.setPaused(true) }
                         }
                     }
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { host.barFrame = $0 }
@@ -267,11 +278,44 @@ struct PluginCardButton: ButtonStyle {
     }
 }
 
+/// While every plugin is paused: one small pill where the bar was, to bring them back.
+struct PausedPill: View {
+    let host: PipHost
+
+    var body: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.2)) { host.setPaused(false) }
+        } label: {
+            Label(host.safeMode ? "Plugins paused after a stop. Turn on" : "Plugins paused. Turn on", systemImage: "play.circle")
+                .font(.system(size: 13.5, weight: .medium))
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular, in: .capsule)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { host.barFrame = $0 }
+        .onDisappear { host.barFrame = .null }
+        .accessibilityHint("Turns your plugins back on")
+    }
+}
+
 /// The plugins in Settings: one switch each, grouped by shelf, with the reason if the host switched one off.
 struct PluginList: View {
     private let host = PipHost.shared
 
     var body: some View {
+        if host.safeMode {
+            Text("The app stopped last time, so every plugin is paused. Turn them back on when you're ready, or pick a few below first.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        Toggle(isOn: Binding(get: { host.paused }, set: { on in withAnimation(.easeOut(duration: 0.2)) { host.setPaused(on) } })) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Pause all plugins")
+                    Text("Everything stops at once. Your switches below are kept.").font(.caption).foregroundStyle(.secondary)
+                }
+            } icon: { Image(systemName: "pause.circle") }
+        }
         ForEach(PluginShelf.allCases) { shelf in
             let items = host.plugins.filter { $0.info.shelf == shelf }
             if !items.isEmpty {
@@ -284,7 +328,7 @@ struct PluginList: View {
     private func row(_ p: any SandboxPlugin) -> some View {
         let id = p.info.id
         return VStack(alignment: .leading, spacing: 4) {
-            Toggle(isOn: Binding(get: { host.isOn(id) }, set: { host.setOn(id, $0) })) {
+            Toggle(isOn: Binding(get: { host.chosen(id) }, set: { host.setOn(id, $0) })) {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(p.info.name)
