@@ -139,6 +139,12 @@ final class PipHost {
     private(set) var off: Set<String>
     /// Plugins the host switched off itself, with the reason, shown in Settings.
     private(set) var broken: [String: String] = [:]
+    /// Every plugin paused at once, with each one's own switch kept: the one-tap fix when something misbehaves
+    /// (Aaron, 31 Oct 2026). Kept under "plugsPaused".
+    private(set) var paused: Bool
+    /// True when the app stopped last time while it was open (a crash, or a freeze iPadOS ended), so this
+    /// launch started with every plugin paused. Settings and the bar say so.
+    private(set) var safeMode = false
     /// The plugin whose card is open in the plugin bar.
     var openCard: String?
     /// Pip's own switch (Settings > Accessibility > Pip), kept up to date by PipLayer.
@@ -167,9 +173,29 @@ final class PipHost {
 
     @ObservationIgnored private let store = UserDefaults.standard
     @ObservationIgnored private var launched = false
+    /// Plugins whose `start` has run this launch, so un-pausing starts only the ones that haven't.
+    @ObservationIgnored private var started = Set<String>()
+    /// True while the app is open; cleared when it goes to the background. Still true at launch means the app
+    /// stopped while it was open.
+    private static let openKey = "plugsOpen"
 
     private init() {
         off = Set(UserDefaults.standard.stringArray(forKey: "plugsOff") ?? [])
+        paused = UserDefaults.standard.bool(forKey: "plugsPaused")
+        // Stopped while open last time: start calm, with every plugin paused, rather than straight back into it.
+        if store.bool(forKey: Self.openKey) {
+            paused = true
+            safeMode = true
+            store.set(true, forKey: "plugsPaused")
+        }
+        store.set(true, forKey: Self.openKey)
+        let center = NotificationCenter.default
+        center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            UserDefaults.standard.set(false, forKey: PipHost.openKey)
+        }
+        center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
+            UserDefaults.standard.set(true, forKey: PipHost.openKey)
+        }
         // One that stopped the app while starting last time stays off.
         if let id = store.string(forKey: "plugStarting") {
             store.removeObject(forKey: "plugStarting")
@@ -189,12 +215,26 @@ final class PipHost {
         for p in plugins where isOn(p.info.id) { begin(p) }
     }
 
-    func isOn(_ id: String) -> Bool { !off.contains(id) && broken[id] == nil }
+    func isOn(_ id: String) -> Bool { !paused && chosen(id) }
+    /// The plugin's own switch (on, and not switched off by the host), whether or not everything is paused.
+    func chosen(_ id: String) -> Bool { !off.contains(id) && broken[id] == nil }
+
+    /// Pauses every plugin, or brings back the ones that are switched on. Each plugin's own switch is kept.
+    func setPaused(_ on: Bool) {
+        paused = on
+        safeMode = false
+        store.set(on, forKey: "plugsPaused")
+        if on {
+            openCard = nil
+        } else if launched {
+            for p in plugins where isOn(p.info.id) && !started.contains(p.info.id) { begin(p) }
+        }
+    }
 
     func setOn(_ id: String, _ on: Bool) {
         if on {
             off.remove(id)
-            if let p = plugins.first(where: { $0.info.id == id }), broken[id] == nil { begin(p) }
+            if !paused, let p = plugins.first(where: { $0.info.id == id }), broken[id] == nil { begin(p) }
         } else {
             off.insert(id)
             if openCard == id { openCard = nil }
@@ -203,6 +243,7 @@ final class PipHost {
     }
 
     private func begin(_ p: any SandboxPlugin) {
+        started.insert(p.info.id)
         store.set(p.info.id, forKey: "plugStarting")
         do { try p.start(self) } catch {
             switchOff(p.info.id, because: "It couldn't start: \(error.localizedDescription)")
