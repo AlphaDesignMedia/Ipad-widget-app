@@ -26,7 +26,8 @@ enum Plugins {
         PipsWeight(),
         Dashboard(),
         StableSwitch(),     // Jules: fixed Rob's two (full set kept; own stop note for the crash clue). Re-check L
-        PipPeek(),          // Jules: Aaron's Pip peeks round open panels; drawn only while one is open
+        PipPeek(),
+        PipFlight(),        // Jules: Sheet F made playable; animates only while playing or flying across          // Jules: Aaron's Pip peeks round open panels; drawn only while one is open
         NextAction(),
         IdeaInbox(),
         BusyPip(),
