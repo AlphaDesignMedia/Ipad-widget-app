@@ -28,14 +28,16 @@
 <body>
 <header>
   <h1>🫧 Pip Shape Studio</h1>
-  <p>Pip as one solid blob, built like your pigeon: circles joined by straight lines. Silhouette first. Drag to shape it; the styling comes later.</p>
+  <p>Pip as a solid teardrop, front on, with curved sides like your drawings: a round body and a point. Silhouette first. Drag to shape it; the styling comes later.</p>
 </header>
 <main>
   <div><div id="stageWrap"><canvas id="stage" width="1000" height="1000"></canvas></div></div>
   <aside>
     <div class="card"><h3>Edit</h3>
       <div class="seg" id="who"><button data-w="pip" class="on">💧 Pip</button><button data-w="pigeon">🐦 Your pigeon</button></div>
-      <div class="seg" style="margin-top:8px"><button id="dropBtn">💧 Start Pip from the Drop</button><button id="earsBtn">🍃 Start Pip with leaf ears</button></div>
+      <div class="seg" style="margin-top:8px"><button id="dropBtn">💧 Teardrop (default)</button><button id="earsBtn">🍃 Start Pip with leaf ears</button></div>
+      <label class="row" style="color:#555;margin-top:8px"><span>Curved sides</span><span id="cv"></span></label>
+      <input type="range" id="curve" min="0" max="1" step="0.05" value="0.55" aria-label="How much the teardrop's sides curve">
       <p class="note">Drag a dot to move a circle, the orange dot to resize it. Fewer circles is better.</p>
     </div>
     <div class="card"><h3>Pip ⇄ pigeon</h3>
@@ -44,7 +46,17 @@
       <div class="seg" style="margin-top:8px"><button id="playBtn">▶ Play</button></div>
     </div>
     <div class="card"><h3>View</h3>
-      <div class="seg" id="views"><button data-v="sil" class="on">◼ Silhouette</button><button data-v="line">Outline</button><button data-v="build">Build</button></div>
+      <div class="seg" id="views"><button data-v="sil" class="on">◼ Silhouette</button><button data-v="line">Outline</button><button data-v="build">Build</button><button data-v="soft">🌫 Feathered</button></div>
+      <div id="softBox" style="display:none;margin-top:10px">
+        <label class="row" style="color:#555"><span>Feather</span><span id="fv"></span></label>
+        <input type="range" id="feather" min="0" max="14" step="0.5" value="5" aria-label="How soft the edge is">
+        <label class="row" style="color:#555;margin-top:6px"><span>Glow</span><span id="gv"></span></label>
+        <input type="range" id="glow" min="0" max="1" step="0.05" value="0.6" aria-label="How much it glows">
+        <label class="row" style="color:#555;margin-top:6px"><span>Softer to the tip</span><span id="tv"></span></label>
+        <input type="range" id="tipSoft" min="0" max="1" step="0.05" value="0.6" aria-label="How much softer the tip is">
+        <div class="seg" style="margin-top:8px" id="tones"><button data-c="ink" class="on">Ink</button><button data-c="fairy">Fairy blue</button><button data-c="pearl">Pearl</button></div>
+        <p class="note">The edge fades out like a gradient, the middle stays solid, the eyes stay crisp.</p>
+      </div>
     </div>
     <div class="card"><h3>Tiny check · 16 · 24 · 32 · 48</h3><div id="tiny"></div></div>
     <div class="card"><h3>Keep it</h3>
@@ -61,28 +73,28 @@
 // Pip: head + body + a tail point (the drop), and two ears, each a root circle and a tip. Pigeon: Aaron's wedge.
 // No glass, no colour, no wings yet. Those come after the shape is agreed.
 
-const KEY = 'pipStudio.shapes3';
+const KEY = 'pipStudio.shapes6';
 const PIP = () => ({
   head: [62, 48, 21], body: [42, 63, 22], tail: [12, 72, 6],
   upRoot: [63, 33, 5], upMid: [67, 20, 6.5], upTip: [70, 5, 2.5],
   backRoot: [50, 36, 5], backMid: [36, 28, 6.5], backTip: [20, 24, 2.5],
-  beak: [62, 48, 0], leg: null, eyes: [[57, 47], [69, 45]],
+  beak: [62, 48, 0], leg: null, eyes: [[57, 47], [69, 45]], curve: 0,
 });
 // The Drop look (Pip Looks): one round body and a point. Here the point is up, like an ear. Ears tucked away.
 const DROP = () => ({
-  head: [51, 52, 24], body: [50, 64, 26], tail: [56, 6, 3],
+  head: [50, 62, 30], body: [50, 62, 30], tail: [56, 8, 0], curve: .55,   // front-on: a round body, a point, curved sides
   upRoot: [51, 52, 0], upMid: [51, 52, 0], upTip: [51, 52, 0], backRoot: [51, 52, 0], backMid: [51, 52, 0], backTip: [51, 52, 0],
-  beak: [51, 52, 0], leg: null, eyes: [[42, 62], [58, 62]],
+  beak: [51, 52, 0], leg: null, eyes: [[41, 61], [59, 61]],
 });
 const PIGEON = () => ({
   head: [64, 30, 10], body: [63, 76, 13], tail: [8, 86, 3],
   upRoot: [64, 30, 0], upMid: [64, 30, 0], upTip: [64, 30, 0], backRoot: [64, 30, 0], backMid: [64, 30, 0], backTip: [64, 30, 0],
-  beak: [86, 34, .8], leg: [58, 89, 57, 99], eyes: [[66, 27], [66, 27]],
+  beak: [86, 34, .8], leg: [58, 89, 57, 99], eyes: [[66, 27], [66, 27]], curve: 0,
 });
 const GROUPS = [['head', 'body', 'tail'], ['upRoot', 'upMid', 'upTip'], ['backRoot', 'backMid', 'backTip'], ['head', 'beak']];
 const EDITABLE = { pip: ['head', 'body', 'tail', 'upRoot', 'upMid', 'upTip', 'backRoot', 'backMid', 'backTip'], pigeon: ['head', 'body', 'tail', 'beak'] };
 
-let shapes = { pip: PIP(), pigeon: PIGEON() };
+let shapes = { pip: DROP(), pigeon: PIGEON() };   // Aaron, 31 Oct: "teardrop"
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.pip && s.pigeon) shapes = s; } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(shapes)); } catch (e) {} };
 let who = 'pip', view = 'sil', t = 0, undo = [], playing = null;
@@ -110,15 +122,41 @@ function mix(A, B, k) {
     else if (key === 'leg') {
       const a = A.leg || [B.leg[0], B.leg[1], B.leg[0], B.leg[1]], b = B.leg || [A.leg[0], A.leg[1], A.leg[0], A.leg[1]];
       out.leg = (A.leg || B.leg) ? a.map((v, i) => lerp(v, b[i], k)) : null;
-    } else out[key] = A[key].map((v, i) => lerp(v, B[key][i], k));
+    } else if (typeof A[key] === 'number') out[key] = lerp(A[key], B[key] ?? 0, k);
+    else out[key] = A[key].map((v, i) => lerp(v, B[key][i], k));
   }
   // the second eye closes as it turns to profile
   out.eyeR = lerp(1, 0, Math.max(0, (k - .5) * 2));
   return out;
 }
+/** The teardrop with curved sides (Aaron: "think of the curves in the illustrations"): from the point, two curves
+ *  bulge outwards and flow into the round body exactly where a straight line would touch it (so no corner). */
+function curvedDrop(S) {
+  const [cx, cy, R] = S.body, [px, py] = S.tail, d = Math.hypot(px - cx, py - cy);
+  if (d <= R + 1) return null;
+  const th = Math.atan2(py - cy, px - cx), al = Math.acos(R / d), bulge = (S.curve || 0) * .7;
+  const T = s => [cx + R * Math.cos(th + s * al), cy + R * Math.sin(th + s * al)];
+  const side = (s, from, to) => {   // from the point to the body (s = +1 / -1)
+    const [tx, ty] = T(s), ux = (tx - px), uy = (ty - py), L = Math.hypot(ux, uy), nx = ux / L, ny = uy / L;
+    const rot = a => [nx * Math.cos(a) - ny * Math.sin(a), nx * Math.sin(a) + ny * Math.cos(a)];
+    const [ox, oy] = rot(s * bulge);
+    return { c1: [px + ox * L * .42, py + oy * L * .42], c2: [tx - nx * L * .38, ty - ny * L * .38], t: [tx, ty] };
+  };
+  const p = new Path2D(), a = side(1), b = side(-1);
+  p.moveTo(px, py);
+  p.bezierCurveTo(...a.c1, ...a.c2, ...a.t);
+  const a0 = th + al, a1 = th - al + Math.PI * 2;
+  for (let i = 1; i <= 48; i++) { const ang = a0 + (a1 - a0) * i / 48; p.lineTo(cx + R * Math.cos(ang), cy + R * Math.sin(ang)); }
+  p.bezierCurveTo(...b.c2, ...b.c1, px, py);
+  p.closePath();
+  return p;
+}
 function silhouette(S) {
   const path = new Path2D();
+  const sameCircle = Math.hypot(S.head[0] - S.body[0], S.head[1] - S.body[1]) < .5 && Math.abs(S.head[2] - S.body[2]) < .5;
+  const drop = (S.curve || 0) > 0 && sameCircle ? curvedDrop(S) : null;
   for (const g of GROUPS) {
+    if (drop && g[0] === 'head' && g[1] === 'body') { path.addPath(drop); continue; }
     const cs = g.map(n => S[n]);
     if (cs.slice(1).every(c => c[2] < .05 && Math.hypot(c[0] - cs[0][0], c[1] - cs[0][1]) < .05) && g[0] !== 'head') continue;
     const pts = hullPts(cs); if (pts.length < 3) continue;
@@ -134,7 +172,34 @@ function draw(ctx, S, size, style, opts = {}) {
   ctx.scale(size / 100, size / 100);
   const k = 100 / size, ink = '#16181f';
   const body = silhouette(S);
-  if (style === 'sil') {
+  if (style === 'soft') {
+    // Feathered: the edge fades like a gradient, and gets softer still towards the tip (Aaron, 31 Oct).
+    // Two layers drawn off-screen: a crisper body that fades out towards the tip, and a blurrier one that
+    // fades in towards it. The glow sits underneath.
+    const f = SOFT.feather, tone = TONES[SOFT.tone], px = size / 100, M = 30;   // 30-unit margin for the blur
+    const layer = (blurUnits, fill, maskFrom, maskTo) => {
+      const off = document.createElement('canvas');
+      off.width = off.height = Math.ceil((100 + M * 2) * px);
+      const o = off.getContext('2d');
+      o.scale(px, px); o.translate(M, M);
+      o.filter = `blur(${(blurUnits * px).toFixed(1)}px)`;
+      o.fillStyle = fill; o.fill(body, 'nonzero'); o.filter = 'none';
+      if (maskFrom != null) {
+        const [bx, by] = S.body, [tx, ty] = S.tail;
+        const g = o.createLinearGradient(bx, by, tx, ty);
+        for (let i = 0; i <= 10; i++) { const q = i / 10, e = q < .15 ? 0 : ((q - .15) / .85) ** 1.4; g.addColorStop(q, `rgba(0,0,0,${(maskFrom + (maskTo - maskFrom) * e).toFixed(3)})`); }
+        o.globalCompositeOperation = 'destination-in'; o.fillStyle = g; o.fillRect(-M, -M, 100 + M * 2, 100 + M * 2);
+      }
+      ctx.drawImage(off, -M, -M, 100 + M * 2, 100 + M * 2);
+    };
+    const grad = (() => { const c = document.createElement('canvas').getContext('2d');
+      const g = c.createRadialGradient(S.head[0] - 8, S.head[1] - 10, 2, S.head[0], S.head[1] + 6, 70);
+      g.addColorStop(0, tone.light); g.addColorStop(.55, tone.mid); g.addColorStop(1, tone.dark); return g; })();
+    const tip = SOFT.tip;
+    ctx.save(); ctx.globalAlpha = SOFT.glow; layer(f * 1.6, tone.glow, 1, 1 - tip * .7); ctx.restore();
+    layer(f * .55, grad, 1, 1 - tip);                      // the body, fading out towards the tip
+    if (tip > 0) layer(f * .55 + tip * 9, grad, 0, tip * .85);   // a softer copy, fading in towards the tip
+  } else if (style === 'sil') {
     ctx.fillStyle = ink; ctx.fill(body, 'nonzero');
   } else {
     ctx.lineJoin = 'round'; ctx.lineWidth = 2.6 * 2 * (opts.px ? 1 : Math.max(k * 4, .6)) ; ctx.strokeStyle = ink;
@@ -144,7 +209,7 @@ function draw(ctx, S, size, style, opts = {}) {
     ctx.strokeStyle = ink; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
     const [hx, hy, fx, fy] = S.leg; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(fx, fy); ctx.lineTo(fx + 5, fy); ctx.stroke();
   }
-  ctx.fillStyle = style === 'sil' ? '#fff' : ink;
+  ctx.fillStyle = style === 'sil' ? '#fff' : style === 'soft' ? TONES[SOFT.tone].eye : ink;
   S.eyes.forEach(([x, y], i) => {
     const sc = i === 1 ? (S.eyeR ?? 1) : 1; if (sc < .05) return;
     ctx.save(); ctx.translate(x, y); ctx.rotate(-.21); ctx.scale(1, sc); ctx.beginPath(); ctx.ellipse(0, 0, 2.6 * Math.max(1, opts.eyeBoost || 1), 4.2 * Math.max(1, opts.eyeBoost || 1), 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
@@ -152,6 +217,13 @@ function draw(ctx, S, size, style, opts = {}) {
   ctx.restore();
 }
 
+// Feathered view settings. Fairy blue is the fairy Pip's own colours (PipLook: accent #4f7be8, orb light and deep).
+const SOFT = { feather: 5, glow: .6, tone: 'ink', tip: .6 };
+const TONES = {
+  ink:   { light: '#3a3d48', mid: '#1d2029', dark: '#16181f', glow: '#16181f', eye: '#fff' },
+  fairy: { light: '#ffffff', mid: '#bccdf6', dark: '#4165be', glow: '#4f7be8', eye: '#16181f' },
+  pearl: { light: '#ffffff', mid: '#eceef3', dark: '#a9b0bf', glow: '#c9d1e6', eye: '#16181f' },
+};
 const stage = document.getElementById('stage'), sctx = stage.getContext('2d');
 const PAD = 100, BOX = 800;   // the 100 box drawn at 800 px with 100 px around it
 function current() { return t <= 0 ? shapes.pip : t >= 1 ? shapes.pigeon : mix(shapes.pip, shapes.pigeon, ease(t)); }
@@ -162,6 +234,7 @@ function render() {
   for (let x = PAD; x <= PAD + BOX; x += 80) for (let y = PAD; y <= PAD + BOX; y += 80) { sctx.beginPath(); sctx.arc(x, y, 2, 0, 7); sctx.fill(); }
   const editing = (who === 'pip' && t === 0) || (who === 'pigeon' && t === 1);
   sctx.save(); sctx.translate(PAD, PAD);
+  if (view === 'soft' && SOFT.tone !== 'ink') { sctx.fillStyle = '#1b1d2a'; sctx.fillRect(-PAD, -PAD, 1000, 1000); }
   draw(sctx, current(), BOX, view === 'build' ? 'line' : view);
   if (view === 'build' && editing) {
     const S = shapes[who];
@@ -212,6 +285,8 @@ stage.addEventListener('pointermove', e => {
   if (drag.part === 'c') { c[0] = r1(x); c[1] = r1(y); }
   else c[2] = r1(Math.max(.5, Math.hypot(x - c[0], y - c[1])));
   // eyes ride along with the head
+  if (drag.n === 'body' && shapes[who].curve > 0) { shapes[who].head = [...c]; }
+  if (drag.n === 'body' && drag.part === 'c' && shapes[who].curve > 0) shapes[who].eyes.forEach(ey => { ey[0] += c[0] - old[0]; ey[1] += c[1] - old[1]; });
   if (drag.n === 'head' && drag.part === 'c') shapes[who].eyes.forEach(ey => { ey[0] += c[0] - old[0]; ey[1] += c[1] - old[1]; });
   save(); render();
 });
@@ -224,7 +299,7 @@ document.querySelectorAll('#who button').forEach(b => b.onclick = () => {
   who = b.dataset.w; document.querySelectorAll('#who button').forEach(x => x.classList.toggle('on', x === b));
   t = who === 'pip' ? 0 : 1; tEl.value = t; view = 'build'; document.querySelectorAll('#views button').forEach(x => x.classList.toggle('on', x.dataset.v === 'build')); render(); });
 document.querySelectorAll('#views button').forEach(b => b.onclick = () => {
-  view = b.dataset.v; document.querySelectorAll('#views button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+  view = b.dataset.v; document.getElementById('softBox').style.display = view === 'soft' ? '' : 'none'; document.querySelectorAll('#views button').forEach(x => x.classList.toggle('on', x === b)); render(); });
 document.getElementById('playBtn').onclick = () => {
   if (playing) return; const from = t > .5 ? 1 : 0, start = performance.now();
   playing = requestAnimationFrame(function step(now) {
@@ -235,14 +310,29 @@ document.getElementById('playBtn').onclick = () => {
 document.getElementById('dropBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes.pip = DROP(); save(); t = 0; tEl.value = 0; render(); };
 document.getElementById('earsBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes.pip = PIP(); save(); t = 0; tEl.value = 0; render(); };
 document.getElementById('undoBtn').onclick = () => { if (undo.length) { shapes = JSON.parse(undo.pop()); save(); render(); } };
-document.getElementById('resetBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes[who] = who === 'pip' ? PIP() : PIGEON(); save(); render(); };
+document.getElementById('resetBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes[who] = who === 'pip' ? DROP() : PIGEON(); save(); render(); };
 document.getElementById('copyBtn').onclick = async () => {
   const text = 'FOR JULES · Pip Shape Studio (Aaron\'s shapes)\n' + JSON.stringify(shapes);
   try { await navigator.clipboard.writeText(text); document.getElementById('copied').textContent = 'Copied. Paste it to Jules.'; }
   catch { document.getElementById('copied').textContent = text; }
 };
+const fEl = document.getElementById('feather'), gEl = document.getElementById('glow');
+const cEl = document.getElementById('curve');
+const showCurve = () => { cEl.value = shapes.pip.curve || 0; document.getElementById('cv').textContent = Math.round((shapes.pip.curve || 0) * 100) + '%'; };
+cEl.oninput = () => { if (!undo.length || cEl.dataset.live !== '1') { undo.push(JSON.stringify(shapes)); cEl.dataset.live = '1'; }
+  shapes.pip.curve = +cEl.value; if (shapes.pip.curve > 0) shapes.pip.head = [...shapes.pip.body]; save(); showCurve(); t = 0; tEl.value = 0; render(); };
+cEl.onchange = () => { cEl.dataset.live = '0'; };
+showCurve();
+const tEl2 = document.getElementById('tipSoft');
+tEl2.oninput = () => { SOFT.tip = +tEl2.value; showSoft(); render(); };
+const showSoft = () => { document.getElementById('tv').textContent = Math.round(SOFT.tip * 100) + '%'; document.getElementById('fv').textContent = SOFT.feather; document.getElementById('gv').textContent = Math.round(SOFT.glow * 100) + '%'; };
+fEl.oninput = () => { SOFT.feather = +fEl.value; showSoft(); render(); };
+gEl.oninput = () => { SOFT.glow = +gEl.value; showSoft(); render(); };
+document.querySelectorAll('#tones button').forEach(b => b.onclick = () => {
+  SOFT.tone = b.dataset.c; document.querySelectorAll('#tones button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+showSoft();
 render();
-window.__studio = { set: (v, tt) => { view = v; t = tt; render(); } };
+window.__studio = { set: (v, tt) => { view = v; t = tt; render(); }, soft: (f, g, tone, tip = .6) => { Object.assign(SOFT, { feather: f, glow: g, tone, tip }); render(); } };
 </script>
 </body>
 </html>
