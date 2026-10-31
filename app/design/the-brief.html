@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Brief: where everything stands</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+:root{--bg:#f3efe6;--ink:#1d1a16;--muted:#6b6357;--card:#fffdf8;--line:#e2d9c8;--g:#2a7f6f;--gs:#e1f1ec;--o:#b4561f;--os:#fbe7d9;--b:#3c5fa8;--bs:#e5ebf8;--y:#8a6a00;--ys:#f8eecd;--r:#b3261e;--rs:#fbe3e1;
+ --display:"Bricolage Grotesque",ui-rounded,system-ui,sans-serif;--body:"Atkinson Hyperlegible",system-ui,sans-serif;--mono:ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#14120f;--ink:#f1ece2;--muted:#a99f8f;--card:#1e1b17;--line:#352f27;--g:#5fd0b8;--gs:#13302a;--o:#f09a62;--os:#3a2316;--b:#8fb0f5;--bs:#1a2440;--y:#e9c25a;--ys:#33290d;--r:#ff8a80;--rs:#3a1614;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.45;padding:22px max(14px,env(safe-area-inset-right)) 44px max(14px,env(safe-area-inset-left))}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:14px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(32px,5.5vw,50px);margin:0;letter-spacing:-.02em;line-height:1.05}
+h2{font-family:var(--display);font-weight:800;font-size:21px;margin:0;display:flex;gap:10px;align-items:baseline}
+h2 .n{font-size:13px;font-family:var(--body);font-weight:700;color:var(--muted)}
+p{margin:0}.muted{color:var(--muted)}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;gap:10px;min-width:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tbl{overflow-x:auto}
+.pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:1px 9px;white-space:nowrap}
+.ok{background:var(--gs);color:var(--g)}.go{background:var(--bs);color:var(--b)}.wait{background:var(--ys);color:var(--y)}.weak{background:var(--rs);color:var(--r)}
+.map{font-family:var(--mono);font-size:12.5px;line-height:1.5;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;white-space:pre;overflow-x:auto}
+.verdict{border-left:4px solid var(--g);background:var(--gs);border-radius:10px;padding:10px 12px}
+.verdict.o{border-color:var(--o);background:var(--os)}
+pre{margin:0;font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;white-space:pre-wrap;word-break:break-word}
+.label{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--o)}
+button{font:inherit;font-size:14px;font-weight:700;justify-self:start;border:1px solid var(--o);color:var(--o);background:transparent;border-radius:999px;padding:6px 14px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+ol,ul{margin:0;padding-left:20px}
+li+li{margin-top:3px}
+</style></head><body><div class="wrap">
+
+<header style="display:grid;gap:4px">
+ <p class="label" style="color:var(--g)">Saturday 31 October · everything on one page</p>
+ <h1>The Brief</h1>
+ <p class="muted">Read it in any order. Ask me about any line: leave a comment on this page, or just say the section number.</p>
+</header>
+
+<section><h2><span class="n">1</span>Right now</h2>
+ <div class="tbl"><table>
+  <tr><th>What</th><th>State</th><th>Next</th></tr>
+  <tr><td>🗺 Plugin Map</td><td><span class="pill ok">approved</span></td><td>The map agent is building it: families, the timeline, folding</td></tr>
+  <tr><td>🪶 Glass Memory and Window Cleaner</td><td><span class="pill ok">made light, build ✅</span></td><td>Parked until you say "bring them back"</td></tr>
+  <tr><td>📊 Dashboard widget (Glass Clock style)</td><td><span class="pill go">built, build check running</span></td><td>Shows in the Dashboard card for now, and moves onto the canvas once Greg's widget hook lands</td></tr>
+  <tr><td>✋ "Needs you" answers</td><td><span class="pill go">built</span></td><td>Yes / Not yet / Let's talk → "Copy for the dashboard" paste</td></tr>
+  <tr><td>🔧 Rob</td><td><span class="pill ok">on the job</span></td><td>Menu stutters, frame meter numbers, the ticket route</td></tr>
+  <tr><td>🧪 Tess the Tester</td><td><span class="pill wait">needs the paste</span></td><td>Paste in section 6</td></tr>
+  <tr><td>📱 iPad</td><td><span class="pill wait">paused, your choice</span></td><td>Nothing installs until you say so</td></tr>
+ </table></div>
+</section>
+
+<section><h2><span class="n">2</span>How it all connects today</h2>
+<div class="map">  🌐 Dashboard page (claude.ai, another account)
+        │  ✋ copied by hand  ← WEAK LINK
+        ▼
+  📄 data/dashboard.json ─────────┐
+                                   │ packed in at build
+  🌳 The Yard (cloud, Jules) ──push──▶ GitHub ──🔍 build check──▶ 📮 Postie on the Mac ──▶ 🏭 Workshop builds ──▶ 📱 iPad
+        ▲                            │
+        └──── 📌 AGENT-NOTES.md + 🎟 TICKETS.md (how the agents talk) ────┘</div>
+ <div class="tbl"><table>
+  <tr><th>Piece</th><th>Robust?</th><th>Why</th></tr>
+  <tr><td>GitHub as the shared memory</td><td><span class="pill ok">yes</span></td><td>Every change is saved with history and undo. It's the real backbone of the team.</td></tr>
+  <tr><td>📌 Notes between agents</td><td><span class="pill ok">for now</span></td><td>It works, but it's one long file. Tickets now go in their own file.</td></tr>
+  <tr><td>📄 dashboard.json → app</td><td><span class="pill ok">yes</span></td><td>One-way only, and as fresh as the last build</td></tr>
+  <tr><td>🌐 Dashboard page ↔ repo</td><td><span class="pill weak">weak</span></td><td>Two copies kept in step by hand, and I can't edit the page</td></tr>
+ </table></div>
+ <div class="verdict"><b>Database?</b> Not yet. Make <b>dashboard.json the one master file</b>: every agent updates it in the same shape, the app reads it, and the dashboard page gets rebuilt from it. One truth, already backed up by Git. A real database can come when Glass Clock needs live, two-way data.</div>
+</section>
+
+<section><h2><span class="n">3</span>Should you get a VPS (a rented server)?</h2>
+ <p><b>The key fact:</b> iPad apps can only be built on a Mac. A normal VPS runs Linux, so it <b>can't build or install your app</b>. Your Mac is already your server.</p>
+ <div class="tbl"><table>
+  <tr><th>Option</th><th>Good for</th><th>Not good for</th><th>Cost (rough guess)</th></tr>
+  <tr><td>🖥 <b>Your Mac, always on</b> (what you have)</td><td>Building, the simulator, Tess, installing on the iPad</td><td>Needs to stay awake, at home and online</td><td>£0</td></tr>
+  <tr><td>📲 <b>Remote Control</b> from your iPad</td><td>Talking to Rob and Greg on the Mac from anywhere, in the Claude Code app. No remote desktop needed.</td><td>The Mac still has to be on</td><td>£0</td></tr>
+  <tr><td>🔐 <b>Private network</b> (a "tailnet") plus Screen Sharing</td><td>Seeing the Mac's screen and the simulator from your iPad, safely</td><td>Fiddly on an iPad screen</td><td>free tier</td></tr>
+  <tr><td>🐧 <b>Linux VPS</b></td><td>Later: a live dashboard database or API, so data is two-way</td><td>Builds, the simulator, the iPad</td><td>~£5–10 a month</td></tr>
+  <tr><td>🍎 <b>Cloud Mac</b> (rented Mac mini)</td><td>Builds when your Mac is off</td><td>Pricey, and your Mac already does this</td><td>~£50+ a month</td></tr>
+ </table></div>
+ <div class="verdict o"><b>My pick:</b> no VPS yet. Keep the Mac on, and run <b>Remote Control</b> in the project folder so Rob shows up in your Claude Code app wherever you are. A VPS earns its place when the dashboard needs live two-way data, and that's step 2's "later".</div>
+ <p class="label">🖥 Terminal step: make Rob reachable from your iPad</p>
+ <pre id="p1">claude remote-control</pre>
+ <p class="muted">Run this in a terminal in the project folder on the Mac. That session then appears in the Claude Code app on your iPad, and you can type to it from anywhere. Keep the Mac awake: System Settings → Energy → "Prevent automatic sleeping".</p>
+ <p class="muted">I could also be linked to your Mac folder myself, so I'd work alongside Rob directly. That only happens if you approve it on your device. Say if you'd like it.</p>
+</section>
+
+<section class="grid2" style="background:none;border:0;padding:0">
+ <section><h2><span class="n">4</span>Researching efficiently</h2>
+  <ol>
+   <li><b>Ask me the decision, not the topic.</b> "Do I need a VPS for X?" beats "tell me about VPSs".</li>
+   <li><b>Quick check first.</b> I answer from what I know, and say what's a guess.</li>
+   <li><b>Deep dive only for real choices</b> (money, services, sign-ups). Say "research it properly" and I'll compare options from current sources, with prices.</li>
+   <li><b>Results go on a page like this one</b>, never just in chat, so you can come back to them.</li>
+   <li><b>One decision a day.</b> Park the rest with "park it".</li>
+  </ol>
+ </section>
+ <section><h2><span class="n">5</span>Speed and stability rules</h2>
+  <ul>
+   <li>A one-second hiccup is fine. Freezes and crashes are not.</li>
+   <li>Nothing redraws when nothing's changed: no idle timers, no full-screen layers.</li>
+   <li>Broken plugin → park it → 🎟 ticket → Jules fixes it → you say "bring it back".</li>
+   <li>Put numbers on it: the frame meter (<code>--meter</code>) and saved crash reports.</li>
+   <li>Tess tests in the simulator before anything reaches the iPad.</li>
+  </ul>
+ </section>
+</section>
+
+<section><h2><span class="n">6</span>Terminal steps waiting (in order)</h2>
+ <p class="label">A · the ticket route (if Rob hasn't added it yet)</p>
+ <pre id="p2">New rule from Aaron: plugins are fixed by Jules (cloud), not here. When a plugin crashes, freezes or slows things down: park it (comment out its line in Plugins.swift with "// parked: <reason>, ticket <date>"), write a ticket at the top of TICKETS.md on pip-playground (date, plugin id, what Aaron saw, how to make it happen, log lines, what you parked), commit and push. Core problems stay with the Workshop. Add this rule to CLAUDE.md under "Who does what".</pre>
+ <button data-copy="p2">Copy A</button>
+ <p class="label">B · hire Tess the Tester</p>
+ <pre id="p3">Rob, from Aaron: create .claude/agents/tester.md ("Tess the Tester"). She builds the app in the simulator with -frameMeter YES, then runs a UI test (add a small XCUITest target if there isn't one) that opens every plugin card and panel, scrolls each to the bottom, flips each toggle once and back, and closes it. She records crashes, hangs and late frames per plugin and writes a ticket in TICKETS.md for anything bad (plugin problems for Jules, core for Greg), with the numbers. Run her now and after every take-plugins.sh. Don't install on the iPad. Leave a note in AGENT-NOTES.md: did / need / next.</pre>
+ <button data-copy="p3">Copy B</button>
+ <p class="label">C · the widget hook, for Greg</p>
+ <pre id="p4">Core ask from Jules: a small generic hook so a plugin can offer a widget for the canvas, e.g. `func widget(_ host: PipHost) -> some View` plus a name and icon, listed in the app's add-widget choices and placed, moved and saved like the app's own widgets, in the app's glass. Off unless a plugin offers one, and only built while on screen. First user: Dashboard.GlassTile in DashboardWidget.swift on pip-plugins. Build in the simulator, push to pip-playground, leave a note.</pre>
+ <button data-copy="p4">Copy C</button>
+</section>
+
+<section><h2><span class="n">7</span>Your questions (one word each is fine)</h2>
+ <ol>
+  <li><b>The dashboard page:</b> copy it into this account so it can be rebuilt from the master file, or keep syncing it by hand for now?</li>
+  <li><b>Button style</b> for the dev look: the glass cards in Classic settings, or the Liquid drops?</li>
+  <li><b>The two plugins</b> you switched off by hand: which were they?</li>
+  <li><b>The map agent's name</b>, for the team page?</li>
+  <li><b>Link me to your Mac</b> so I can work alongside Rob directly? (You'd approve it on your device.)</li>
+ </ol>
+</section>
+</div>
+<script>
+document.querySelectorAll('button[data-copy]').forEach(b=>b.onclick=async()=>{const t=document.getElementById(b.dataset.copy).textContent,l=b.textContent;
+ try{await navigator.clipboard.writeText(t);b.textContent='Copied ✓'}catch{const r=document.createRange();r.selectNodeContents(document.getElementById(b.dataset.copy));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected, press copy'}
+ setTimeout(()=>b.textContent=l,1800)});
+</script></body></html>
