@@ -22,6 +22,15 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## 2026-10-30 (19:30) · Plugin · Dot (Director's Call, local branch `dot-director`, not pushed)
+
+**Did:** `DirectorsCall.swift` (id `director`, Dream, clapperboard icon), a line in `Plugins.swift` and one in `CrewLog`. Not built (no compiler here), not on the iPad. No core edits.
+- Five scenes (Entrance, Big reveal, Sad exit, Dramatic pause, Take a bow). Action! snaps the clapper (with a haptic); Pip looks, speaks, steps a little and returns home, under a soft spotlight that follows them. Cut! stops at once. Take counter; about one take in five Pip fluffs and asks "From the top?".
+- Starts only on tap, so it never calls `PipTalkTurns.spend`; it holds the floor (`takeFloor`) while a scene runs. A hard flick cuts the scene.
+- Joy 0: clapper and light only, no lines. Simpler motion: no steps, fades only. Pip off: a paper star stands in, in the card.
+**Need:** a build, then try each scene on the iPad. The spotlight uses `host.pipPosition` inside the overlay, so it may sit a little off if the spaces differ (same worry as Glass Memory).
+**Next:** nothing until Aaron says.
+
 ## 2026-10-30 (19:05) · Plugin · Rob — **correction: I flagged Pip's Weight wrongly**
 
 **I was wrong, and I'd already told Aaron and Greg.** I said `weight` wakes twice a second the whole time it's on and was the first thing to switch off. It isn't. The line is:
@@ -79,6 +88,82 @@ It's honest about itself: these are **suspicions, not measurements**. Nothing pr
 **Greg:** the sparkles loop at `Pip.swift:543` is still the one real always-on core loop, and still waiting on Aaron's go.
 
 **Still no dashboard verdict.** CoreSimulator is wedged (`launchd_sim ... quit responding`) with three simulators booted; clearing it needs `simctl shutdown all`, which would close Aaron's simulator and could disturb Greg's builds, so I've left it alone. No WORKS / EMPTY / NEEDS SIGN-IN, and I won't guess one.
+## 2026-10-30 (night) · Plugin · Jean (fridge note: "While you were asleep")
+
+Flask's on the side, love. I read every changed line on `evening-next` the way a compiler would. There's no Mac here, so none of it has been built. Branch `jean-check`, nothing pushed.
+
+**Second pass (Director's Call, branch `jean-check2`):** host calls, `takeFloor`, the `default:`, number types and names all check out; fixed two things: a scene now stops if the plugin is switched off mid-take, and the clapper really snaps. Not compiled. — Jean
+
+**Checked:** Bob's Pip's Manners (the `PipTalkTurns` ledger and `spend`, `PipManners`, and the swaps from `floorFree` to `spend` in BusyPip, TidyPip, TeaBreak, GuestTakeover, DashboardQueue, PipsFeelings, VendOMat, PipsSketchbook, GlassCleaner, PipChecks and RobVisits). Dot's `DrawOff`, `GlassMemory` and the additions to Sketch and GlassCleaner. Bob's `PipLooks`.
+- Checked against the real `PluginHost.swift`: every `host.*` call exists with the right labels. `PipBody`, `PipFace` (every case, and a `default:` is there), `SettingsCard`, `PluginCardButton`, `Corner.inset` and `PipLook.accent`/`flapSeconds` all match.
+- Main-actor use is right everywhere. The project builds in Swift 5 mode, so plugin structs run on the main actor, and the helpers that `nonisolated` drawing code calls are `nonisolated` too.
+- The nested `Table`, `Stroke`, `Subject` and `Tune` in DrawOff hide SwiftUI's and Combine's names only inside DrawOff, which is fine.
+- No two top-level types or plugin ids share a name anywhere in the module.
+- No mixed CGFloat/Double sums of the kind that stopped Doodle Duet building.
+- No force-unwraps, empty-array or divide-by-zero risks in the new code.
+- Joy 0: Manners lets nothing start on its own. Glass Memory makes and shows no marks. Draw-off and Pip Looks only speak when you press something.
+
+**Fixed (1 commit):** Pip Looks' Pencil-hover `switch` over SwiftUI's `HoverPhase` is now `if case`, as in Native Wonders, so it can't warn about unknown cases.
+
+**Not sure, worth a look:**
+- Not compiled. The GitHub build (or `app/tools/check.sh --build`) is the real test.
+- `DropTurn.live` is a shared plain class in a `static let`. That's fine in Swift 5 mode; Swift 6 mode would want `@MainActor` on `DropTurn`.
+- Glass Memory: any Window Cleaner clean that finishes wipes all of Pip's marks, even the quiet one without Pip. The comment says that's intended, but the marks may never get the chance to build up over days.
+- The smudges are placed with `host.pipPosition` inside an overlay. If the overlay's space and Pip's differ by the safe area, the marks may sit a little off. Look on the iPad.
+- Manners: a plugin spends its turn before `host.say` runs, so a line that then fails still counts. Harmless.
+- `origin/pip-plugins` has moved on since this was merged ("Pip's flags"), so expect a merge before it goes up.
+
+Jean
+
+## 2026-10-30 (19:10) · Plugin · Bob (Pip Looks, local branch `bob-looks`, not pushed)
+
+**Did:** `PipLooks.swift` (id `looks`, Dream, drop icon in the bar) and one line in `Plugins.swift`. Not built (no swiftc here), not on the iPad.
+- `PipDropBody`: a SwiftUI `Canvas` port of `app/design/pip-drop-workshop.html` with Aaron's 30 Oct picks (`DropPicks.aaron30Oct`): fixed-light ball, liquid tip from the turned 3D tail, four leaf wings in 3D sorted by depth (far ones behind the body), alpha by |normal.z|, rib line, two eyes on the ball that slide, squash and blink. Faces: asleep/blink lines, sleepy, happy arch, dizzy spiral, surprised, held. Reduced motion: no flap, sway or blink; turns snap.
+- The card: Classic (core `PipBody`) and Drop side by side, both turn to follow your finger or Pencil hover. Buttons "Classic (default)" · "Drop", saved in `plug.looks.look`. Classic is the default; one tap back.
+**Need from core (Greg), one go, same pattern as `BarLook`:**
+```swift
+// Pieces (or PluginHost.swift)
+struct PipStyleContext {
+    var face: PipFace; var flap: Double; var flapping: Bool; var spin: Double; var glow: Double; var halo: Color
+    var look: CGSize; var size: CGFloat; var time: Double; var simpler: Bool   // size = PipLook.size * pip.scale (orb diameter)
+}
+struct PipStyle { let owner: String; var body: @MainActor (PipStyleContext) -> AnyView }
+// PipHost
+var pipStyle: PipStyle?                                           // nil = Classic
+var activePipStyle: PipStyle? { pipStyle.flatMap { isOn($0.owner) ? $0 : nil } }
+// PipLayer.pipView, inside the TimelineView, in place of PipBody(...):
+if let style = host.activePipStyle {
+    style.body(PipStyleContext(face: pip.face, flap: flap, flapping: flaps, spin: (t / 0.5).truncatingRemainder(dividingBy: 1),
+                               glow: pip.glow, halo: pip.halo ?? PipLook.glow, look: pip.look,
+                               size: PipLook.size * pip.scale, time: t, simpler: pip.simpler))
+} else { PipBody(...) }   // as today
+```
+- The view it returns is centred on Pip and bigger than the orb (8 × radius, for the glow); the touch area stays as it is. Snore, squash, hop and lean keep wrapping it.
+- When it lands, PipLooks un-comments two lines in `apply` (already written) and Drop goes everywhere. Switching PipLooks off falls back to Classic through `activePipStyle`.
+**Next:** whatever Jules picks. Then `host.pipDepth(scale:dim:behindPanels:)` for the peek-behind-panels idea.
+## 2026-10-30 (night) · Plugin · Dot (local branch `dot-glass`, not pushed, not built, not tried by hand)
+
+**Did:** Aaron's "the glass should remember" idea, as `GlassMemory.swift` (id `glassmemory`, Dream). Pip leaves very faint smudges where they fly after a flick or bump (max 60, kept on the device in `glassmemory.json`, slowly stronger over about 5 days; none at Joy 0, barely there at Joy 1, none under simpler motion or with Pip off). Card: "Pip leaves marks" switch, "Clean the glass", and a drawing look: Normal / Soft / Frosted glass.
+- **Small additive edits to other plugin files:** `Sketch.swift` `Layer` reads `plug.glassmemory.ink` (only while Glass Memory is on; Normal is the old code path). `GlassCleaner.swift` posts `.custom("glass.cleaned")` when a clean or team visit finishes, and Glass Memory wipes its marks on it.
+**Need from core:** nothing. A "Pip's position while flying" event would beat polling `host.pipPosition` every 0.1 s for up to 3 s per flick (what it does now).
+**Risk:** frosted ink blurs a full-screen canvas, so it may be heavy with lots of ink; check on the iPad. Untested: smudge placement (assumes the overlay shares Pip's space).
+## 2026-10-30 (18:48) · Plugin · Bob (Pip's Manners, local branch `bob-manners`, not pushed)
+
+**Did:** Aaron's "fun but not too annoying, unless you make them like that". Not built (no swiftc here), not on the iPad.
+- `PipTalkTurns.swift` (additive): one shared talk budget. `PipTalkTurns.spend(host)` replaces `floorFree` where Pip starts talking on their own: it's `floorFree` plus Pip here, Joy > 0, not hushed, not just drawn on or hard-flicked, and under the Joy allowance (per 10 min: Joy 0 → 0, 1 → 2, 2 → 3, 3 → 5, 4 → 8, 5 → 99). One spend per conversation. Replies to taps and buttons don't spend. With Pip's Manners switched off, `spend` is just `floorFree`.
+- New `PipManners.swift` (id `manners`, Grounded shelf, raised-hand button): the card shows "Pip has said N things in the last 10 minutes", explains Joy, and has "Shh for an hour" (`plug.pip.hushUntil`). It hears `.ink` (quiet 20 s) and flicks over 1150 pt/s (quiet 3 min).
+- Using the budget: Busy Pip (rounds), Tidy Pip (asks and "want me to do it?"), Tea Break (ask), Guest Takeover (visits), Dashboard Queue (offer), Pip's Feelings ("back from sulk"), Vend-O-Mat ("Shot!"), Sketchbook (auto-guess), Window Cleaner (back on: team visit and idle cleans with Pip), and parked Pip Checks, Rob Visits (one word each, still parked). Crew Rundown only greets when you open it, so it's left alone.
+**Need from core (Greg), not blocking:** a `host.say(..., unprompted: true)` or `.pipDismissed` event one day, so the budget doesn't rely on each plugin calling `spend`.
+**Next:** Twenty Past, Opening Night's time eggs and Pip's News also speak on their own; easy to route if Aaron wants.
+## 2026-10-30 (18:50) · Plugin · Dot
+
+**Did (local branch `dot-drawoff`, not pushed, not built, not tried by hand):** **The Draw-off** (`DrawOff.swift`, panel, id `drawoff`), the team-building game Aaron asked for. One active line in `Plugins.swift` (after `ShowModes()`, above the parked lines) and one line in `CrewLog.swift`.
+- Press Start: Pip calls a word (house, face, cat, cup of tea, sausage roll, the moon). Bob and Dot draw it stroke by stroke side by side from hand-made point lists in the `Table` at the top of the file. Bob is slow and neat, Dot is quick and wobbly and sometimes adds a star. Tap the one you like: the winner's frame lights up and bounces, and both react kindly (Bob grumbles gently about team building).
+- Optional "You" lane (button in the card): draw your own with finger or Pencil, then "Pip's verdict" for a kind word, or "Pick mine".
+- Score saved on the device (`plug.drawoff.*`), with a reset button. Pip off: fully playable, no Pip lines. Joy 0: Pip silent. Simpler motion: drawings appear whole, no bounce. Pip only speaks when you press something, through `PipTalkTurns`. Made-up names only. VoiceOver labels on every tile and button.
+**Need from you:** nothing from core. Aaron decides when it lands.
+**Couldn't test:** no compiler here. Re-read every edit by hand, so a build check is the first job. The tile layout in a narrow panel and the drawing speeds (`Tune`) are estimates.
+**Next:** whatever Aaron picks.
 
 ---
 

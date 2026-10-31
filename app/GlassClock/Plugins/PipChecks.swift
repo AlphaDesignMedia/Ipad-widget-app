@@ -71,7 +71,7 @@ struct PipChecks: SandboxPlugin {
             guard host.joy > 0 else { return }
             guard !asked, (host.value("pipchecks", "asks") as Int? ?? 0) < Tune.asksEver else { return }
             host.later(Tune.askAfter) {
-                guard !self.asked, PipTalkTurns.floorFree(host) else { return }
+                guard !self.asked, PipTalkTurns.spend(host) else { return }
                 if host.say(PipChecks.pipLine, for: Tune.askFor) {
                     self.asked = true
                     PipTalkTurns.takeFloor(host, for: Tune.askFor)

@@ -38,11 +38,16 @@ enum Plugins {
         PipsSketchbook(),
         VendOMat(),
         ShowModes(),
+        PipManners(),
+        DrawOff(),
+        PipLooks(),         // Bob: Classic or Drop look; Drop shows in its card until the core look hook lands
         // All on for Aaron's show-off build (30 Oct). Comment a line out to park it again.
         GlassCleaner(),     // Bob: back on for show-off (Aaron, 30 Oct); rare at calm, stops on touch
         PipChecks(),        // Greg: speaks 8s after launch, not hand-tested
         RobVisits(),        // Rob: pops in unprompted at joy 2+, not hand-tested
         VintagePacks(),     // Rob: passive
+        GlassMemory(),      // Dot: faint Pip trails that stay, and a frosted ink look; trails off at Joy 0
+        DirectorsCall(),    // Dot: tap Action! and Pip performs a scene. Starts only on tap; never unprompted
         PipFlags(),         // Rob: new. No loop, does nothing until opened. Park it if you'd rather.
     ]
 }

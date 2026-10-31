@@ -132,7 +132,7 @@ struct GlassCleaner: SandboxPlugin {
         let now = Date.now
         let idle = min(now.timeIntervalSince(wipe.lastTouch), now.timeIntervalSince(wipe.lastClean))
         guard idle >= Tune.idle(joy: host.joy) else { return }
-        if !wipe.teamCame, teamWanted(host), messy(host), pipFree(host), PipTalkTurns.floorFree(host) {
+        if !wipe.teamCame, teamWanted(host), messy(host), pipFree(host), PipTalkTurns.spend(host) {
             callTeam(host, pane)
         } else {
             clean(host, pane, byHand: false)
@@ -151,12 +151,13 @@ struct GlassCleaner: SandboxPlugin {
     fileprivate func clean(_ host: PipHost, _ pane: CGRect, byHand: Bool) {
         stop(host)
         wipe.lastClean = .now
-        let withPip = pipFree(host) && !host.simpler && host.joy > 0 && (byHand || PipTalkTurns.floorFree(host))
+        let withPip = pipFree(host) && !host.simpler && host.joy > 0 && (byHand || PipTalkTurns.spend(host))
         wipe.still = host.simpler
         wipe.faint = !host.pipHere
         withAnimation(.easeInOut(duration: 0.3)) { wipe.pane = pane }
         wipe.job = Task { @MainActor in
-            defer { if !Task.isCancelled { finish(host) } }
+            // Glass Memory listens for this and wipes Pip's marks (only when a clean ran to the end).
+            defer { if !Task.isCancelled { finish(host); host.post(.custom("glass.cleaned")) } }
             guard withPip else {
                 shine()
                 try? await Task.sleep(for: .seconds(Tune.shineSeconds + 0.6))
@@ -221,6 +222,7 @@ struct GlassCleaner: SandboxPlugin {
             try? await Task.sleep(for: .seconds(0.6))
             host.say(Lines.thanks.randomElement()!, for: 2)
             host.cheer()
+            host.post(.custom("glass.cleaned"))
         }
     }
 
