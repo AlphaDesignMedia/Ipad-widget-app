@@ -15,6 +15,27 @@ with plugins switched off. Simulator numbers run on the Mac's chip: compare befo
 
 ---
 
+## 31 Oct, 22:45 · Dashboard baseline before Jules changes anything (for `nat/dashboard-review.md`)
+
+Simulator, iPad Pro 13", portrait, Peek and Flight parked, PerFrame in. 3 rounds; Mac quieter (load 13–50, was 200+ earlier).
+fps · late frames · worst ms. `-stressMenus YES` for the card, `-checkKL k` for Panels.
+
+| Dashboard | round 1 | round 2 | round 3 | reads as |
+|---|---|---|---|---|
+| card open | 60 · 7 · 255 | 56 · 6 · 219 | 56 · 6 · 169 | ✅ smooth |
+| unfold every section | 55 · 5 · 346 | 58 · 9 · 258 | 60 · 10 · 236 | ⚠️ one bump, 0.25–0.35 s |
+| scroll down and back | 60 · 0 · 0 | 60 · 0 · 0 | 60 · 0 · 0 | ✅ |
+| switch a plugin ×6 | 60 · 5 · 326 | 60 · 8 · 110 | 60 · 6 · 111 | ✅ |
+| close | 60 · 3 · 209 | 58 · 3 · 168 | 60 · 3 · 190 | ✅ |
+| **Open as Panels, first time** | 3 late · **512** | 3 · **424** | 4 · **428** | ⚠️ a 0.4–0.5 s catch, every time |
+| Open as Panels, second time | 2 · 117 | 3 · 105 | 1 · 114 | ✅ |
+| each of the 7 sections | 0–7 · 43–637* | 0–7 · 43–127 | 0–7 · 46–113 | ✅ (*one 637 in round 1, while the Mac was busiest) |
+
+- **Two things left, both a single catch rather than stutter:** the first Open as Panels (~0.45 s, the full-screen cover and its glass
+  building for the first time) and unfolding the card's sections (~0.3 s, the unfold ticket below). Worth sampling the first if Jules
+  rebuilds Panels as *the* dashboard (step 2), so it doesn't get slower.
+- Answer → copy still works (FOR DASHBOARD paste). Not measured: landscape, the iPad itself.
+
 ## 31 Oct · M · Stable & Sandbox fixed ✅ · Pip Peek ✅ · three small notes for Jules
 
 - **L re-check** (`-checkKL l`, clean install): Everything 43 → Stable 14 → Bring back ×3 → Stable → Everything = **43** ✅.
