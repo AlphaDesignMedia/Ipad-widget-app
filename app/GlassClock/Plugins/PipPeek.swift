@@ -24,7 +24,7 @@ struct PipPeek: SandboxPlugin {
         static let idle = 10.0                  // seconds alone before Pip tucks away
         static let helloFor = 4.0               // seconds the hello lasts
         // Where Pip's left edge sits, measured from the panel's edge (negative = behind it), and the lean.
-        static let hiddenOut: CGFloat = -82, hiddenLean = -8.0
+        static let hiddenOut: CGFloat = -72, hiddenLean = -2.0   // just the up ear's tip shows (Rob, 31 Oct)
         static let peekOut: CGFloat = -58, peekLean = 6.0
         static let emergeOut: CGFloat = -14, emergeLean = 0.0
     }
@@ -167,6 +167,7 @@ struct PipPeek: SandboxPlugin {
                     .accessibilityLabel("Pip, peeking")
                     .accessibilityAddTraits(.isButton)
                     .accessibilityHint("Pip comes out to say hello.")
+                    .accessibilityAction { tapped() }
                     .allowsHitTesting(pose != .hidden || hello)
             }
             .frame(width: Tune.strip, height: Tune.size + 20, alignment: .leading)
