@@ -8,8 +8,8 @@ import UIKit
 //    that's on now.
 // 2. One at a time: from Stable, bring the others back one by one. Each step goes in the log with the time.
 //    "That made it worse" switches the last one off again and marks it. Copy the log as a FOR JULES paste.
-// 3. Crash clue: if the app stopped last time (the host opens in safe mode), the card names the last plugin brought
-//    back as the first suspect. An app can't catch its own crash as it happens, so this is the next best thing.
+// 3. Crash clue: if the app stopped while open, then once you turn plugins back on the card names the last plugin
+//    brought back as the first suspect. An app can't catch its own crash as it happens, so this is the next best thing.
 // Also shows as a small section in the Dashboard. No timers, nothing drawn over the app, no network.
 // Works the same with Pip off; Pip says nothing here. This plugin never switches itself off.
 
@@ -53,7 +53,11 @@ struct StableSwitch: SandboxPlugin {
     }
 
     @MainActor static func goStable(_ host: PipHost) {
-        if mode(host) != .stable { host.setValue(onNow(host), me, "fullSet") }
+        // Only leaving Everything (or the very first time) saves the full set. "One at a time" never overwrites it
+        // (Rob, 31 Oct: Everything came back with 17 of 41).
+        if mode(host) == .everything || (host.value(me, "fullSet") as [String]?) == nil {
+            host.setValue(onNow(host), me, "fullSet")
+        }
         apply(stableSet(host), host)
         host.setValue(Mode.stable.rawValue, me, "mode")
         host.setValue(nil, me, "lastAdded")
@@ -96,13 +100,33 @@ struct StableSwitch: SandboxPlugin {
         log("✗ \(name(id, host)) made it worse, switched off again", host)
     }
 
-    /// After the app stopped while open: the last plugin brought back (within 6 hours) is the first suspect.
-    @MainActor static func crashSuspect(_ host: PipHost) -> String? {
-        guard host.safeMode, let id: String = host.value(me, "lastAdded"),
-              let at: Double = host.value(me, "lastAddedAt"),
-              Date().timeIntervalSince1970 - at < 6 * 3600 else { return nil }
-        return id
+    /// This launch, so a pause and un-pause in the same session isn't mistaken for a stop.
+    @MainActor static let launch = UUID().uuidString
+
+    /// Runs whenever the plugin starts, which after a stop is when you tap "Turn on". If the app was still open
+    /// last time (our own note, kept until the app goes to the background), the last plugin brought back is the
+    /// first suspect. Doesn't need the host's safe mode, which clears on "Turn on" (Rob, 31 Oct).
+    func start(_ host: PipHost) throws {
+        let was: String? = host.value(Self.me, "openLaunch")
+        if let was, was != Self.launch, let id: String = host.value(Self.me, "lastAdded"),
+           let at: Double = host.value(Self.me, "lastAddedAt"), Date().timeIntervalSince1970 - at < 6 * 3600 {
+            host.setValue(id, Self.me, "suspect")
+            Self.log("⚠️ The app stopped last time. Last brought back: \(Self.name(id, host))", host)
+        }
+        host.setValue(Self.launch, Self.me, "openLaunch")
+        guard !Self.watching else { return }
+        Self.watching = true
+        let center = NotificationCenter.default
+        center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            UserDefaults.standard.removeObject(forKey: "plug.stable.openLaunch")
+        }
+        center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in UserDefaults.standard.set(StableSwitch.launch, forKey: "plug.stable.openLaunch") }
+        }
     }
+    @MainActor static var watching = false
+
+    @MainActor static func crashSuspect(_ host: PipHost) -> String? { host.value(me, "suspect") }
 
     @MainActor static func log(_ line: String, _ host: PipHost) {
         let time = Date().formatted(date: .omitted, time: .shortened)
@@ -145,11 +169,20 @@ struct StableSwitch: SandboxPlugin {
             VStack(alignment: .leading, spacing: Corner.inset) {
                 if let suspect = StableSwitch.crashSuspect(host) {
                     SettingsCard(title: "The app stopped last time", icon: "exclamationmark.triangle",
-                                 footer: "Plugins are paused for now. Un-pause in the plugin bar when you're ready.") {
+                                 footer: "Found when you turned plugins back on.") {
                         Text("Last one brought back: \(StableSwitch.name(suspect, host)). It's the first suspect.")
                             .fixedSize(horizontal: false, vertical: true)
-                        Button("Switch it off and mark it") { StableSwitch.madeItWorse(host); taps += 1 }
+                        HStack(spacing: PluginBarLook.cardGap) {
+                            Button("Switch it off and mark it") {
+                                host.setValue(suspect, StableSwitch.me, "lastAdded")
+                                StableSwitch.madeItWorse(host)
+                                host.setValue(nil, StableSwitch.me, "suspect")
+                                taps += 1
+                            }
                             .buttonStyle(PluginCardButton(on: true))
+                            Button("Not this one") { host.setValue(nil, StableSwitch.me, "suspect"); taps += 1 }
+                                .buttonStyle(PluginCardButton(on: false))
+                        }
                     }
                 }
                 SettingsCard(title: full ? "Stable or everything" : "Sandbox",
@@ -166,10 +199,6 @@ struct StableSwitch: SandboxPlugin {
                         }
                         .buttonStyle(PluginCardButton(on: mode == .everything))
                         .accessibilityHint("Brings back your full set of plugins.")
-                    }
-                    if host.paused {
-                        Text("Everything is paused at the moment, so none of them are running.")
-                            .font(.caption).foregroundStyle(.secondary)
                     }
                     if full {
                         Button("Make this my Stable") { StableSwitch.saveStable(host); taps += 1 }
