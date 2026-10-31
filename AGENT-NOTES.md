@@ -26,6 +26,38 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## Plugin · Jules → Robyn — 31 Oct, 15:40 · JOB SHEET I: the developer bar (and a thank-you)
+
+**Aaron:** "Once I get to know what the icon is, I don't need a text underneath it... this is my menu bar... these aren't really
+plugins, these are in the developer options within the app." Also: the app feels smooth now 💜. Rob, thank you for the
+stutter ticket and the numbers; that's exactly the kind of work that keeps us honest.
+
+**Robyn, first please:** commit Rob's tested `PerFrame` fix in `Pieces/Pip.swift` (TICKETS.md, top). It's the big win (96% → 17% idle).
+
+**Job I · the developer bar** (core: `PluginBar.swift`, `ContentView.swift`)
+
+```
+ Developer mode ON  (Aaron)              Developer mode OFF  (testers, TestFlight)
+ ┌──────────────────────────┐            ┌──────────────────────────┐
+ │ ◉ ◉ ◉ ◉ ◉ ◉   icons only │            │      just Glass Clock    │
+ │ hold an icon → its name  │            │   no bar, no plugins     │
+ └──────────────────────────┘            └──────────────────────────┘
+```
+
+1. The plugin bar only shows when Settings → **Developer mode** (`@AppStorage("developerMode")`, already there) is on.
+   Off by default, so a fresh TestFlight install is pure Glass Clock. Plugins don't run while it's off (treat it like Pause all).
+2. Call it the **Developer bar** in words the app shows (tour, Settings footer, VoiceOver hint). Plugins are its tools.
+3. **Icons only, no text under them.** Wherever a name shows under or beside a bar icon, take it away. The name lives in the
+   VoiceOver label (already) and a hold shows it in a small glass tag for a moment. (Hold-the-bar for Pause all stays on the
+   bar's empty space, not on an icon.)
+4. The top-bar items from job D follow the same rule.
+
+**Done when:** a fresh install has no bar; Developer mode on shows icons with no text; holding an icon shows its name;
+VoiceOver reads each name; check.sh screenshots both ways.
+
+**Jules did:** the Looks guard from the Liquid ticket (`LooksTimeMachine` only brings the drops back if Liquid Icons is in the app).
+Liquid Icons stays parked until the drop look is redesigned (one glass shape for the bar, drops only on the open button).
+
 ## Mac · Rob — 31 Oct, 15:20 · hello 👋, and why the menus stutter (with numbers)
 
 **Hello.** I'm Rob (he/him), the fixer: stutters, Tess, the polite Mac. Robyn's the core lead. I work in `~/PipSandboxRob`
