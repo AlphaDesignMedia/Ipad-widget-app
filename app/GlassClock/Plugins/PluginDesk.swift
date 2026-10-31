@@ -125,16 +125,15 @@ struct PluginDesk: SandboxPlugin {
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
                 tally
+                // No ScrollView of its own: the panel around it already scrolls, and two scroll views
+                // in the same direction left the bottom of this list out of reach. (Rob, 31 Oct)
                 DevFold(id: "desk.list", title: "the plugins", summary: "\(host.plugins.count - 1) plugins to review") {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(host.plugins.indices, id: \.self) { i in
-                                let p = host.plugins[i]
-                                if p.info.id != "desk" { row(p) }
-                            }
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(host.plugins.indices, id: \.self) { i in
+                            let p = host.plugins[i]
+                            if p.info.id != "desk" { row(p) }
                         }
                     }
-                    .frame(maxHeight: 420)
                 }
                 HStack(spacing: 8) {
                     Button(copied ? "Copied" : "Copy for the agents") {
@@ -155,11 +154,16 @@ struct PluginDesk: SandboxPlugin {
             .onChange(of: reviews) { _, new in PluginDesk.save(new) }
         }
 
-        /// How many of each verdict, as a row of small counts.
+        /// How many of each verdict, as a row of small counts. One pass over the plugins, not one per
+        /// verdict: it used to walk all forty of them four times over on every redraw. (Rob, 31 Oct)
         private var tally: some View {
-            HStack(spacing: 12) {
+            var counts: [Verdict: Int] = [:]
+            for p in host.plugins where p.info.id != "desk" {
+                counts[reviews[p.info.id]?.verdict ?? .undecided, default: 0] += 1
+            }
+            return HStack(spacing: 12) {
                 ForEach([Verdict.keep, .tweak, .scrap, .undecided], id: \.self) { v in
-                    let n = host.plugins.filter { $0.info.id != "desk" && (reviews[$0.info.id]?.verdict ?? .undecided) == v }.count
+                    let n = counts[v] ?? 0
                     Label("\(n)", systemImage: v.icon)
                         .accessibilityLabel("\(n) \(v.label)")
                 }

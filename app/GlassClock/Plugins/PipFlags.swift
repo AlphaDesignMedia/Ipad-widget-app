@@ -48,6 +48,8 @@ struct PipFlags: SandboxPlugin {
     static let verdicts: [String: Verdict] = [
         "glass": .init(flag: .red, why: "Starts itself when you stop touching the screen, then wakes every 3s and loops a shine.",
                        note: "Window Cleaner sets off on its own when you leave the room. Lovely, but it's the only one here that starts without you."),
+        "glassmemory": .init(flag: .amber, why: "Its faint marks are blurred layers that sit over the whole app on every frame, and they stay for good.",
+                             note: "Glass Memory used to leave dark little marks on the screen. I've turned those off; the frosted-ink half is untouched."),
         "busypip": .init(flag: .green, why: "Looks once a second only while Pip could start something; every 5s when Pip's asleep, away or already busy.",
                          note: "Busy Pip has learned to sit still when there's nothing to be busy about."),
         "tidy": .init(flag: .amber, why: "Wakes every 2 seconds, and keeps an animation looping.",
@@ -85,65 +87,83 @@ struct PipFlags: SandboxPlugin {
 }
 
 // MARK: The panel
+//
+// SHORT ON PURPOSE. This lives inside Plugin Desk, which already lists every plugin, so listing them all
+// again here just made the longest panel in the app longer. Aaron's words: "menu is still long runs slow".
+// So: the kill switch, the handful of flagged ones, and a single line for everything else. If you're tempted
+// to add a list to this card, add it to Plugin Desk's list instead.
 
 private struct FlagsCard: View {
     let host: PipHost
     @State private var settling = false
-    @State private var showLight = false          // the green ones stay folded away until asked for
-    @State private var open: String?              // which row is expanded
+    @State private var open: String?              // which flagged row is expanded
 
-    /// Built once, not on every redraw. The list and the flags never change while the panel is open;
-    /// only the on/off switches do. Sorting two dozen plugins inside `body` made the panel itself
-    /// the slowest thing in the app, which rather defeated the point of it.
-    @State private var rows: [Row] = []
-    @State private var watch: [Row] = []
-    @State private var light: [Row] = []
+    /// Worked out once, in `onAppear`, not in `body`. The list and the flags never change while the panel
+    /// is open: only the switches do. Sorting and re-reading two dozen plugins on every redraw made the
+    /// panel about performance the slowest thing in the app, which rather defeated the point of it.
+    @State private var watch: [Row] = []          // the flagged ones: all this card shows
+    @State private var lightCount = 0             // the rest, as a number
+    @State private var offCount = 0               // how many are switched off right now
+    @State private var redOn: [PluginInfo] = []   // flagged and still on: what the big button settles
 
     struct Row: Identifiable {
         let info: PluginInfo, v: PipFlags.Verdict
         var id: String { info.id }
     }
 
-    private func buildList() {
-        guard rows.isEmpty else { return }
-        rows = host.plugins
-            .filter { $0.info.id != "flags" }     // no switching off the switch panel
-            .map { Row(info: $0.info, v: PipFlags.verdict($0.info.id)) }
-            .sorted { a, b in
-                a.v.flag == b.v.flag ? a.info.name < b.info.name : a.v.flag < b.v.flag
-            }
-        watch = rows.filter { $0.v.flag < .green }
-        light = rows.filter { $0.v.flag == .green }
+    private func build() {
+        if watch.isEmpty {
+            let rows = host.plugins
+                .filter { $0.info.id != "flags" }     // no switching off the switch panel
+                .map { Row(info: $0.info, v: PipFlags.verdict($0.info.id)) }
+            watch = rows.filter { $0.v.flag < .green }
+                .sorted { a, b in a.v.flag == b.v.flag ? a.info.name < b.info.name : a.v.flag < b.v.flag }
+            lightCount = rows.count - watch.count
+        }
+        counts()
     }
-    private var watchOn: [PluginInfo] { watch.filter { host.isOn($0.info.id) }.map(\.info) }
-    private var anyOff: Bool { rows.contains { !host.isOn($0.info.id) } }
+
+    /// The only thing that changes while the panel is open, so it's the only thing recounted.
+    private func counts() {
+        redOn = watch.filter { host.isOn($0.info.id) }.map(\.info)
+        offCount = host.plugins.filter { $0.info.id != "flags" && !host.isOn($0.info.id) }.count
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("A hunch, not a measurement. Switch one off and see if it helps.")
+        VStack(alignment: .leading, spacing: 14) {
+            Text("A hunch, not a measurement. Switch one off and see if the app feels better.")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            // The one thing this panel exists for: kill the suspects, fast.
-            if !watchOn.isEmpty {
+            // The one thing this card exists for: settle the suspects, in one tap.
+            if redOn.isEmpty {
+                Label("All \(watch.count) flagged ones are off.", systemImage: "checkmark.circle")
+                    .font(.system(size: 14)).frame(minHeight: 44)
+            } else {
                 Button { settle() } label: {
                     VStack(spacing: 2) {
-                        Label("Switch off the \(watchOn.count) red flags", systemImage: "moon.zzz")
+                        Label("Switch off \(redOn.count)", systemImage: "moon.zzz")
                             .font(.system(size: 16, weight: .semibold))
-                        Text(watchOn.map(\.name).joined(separator: ", "))
-                            .font(.system(size: 11)).opacity(0.8)
-                            .lineLimit(2)
+                        Text(redOn.map(\.name).joined(separator: ", "))
+                            .font(.system(size: 11)).opacity(0.85)
+                            .lineLimit(2).multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity, minHeight: 56)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(settling)
-                .accessibilityLabel("Switch off the \(watchOn.count) red-flagged plugins: \(watchOn.map(\.name).joined(separator: ", "))")
-            } else {
-                Label("No red flags switched on.", systemImage: "checkmark.circle")
-                    .font(.system(size: 14)).frame(minHeight: 44)
+                .accessibilityLabel("Switch off the \(redOn.count) flagged plugins: \(redOn.map(\.name).joined(separator: ", "))")
             }
 
-            if anyOff {
+            ForEach(watch) { row($0) }
+
+            Text(offCount == 0
+                 ? "The other \(lightCount) have no loop of their own, so Pip isn't watching them."
+                 : "The other \(lightCount) look light. \(offCount) switched off altogether.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if offCount > 0 {
                 Button { allBackOn() } label: {
                     Label("Switch everything back on", systemImage: "arrow.uturn.backward")
                         .frame(maxWidth: .infinity, minHeight: 44)
@@ -152,47 +172,16 @@ private struct FlagsCard: View {
                 .disabled(settling)
             }
 
-            group("Worth a look", watch, countColour: .orange, alwaysOpen: true)
-
-            DisclosureGroup(isExpanded: $showLight) {
-                VStack(alignment: .leading, spacing: 10) { ForEach(light) { row($0) } }
-                    .padding(.top, 6)
-            } label: {
-                HStack {
-                    Text("Running light").font(.system(size: 15, weight: .medium))
-                    Text("\(light.count)").font(.system(size: 12)).foregroundStyle(.secondary)
-                }
-                .frame(minHeight: 44)
-            }
-            .accessibilityHint("The plugins Pip isn't worried about.")
-
-            Text("Switched off, never deleted. This panel or Settings brings any of them back.")
-                .font(.system(size: 12)).foregroundStyle(.secondary)
+            Text("Switched off, never deleted. Plugin Desk above has the full list.")
+                .font(.system(size: 11)).foregroundStyle(.tertiary)
         }
-        .padding(18)
-        .onAppear { buildList(); pipSays() }
+        .onAppear { build(); pipSays() }
     }
 
-    @ViewBuilder private func group(_ title: String, _ list: [Row],
-                                    countColour: Color, alwaysOpen: Bool) -> some View {
-        if list.isEmpty {
-            Label("Nothing worth a look. All quiet.", systemImage: "checkmark.circle")
-                .font(.system(size: 14)).frame(minHeight: 44)
-        } else {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(title).font(.system(size: 15, weight: .medium))
-                    Text("\(list.count)").font(.system(size: 12)).foregroundStyle(countColour)
-                }
-                ForEach(list) { row($0) }
-            }
-        }
-    }
-
-    /// One plugin: flag, name, switch. Tap it to see what it does and why it's flagged.
+    /// One flagged plugin: flag, name, switch. Tap the name for what it does and why it's flagged.
     @ViewBuilder private func row(_ r: Row) -> some View {
         let expanded = open == r.info.id
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 Text(r.v.flag.dot).accessibilityHidden(true)
                 Button {
@@ -213,7 +202,7 @@ private struct FlagsCard: View {
                 .accessibilityLabel("\(r.info.name), \(r.v.flag.word). \(expanded ? "Hide" : "Show") details.")
 
                 Toggle("", isOn: Binding(get: { host.isOn(r.info.id) },
-                                         set: { host.setOn(r.info.id, $0) }))
+                                         set: { host.setOn(r.info.id, $0); counts() }))
                     .labelsHidden()
                     .accessibilityLabel("\(r.info.name) switched on")
             }
@@ -223,20 +212,19 @@ private struct FlagsCard: View {
                     detail("What it does", r.info.what)
                     detail("Why it's flagged", r.v.why)
                     detail("Pip says", r.v.note)
-                    Text("Open \(r.info.name)'s own button in the bar to change how it behaves.")
-                        .font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
                 .padding(.leading, 26)
-                .padding(.bottom, 4)
+                .padding(.bottom, 2)
             }
         }
+        .padding(.vertical, 2)
     }
 
-    @ViewBuilder private func detail(_ head: String, _ body: String) -> some View {
+    @ViewBuilder private func detail(_ head: String, _ text: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(head).font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
                 .textCase(.uppercase)
-            Text(body).font(.system(size: 12)).foregroundStyle(.secondary)
+            Text(text).font(.system(size: 12)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -253,22 +241,26 @@ private struct FlagsCard: View {
 
     private func settle() {
         settling = true
-        let list = watchOn
+        let list = redOn
         for (i, p) in list.enumerated() {
             host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(p.id, false) }
         }
         host.later(Double(list.count) * PipFlags.Tune.settleGap + 0.1) {
             settling = false
+            counts()
             if host.joy > 0 { host.say("Right. That's quieter.", for: 2.2) }
         }
     }
 
     private func allBackOn() {
         settling = true
-        let list = rows.map(\.info).filter { !host.isOn($0.id) }
+        let list = host.plugins.map(\.info).filter { !host.isOn($0.id) }
         for (i, p) in list.enumerated() {
             host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(p.id, true) }
         }
-        host.later(Double(list.count) * PipFlags.Tune.settleGap + 0.1) { settling = false }
+        host.later(Double(list.count) * PipFlags.Tune.settleGap + 0.1) {
+            settling = false
+            counts()
+        }
     }
 }
