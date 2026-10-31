@@ -144,6 +144,7 @@ struct PluginPanel: View {
     @State private var grab: CarryGrab?
     @State private var rest = CGRect.zero
     @State private var area = CGRect.zero
+    @State private var cardsHeight: CGFloat = 0
 
     private var simple: Bool { systemReduceMotion || simpleMotion }
     private var width: CGFloat { min(PanelLook.width, size.width - PanelLook.margin * 2) }
@@ -152,10 +153,14 @@ struct PluginPanel: View {
     }
 
     var body: some View {
-        ViewThatFits(in: .vertical) {
-            cards
-            ScrollView { cards }.scrollIndicators(.hidden)
+        // One copy of the cards, as tall as they are and scrolling only when there isn't room. (A ViewThatFits
+        // with a scrolling twin built every card twice on every change: slow menus, 31 Oct 2026.)
+        ScrollView {
+            cards.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { cardsHeight = $0 }
         }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxHeight: cardsHeight > 0 ? cardsHeight : nil)
         .modifier(ScrollEdges(fades: glassy))
         // In the Glass theme each card is its own glass; otherwise the panel has glass behind its cards.
         .modifier(PanelBacking(clear: glassy))
