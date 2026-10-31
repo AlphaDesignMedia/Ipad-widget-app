@@ -177,7 +177,7 @@ final class PipHost {
     @ObservationIgnored private var started = Set<String>()
     /// True while the app is open; cleared when it goes to the background. Still true at launch means the app
     /// stopped while it was open.
-    private static let openKey = "plugsOpen"
+    nonisolated private static let openKey = "plugsOpen"
 
     private init() {
         off = Set(UserDefaults.standard.stringArray(forKey: "plugsOff") ?? [])
