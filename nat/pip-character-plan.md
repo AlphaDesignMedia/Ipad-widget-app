@@ -90,6 +90,30 @@ Aaron shared two AI mood boards. They're for mood only: real designs are drawn b
   Tiny sizes are 16–48 px. Flat by default, no glass. Not in the app. The teardrop experiments 1–7 stay separate, in their order.
   Voxels (C): not tried, kept as a later thought.
 
+## ✏️ Drawing sheets (31 Oct, from Chappie's sheets brief)
+
+`app/design/sheets/`: 4 pages, black on white, 4:3 to fit the iPad. Drop them into Procreate or Notes and draw over them.
+Source: `app/design/pip-drawing-sheets.html` (edit there, re-render).
+
+| sheet | what |
+|---|---|
+| A · Core geometry | 1 circle + a point · 3 circles blobby · just a circle · squish. Tiny check. Blank + ghosts |
+| B · Wings and movement | winged vs wingless · 4 wing shapes · wingless moves (stand, squash, lean, slide, hop) |
+| C · Pigeon morph | how it's built (4 circles) · round, tall, pecking, puffed · wing out · Pip → pigeon. Tiny check |
+| D · Living in the interface | peeking, clipped on, stretching round an edge, squeezed in · a blank panel layout with a clock |
+
+Why all four at once: they're light and mostly blank, so Aaron picks whichever one he fancies. No need to do them all.
+
+### 🪽 Wings as an ability (a hypothesis, not a build)
+
+```
+  Pip's body  +  abilities (optional)
+     💧          🪽 wings: fly, flutter, follow, open space
+                 🫧 none:  blob along edges, squeeze, pop out, stretch round panels
+```
+
+It might also give a lighter mode (no wings) for older iPads and battery saving. It needs Aaron's drawings first.
+
 ## V2 later: Pip in the glass
 
 Behind panels, partly through the glass, "That tickles!" when you touch a glass control. 📌 The parked glass plugins
