@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Pip Works: meet the team</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+:root{--bg:#f3efe6;--ink:#1d1a16;--muted:#6b6357;--card:#fffdf8;--line:#e2d9c8;--a:#2a7f6f;--asoft:#e1f1ec;--b:#b4561f;--bsoft:#fbe7d9;--c:#3c5fa8;--csoft:#e5ebf8;--d:#8a6a00;--dsoft:#f8eecd;
+ --display:"Bricolage Grotesque",ui-rounded,system-ui,sans-serif;--body:"Atkinson Hyperlegible",system-ui,sans-serif;--mono:ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#14120f;--ink:#f1ece2;--muted:#a99f8f;--card:#1e1b17;--line:#352f27;--a:#5fd0b8;--asoft:#13302a;--b:#f09a62;--bsoft:#3a2316;--c:#8fb0f5;--csoft:#1a2440;--d:#e9c25a;--dsoft:#33290d;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;padding:24px max(16px,env(safe-area-inset-right)) 48px max(16px,env(safe-area-inset-left))}
+.wrap{max-width:960px;margin:0 auto;display:grid;gap:18px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,6vw,56px);margin:0;letter-spacing:-.02em;line-height:1.05}
+h2{font-family:var(--display);font-weight:800;font-size:24px;margin:0}
+h3{font-family:var(--display);font-weight:800;font-size:18px;margin:0}
+p{margin:0}.muted{color:var(--muted)}
+section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;display:grid;gap:14px;min-width:0}
+/* the world map */
+.world{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.place{border-radius:14px;padding:14px;display:grid;gap:6px;align-content:start}
+.place .big{font-size:40px;line-height:1}
+.place small{font-family:var(--mono);font-size:12px;opacity:.8}
+.shop{background:var(--dsoft)}.workshop{background:var(--bsoft)}.yard{background:var(--asoft)}
+.stage{grid-column:1/-1;background:var(--csoft);border-radius:14px;padding:12px 14px;display:flex;gap:12px;align-items:center}
+.stage .big{font-size:34px}
+@media (max-width:700px){.world{grid-template-columns:1fr}}
+/* cast */
+.cast{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.who{border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:4px;align-content:start;background:var(--bg)}
+.who .face{font-size:34px;line-height:1}
+.who .role{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.who .ask{font-size:14px;color:var(--muted)}
+.r-dir{color:var(--d)}.r-mac{color:var(--b)}.r-cloud{color:var(--a)}.r-bot{color:var(--c)}
+.director{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;background:var(--dsoft);border:0}
+.director .face{font-size:48px;grid-row:span 3}
+/* flow */
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.step{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 12px;text-align:center;font-size:14px;min-width:96px}
+.step b{display:block;font-size:22px}
+.arrow{color:var(--muted);font-size:20px}
+/* compass */
+.compass{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.leg{border-radius:14px;padding:14px;display:grid;gap:6px;align-content:start}
+.leg .n{font-family:var(--display);font-weight:800;font-size:32px;line-height:1}
+.l1{background:var(--asoft)}.l2{background:var(--csoft)}.l3{background:var(--bsoft)}
+@media (max-width:700px){.compass{grid-template-columns:1fr}}
+.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.rule{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border-radius:12px;padding:10px 12px;font-size:15px}
+.rule span{font-size:24px;line-height:1}
+pre{margin:0;font-family:var(--mono);font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;white-space:pre-wrap;word-break:break-word}
+.label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--b)}
+button{font:inherit;font-weight:700;justify-self:start;border:1px solid var(--b);color:var(--b);background:transparent;border-radius:999px;padding:8px 16px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+ul{margin:0;padding-left:20px}
+</style></head><body><div class="wrap">
+
+<header style="display:grid;gap:6px">
+ <p class="label" style="color:var(--a)">Saturday 31 October · a map of who's who</p>
+ <h1>The Pip Works</h1>
+ <p class="muted">A make-believe studio with as many staff as you need. You're the director: you dream it up and make the big calls, and everyone else keeps track of things for you.</p>
+</header>
+
+<section><h2>🗺 The world</h2>
+ <div class="world">
+  <div class="place shop"><span class="big">🏪</span><h3>The Shop</h3><p>Glass Clock, the real product. It's locked, and nobody in the Pip Works touches it.</p><small>branch: main</small></div>
+  <div class="place workshop"><span class="big">🏭</span><h3>The Workshop</h3><p>On your Mac (the Terminal). This is the backbone: Pip, the bar, the panels. It builds the app and puts it on the iPad.</p><small>branch: pip-playground</small></div>
+  <div class="place yard"><span class="big">🌳</span><h3>The Yard</h3><p>In the cloud, where you're talking to me. Plugins get dreamt up, built and fixed here.</p><small>branch: pip-plugins</small></div>
+  <div class="stage"><span class="big">📱</span><div><h3>The Stage: your iPad</h3><p>Where everything ends up. Nothing gets here unless it's passed the build check first.</p></div></div>
+ </div>
+ <p class="muted">📌 Between the Workshop and the Yard is <b>the Noticeboard</b> (AGENT-NOTES.md). Everyone leaves notes there, so nobody has to remember anything.</p>
+</section>
+
+<section><h2>👥 The cast</h2>
+ <div class="cast">
+  <div class="who director"><span class="face">🎬</span><span class="role r-dir">Director</span><h3>Aaron</h3><p class="ask">Dreams it up, makes the big calls, sets the look. Doesn't need to remember anything, because that's the team's job.</p></div>
+
+  <div class="who"><span class="face">🛠</span><span class="role r-mac">Workshop · backbone</span><h3>Greg</h3><p>Looks after the core: Pip, the plugin bar, the panels, the build and the iPad.</p><p class="ask">Go to Greg when it's the app itself: crashes, the bar, panels, installing.</p></div>
+  <div class="who"><span class="face">🔧</span><span class="role r-mac">Workshop · fixer</span><h3>Rob</h3><p>The crew's coder on the Mac side. Hunts down slow bits and leaves very clear notes.</p><p class="ask">Go to Rob when something's slow and you want to know why.</p></div>
+
+  <div class="who"><span class="face">🎨</span><span class="role r-cloud">Yard · creative lead</span><h3>Jules (me)</h3><p>Runs the Yard. Turns your ideas into plugins, keeps them light, and fixes them when they break.</p><p class="ask">Go to Jules for ideas, plugins, design pages, and anything you're unsure about.</p></div>
+  <div class="who"><span class="face">🪖</span><span class="role r-cloud">Yard · foreman</span><h3>Bob</h3><p>Slow and neat. Builds the bigger plugins (Window Cleaner, Pip Looks).</p><p class="ask">Gets the jobs that need care.</p></div>
+  <div class="who"><span class="face">🧢</span><span class="role r-cloud">Yard · apprentice</span><h3>Dot</h3><p>Quick and a bit wobbly, and sometimes adds a star. Built Glass Memory, Draw-off and Director's Call.</p><p class="ask">Gets the quick, playful jobs.</p></div>
+  <div class="who"><span class="face">🌙</span><span class="role r-cloud">Yard · night shift</span><h3>Jean</h3><p>Bob's wife. Checks every line before it ships and leaves notes on the fridge.</p><p class="ask">Nothing big leaves the Yard without Jean's check.</p></div>
+  <div class="who"><span class="face">🧹</span><span class="role r-cloud">Yard · odd jobs</span><h3>Chores</h3><p>Tidying, renaming and small fixes.</p><p class="ask">Gets the boring bits.</p></div>
+  <div class="who"><span class="face">🗺</span><span class="role r-cloud">Map keeper</span><h3>The map agent</h3><p>Has your Plugin Map and is building it: families, the timeline and folding.</p><p class="ask">Tell me their name and I'll add it here.</p></div>
+
+  <div class="who"><span class="face">🔍</span><span class="role r-bot">Robot · inspector</span><h3>The Inspector</h3><p>Builds every change in the cloud (GitHub's build check). A red light means it stops, and nothing moves on.</p></div>
+  <div class="who"><span class="face">📮</span><span class="role r-bot">Robot · postie</span><h3>The Postie</h3><p>Lives on your Mac. Every couple of minutes it picks up new plugins from the Yard, builds them and posts them to the iPad.</p><p class="ask">If it nods off, use the Terminal step "run take-plugins.sh".</p></div>
+  <div class="who"><span class="face">✨</span><span class="role r-bot">The star</span><h3>Pip</h3><p>Not staff, but the reason we're all here.</p></div>
+ </div>
+</section>
+
+<section><h2>🚚 How a change travels</h2>
+ <div class="flow">
+  <div class="step"><b>💡</b>your idea</div><span class="arrow">→</span>
+  <div class="step"><b>🌳</b>the Yard builds it</div><span class="arrow">→</span>
+  <div class="step"><b>🌙</b>Jean checks it</div><span class="arrow">→</span>
+  <div class="step"><b>🔍</b>Inspector: green?</div><span class="arrow">→</span>
+  <div class="step"><b>📮</b>the Postie</div><span class="arrow">→</span>
+  <div class="step"><b>🏭</b>the Workshop builds</div><span class="arrow">→</span>
+  <div class="step"><b>📱</b>your iPad</div>
+ </div>
+</section>
+
+<section><h2>🎟 When something breaks: the ticket route</h2>
+ <p>Up to now, plugin problems got fixed in the Terminal. From today, <b>plugins get fixed in the Yard</b> and the Workshop only reports them:</p>
+ <div class="flow">
+  <div class="step"><b>💥</b>you see a crash, freeze or slowness</div><span class="arrow">→</span>
+  <div class="step"><b>🏭</b>the Workshop parks the plugin and writes a ticket</div><span class="arrow">→</span>
+  <div class="step"><b>🎨</b>Jules fixes it in the Yard</div><span class="arrow">→</span>
+  <div class="step"><b>✅</b>you say "bring it back"</div>
+ </div>
+ <p class="label">🖥 Terminal step (paste once, and Greg keeps it as a rule)</p>
+ <pre id="paste">New rule from Aaron: plugins are fixed by the cloud plugin agent (Jules), not here. When a plugin crashes, freezes or makes the app slow:
+1) Park it: comment out its line in Plugins.swift with "// parked: <reason>, ticket <date>".
+2) Write a ticket at the top of TICKETS.md (create it if missing): the date, the plugin id, what Aaron saw in his own words, how to make it happen, any crash log lines, and what you parked.
+3) Commit and push to pip-playground.
+Don't change the plugin's own code; Jules fixes it on pip-plugins and answers under the ticket. Core problems (host, plugin bar, panels, Pip) are still yours. Add this rule to CLAUDE.md under "Who does what".</pre>
+ <button id="copy">Copy the paste</button>
+ <p class="muted">I check TICKETS.md every time I start work. If you want something fixed straight away, just say "Jules, ticket" to me.</p>
+</section>
+
+<section><h2>🧭 Today's compass</h2>
+ <div class="compass">
+  <div class="leg l1"><span class="n">1</span><h3>Steady</h3><p>Stability first. Glass Memory and Window Cleaner are made light now, and they stay parked until you say so.</p></div>
+  <div class="leg l2"><span class="n">2</span><h3>Bring back, calmly</h3><p>Your favourites come back through the Plugin Map: families and the timeline. The map agent has this.</p></div>
+  <div class="leg l3"><span class="n">3</span><h3>Your developer view</h3><p>A dev side that matches each theme but clearly looks like "dev", that you can tuck away in one tap (like Zen mode), and that helps you learn, add and remove plugins.</p></div>
+ </div>
+ <div class="rules">
+  <div class="rule"><span>🅿️</span><p>If you veer off, say <b>"park it"</b>. The idea goes in the Idea Inbox and we carry on with the compass.</p></div>
+  <div class="rule"><span>☝️</span><p>One change at a time, and every change gets a save point.</p></div>
+  <div class="rule"><span>↩️</span><p>"Undo" always works, and nothing is ever really deleted.</p></div>
+  <div class="rule"><span>🧠</span><p>You don't have to remember anything. The Noticeboard and this page remember for you.</p></div>
+ </div>
+</section>
+
+<section><h2>❓ Two things only you can answer</h2>
+ <ul>
+  <li><b>The newer button style you like:</b> is it the glass cards in the Classic settings panel, or the Liquid drop icons? I'll use it as the dev look.</li>
+  <li><b>Rob asked:</b> you switched two plugins off by hand on your iPad. Which two? Then they can be off for good.</li>
+ </ul>
+</section>
+</div>
+<script>
+document.getElementById('copy').onclick=async e=>{const b=e.currentTarget,t=document.getElementById('paste').textContent;
+ try{await navigator.clipboard.writeText(t);b.textContent='Copied ✓'}catch{const r=document.createRange();r.selectNodeContents(document.getElementById('paste'));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected, press copy'}
+ setTimeout(()=>b.textContent='Copy the paste',1800)};
+</script></body></html>
