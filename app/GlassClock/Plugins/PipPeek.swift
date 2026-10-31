@@ -3,7 +3,7 @@ import UIKit
 
 // PIP PEEK · plugin v1 (On trial). Aaron's own Pip (his Procreate drawing over Sheet A, 31 Oct), peeking round the
 // edge of whatever panel or card is open: hidden (just an ear tip), peeking (head out, eyes on you), emerging (tap:
-// out a little further, a small "o", then back). Left alone for 10 seconds, they tuck away. From the browser
+// out a little further, a small "o", then back; tap again and they fly off with Pip Flight). Left alone for 10 seconds, they tuck away. From the browser
 // prototype (app/design/pip-peek-prototype.html) and the trace (app/design/pip-v2-trace.html): same numbers.
 // Also a small hello when you open the app: Pip peeks in from the left edge for a moment. Easy to switch off.
 // Version 1 / Version 2 in the card: V1 is the original (no peeking), V2 is Aaron's Pip. Nothing is replaced: the
@@ -24,7 +24,7 @@ struct PipPeek: SandboxPlugin {
         static let idle = 10.0                  // seconds alone before Pip tucks away
         static let helloFor = 4.0               // seconds the hello lasts
         // Where Pip's left edge sits, measured from the panel's edge (negative = behind it), and the lean.
-        static let hiddenOut: CGFloat = -82, hiddenLean = -8.0
+        static let hiddenOut: CGFloat = -72, hiddenLean = -2.0   // just the up ear's tip shows (Rob, 31 Oct)
         static let peekOut: CGFloat = -58, peekLean = 6.0
         static let emergeOut: CGFloat = -14, emergeLean = 0.0
     }
@@ -166,7 +166,8 @@ struct PipPeek: SandboxPlugin {
                     .accessibilityElement()
                     .accessibilityLabel("Pip, peeking")
                     .accessibilityAddTraits(.isButton)
-                    .accessibilityHint("Pip comes out to say hello.")
+                    .accessibilityHint("Pip comes out to say hello. Again, and they fly.")
+                    .accessibilityAction { tapped() }
                     .allowsHitTesting(pose != .hidden || hello)
             }
             .frame(width: Tune.strip, height: Tune.size + 20, alignment: .leading)
@@ -202,6 +203,21 @@ struct PipPeek: SandboxPlugin {
         }
 
         private func tapped() {
+            // Tapped again while out: they take off and fly across (Pip Flight, if it's on), then come back to peek.
+            if pose == .emerging, host.isOn("flight"), !host.simpler {
+                let dir = facingRight ? 1 : -1
+                host.post(.custom("flight.go:\(Int(edgeX) + dir * 40),\(Int(y)),\(dir)"))
+                shown = false
+                set(.hidden)
+                let mine = turn
+                host.later(PipFlight.flightFor + 1.2) {
+                    guard turn == mine else { return }
+                    shown = true
+                    set(.peeking)
+                    tuckLater()
+                }
+                return
+            }
             set(.emerging)
             mouth = true
             host.later(0.9) { mouth = false }
@@ -268,7 +284,7 @@ struct PipPeek: SandboxPlugin {
     // MARK: Geometry
 
     /// A leaf: two smooth curves from base to tip, fattest a third of the way along.
-    static func leaf(_ base: CGPoint, _ tip: CGPoint, _ w: Double) -> Path {
+    nonisolated static func leaf(_ base: CGPoint, _ tip: CGPoint, _ w: Double) -> Path {
         let dx = tip.x - base.x, dy = tip.y - base.y, len = max(hypot(dx, dy), 1)
         let nx = -dy / len, ny = dx / len, mx = base.x + dx * 0.38, my = base.y + dy * 0.38
         var p = Path()
@@ -280,7 +296,7 @@ struct PipPeek: SandboxPlugin {
     }
 
     /// The body: two circles joined by their outer tangent lines (so it stays smooth).
-    static func tube(_ a: (x: Double, y: Double, r: Double), _ b: (x: Double, y: Double, r: Double)) -> Path {
+    nonisolated static func tube(_ a: (x: Double, y: Double, r: Double), _ b: (x: Double, y: Double, r: Double)) -> Path {
         let d = max(hypot(b.x - a.x, b.y - a.y), 0.001)
         let ang = atan2(b.y - a.y, b.x - a.x)
         let phi = acos(max(-1, min(1, (a.r - b.r) / d)))

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pip Shape Studio</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font: 15px/1.4 -apple-system, system-ui, "Helvetica Neue", sans-serif; color: #16181f; background: #f2f3f6; user-select: none; -webkit-user-select: none; }
+  header { padding: 18px 26px 4px; } h1 { margin: 0; font-size: 23px; } header p { margin: 4px 0 0; color: #666; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; padding: 14px 26px 26px; }
+  .card { background: #fff; border-radius: 22px; padding: 14px 16px; box-shadow: 0 2px 12px rgba(0,0,0,.05); }
+  .card h3 { margin: 0 0 8px; font-size: 14px; }
+  #stageWrap { position: relative; aspect-ratio: 1; max-height: 74vh; margin: 0 auto; touch-action: none; }
+  canvas#stage { width: 100%; height: 100%; display: block; border-radius: 22px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.05); }
+  aside { display: flex; flex-direction: column; gap: 12px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  button { font: inherit; font-size: 13.5px; font-weight: 600; border: 0; border-radius: 12px; padding: 8px 12px; background: #eceef3; color: #16181f; cursor: pointer; }
+  button.on { background: #16181f; color: #fff; }
+  input[type=range] { width: 100%; }
+  .row { display: flex; justify-content: space-between; color: #888; font-size: 12px; }
+  #tiny { display: grid; grid-template-columns: repeat(4, auto); gap: 8px 14px; align-items: end; justify-content: start; }
+  #tiny small { color: #999; font-size: 10px; display: block; text-align: center; }
+  .note { color: #777; font-size: 12.5px; margin: 6px 0 0; }
+  @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🫧 Pip Shape Studio</h1>
+  <p>Pip as one solid blob, built like your pigeon: circles joined by straight lines. Silhouette first. Drag to shape it; the styling comes later.</p>
+</header>
+<main>
+  <div><div id="stageWrap"><canvas id="stage" width="1000" height="1000"></canvas></div></div>
+  <aside>
+    <div class="card"><h3>Edit</h3>
+      <div class="seg" id="who"><button data-w="pip" class="on">💧 Pip</button><button data-w="pigeon">🐦 Your pigeon</button></div>
+      <div class="seg" style="margin-top:8px"><button id="dropBtn">💧 Start Pip from the Drop</button><button id="earsBtn">🍃 Start Pip with leaf ears</button></div>
+      <p class="note">Drag a dot to move a circle, the orange dot to resize it. Fewer circles is better.</p>
+    </div>
+    <div class="card"><h3>Pip ⇄ pigeon</h3>
+      <input type="range" id="t" min="0" max="1" step="0.001" value="0" aria-label="Morph from Pip to the pigeon">
+      <div class="row"><span>Pip</span><span>pigeon</span></div>
+      <div class="seg" style="margin-top:8px"><button id="playBtn">▶ Play</button></div>
+    </div>
+    <div class="card"><h3>View</h3>
+      <div class="seg" id="views"><button data-v="sil" class="on">◼ Silhouette</button><button data-v="line">Outline</button><button data-v="build">Build</button></div>
+    </div>
+    <div class="card"><h3>Tiny check · 16 · 24 · 32 · 48</h3><div id="tiny"></div></div>
+    <div class="card"><h3>Keep it</h3>
+      <div class="seg"><button id="copyBtn">📋 Copy shapes for the team</button><button id="undoBtn">↶ Undo</button><button id="resetBtn">Reset</button></div>
+      <p class="note" id="copied"></p>
+    </div>
+  </aside>
+</main>
+<script>
+// Pip Shape Studio (Jules, 31 Oct): Aaron, "see it as a solid blob… put it together with vectors and lines… even if
+// it's just as a silhouette, before we apply the fairy's styling" and "think back to the pigeon design I made". So:
+// the same construction as the Morph Workshop pigeon he liked. Each shape is a few circles [x, y, r] in a 100 box;
+// each group is wrapped tightly (straight tangent lines) and the groups are filled together as one solid shape.
+// Pip: head + body + a tail point (the drop), and two ears, each a root circle and a tip. Pigeon: Aaron's wedge.
+// No glass, no colour, no wings yet. Those come after the shape is agreed.
+
+const KEY = 'pipStudio.shapes3';
+const PIP = () => ({
+  head: [62, 48, 21], body: [42, 63, 22], tail: [12, 72, 6],
+  upRoot: [63, 33, 5], upMid: [67, 20, 6.5], upTip: [70, 5, 2.5],
+  backRoot: [50, 36, 5], backMid: [36, 28, 6.5], backTip: [20, 24, 2.5],
+  beak: [62, 48, 0], leg: null, eyes: [[57, 47], [69, 45]],
+});
+// The Drop look (Pip Looks): one round body and a point. Here the point is up, like an ear. Ears tucked away.
+const DROP = () => ({
+  head: [51, 52, 24], body: [50, 64, 26], tail: [56, 6, 3],
+  upRoot: [51, 52, 0], upMid: [51, 52, 0], upTip: [51, 52, 0], backRoot: [51, 52, 0], backMid: [51, 52, 0], backTip: [51, 52, 0],
+  beak: [51, 52, 0], leg: null, eyes: [[42, 62], [58, 62]],
+});
+const PIGEON = () => ({
+  head: [64, 30, 10], body: [63, 76, 13], tail: [8, 86, 3],
+  upRoot: [64, 30, 0], upMid: [64, 30, 0], upTip: [64, 30, 0], backRoot: [64, 30, 0], backMid: [64, 30, 0], backTip: [64, 30, 0],
+  beak: [86, 34, .8], leg: [58, 89, 57, 99], eyes: [[66, 27], [66, 27]],
+});
+const GROUPS = [['head', 'body', 'tail'], ['upRoot', 'upMid', 'upTip'], ['backRoot', 'backMid', 'backTip'], ['head', 'beak']];
+const EDITABLE = { pip: ['head', 'body', 'tail', 'upRoot', 'upMid', 'upTip', 'backRoot', 'backMid', 'backTip'], pigeon: ['head', 'body', 'tail', 'beak'] };
+
+let shapes = { pip: PIP(), pigeon: PIGEON() };
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.pip && s.pigeon) shapes = s; } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(shapes)); } catch (e) {} };
+let who = 'pip', view = 'sil', t = 0, undo = [], playing = null;
+
+// ── Geometry
+function hullPts(circles) {
+  const pts = [];
+  for (const [x, y, r] of circles) {
+    if (r < .05) { pts.push([x, y]); continue; }
+    for (let i = 0; i < 72; i++) { const a = i / 72 * Math.PI * 2; pts.push([x + r * Math.cos(a), y + r * Math.sin(a)]); }
+  }
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length > 1 && cross(lo.at(-2), lo.at(-1), p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length > 1 && cross(up.at(-2), up.at(-1), p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = k => k * k * (3 - 2 * k);
+function mix(A, B, k) {
+  const out = {};
+  for (const key of Object.keys(A)) {
+    if (key === 'eyes') out.eyes = A.eyes.map((e, i) => [lerp(e[0], B.eyes[i][0], k), lerp(e[1], B.eyes[i][1], k)]);
+    else if (key === 'leg') {
+      const a = A.leg || [B.leg[0], B.leg[1], B.leg[0], B.leg[1]], b = B.leg || [A.leg[0], A.leg[1], A.leg[0], A.leg[1]];
+      out.leg = (A.leg || B.leg) ? a.map((v, i) => lerp(v, b[i], k)) : null;
+    } else out[key] = A[key].map((v, i) => lerp(v, B[key][i], k));
+  }
+  // the second eye closes as it turns to profile
+  out.eyeR = lerp(1, 0, Math.max(0, (k - .5) * 2));
+  return out;
+}
+function silhouette(S) {
+  const path = new Path2D();
+  for (const g of GROUPS) {
+    const cs = g.map(n => S[n]);
+    if (cs.slice(1).every(c => c[2] < .05 && Math.hypot(c[0] - cs[0][0], c[1] - cs[0][1]) < .05) && g[0] !== 'head') continue;
+    const pts = hullPts(cs); if (pts.length < 3) continue;
+    const sub = new Path2D(); sub.moveTo(...pts[0]); for (const p of pts.slice(1)) sub.lineTo(...p); sub.closePath();
+    path.addPath(sub);
+  }
+  return path;
+}
+
+// ── Drawing
+function draw(ctx, S, size, style, opts = {}) {
+  ctx.save();
+  ctx.scale(size / 100, size / 100);
+  const k = 100 / size, ink = '#16181f';
+  const body = silhouette(S);
+  if (style === 'sil') {
+    ctx.fillStyle = ink; ctx.fill(body, 'nonzero');
+  } else {
+    ctx.lineJoin = 'round'; ctx.lineWidth = 2.6 * 2 * (opts.px ? 1 : Math.max(k * 4, .6)) ; ctx.strokeStyle = ink;
+    ctx.stroke(body); ctx.fillStyle = '#fff'; ctx.fill(body, 'nonzero');   // only the outer edge shows
+  }
+  if (S.leg) {
+    ctx.strokeStyle = ink; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    const [hx, hy, fx, fy] = S.leg; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(fx, fy); ctx.lineTo(fx + 5, fy); ctx.stroke();
+  }
+  ctx.fillStyle = style === 'sil' ? '#fff' : ink;
+  S.eyes.forEach(([x, y], i) => {
+    const sc = i === 1 ? (S.eyeR ?? 1) : 1; if (sc < .05) return;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-.21); ctx.scale(1, sc); ctx.beginPath(); ctx.ellipse(0, 0, 2.6 * Math.max(1, opts.eyeBoost || 1), 4.2 * Math.max(1, opts.eyeBoost || 1), 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  });
+  ctx.restore();
+}
+
+const stage = document.getElementById('stage'), sctx = stage.getContext('2d');
+const PAD = 100, BOX = 800;   // the 100 box drawn at 800 px with 100 px around it
+function current() { return t <= 0 ? shapes.pip : t >= 1 ? shapes.pigeon : mix(shapes.pip, shapes.pigeon, ease(t)); }
+function render() {
+  sctx.clearRect(0, 0, 1000, 1000);
+  // faint grid
+  sctx.fillStyle = '#e6e8ee';
+  for (let x = PAD; x <= PAD + BOX; x += 80) for (let y = PAD; y <= PAD + BOX; y += 80) { sctx.beginPath(); sctx.arc(x, y, 2, 0, 7); sctx.fill(); }
+  const editing = (who === 'pip' && t === 0) || (who === 'pigeon' && t === 1);
+  sctx.save(); sctx.translate(PAD, PAD);
+  draw(sctx, current(), BOX, view === 'build' ? 'line' : view);
+  if (view === 'build' && editing) {
+    const S = shapes[who];
+    sctx.scale(BOX / 100, BOX / 100);
+    for (const n of EDITABLE[who]) {
+      const [x, y, r] = S[n];
+      sctx.strokeStyle = 'rgba(79,123,232,.55)'; sctx.lineWidth = .25; sctx.setLineDash([.8, .8]);
+      sctx.beginPath(); sctx.arc(x, y, Math.max(r, .01), 0, 7); sctx.stroke(); sctx.setLineDash([]);
+      dot(x, y, '#4f7be8'); dot(x + r * Math.cos(-.6), y + r * Math.sin(-.6), '#e8794f');
+    }
+  }
+  sctx.restore();
+  if (!editing && view === 'build') { sctx.fillStyle = '#999'; sctx.font = '26px system-ui'; sctx.fillText('Slide to ' + (who === 'pip' ? 'Pip' : 'the pigeon') + ' to edit', 40, 960); }
+  renderTiny();
+}
+function dot(x, y, c) { sctx.fillStyle = c; sctx.strokeStyle = '#fff'; sctx.lineWidth = .35; sctx.beginPath(); sctx.arc(x, y, 1.3, 0, 7); sctx.fill(); sctx.stroke(); }
+
+function renderTiny() {
+  const box = document.getElementById('tiny'); box.innerHTML = '';
+  for (const S of [shapes.pip, mix(shapes.pip, shapes.pigeon, .5), shapes.pigeon]) for (const px of [16, 24, 32, 48]) {
+    const d = document.createElement('div'), c = document.createElement('canvas'), dpr = 2;
+    c.width = px * dpr; c.height = px * dpr; c.style.width = c.style.height = px + 'px';
+    const x = c.getContext('2d'); x.scale(dpr, dpr); draw(x, S, px, 'sil', { px: true, eyeBoost: px < 30 ? 1.3 : 1 });
+    d.appendChild(c); if (S === shapes.pigeon) d.insertAdjacentHTML('beforeend', `<small>${px}</small>`); box.appendChild(d);
+  }
+}
+
+// ── Editing
+let drag = null;
+function toBox(e) { const r = stage.getBoundingClientRect(); return [((e.clientX - r.left) / r.width * 1000 - PAD) / BOX * 100, ((e.clientY - r.top) / r.height * 1000 - PAD) / BOX * 100]; }
+stage.addEventListener('pointerdown', e => {
+  if (view !== 'build') return;
+  const editing = (who === 'pip' && t === 0) || (who === 'pigeon' && t === 1); if (!editing) return;
+  const [x, y] = toBox(e), S = shapes[who]; let best = null, bd = 3.5;
+  for (const n of EDITABLE[who]) {
+    const [cx, cy, r] = S[n];
+    const dc = Math.hypot(x - cx, y - cy), de = Math.hypot(x - (cx + r * Math.cos(-.6)), y - (cy + r * Math.sin(-.6)));
+    if (de < bd) { bd = de; best = { n, part: 'r' }; }
+    if (dc < bd) { bd = dc; best = { n, part: 'c' }; }
+  }
+  if (!best) return;
+  undo.push(JSON.stringify(shapes)); if (undo.length > 80) undo.shift();
+  drag = best; stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', e => {
+  if (!drag) return; const [x, y] = toBox(e), c = shapes[who][drag.n], r1 = v => Math.round(v * 10) / 10;
+  const old = [c[0], c[1]];
+  if (drag.part === 'c') { c[0] = r1(x); c[1] = r1(y); }
+  else c[2] = r1(Math.max(.5, Math.hypot(x - c[0], y - c[1])));
+  // eyes ride along with the head
+  if (drag.n === 'head' && drag.part === 'c') shapes[who].eyes.forEach(ey => { ey[0] += c[0] - old[0]; ey[1] += c[1] - old[1]; });
+  save(); render();
+});
+addEventListener('pointerup', () => { drag = null; });
+
+// ── Controls
+const tEl = document.getElementById('t');
+tEl.addEventListener('input', () => { t = +tEl.value; render(); });
+document.querySelectorAll('#who button').forEach(b => b.onclick = () => {
+  who = b.dataset.w; document.querySelectorAll('#who button').forEach(x => x.classList.toggle('on', x === b));
+  t = who === 'pip' ? 0 : 1; tEl.value = t; view = 'build'; document.querySelectorAll('#views button').forEach(x => x.classList.toggle('on', x.dataset.v === 'build')); render(); });
+document.querySelectorAll('#views button').forEach(b => b.onclick = () => {
+  view = b.dataset.v; document.querySelectorAll('#views button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+document.getElementById('playBtn').onclick = () => {
+  if (playing) return; const from = t > .5 ? 1 : 0, start = performance.now();
+  playing = requestAnimationFrame(function step(now) {
+    const k = Math.min(1, (now - start) / 1600); t = from ? 1 - k : k; tEl.value = t; render();
+    if (k < 1) playing = requestAnimationFrame(step); else playing = null;
+  });
+};
+document.getElementById('dropBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes.pip = DROP(); save(); t = 0; tEl.value = 0; render(); };
+document.getElementById('earsBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes.pip = PIP(); save(); t = 0; tEl.value = 0; render(); };
+document.getElementById('undoBtn').onclick = () => { if (undo.length) { shapes = JSON.parse(undo.pop()); save(); render(); } };
+document.getElementById('resetBtn').onclick = () => { undo.push(JSON.stringify(shapes)); shapes[who] = who === 'pip' ? PIP() : PIGEON(); save(); render(); };
+document.getElementById('copyBtn').onclick = async () => {
+  const text = 'FOR JULES · Pip Shape Studio (Aaron\'s shapes)\n' + JSON.stringify(shapes);
+  try { await navigator.clipboard.writeText(text); document.getElementById('copied').textContent = 'Copied. Paste it to Jules.'; }
+  catch { document.getElementById('copied').textContent = text; }
+};
+render();
+window.__studio = { set: (v, tt) => { view = v; t = tt; render(); } };
+</script>
+</body>
+</html>

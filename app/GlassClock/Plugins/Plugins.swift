@@ -26,7 +26,8 @@ enum Plugins {
         PipsWeight(),
         Dashboard(),
         StableSwitch(),     // Jules: fixed Rob's two (full set kept; own stop note for the crash clue). Re-check L
-        PipPeek(),          // Jules: Aaron's Pip peeks round open panels; drawn only while one is open
+        // PipPeek(),       // parked: Aaron, 31 Oct: "not ready to bring into Pip yet". The shape comes first (Pip Shape Studio)
+        // PipFlight(),     // parked: same. Both are kept and built green; uncomment once Aaron's shape is agreed
         NextAction(),
         IdeaInbox(),
         BusyPip(),
