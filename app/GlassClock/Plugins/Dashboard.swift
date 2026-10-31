@@ -15,27 +15,193 @@ struct Dashboard: SandboxPlugin {
     // MARK: Data
 
     /// The snapshot used until the build packs in a fresh `dashboard.json`: the web sandbox's
-    /// data/dashboard.json, synced 29 Oct 2026. The make-believe name stands in for the homage one.
+    /// data/dashboard.json, synced 31 Oct 2026 (3:15 pm). The make-believe name stands in for the homage one.
     static let snapshot = #"""
     {
-     "syncedAt": "2026-10-29T19:45:00Z",
+     "syncedAt": "2026-10-31T15:15:00Z",
      "source": "Glass Clock Progress",
+     "url": "https://claude.ai/artifact/UQ9Yo6F6RBNdoUn8B9sqeW",
      "status": {
-      "headline": "Tue 27 Oct, 7:15 pm: iPad app reinstalled and working (sign-in lasts to 3 Nov). Fresh widgets are at the top, widgets pack together (Float in Arrange), Figma button added, brand board started in Figma. Waiting for the Wednesday 2 pm reset: pricing research, Moods plan, in-app fairy.",
+      "headline": "Sat 31 Oct: slow and steady day. Pause all proved the stutters are plugins, not the app. Glass Memory and Window Cleaner made light and parked. Dashboard is now a Glass Clock tile on the canvas. Robyn and Rob have job sheets; Peter and Monty joined the team. The Brief: https://claude.ai/artifact/Crwy8KDwPoVGB4pp5Z1qKP",
       "ipadBuild": "Clean reinstall · 7:05 pm",
       "ipadNote": "Same app, freshly signed. Your saved styles were reset by the reinstall. Free sign-in expires Tue 3 Nov.",
-      "updatedAt": "Tue 27 Oct, 7:15 pm"
+      "updatedAt": "Sat 31 Oct, 3:15 pm"
      },
      "needsYou": [
-      { "q": "Where does Pip live on this board for now?", "suggested": "Brief only, no panel (suggested)" },
-      { "q": "Should Pip be a little bit more present for unpaid users?", "suggested": "Same for everyone, tiny and switch-off-able (suggested)" },
-      { "q": "Should the Wednesday Build list go ahead now?", "suggested": "Yes, send Build: when ready, list as saved (suggested)" }
+      {
+       "q": "Pick your tester circle (family and friends with iPads)?",
+       "suggested": "Start with 3 to 5, including one 'Dad test' tester (suggested)"
+      },
+      {
+       "q": "Keep a Pandora's Box page (every worry as a joke disaster, with its real guard)?",
+       "suggested": "Yes, small and fun (suggested)"
+      }
      ],
      "upNext": [
-      { "area": "Dashboard", "title": "Make the dashboard feel alive (small touches)" }
+      {
+       "area": "Launch",
+       "title": "TestFlight beta for Glass Clock. North star: the Dad test (a 75-year-old adds a Glass Clock widget alone)"
+      },
+      {
+       "area": "Launch",
+       "title": "A one-page, big-text tester guide: install TestFlight, add a widget, tell Aaron how it felt"
+      },
+      {
+       "area": "Stability",
+       "title": "Rob: polite Mac, then hire Tess the Tester (simulator only)"
+      },
+      {
+       "area": "Core",
+       "title": "Robyn: buttons follow the theme, then plugins in the top bar"
+      },
+      {
+       "area": "Core",
+       "title": "Robyn: safety levels on Pause (Paused, Safe, Experimental, Everything)"
+      },
+      {
+       "area": "Core",
+       "title": "Robyn: one kind of panel, with a close button"
+      },
+      {
+       "area": "Plugins",
+       "title": "Plugin Kit: checker live on every push; next, shared parts and a starter template"
+      },
+      {
+       "area": "Plugins",
+       "title": "Mappy: families and the timeline, from the Plugin Map"
+      },
+      {
+       "area": "Dashboard",
+       "title": "Dashboard tile moves to the top bar once Robyn's hook lands"
+      }
+     ],
+     "builds": [
+      {
+       "at": "2026-10-27T19:05:00Z",
+       "title": "Clean reinstall after the sign-in expired",
+       "changes": [
+        "Xcode signed back in; app trusted on the iPad",
+        "Widget updates again (it had frozen at 3:47 pm)",
+        "Saved styles were reset by the reinstall"
+       ]
+      },
+      {
+       "at": "2026-10-25T18:45:00Z",
+       "title": "Friend test build 2",
+       "changes": [
+        "Accessibility: Outline everything, with an Outline width slider",
+        "Automatic app colour: a calm blue, deeper in Light, lighter in Dark"
+       ]
+      },
+      {
+       "at": "2026-10-25T18:37:00Z",
+       "title": "Friend test build",
+       "changes": [
+        "Moods: quick cross-fade, fast taps queue",
+        "Arrange menu: Best for This Window, Groups Along the Bottom, Settings Only"
+       ]
+      }
      ],
      "reminders": [
-      { "title": "Check Canva trial and cancel", "due": "2026-11-03T09:00:00Z" }
+      {
+       "title": "Check Canva trial and cancel",
+       "due": "2026-11-03T09:00:00Z"
+      }
+     ],
+     "principles": [
+      "The default works every time",
+      "Small, specific wins",
+      "One job per feature",
+      "Undo everything",
+      "Contrast first, then glass",
+      "Right first time, not final",
+      "Design is his"
+     ],
+     "ideas": [
+      {
+       "title": "Pip, design partner (Chappie's brief): offline first, a 'FOR CHAPPIE' copy button, no AI inside Pip",
+       "branch": "Pip",
+       "status": "🌱 seed",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Plugin Kit: shared parts, rulebook, starter template",
+       "branch": "Panels › lots of features",
+       "status": "building",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Plugin keys: only allowed builders get the Kit",
+       "branch": "Panels › lots of features",
+       "status": "seed",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Friends build plugins, behind the Gate",
+       "branch": "Panels › customise everything",
+       "status": "seed",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Top bar: timeline, eras, moods, dashboard",
+       "branch": "UI › clean",
+       "status": "sketched",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Safety levels: Paused, Safe, Experimental, Everything",
+       "branch": "UI › user friendly",
+       "status": "sketched",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Panels with a close button that tuck while you draw",
+       "branch": "UI › user friendly",
+       "status": "sketched",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Dashboard as the mainframe (status here, not in chats)",
+       "branch": "Moods › unintrusive reminders",
+       "status": "building",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Dev diary with pictures",
+       "branch": "(how it's made)",
+       "status": "building",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Findings Book: what real testers did and said",
+       "branch": "(how it's made)",
+       "status": "seed",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "The Dad test and the Pip test",
+       "branch": "Classic › easy to understand",
+       "status": "sketched",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Pandora's Box page (worries as joke disasters, with real guards)",
+       "branch": "Be kind",
+       "status": "seed",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "Rebuild alphadesign.media with the new way of working",
+       "branch": "(beyond the app)",
+       "status": "parked",
+       "date": "2026-10-31"
+      },
+      {
+       "title": "The mind map in 3D, one day",
+       "branch": "(for fun)",
+       "status": "parked",
+       "date": "2026-10-31"
+      }
      ]
     }
     """#
@@ -106,6 +272,7 @@ struct Dashboard: SandboxPlugin {
     func card(_ host: PipHost) -> some View {
         // The Glass Clock-style widget and the answerable questions first (DashboardWidget.swift), then the rest.
         VStack(spacing: Corner.inset) {
+            PanelsButton(host: host)
             Front(data: Dashboard.feed.data, host: host)
             Board(data: Dashboard.feed.data)
         }
@@ -154,7 +321,7 @@ struct Dashboard: SandboxPlugin {
 }
 
 /// The dashboard's data, in the web sandbox's data/dashboard.json shape. Every part is optional, and
-/// parts the app doesn't show yet (builds, usage, principles) are skipped.
+/// parts the app doesn't show yet (usage) are skipped.
 struct DashboardData: Codable, Sendable {
     struct Status: Codable, Sendable {
         var headline: String?
@@ -178,10 +345,26 @@ struct DashboardData: Codable, Sendable {
         var due: String?
     }
 
+    struct Build: Codable, Sendable {
+        var at: String?
+        var title: String?
+        var changes: [String]?
+    }
+
+    struct Idea: Codable, Sendable {
+        var title: String?
+        var branch: String?
+        var status: String?
+        var date: String?
+    }
+
     var syncedAt: String?
     var source: String?
     var status: Status?
     var needsYou: [Ask]?
     var upNext: [Step]?
     var reminders: [Reminder]?
+    var builds: [Build]?
+    var principles: [String]?
+    var ideas: [Idea]?
 }
