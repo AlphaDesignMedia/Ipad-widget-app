@@ -35,6 +35,7 @@ import os
         if UserDefaults.standard.bool(forKey: "tess") { Task { await Tess.run() } }
         if UserDefaults.standard.bool(forKey: "checkIdeas") { Task { await IdeasCheck.run() } }
         if let phase = UserDefaults.standard.string(forKey: "checkKL") { Task { await KLCheck.run(phase) } }
+        if let phase = UserDefaults.standard.string(forKey: "checkM") { Task { await MCheck.run(phase) } }
         guard UserDefaults.standard.bool(forKey: "stressMenus") else { return }
         Task { await run() }
     }
@@ -565,6 +566,119 @@ import os
             if let p = w.rootViewController?.presentedViewController { return p }
         }
         return nil
+    }
+}
+/// `-checkM peek|peekoff|hello|clue2`: job sheet M (Rob, 31 Oct 2026). Pip Peek: peek, tap, tuck away, mirror, pop-up card,
+/// Version 1, Pause all, the card's tiny check and "Show me now", the hello on launch; frames with Peek on and off. `clue2` is
+/// L's crash clue after Jules's fix. Lines go to Documents/Diagnostics/m-<phase>.txt, pictures to m-<name>.png.
+@MainActor enum MCheck {
+    static func run(_ phase: String) async {
+        let host = PipHost.shared
+        let folder = URL.documentsDirectory.appending(path: "Diagnostics", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: "m-\(phase).txt")
+        var out: [String] = []
+        func note(_ s: String) { out.append(s); try? out.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8) }
+        func pause(_ s: Double) async { try? await Task.sleep(for: .seconds(s)) }
+        func peeking() -> Bool { KLCheck.find { l, _ in l == "Pip, peeking" } }
+        let watch = FrameWatch()
+        watch.start()
+        func meter() -> String { "\(watch.hitches) late · worst \(watch.worstMs) ms" }
+        let tag = "Pip on: \(host.pipOn) · simpler: \(host.simpler) · peek on: \(host.chosen("peek")) · hello setting: \(host.value("peek", "hello") ?? true)"
+
+        if phase == "hello" {
+            await pause(2.8)
+            note("start · hello · \(tag)")
+            note("2.8 s after opening · Pip peeking in: \(peeking())")
+            snap("hello-\(host.value("peek", "hello") ?? true ? "on" : "off")")
+            await pause(4.5)
+            note("7.3 s after opening · still there: \(peeking())")
+            note("DONE")
+            return
+        }
+        await pause(6)
+        note("start · \(phase) · \(tag) · paused: \(host.paused) · safe mode: \(host.safeMode) · suspect: \(StableSwitch.crashSuspect(host) ?? "none")")
+        if host.paused { host.setPaused(false) }
+
+        switch phase {
+        case "peek", "peekoff":
+            for id in ["sketch", "dashboard", "ideainbox"] {
+                watch.reset()
+                withAnimation(.easeOut(duration: 0.2)) { host.openCard = id }
+                await pause(2.2)
+                note("\(id) open · peeking: \(peeking()) · \(meter())")
+                snap("\(phase)-\(id)-\(host.pipOn ? "pip" : "nopip")\(host.simpler ? "-calm" : "")")
+                if id == "sketch", peeking(), phase == "peek" {
+                    note("  tap Pip: \(KLCheck.activate { $0 == "Pip, peeking" })")
+                    await pause(0.7)
+                    snap("peek-tapped\(host.simpler ? "-calm" : "")")
+                    await pause(3.2)
+                    snap("peek-back")
+                    await pause(10.5)
+                    snap("peek-tucked")
+                    note("  tapped, back, and 10 s later tucked: see m-peek-tapped / -back / -tucked")
+                }
+                withAnimation(.easeOut(duration: 0.2)) { host.openCard = nil }
+                await pause(1)
+            }
+            guard phase == "peek", host.pipOn, !host.simpler else { break }
+            // The panel on the other side: Pip mirrored.
+            let side = UserDefaults.standard.object(forKey: "plugPanelLeading")
+            UserDefaults.standard.set(!UserDefaults.standard.bool(forKey: "plugPanelLeading"), forKey: "plugPanelLeading")
+            host.openCard = "sketch"; await pause(2.2)
+            note("panel on the other side · peeking: \(peeking())"); snap("peek-mirrored")
+            host.openCard = nil; await pause(1)
+            UserDefaults.standard.set(side, forKey: "plugPanelLeading")
+            // A pop-up card.
+            host.openCard = "desk"; await pause(2.2)
+            note("pop-up card (Plugin Desk) · width \(Int(host.cardFrame.width)) · peeking: \(peeking())"); snap("peek-desk")
+            host.openCard = nil; await pause(1)
+            // Version 1.
+            UserDefaults.standard.set(1, forKey: "plug.peek.version")
+            host.openCard = "sketch"; await pause(2.2)
+            note("Version 1 · peeking: \(peeking()) (should be false)")
+            host.openCard = nil; await pause(1)
+            UserDefaults.standard.set(2, forKey: "plug.peek.version")
+            host.openCard = "sketch"; await pause(2.2)
+            note("Version 2 again · peeking: \(peeking())")
+            host.openCard = nil; await pause(1)
+            // Pause all.
+            host.setPaused(true); await pause(1)
+            host.openCard = "sketch"; await pause(2.2)
+            note("Pause all · peeking: \(peeking()) (should be false)")
+            host.openCard = nil; host.setPaused(false); await pause(1.5)
+            // The card: tiny check, Show me now.
+            host.openCard = "peek"; await pause(1.5)
+            snap("peek-card")
+            note("card: \(KLCheck.find { l, _ in l.hasPrefix("Aaron's Pip, large") } ? "tiny check shown" : "tiny check missing") · Show me now: \(KLCheck.activate { $0 == "Show me now" })")
+            await pause(2.0)
+            note("  hello showing: \(peeking())"); snap("peek-showmenow")
+            await pause(4.5)
+            note("  hello gone after 4 s: \(!peeking())")
+        case "clue2":
+            func log() -> [String] { host.value("stable", "log") ?? [] }
+            // run() already turned plugins on above, the same as tapping "Turn on".
+            await pause(1.5)
+            host.openCard = "stable"; await pause(1.8)
+            note("after Turn on · suspect: \(StableSwitch.crashSuspect(host) ?? "none") · card “The app stopped last time”: \(KLCheck.find { l, _ in l == "The app stopped last time" }) · text: \(KLCheck.label { $0.hasPrefix("Last one brought back") } ?? "missing")")
+            note("  log top: \(log().first ?? "")")
+            snap("clue-card")
+            note("  Not this one: \(KLCheck.activate { $0 == "Not this one" }) · suspect now: \(StableSwitch.crashSuspect(host) ?? "none")")
+            host.openCard = nil; await pause(1)
+            let lines = log().count
+            host.setPaused(true); await pause(1.2); host.setPaused(false); await pause(1.5)
+            note("Pause all → un-pause, same session · suspect: \(StableSwitch.crashSuspect(host) ?? "none") · new ⚠️ lines: \(log().prefix(max(0, log().count - lines)).filter { $0.contains("⚠️") }.count)")
+        default: note("unknown phase")
+        }
+        note("DONE")
+    }
+
+    /// A picture of the app as it is now, into Diagnostics.
+    static func snap(_ name: String) {
+        guard let w = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).flatMap(\.windows)
+            .first(where: \.isKeyWindow) else { return }
+        let img = UIGraphicsImageRenderer(bounds: w.bounds).image { _ in w.drawHierarchy(in: w.bounds, afterScreenUpdates: true) }
+        try? img.pngData()?.write(to: URL.documentsDirectory.appending(path: "Diagnostics/m-\(name).png"))
     }
 }
 #endif
