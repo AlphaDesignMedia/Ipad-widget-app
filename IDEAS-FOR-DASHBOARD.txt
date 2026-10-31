@@ -22,3 +22,4 @@ Pip is the menu - The collapsed menu ball becomes Pip, and Pip wears costumes fo
 Pip finds an identity - Tiny flick-yes/no questions (6 words max, one a day) where every answer visibly changes something.
 Two drops (Parked) - Red drop: wild code-rain effects; blue drop: calm. One choice sets Joy and the look.
 Search-era homage (For Eras) - A made-up early-web search look in the Time Machine, with Pip's wink: "I hope I never end up turning evil."
+Pip in the clock's shadow (starter widget) - Pip rests in the shadow the clock casts, as a first widget that shows off Pip and the clock together.
