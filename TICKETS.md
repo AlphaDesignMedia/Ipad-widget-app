@@ -60,12 +60,15 @@ if pipOn, let line = pip.bubble, pip.shown { PerFrame { bubble(line, size: geo.s
 
 - **Parked:** nothing. This one's core.
 
-## 31 Oct · core · Robyn · still left after the fix: 250–400 ms bumps when a section unfolds or a plugin is switched
+## 31 Oct · core · Robyn · still left after the fix: 250–400 ms bumps when a section unfolds
 
-- **How:** the stress run's "unfold every section" (Desk 273 ms, Dashboard 362, Crew 398) and "switch teabreak off and on" (242–311 ms).
-  Crew rundown stays the heaviest panel (35–53 fps with the fix).
-- **Suspect, not measured yet:** `host.off` is observed by everything that calls `isOn`, so one switch rebuilds the bar, the panel and
-  every `addOn`. Rob is looking at this next with `sample` and will add the numbers here.
+- **How:** the stress run's "unfold every section" (Desk 273 ms, Dashboard 362, Crew 398).
+- **Measured, and it's not `host.off`** (Rob was wrong to suspect it): with Crew held open, flipping Tea Break off and on 10 times
+  in 5 s (`-holdMenu crew -flipLoop teabreak`, `sample <pid> 5`) took the main thread from 35% busy to 36%, about **7 ms a switch**.
+  Most of that 35% is Pip's bob redrawing the bar (the `PerFrame` ticket below).
+- **Suspect now, not measured:** a `DevFold` builds all its rows the moment it opens, inside a `withAnimation(.snappy)`, so a long list
+  (Plugin Desk's 40 rows, Crew's sections) lays out in one frame. Worth a `LazyVStack` for long lists, or opening without the animation.
+  One more lead: in the flip sample `ClockFace`/`ClockArtwork` rebuilt once (28 ms). It might be the minute ticking over, so not proven.
 - **Parked:** nothing.
 
 ## 31 Oct · plugin · liquid · Jules · Liquid Icons costs a lot of the processor even when nothing moves

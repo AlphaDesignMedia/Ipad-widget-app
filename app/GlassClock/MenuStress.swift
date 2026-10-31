@@ -22,6 +22,16 @@ import os
         if let id = UserDefaults.standard.string(forKey: "holdMenu") {
             PipHost.shared.later(4) { PipHost.shared.setPaused(false); PipHost.shared.openCard = id }
         }
+        // `-flipLoop teabreak`: switch that plugin off and on every half second, to sample what one switch costs.
+        if let id = UserDefaults.standard.string(forKey: "flipLoop") {
+            Task {
+                try? await Task.sleep(for: .seconds(6))
+                while true {
+                    PipHost.shared.setOn(id, !PipHost.shared.chosen(id))
+                    try? await Task.sleep(for: .seconds(0.5))
+                }
+            }
+        }
         if UserDefaults.standard.bool(forKey: "tess") { Task { await Tess.run() } }
         guard UserDefaults.standard.bool(forKey: "stressMenus") else { return }
         Task { await run() }
