@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pip Blob Workshop</title>
+<title>Pip Teardrop</title>
 <style>
 /* A night-sky stage where Pip floats over a frosted panel, with a column of dials beside it (stacks on phones). */
 :root{
@@ -42,8 +42,8 @@ pre{margin:0;font-size:12px;background:var(--bg);border:1px solid var(--line);bo
 <body>
 <div class="wrap">
   <header>
-    <h1>Pip Blob Workshop</h1>
-    <p>Pip as a soft glass blob with a trailing tail, and no wings. The character comes from the shape, the material and the way they move. Turn the dials until it feels like Pip, then copy your picks for the team.</p>
+    <h1>Pip Teardrop</h1>
+    <p>Pip as a soft glass teardrop. No wings, no extras: the character comes from the shape, the glass and the way they move. The point trails behind as Pip floats. Turn the dials until it feels like Pip, then copy your picks for the team.</p>
   </header>
   <div class="main">
     <div class="stage">
@@ -54,15 +54,12 @@ pre{margin:0;font-size:12px;background:var(--bg);border:1px solid var(--line);bo
     <aside class="side">
       <div class="group"><h2>Start from</h2><div class="row" id="presets"></div></div>
       <div class="group"><h2>Shape</h2><div class="group" id="gShape"></div></div>
-      <div class="group"><h2>Tail</h2><div class="group" id="gTail"></div></div>
       <div class="group"><h2>Movement</h2><div class="group" id="gMove"></div></div>
       <div class="group"><h2>Glass</h2><div class="group" id="gGlass"></div></div>
-      <div class="group"><h2>Eyes</h2><div class="group" id="gEyes"></div></div>
       <div class="group"><h2>Try</h2>
         <div class="row">
           <button id="tFollow" aria-pressed="false">Follow my finger</button>
           <button id="tRest" aria-pressed="false">Resting</button>
-          <button id="tBead" aria-pressed="false">Tail bead</button>
           <button id="tSimple" aria-pressed="false">Simpler motion</button>
         </div></div>
       <div class="group"><h2>Your picks</h2>
@@ -75,29 +72,24 @@ pre{margin:0;font-size:12px;background:var(--bg);border:1px solid var(--line);bo
 (() => {
 // ---------- Data: every dial, with its group, range and default ----------
 const DIALS = [
-  ["size",    "gShape", "Size",            20, 70, 1,    40],
-  ["drop",    "gShape", "Teardrop",        0.3, 0.95, 0.01, 0.72],
-  ["tail",    "gTail",  "Tail length",     0.5, 4, 0.05, 2.4],
-  ["taper",   "gTail",  "Taper",           0.6, 2.5, 0.05, 1.35],
-  ["tilt",    "gTail",  "Tail hangs (°)",  0, 180, 1,    72],
-  ["floppy",  "gTail",  "Floppiness",      0, 1, 0.01,   0.55],
-  ["wiggle",  "gTail",  "Wiggle",          0, 1, 0.01,   0.35],
+  ["size",    "gShape", "Size",            20, 70, 1,    42],
+  ["tail",    "gShape", "Point length",    0.3, 1.4, 0.05, 0.75],
+  ["floppy",  "gMove",  "Point follows",   0, 1, 0.01,   0.5],
   ["float",   "gMove",  "Float",           0, 1, 0.01,   0.5],
   ["bounce",  "gMove",  "Springiness",     0, 1, 0.01,   0.4],
   ["squash",  "gMove",  "Squash",          0, 1, 0.01,   0.45],
   ["hue",     "gGlass", "Tint",            0, 360, 1,    224],
   ["clear",   "gGlass", "Glassiness",      0, 1, 0.01,   0.55],
   ["shine",   "gGlass", "Shine",           0, 1, 0.01,   0.8],
-  ["eyeGap",  "gEyes",  "Eye spacing",     0.15, 0.6, 0.01, 0.34],
-  ["eyeSize", "gEyes",  "Eye size",        0.08, 0.26, 0.005, 0.15],
 ];
+// Held still for now (Aaron: "just a teardrop, don't overcomplicate it").
+const FIXED = {drop: 0.9, taper: 1.15, tip: 0.07, tilt: 90, curl: 0, wiggle: 0.08, eyeGap: 0.32, eyeSize: 0.15};
 const PRESETS = {
   "Calm":   {},
-  "Lively": {float:0.85, bounce:0.75, squash:0.7, wiggle:0.6, floppy:0.35},
-  "Sleepy": {float:0.25, bounce:0.15, squash:0.2, wiggle:0.15, floppy:0.8, tail:2.0},
-  "Squiggle": {tail:3.6, taper:1.0, wiggle:0.8, floppy:0.3, drop:0.55},
+  "Lively": {float:0.85, bounce:0.75, squash:0.7, floppy:0.35},
+  "Sleepy": {float:0.25, bounce:0.15, squash:0.2, floppy:0.8},
 };
-const P = {}; for (const d of DIALS) P[d[0]] = d[6];
+const P = {...FIXED}; for (const d of DIALS) P[d[0]] = d[6];
 const T = {follow:false, rest:false, bead:false, simple: matchMedia("(prefers-reduced-motion: reduce)").matches};
 
 // ---------- Dials UI ----------
@@ -124,11 +116,10 @@ function toggle(id, key) {
   const paint = () => { b.classList.toggle("on", T[key]); b.setAttribute("aria-pressed", T[key]); };
   b.onclick = () => { T[key] = !T[key]; paint(); writePicks(); }; paint();
 }
-toggle("tFollow", "follow"); toggle("tRest", "rest"); toggle("tBead", "bead"); toggle("tSimple", "simple");
+toggle("tFollow", "follow"); toggle("tRest", "rest"); toggle("tSimple", "simple");
 function writePicks() {
   const picks = {}; for (const d of DIALS) picks[d[0]] = +Number(P[d[0]]).toFixed(3);
-  picks.bead = T.bead;
-  document.getElementById("out").textContent = "FOR JULES · Pip blob picks\n" + JSON.stringify(picks);
+  document.getElementById("out").textContent = "FOR JULES · Pip teardrop picks\n" + JSON.stringify(picks);
 }
 document.getElementById("copy").onclick = async (e) => {
   try { await navigator.clipboard.writeText(document.getElementById("out").textContent); e.target.textContent = "Copied ✓"; }
@@ -163,13 +154,13 @@ function resize() {
 
 // ---------- Pip's state ----------
 const pos = {x: 0, y: 0}, vel = {x: 0, y: 0}, home = {x: 0, y: 0};
-const N = 28; let tail = [];
+const N = 8; let tail = [];
 let kick = 0, look = {x: 0, y: 0}, blinkAt = 2, blinkT = -1, pointer = null, grab = null, t = 0, last = 0;
 const v = (x, y) => ({x, y}), len = (a) => Math.hypot(a.x, a.y);
 const norm = (a) => { const l = len(a) || 1; return v(a.x / l, a.y / l); };
-function restDir() { const a = P.tilt * Math.PI / 180; return v(Math.cos(a), Math.sin(a)); }
-function seg() { return P.size * (1 + P.tail) / N; }
-function resetTail() { const d = restDir(); tail = []; for (let i = 0; i <= N; i++) tail.push(v(pos.x + d.x * seg() * i, pos.y + d.y * seg() * i)); }
+function restDir(i = 0) { const a = (P.tilt + P.curl * 110 * i / N) * Math.PI / 180; return v(Math.cos(a), Math.sin(a)); }
+function seg() { return P.size * (1 + P.tail) / N; }  // centre to point
+function resetTail() { tail = [v(pos.x, pos.y)]; for (let i = 1; i <= N; i++) { const d = restDir(i), p = tail[i - 1]; tail.push(v(p.x + d.x * seg(), p.y + d.y * seg())); } }
 
 // ---------- Logic: one step of movement ----------
 function step(dt) {
@@ -188,11 +179,11 @@ function step(dt) {
     pos.x += vel.x * dt; pos.y += vel.y * dt;
   }
   // Tail: each bead follows the one before at a fixed distance, hangs toward its rest direction, and wiggles.
-  const s = seg(), rd = restDir(), speed = len(vel);
+  const s = seg(), speed = len(vel);
   const pull = (.04 + (1 - P.floppy) * .22) * dt * 60;
   tail[0] = v(pos.x, pos.y);
   for (let i = 1; i <= N; i++) {
-    const p = tail[i - 1], c = tail[i];
+    const p = tail[i - 1], c = tail[i], rd = restDir(i);
     let d = v(c.x - p.x, c.y - p.y); const dn = norm(d);
     const wig = simple ? 0 : P.wiggle * Math.sin(t * (T.rest ? 1.2 : 2.4) - i * .5) * (i / N) * (.25 + Math.min(speed / 300, 1)) * .9;
     d = v(dn.x + rd.x * pull - dn.y * wig, dn.y + rd.y * pull + dn.x * wig);
@@ -210,49 +201,35 @@ function step(dt) {
   if (blinkT >= 0) { blinkT += dt; if (blinkT > .16) blinkT = -1; }
 }
 
-// ---------- The shape: one tube with a smooth radius, from the nose through the body to the tail tip ----------
-function smax(a, b, k) { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.max(a, b) + h * h * k * .25; }
+// ---------- The shape: a clean teardrop. A circle, and two smooth curves out to the point. ----------
+// The point sits at the end of a short chain that trails behind, so it leans and follows as Pip moves.
 function outline() {
   const breathe = T.simple ? 1 : 1 + .018 * Math.sin(t * 1.6);
-  const R = P.size * breathe, total = P.size * (1 + P.tail);
-  const back = norm(v(tail[2].x - pos.x, tail[2].y - pos.y)), fwd = v(-back.x, -back.y);
-  const spine = [];                       // {p, n, r}
-  const radius = (d) => {
-    const circ = Math.sqrt(Math.max(0, R * R - d * d));
-    if (d < 0) return circ;
-    const tl = P.drop * R * Math.pow(Math.max(0, 1 - d / total), P.taper);
-    return Math.max(.6, smax(circ, tl, R * .35));
-  };
-  const nrm = (dir) => v(-dir.y, dir.x);
-  for (let k = 0; k < 10; k++) {          // the nose cap, sampled closely where it curves most
-    const th = k / 10 * Math.PI / 2, d = -R * Math.cos(th);
-    spine.push({p: v(pos.x + back.x * d, pos.y + back.y * d), n: nrm(back), r: radius(d)});
-  }
-  for (let i = 0; i <= N; i++) {
-    const a = tail[Math.max(0, i - 1)], b = tail[Math.min(N, i + 1)];
-    const dir = i === 0 ? back : norm(v(b.x - a.x, b.y - a.y));
-    spine.push({p: tail[i], n: nrm(dir), r: radius(i * seg())});
-  }
-  spine[0].r = 0;
-  const left = spine.map(s => v(s.p.x + s.n.x * s.r, s.p.y + s.n.y * s.r));
-  const right = spine.map(s => v(s.p.x - s.n.x * s.r, s.p.y - s.n.y * s.r)).reverse();
-  let pts = left.concat(right.slice(1));
-  // Squash and stretch along the way Pip moves (and after a boing), strongest at the body, none down the tail.
-  const sp = len(vel), u = sp > 1 ? v(vel.x / sp, vel.y / sp) : v(0, 1);
-  let s = T.simple ? 0 : Math.min(sp / 700, 1) * P.squash * .28 - kick * P.squash;
-  s = Math.max(-.3, Math.min(.35, s));
-  if (Math.abs(s) > .002) pts = pts.map(q => {
-    const dx = q.x - pos.x, dy = q.y - pos.y, w = Math.max(0, 1 - Math.hypot(dx, dy) / (P.size * 1.7));
-    const a = dx * u.x + dy * u.y, b = -dx * u.y + dy * u.x;
-    const a2 = a * (1 + s * w), b2 = b / (1 + s * w);
-    return v(pos.x + a2 * u.x - b2 * u.y, pos.y + a2 * u.y + b2 * u.x);
-  });
-  // A smooth path through the points (midpoint curves), so no corners anywhere.
-  const path = new Path2D(), n = pts.length, mid = (a, b) => v((a.x + b.x) / 2, (a.y + b.y) / 2);
-  let m = mid(pts[n - 1], pts[0]); path.moveTo(m.x, m.y);
-  for (let i = 0; i < n; i++) { const c = pts[i], nm = mid(c, pts[(i + 1) % n]); path.quadraticCurveTo(c.x, c.y, nm.x, nm.y); }
-  path.closePath();
-  return {path, R, fwd};
+  const R = P.size * breathe, tip = tail[N], mid = tail[N >> 1];
+  let D = Math.hypot(tip.x - pos.x, tip.y - pos.y); const u = norm(v(tip.x - pos.x, tip.y - pos.y));
+  D = Math.max(D, R * 1.08);
+  const tp = v(pos.x + u.x * D, pos.y + u.y * D);           // the point
+  const al = Math.acos(R / D), th = Math.atan2(u.y, u.x);
+  const a1 = th + al, a2 = th - al + Math.PI * 2;           // where the curves leave the circle
+  const P1 = v(pos.x + Math.cos(a1) * R, pos.y + Math.sin(a1) * R);
+  const P2 = v(pos.x + Math.cos(a2) * R, pos.y + Math.sin(a2) * R);
+  const t1 = v(-Math.sin(a1), Math.cos(a1)), t2 = v(-Math.sin(a2), Math.cos(a2));   // the circle's direction there
+  const k = (D - R) * .55, bend = (side) => v(mid.x + (side.x - pos.x) * .25, mid.y + (side.y - pos.y) * .25);
+  const raw = new Path2D();
+  raw.moveTo(P1.x, P1.y);
+  raw.arc(pos.x, pos.y, R, a1, a2);
+  const b2 = bend(P2), b1 = bend(P1);
+  raw.bezierCurveTo(P2.x + t2.x * k, P2.y + t2.y * k, (b2.x + tp.x) / 2, (b2.y + tp.y) / 2, tp.x, tp.y);
+  raw.bezierCurveTo((b1.x + tp.x) / 2, (b1.y + tp.y) / 2, P1.x - t1.x * k, P1.y - t1.y * k, P1.x, P1.y);
+  raw.closePath();
+  // Squash and stretch along the way Pip moves (and after a boing).
+  const sp = len(vel), dir = sp > 1 ? v(vel.x / sp, vel.y / sp) : v(0, 1);
+  let s = T.simple ? 0 : Math.min(sp / 700, 1) * P.squash * .22 - kick * P.squash * .8;
+  s = Math.max(-.28, Math.min(.3, s));
+  const ang = Math.atan2(dir.y, dir.x);
+  const m = new DOMMatrix().translate(pos.x, pos.y).rotate(ang * 180 / Math.PI).scale(1 + s, 1 / (1 + s)).rotate(-ang * 180 / Math.PI).translate(-pos.x, -pos.y);
+  const path = new Path2D(); path.addPath(raw, m);
+  return {path, R};
 }
 
 // ---------- Draw ----------
