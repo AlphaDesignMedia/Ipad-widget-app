@@ -12,6 +12,19 @@ with plugins switched off. Simulator numbers run on the Mac's chip: compare befo
 
 ---
 
+## 31 Oct · Tess's first run · 6 red, no crashes, no hangs (full table in `TESTS.md`)
+
+- **Core · Robyn · the four side panels are the four worst:** Sketch 43 late frames, Dashboard 33, Crew rundown 28, Stationery
+  Cupboard 26, against 1–9 for every pop-up card. Those are exactly the plugins with `panel: true`, so the cost is opening a
+  `PluginPanel`, not the plugins. Re-run Tess after the `PerFrame` fix (top ticket below) before blaming anything else.
+  Job H (every card a panel) would make this matter for every plugin, so it's worth settling first. Parked: nothing.
+- **Plugin · `looks` · Jules · Pip Looks: 19 late frames, worst 850 ms** when its card opens. That's close to a freeze. Suspect: switching
+  Pip's look rebuilds Pip (or the bar) in one go. How: `./tools/tess.sh`, or `-holdMenu looks` then `sample <pid> 5`.
+  Not parked yet (it isn't a crash or a hang over 1 s). Rob will sample it.
+- **Plugin · `bond` · Jules · Pip's Bond: 15 late frames** (worst 115 ms), flipping its 2 switches. Mild. Not parked.
+- **Tess can't see everything:** most cards show "0 switches flipped". Their toggles aren't UIKit switches she can find, so only the
+  open and scroll were tested there.
+
 ## 31 Oct · core · Robyn · Pip's layer redraws the plugin bar and every overlay about 60 times a second
 
 - **What Aaron saw:** the developer menus stutter and freeze; Pause all made everything smooth.
