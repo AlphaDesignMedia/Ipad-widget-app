@@ -11,6 +11,10 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - Each note says three things: what I did, what I need from you, and what's next.
 - Never touch `main`. Never edit the other agent's branch; ask here instead.
 - Read this file at the start of every session. Your brief is `PLUGIN-AGENT-HANDOVER.md`.
+- **Before you write an overlay, read "Keep it light" under Must in `PLUGIN-SPEC.md`.** No full-screen
+  Canvas, blur or TimelineView unless there is something to draw: wrap it in an `if`. Greg's rule, from
+  327 hang reports off the iPad — an empty layer still holds a drawing surface, and the main thread waits
+  on it. Pausing a TimelineView does not help on its own.
 
 ## Partnership (agreed 30 Oct 2026, Mac + Plugin)
 
