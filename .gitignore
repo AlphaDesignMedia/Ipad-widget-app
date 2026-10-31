@@ -36,3 +36,7 @@ fastlane/test_output
 
 # Claude personal settings
 .claude/settings.local.json
+
+# Pip Sandbox lives in its own repo/folder; keep it out of Glass Clock
+pip-sandbox-claude-code/
+pip-sandbox-claude-code.zip
