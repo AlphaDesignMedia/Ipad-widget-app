@@ -45,6 +45,10 @@ Pip Sandbox is Aaron's **dream** playground for Glass Clock. It never ships.
   - Core changes stay small and generic, so any plugin can use them.
   - Nothing goes on the iPad unless it builds and looks right in the simulator first.
 - **Plugins hold all the extra features.** The cloud plugin agent writes most of them and asks for core APIs in `AGENT-NOTES.md`.
+- **Plugins are fixed by Jules, not on the Mac** (Aaron, 31 Oct 2026). When a plugin crashes, freezes or slows things down:
+  park it (comment out its line in `Plugins.swift` with `// parked: <reason>, ticket <date>`), write a ticket at the top of
+  `TICKETS.md` on `pip-playground` (date, plugin id, what Aaron saw, how to make it happen, log lines, what you parked), then commit
+  and push. Core problems (host, plugin bar, panels, Pip) stay with the Workshop.
 - **Native Wonders** (sparkles) is the one plugin for Pip's little extras. Pencil Wonders (Pip follows the Pencil) is to be folded into it by the plugin agent. Sketch's tools are a panel that other plugins add sections to.
 
 ## GitHub (since 30 Oct 2026)
@@ -67,6 +71,10 @@ Pip Sandbox is Aaron's **dream** playground for Glass Clock. It never ships.
 - `data/dashboard.json` feeds the Dashboard Link plugin.
 
 ## Run and test
+- **Polite Mac** (Aaron, 31 Oct 2026: he couldn't change songs while we tested). Every heavy job runs at background priority:
+  `taskpolicy -b` around `xcodebuild` (with `-jobs 4`), `check.sh`, `take-plugins.sh` and Tess. One simulator only; `check.sh` shuts
+  its simulator down when it's done (`--keep` leaves it on). Tess runs only after `take-plugins.sh`, never on a loop.
+  `watch-plugins.sh` polls every 2 minutes or more.
 - The loader uses `fetch`, so opening the file directly won't work. Serve the folder:
   `python3 -m http.server 8765`, then open http://localhost:8765
 - Headless check (optional; needs `npm i playwright` and `npx playwright install chromium` once):

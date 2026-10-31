@@ -19,7 +19,7 @@ enum Plugins {
         SetInTheirWays(),
         KeyboardKit(),
         TwentyPast(),
-        LiquidIcons(),
+        // LiquidIcons(),   // parked: ~40 live glass drops cost up to half a core at idle (sim), ticket 31 Oct
         PipsNews(),
         LooksTimeMachine(),
         PipNotices(),
