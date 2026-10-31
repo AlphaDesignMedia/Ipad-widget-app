@@ -71,6 +71,10 @@ Pip Sandbox is Aaron's **dream** playground for Glass Clock. It never ships.
 - `data/dashboard.json` feeds the Dashboard Link plugin.
 
 ## Run and test
+- **Polite Mac** (Aaron, 31 Oct 2026: he couldn't change songs while we tested). Every heavy job runs at background priority:
+  `taskpolicy -b` around `xcodebuild` (with `-jobs 4`), `check.sh`, `take-plugins.sh` and Tess. One simulator only; `check.sh` shuts
+  its simulator down when it's done (`--keep` leaves it on). Tess runs only after `take-plugins.sh`, never on a loop.
+  `watch-plugins.sh` polls every 2 minutes or more.
 - The loader uses `fetch`, so opening the file directly won't work. Serve the folder:
   `python3 -m http.server 8765`, then open http://localhost:8765
 - Headless check (optional; needs `npm i playwright` and `npx playwright install chromium` once):

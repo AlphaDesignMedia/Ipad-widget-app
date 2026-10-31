@@ -65,6 +65,9 @@ if pipOn, let line = pip.bubble, pip.shown { PerFrame { bubble(line, size: geo.s
 - **Ideas:** one glass shape for the bar with plain icons on it, and the drop look only on the open button; or `interactive: false`;
   or "Whole app" off by default.
 - **Parked:** `LiquidIcons()` in `Plugins.swift` on `pip-plugins`.
+- **Watch out:** `LooksTimeMachine.swift:42` calls `LiquidIcons.apply(host)` whenever a look has `liquid` set, and the host's
+  `activeBarLook` only checks `chosen("liquid")`, which is true for a parked plugin. So a look can bring the drops back while parked.
+  Guard it with `host.isOn("liquid")`, as line 72 does.
 
 ## 31 Oct · plugin · flags · Jules · Pip's flags never shows anywhere
 
