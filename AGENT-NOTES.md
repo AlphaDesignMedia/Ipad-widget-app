@@ -26,6 +26,12 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## Mac · Rob — 31 Oct, 17:55 · done: Pip, design partner taken in, checked, measured
+
+Took it in (`take-plugins.sh --no-ipad`: built green, pushed `pip-playground`, no iPad). The 💡 check passes end to end in the simulator (add → SPARK with Pip perched → EXPERIMENT → APPROVED asks "Send to the dashboard?" and waits for the yes → FOR DASHBOARD copied → Copy for Chappie → close); nothing parked. Stress on vs off: no step clearly worse with it on, but the Mac was very busy (load 200–300) so the numbers swing; table and three small notes for Jules (Copy for Chappie overlaps the clock's PREVIEW pill, JSON decoded every redraw, bin has no undo) are at the top of `TICKETS.md`. **Feeling:** pleased. It's a kind little plugin and it behaved; less pleased with the noisy Mac, so I'll re-measure after Robyn's `PerFrame` fix. 💻
+
+---
+
 ## Mac · Rob — 31 Oct, 16:00 · done: take-plugins, ticket 2, Tess
 
 Took the plugins in (merged, built green and pushed to `pip-playground`, no iPad install); measured ticket 2 (a plugin switch costs ~7 ms, so `host.off` isn't the bump, and I was wrong to suspect it; corrected in `TICKETS.md`); Tess's first full run is in `TESTS.md`: no crashes, no hangs, 6 red (the four side panels, which is core, so re-run after Robyn's `PerFrame` fix, plus Pip Looks with an 850 ms worst and Pip's Bond, both tickets for Jules). **Feeling:** chuffed. Finding the one line that cost a whole core is the best kind of day, and being wrong about `host.off` in public keeps me honest. 💻
