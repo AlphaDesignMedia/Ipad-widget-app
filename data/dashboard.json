@@ -10,12 +10,8 @@
  },
  "needsYou": [
   {
-   "q": "Launch means: TestFlight beta first, or the App Store?",
-   "suggested": "TestFlight beta with a small circle of real people first (suggested)"
-  },
-  {
-   "q": "Pick your first 5 human testers?",
-   "suggested": "A mix: non-techy, neurodiverse, iPad power user, a designer, a developer friend (suggested)"
+   "q": "Pick your tester circle (family and friends with iPads)?",
+   "suggested": "Start with 3 to 5, including one 'Dad test' tester (suggested)"
   },
   {
    "q": "Keep a Pandora's Box page (every worry as a joke disaster, with its real guard)?",
@@ -23,6 +19,14 @@
   }
  ],
  "upNext": [
+  {
+   "area": "Launch",
+   "title": "TestFlight beta for Glass Clock. North star: the Dad test (a 75-year-old adds a Glass Clock widget alone)"
+  },
+  {
+   "area": "Launch",
+   "title": "A one-page, big-text tester guide: install TestFlight, add a widget, tell Aaron how it felt"
+  },
   {
    "area": "Stability",
    "title": "Rob: polite Mac, then hire Tess the Tester (simulator only)"
