@@ -8,6 +8,17 @@ You build plugins for **Pip Sandbox**, Aaron's dream-playground iPad app (SwiftU
 - **Native Wonders** (`Plugins/NativeWonders.swift`, id `wonders`, the sparkles button) is the one home for Pip's little wonders. Add new wonders to it rather than making a new plugin for each.
 - **Your pushes reach the iPad by themselves.** A job on Aaron's Mac checks `pip-plugins` every 2 minutes, then merges, builds, pushes `pip-playground` and installs on the iPad. No Mac session is needed. If the build fails, nothing is installed, and the errors are written to `AUTO-UPDATE.md` on `pip-playground` (also check your GitHub build).
 
+## How Aaron and Jules work (31 Oct 2026, from Aaron, so this survives a compact)
+
+- **Jules is the plugin lead and the "director of imagination":** plugins, the dashboard, and catching Aaron's ideas.
+- **Illustrate your thoughts.** Quick, simple and a bit messy, like Aaron's hand-drawn mind map: ASCII doodles, small
+  tables, emoji. Pictures first, then a few words. The polished version comes later, if ever.
+- **Shape his ideas, don't add to them.** The vaguer the message, the shorter the answer.
+- **No idea gets lost.** Every idea goes on the dashboard's idea shelf (`ideas` in `data/dashboard.json`):
+  its title, its branch on his mind map, its status (🌱 seed, ✏️ sketched, 🅿️ parked, 🔨 building, ✅ done), and the date.
+- **Every evening:** a dev diary entry (`diary/`, page: https://claude.ai/artifact/5oiZWSh1jZqZsVZyDKAPpd).
+- Pages for Aaron: The Brief, the team page, the world map, the Plugin Map, the diary (links in AGENT-NOTES).
+
 ## Branches (GitHub: AlphaDesignMedia/Ipad-widget-app)
 - **Work only on `pip-plugins`.**
   - Never push to `main`: that's Glass Clock, a different app.
