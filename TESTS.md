@@ -4,6 +4,49 @@ Tess's runs, newest at the top. `app/tools/tess.sh` writes them; Rob keeps this 
 
 ---
 
+## 31 Oct 2026, 20:59 · Tess · `f1456ce` · iPad Pro 13" simulator
+
+Red: a crash, a hang over 1 s, or more than 10 late frames while it was open. Simulator numbers: compare runs, not the iPad.
+
+| | Plugin | id | Crash | Hang > 1 s | Late frames | Worst ms | Switches flipped |
+|---|---|---|---|---|---|---|---|
+| 🟢 | Pip Remembers | `remembers` | no | no | 5 | 137 | 0 |
+| 🟢 | Sketch | `sketch` | no | no | 10 | 540 | 0 |
+| 🟢 | Pip's Playground | `playground` | no | no | 4 | 186 | 0 |
+| 🟢 | Plugin Desk | `desk` | no | no | 3 | 157 | 0 |
+| 🟢 | Native Wonders | `wonders` | no | no | 3 | 97 | 0 |
+| 🟢 | Helper Dial | `helper` | no | no | 4 | 331 | 0 |
+| 🟢 | Opening Night | `opening` | no | no | 1 | 63 | 0 |
+| 🟢 | Professor Pip | `prof` | no | no | 4 | 388 | 0 |
+| 🔴 | Pip's Bond | `bond` | no | no | 13 | 142 | 2 |
+| 🟢 | Pip's Emotes | `emotes` | no | no | 3 | 68 | 0 |
+| 🟢 | Pip Doesn't Like Change | `change` | no | no | 5 | 81 | 0 |
+| 🟢 | Keyboard Kit | `keys` | no | no | 3 | 78 | 0 |
+| 🟢 | Pip's News | `news` | no | no | 3 | 70 | 0 |
+| 🟢 | Looks Time Machine | `timemachine` | no | no | 4 | 270 | 0 |
+| 🟢 | Pip's Weight | `weight` | no | no | 2 | 127 | 0 |
+| 🔴 | Dashboard | `dashboard` | no | no | 12 | 233 | 0 |
+| 🟢 | Pip, design partner | `ideainbox` | no | no | 6 | 130 | 0 |
+| 🔴 | Busy Pip | `busypip` | no | no | 11 | 149 | 1 |
+| 🔴 | Tidy Pip | `tidypip` | no | no | 12 | 81 | 1 |
+| 🟢 | Tea Break | `teabreak` | no | no | 5 | 180 | 1 |
+| 🔴 | Pip's Feelings | `feelings` | no | no | 11 | 140 | 1 |
+| 🟢 | Guest Takeover | `guests` | no | no | 7 | 96 | 1 |
+| 🟢 | Crew rundown | `crew` | no | no | 6 | 214 | 0 |
+| 🔴 | The Stationery Cupboard | `cupboard` | no | no | 13 | 159 | 0 |
+| 🟢 | Vend-O-Mat | `vendomat` | no | no | 2 | 149 | 0 |
+| 🟢 | Show Modes | `modes` | no | no | 2 | 50 | 0 |
+| 🟢 | Pip's Manners | `manners` | no | no | 5 | 72 | 0 |
+| 🔴 | Pip Looks | `looks` | no | no | 45 | 131 | 0 |
+| 🟢 | Pip checks themselves | `pipchecks` | no | no | 6 | 91 | 0 |
+| 🟢 | Rob pops in | `rob` | no | no | 6 | 216 | 1 |
+| 🟢 | Vintage packs | `vintage` | no | no | 3 | 122 | 0 |
+| 🟢 | Director's Call | `director` | no | no | 3 | 245 | 0 |
+| 🟢 | Pause all, then resume | `pause` | no | no | 3 | 296 | 0 |
+
+**7 red.** Tickets for each red one go in `TICKETS.md` (plugins for Jules, core for Robyn).
+
+
 ## 31 Oct 2026, 15:45 · Tess · `da01b50` · iPad Pro 13" simulator
 
 Red: a crash, a hang over 1 s, or more than 10 late frames while it was open. Simulator numbers: compare runs, not the iPad.

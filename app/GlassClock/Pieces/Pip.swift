@@ -445,6 +445,13 @@ final class PipModel {
 
 // MARK: View
 
+/// Reads inside here are tracked by this little view, not by `PipLayer`, so Pip's bob (hop, lean, squash, pos change every
+/// frame) redraws only Pip, not the plugin bar, the panels and every overlay with it. (Rob, 31 Oct 2026: idle CPU ~96% → ~17%.)
+private struct PerFrame<C: View>: View {
+    @ViewBuilder let content: () -> C
+    var body: some View { content() }
+}
+
 /// Pip over the whole app. Only Pip itself takes touches; everything else passes through.
 struct PipLayer: View {
     @AppStorage("pipOn") private var pipOn = true
@@ -459,10 +466,10 @@ struct PipLayer: View {
                 PluginOverlays(host: host)
                 if pipOn {
                     if pip.sparkling { sparkles }
-                    if pip.shown { pipView }
+                    if pip.shown { PerFrame { pipView } }
                 }
                 PluginBar(host: host, size: geo.size)
-                if pipOn, let line = pip.bubble, pip.shown { bubble(line, size: geo.size) }
+                if pipOn, let line = pip.bubble, pip.shown { PerFrame { bubble(line, size: geo.size) } }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             .background { if pipOn { PipTouches(pip: pip).allowsHitTesting(false) } }

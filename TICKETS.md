@@ -77,7 +77,14 @@ with plugins switched off. Simulator numbers run on the Mac's chip: compare befo
 - **Tess can't see everything:** most cards show "0 switches flipped". Their toggles aren't UIKit switches she can find, so only the
   open and scroll were tested there.
 
-## 31 Oct · core · Robyn · Pip's layer redraws the plugin bar and every overlay about 60 times a second
+## 31 Oct · ✅ DONE 20:55 (Rob, for Robyn) · Pip's layer redraws the plugin bar and every overlay about 60 times a second
+
+- **Fixed** in `Pieces/Pip.swift` (`PerFrame`), as below. Same build, before → after (simulator, Mac busy, load ~70–95):
+  idle CPU 29–54% → 12–30% · Dashboard open 17 → 60 fps · Dashboard scroll 14 → 60 · Crew open 11 → 58 · Crew scroll 10 → 47 ·
+  💡 panel open 5 → 59 · 💡 scroll 10 → 60. Tess (every bar button): no crash, no hang; Sketch 43 late frames → 10, Dashboard 33 → 12,
+  Crew 28 → 6, Cupboard 26 → 13. Still red but mild: a few cards at 11–13 late while a switch flips, and Pip Looks 45 late frames
+  (worst 850 → 131 ms, so no longer near a freeze). Table in `TESTS.md`.
+
 
 - **What Aaron saw:** the developer menus stutter and freeze; Pause all made everything smooth.
 - **Cause:** in `PipLayer.body` (`Pieces/Pip.swift`), `pipView` and `bubble` read `pip.hop`, `lean`, `squash` and `pos`
