@@ -26,6 +26,7 @@ enum Plugins {
         PipsWeight(),
         Dashboard(),
         // StableSwitch(),  // parked: Everything loses the full set after One at a time; crash clue never shows, ticket 31 Oct
+        PipPeek(),          // Jules: Aaron's Pip peeks round open panels; drawn only while one is open
         NextAction(),
         IdeaInbox(),
         BusyPip(),
