@@ -73,7 +73,12 @@ struct FrameMeter: View {
             .padding(.vertical, 4)
             .background((watch.hitches > 0 ? Color.red : Color.black).opacity(0.6), in: .capsule)
             .onTapGesture { watch.reset() }
-            .onAppear { watch.start(); MenuStress.runIfAsked() }
+            .onAppear {
+                watch.start()
+                #if DEBUG
+                MenuStress.runIfAsked()     // Rob's test runs live in debug builds only
+                #endif
+            }
             .accessibilityHidden(true)
     }
 }
