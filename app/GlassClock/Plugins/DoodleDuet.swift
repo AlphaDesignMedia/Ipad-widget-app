@@ -9,7 +9,7 @@ import SwiftUI
 //   and munches it.
 // Pip reads the room: draw quickly and steadily and Pip backs off to a corner to watch; pause and Pip comes back.
 // Each behaviour has a switch. Under simpler motion, lines appear and go with a fade.
-// Where: the pencil-and-sparkles button in the plugin bar; "Done" closes the canvas.
+// Where: a folded section of the Sketch panel; "Done" closes the canvas.
 
 struct DoodleDuet: SandboxPlugin {
     let info = PluginInfo(id: "duet", name: "Doodle Duet", version: "v1", shelf: .dream,
@@ -74,6 +74,8 @@ struct DoodleDuet: SandboxPlugin {
     static func habitOn(_ h: Habit, _ host: PipHost) -> Bool { host.value("duet", h.rawValue) ?? true }
 
     func open(_ host: PipHost) {
+        // Opened from the Sketch panel: close it, so Sketch's pens don't catch the Pencil as well.
+        host.openCard = nil
         page.on = true
         host.say(Lines.open.randomElement()!, for: 2)
         watch(host)
@@ -272,7 +274,9 @@ struct DoodleDuet: SandboxPlugin {
 
     func overlay(_ host: PipHost) -> some View { Canvas2(plugin: self, page: page, host: host) }
 
-    func card(_ host: PipHost) -> some View { DuetCard(plugin: self, page: page, host: host) }
+    // A folded section of the Sketch panel, so every drawing menu lives in one panel (Aaron, 31 Oct 2026).
+    var addsTo: String? { "sketch" }
+    func addOn(_ host: PipHost) -> some View { DuetCard(plugin: self, page: page, host: host) }
 
     /// The play canvas. Takes touches only while the duet is on; otherwise it just shows lines Pip hasn't eaten yet.
     struct Canvas2: View {

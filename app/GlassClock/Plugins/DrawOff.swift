@@ -6,13 +6,12 @@ import SwiftUI
 // Everyone is kind. The score stays on the device. Pip off: still playable, with no Pip lines.
 // Joy 0: Pip says nothing. Simpler motion: no bounce, the winner's frame fades in.
 // Pip never offers the game on their own: it starts when you press Start.
-// Where: the paintbrush button in the plugin bar (opens as a panel).
+// Where: a folded section of the Sketch panel (it had its own panel until 31 Oct 2026).
 
 struct DrawOff: SandboxPlugin {
     let info = PluginInfo(id: "drawoff", name: "The Draw-off", version: "v1", shelf: .dream,
                           icon: "paintbrush.pointed",
-                          what: "Bob and Dot both draw Pip's word. You pick the winner, or draw your own.",
-                          panel: true)
+                          what: "Bob and Dot both draw Pip's word. You pick the winner, or draw your own.")
 
     // MARK: Tune
 
@@ -429,7 +428,9 @@ struct DrawOff: SandboxPlugin {
 
     // MARK: Views
 
-    func card(_ host: PipHost) -> some View {
+    // A folded section of the Sketch panel, so every drawing menu lives in one panel (Aaron, 31 Oct 2026).
+    var addsTo: String? { "sketch" }
+    func addOn(_ host: PipHost) -> some View {
         Board(game: game, host: host)
             .onAppear { game.load(host) }
             .onDisappear { game.leave() }
@@ -444,10 +445,10 @@ struct DrawOff: SandboxPlugin {
         }
 
         var body: some View {
-            VStack(spacing: Corner.inset) {
-                SettingsCard(title: "The Draw-off", icon: "paintbrush.pointed", footer: footer) {
-                    Round(game: game, host: host)
-                }
+            // The panel gives the section its title and glass.
+            VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
+                Round(game: game, host: host)
+                Text(footer).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
