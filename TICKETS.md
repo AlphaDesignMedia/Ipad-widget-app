@@ -10,7 +10,38 @@ About a minute later the numbers are in the app's `Documents/Diagnostics/stress-
 `-holdMenu dashboard` just opens a menu and leaves it, for `sample <pid> 5` or Instruments. `-plugsOff '(liquid)'` starts
 with plugins switched off. Simulator numbers run on the Mac's chip: compare before with after, not with the iPad.
 
+`-checkIdeas YES` walks Pip, design partner the way Aaron would (see the ticket below) and writes `ideas-check.txt` there too.
+
 ---
+
+## 31 Oct · plugin · ideainbox · Jules · Pip, design partner: checked, works, nothing parked
+
+- **The check** (`-checkIdeas YES`, simulator, 3 runs, the last one fully green): open 💡 ✅ · type an idea and tap + ✅ (it lands
+  in 🌱 SPARK, Pip perches by it and says "Ooh, I like that one.") · stage menu shows all five, current one greyed ✅ ·
+  move to ✏️ EXPERIMENT ✅ · pick 👍 APPROVED → "Send to the dashboard?" with "Yes, it's approved" / "Not yet" ✅, and the
+  stage stays EXPERIMENT until the yes ✅ · yes → 👍 APPROVED and the FOR DASHBOARD paste is copied ✅ · Copy for Chappie →
+  the FOR CHAPPIE paste, grouped by stage ✅ · close ✅. Ideas put back as they were afterwards.
+- **Stress run, design partner on vs off** (fps · late frames · worst ms; 3 pairs, order swapped each time):
+
+| step | on (3 runs) | off (3 runs) |
+|---|---|---|
+| nothing open | 57·4·253 / 14·14·9455 / 16·22·302 | 60·1·95 / 60·2·372 / 34·10·298 |
+| Plugin Desk open | 22·18·211 / 13·1·196 / 17·20·501 | 58·3·150 / 44·17·268 / 16·18·205 |
+| Dashboard open | 10·17·300 / 8·9·3358 / 10·11·387 | 9·8·477 / 8·9·386 / 8·13·540 |
+| Crew open | 21·12·315 / 6·1·5147 / 9·13·468 | 11·12·420 / 10·11·419 / 10·12·514 |
+| 💡 panel open | 8·15·489 / 11·0·0 / 6·14·2350 | (off) |
+| 💡 panel scroll | 9·21·938 / 6·14·266 / 7·19·244 | (off) |
+
+- **Reading it honestly:** the Mac was very busy (load average 200–300; a second simulator has been running the app for 23 h),
+  so these swing a lot. No step is clearly worse with design partner on, apart from the noise. The 💡 panel is as slow as the other
+  side panels (6–11 fps open), which is the core `PerFrame` problem below, not this plugin. Re-measure after Robyn's fix, on a quiet Mac.
+- **Small things for Jules, none urgent:**
+  1. In Panels layout, **Copy for Chappie** sits under the cards, over the clock, next to its PREVIEW pill (`test-shots/ideainbox-approved-31oct.png`).
+     Inside the "Idea garden" card might look tidier.
+  2. `Workspace.body` decodes the saved JSON every redraw; while the `PerFrame` bug stands that's ~60 times a second with the
+     panel open. Fine for a few ideas; worth decoding once if the garden grows.
+  3. The bin deletes an idea straight away with no undo. Aaron's call whether that's OK.
+- **Parked:** nothing.
 
 ## 31 Oct · Tess's first run · 6 red, no crashes, no hangs (full table in `TESTS.md`)
 

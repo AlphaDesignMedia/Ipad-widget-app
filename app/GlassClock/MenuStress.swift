@@ -9,7 +9,7 @@ import os
 /// measuring each step with the frame meter's counter. The numbers go to the log (category "stress") and to
 /// Documents/Diagnostics/stress-<time>.txt. Everything it changes is put back. (Rob, 31 Oct 2026)
 @MainActor enum MenuStress {
-    static let menus = ["desk", "dashboard", "crew"]
+    static let menus = ["desk", "dashboard", "crew", "ideainbox"]
     /// Every DevFold in the dev menus (grep `DevFold(id:`), plus the panels' "More" sections.
     static let folds = ["desk.list", "dash.where", "dash.needs", "dash.reminders", "crew.core", "crew.crew", "crew.new",
                         "crew.you", "ideas", "next", "queue"]
@@ -33,6 +33,7 @@ import os
             }
         }
         if UserDefaults.standard.bool(forKey: "tess") { Task { await Tess.run() } }
+        if UserDefaults.standard.bool(forKey: "checkIdeas") { Task { await IdeasCheck.run() } }
         guard UserDefaults.standard.bool(forKey: "stressMenus") else { return }
         Task { await run() }
     }
@@ -179,6 +180,166 @@ import os
         }
         windows.forEach(walk)
         return found
+    }
+}
+/// `-checkIdeas YES`: walks Pip, design partner the way Aaron would (Rob's check for Jules, 31 Oct 2026). Opens 💡, types an idea,
+/// saves it, moves it to EXPERIMENT, picks APPROVED (expects "Send to the dashboard?"), says yes, taps Copy for Chappie, closes.
+/// Taps go through accessibility (as VoiceOver would), menus through their UIActions, the dialog through its action.
+/// Each step's result goes to Documents/Diagnostics/ideas-check.txt; the ideas are put back as they were at the end.
+@MainActor enum IdeasCheck {
+    static func run() async {
+        let host = PipHost.shared, store = UserDefaults.standard, key = "plug.ideainbox.ideas"
+        let saved = store.string(forKey: key)
+        let folder = URL.documentsDirectory.appending(path: "Diagnostics", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: "ideas-check.txt")
+        var out: [String] = []
+        func note(_ s: String) { out.append(s); try? out.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8) }
+        func pause(_ s: Double = 1.2) async { try? await Task.sleep(for: .seconds(s)) }
+        let watch = FrameWatch()
+        watch.start()
+        let text = "Tess check idea"
+        func stage() -> String {
+            let ideas = (try? JSONSerialization.jsonObject(with: Data((store.string(forKey: key) ?? "[]").utf8))) as? [[String: Any]] ?? []
+            guard let i = ideas.first(where: { ($0["text"] as? String) == text }) else { return "missing" }
+            return (i["stage"] as? String) ?? "spark"
+        }
+
+        await pause(6)
+        if host.paused { host.setPaused(false) }
+        store.set("[]", forKey: key)                    // start empty, so the only stage menu is the test idea's
+        note("start · on: \(host.isOn("ideainbox"))")
+        watch.reset()
+        withAnimation(.easeOut(duration: 0.2)) { host.openCard = "ideainbox" }
+        await pause(1.5)
+        note("open · panel shown: \(!host.panelFrame.isNull) · \(watch.hitches) late · worst \(watch.worstMs) ms")
+
+        // Type and save.
+        let area = host.panelFrame
+        let inPanel = { (v: UIView) in v.convert(v.bounds, to: nil).intersects(area) }
+        if let field = views(UITextView.self).first(where: inPanel) {
+            field.becomeFirstResponder(); field.insertText(text)
+            await pause(0.5)
+            note("typed: \(field.text ?? "")")
+        } else if let field = views(UITextField.self).first(where: inPanel) {
+            field.becomeFirstResponder(); field.insertText(text)
+            await pause(0.5)
+            note("typed (text field): \(field.text ?? "")")
+        } else { note("FAIL no text box found") }
+        note("save button: \(activate("Save idea"))")
+        await pause()
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        note("after save · stage: \(stage())")
+
+        // Change stage to EXPERIMENT through the stage menu.
+        note("experiment: \(await pick("✏️ EXPERIMENT"))")
+        await pause()
+        note("after experiment · stage: \(stage())")
+
+        // APPROVED should ask first.
+        UIPasteboard.general.string = ""
+        note("approved picked: \(await pick("👍 APPROVED"))")
+        await pause()
+        note("stage before yes (should still be experiment): \(stage())")
+        let alert = topAlert()
+        note("dialog: \(alert.map { "“\($0.title ?? "")” · \($0.actions.map { $0.title ?? "?" })" } ?? "FAIL none shown")")
+        if let alert, let yes = alert.actions.first(where: { $0.title == "Yes, it's approved" }) {
+            typealias Handler = @convention(block) (UIAlertAction) -> Void
+            let handler = yes.value(forKey: "handler").map { unsafeBitCast($0 as AnyObject, to: Handler.self) }
+            alert.dismiss(animated: true) { handler?(yes) }
+            for _ in 0..<20 where stage() != "approved" { await pause(0.5) }
+        }
+        note("after yes · stage: \(stage()) · pasteboard: \(UIPasteboard.general.string?.prefix(40) ?? "")")
+        note("Pip perched and garden shows 👍 APPROVED: see screenshot")
+        await pause(2)
+
+        // Copy for Chappie.
+        note("copy button: \(activate("Copy for Chappie"))")
+        await pause()
+        note("pasteboard: \(UIPasteboard.general.string?.replacingOccurrences(of: "\n", with: " ⏎ ").prefix(160) ?? "")")
+
+        watch.reset()
+        withAnimation(.easeOut(duration: 0.2)) { host.openCard = nil }
+        await pause(1.5)
+        note("closed · \(watch.hitches) late · worst \(watch.worstMs) ms")
+        store.set(saved, forKey: key)
+        note("DONE")
+    }
+
+    private static func windows() -> [UIWindow] {
+        UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+    }
+
+    private static func views<V: UIView>(_ kind: V.Type) -> [V] {
+        var found: [V] = []
+        func walk(_ v: UIView) { if let x = v as? V, !x.isHidden, x.window != nil { found.append(x) }; v.subviews.forEach(walk) }
+        windows().forEach(walk)
+        return found
+    }
+
+    /// Finds an accessibility element by label (SwiftUI exposes these to VoiceOver) and activates it, as a VoiceOver double tap does.
+    private static func activate(_ label: String) -> String {
+        var hit: NSObject?
+        func walk(_ o: NSObject, _ depth: Int) {
+            guard hit == nil, depth < 60 else { return }
+            if o.accessibilityLabel == label { hit = o; return }
+            if let v = o as? UIView { v.subviews.forEach { walk($0, depth + 1) } }
+            for e in (o.accessibilityElements ?? []) { if let e = e as? NSObject { walk(e, depth + 1) } }
+        }
+        windows().forEach { walk($0, 0) }
+        guard let hit else { return "FAIL “\(label)” not found" }
+        return hit.accessibilityActivate() ? "ok" : "FAIL “\(label)” found but wouldn't activate"
+    }
+
+    /// The stage menu: first look for a UIKit button whose menu has the item and run its action; if SwiftUI hides it, open the menu
+    /// through accessibility ("Stage: … Change stage") and activate the item's cell, as VoiceOver would.
+    private static func pick(_ title: String) async -> String {
+        func actions(_ els: [UIMenuElement]) -> [UIAction] {
+            els.flatMap { e -> [UIAction] in
+                if let a = e as? UIAction { return [a] }
+                if let m = e as? UIMenu { return actions(m.children) }
+                return []
+            }
+        }
+        let menus = views(UIButton.self).filter { $0.menu != nil }
+        for button in menus {
+            if let action = actions(button.menu!.children).first(where: { $0.title == title }) {
+                action.perform(NSSelectorFromString("performWithSender:target:"), with: button, with: nil)
+                return "ok (menu action)"
+            }
+        }
+        // SwiftUI fills the menu in only once it's opened, so open it the VoiceOver way, then run the item's action.
+        let opened = activateWhere { ($0.accessibilityLabel ?? "").hasPrefix("Stage:") }
+        try? await Task.sleep(for: .seconds(1))
+        for button in views(UIButton.self) where button.menu != nil {
+            if let action = actions(button.menu!.children).first(where: { $0.title == title }) {
+                action.perform(NSSelectorFromString("performWithSender:target:"), with: button, with: nil)
+                return "ok (opened: \(opened), then menu action)"
+            }
+        }
+        return "FAIL menu opened (\(opened)) but no “\(title)” in it"
+    }
+
+    private static func activateWhere(_ match: (NSObject) -> Bool) -> String {
+        var hit: NSObject?
+        func walk(_ o: NSObject, _ depth: Int) {
+            guard hit == nil, depth < 60 else { return }
+            if match(o) { hit = o; return }
+            if let v = o as? UIView { v.subviews.forEach { walk($0, depth + 1) } }
+            for e in (o.accessibilityElements ?? []) { if let e = e as? NSObject { walk(e, depth + 1) } }
+        }
+        windows().forEach { walk($0, 0) }
+        guard let hit else { return "not found" }
+        return hit.accessibilityActivate() ? "ok (\(type(of: hit)))" : "found \(type(of: hit)) but wouldn't activate"
+    }
+
+    private static func topAlert() -> UIAlertController? {
+        for w in windows() {
+            var vc = w.rootViewController
+            while let next = vc?.presentedViewController { vc = next }
+            if let a = vc as? UIAlertController { return a }
+        }
+        return nil
     }
 }
 #endif
