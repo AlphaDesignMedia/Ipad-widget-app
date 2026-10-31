@@ -3,7 +3,7 @@ import UIKit
 
 // PIP PEEK · plugin v1 (On trial). Aaron's own Pip (his Procreate drawing over Sheet A, 31 Oct), peeking round the
 // edge of whatever panel or card is open: hidden (just an ear tip), peeking (head out, eyes on you), emerging (tap:
-// out a little further, a small "o", then back). Left alone for 10 seconds, they tuck away. From the browser
+// out a little further, a small "o", then back; tap again and they fly off with Pip Flight). Left alone for 10 seconds, they tuck away. From the browser
 // prototype (app/design/pip-peek-prototype.html) and the trace (app/design/pip-v2-trace.html): same numbers.
 // Also a small hello when you open the app: Pip peeks in from the left edge for a moment. Easy to switch off.
 // Version 1 / Version 2 in the card: V1 is the original (no peeking), V2 is Aaron's Pip. Nothing is replaced: the
@@ -166,7 +166,7 @@ struct PipPeek: SandboxPlugin {
                     .accessibilityElement()
                     .accessibilityLabel("Pip, peeking")
                     .accessibilityAddTraits(.isButton)
-                    .accessibilityHint("Pip comes out to say hello.")
+                    .accessibilityHint("Pip comes out to say hello. Again, and they fly.")
                     .accessibilityAction { tapped() }
                     .allowsHitTesting(pose != .hidden || hello)
             }
@@ -203,6 +203,21 @@ struct PipPeek: SandboxPlugin {
         }
 
         private func tapped() {
+            // Tapped again while out: they take off and fly across (Pip Flight, if it's on), then come back to peek.
+            if pose == .emerging, host.isOn("flight"), !host.simpler {
+                let dir = facingRight ? 1 : -1
+                host.post(.custom("flight.go:\(Int(edgeX) + dir * 40),\(Int(y)),\(dir)"))
+                shown = false
+                set(.hidden)
+                let mine = turn
+                host.later(PipFlight.flightFor + 1.2) {
+                    guard turn == mine else { return }
+                    shown = true
+                    set(.peeking)
+                    tuckLater()
+                }
+                return
+            }
             set(.emerging)
             mouth = true
             host.later(0.9) { mouth = false }

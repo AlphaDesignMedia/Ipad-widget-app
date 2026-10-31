@@ -7,7 +7,7 @@ import SwiftUI
 // Pip's signature move), then the ears flap for a moment. The slider scrubs through the frames by hand. Faces: auto,
 // o, excited, concentrating, cheeky. "Fly across" sends Pip once across the screen, ears flapping, then they're gone.
 // Light: the card animates only while playing; the overlay exists only during the 3-second flight. Nothing starts on
-// its own. Pip off: "Fly across" is off. Simpler motion: no flight across the screen; the card steps instead of moving.
+// its own (Pip Peek's double tap asks for a take-off from the panel's edge). Pip off: "Fly across" is off. Simpler motion: no flight across the screen; the card steps instead of moving.
 
 struct PipFlight: SandboxPlugin {
     let info = PluginInfo(id: "flight", name: "Pip Flight", version: "v1", shelf: .trial,
@@ -112,8 +112,23 @@ struct PipFlight: SandboxPlugin {
 
     @MainActor @Observable final class Session {
         var flying: Date?
+        /// Where the flight starts (Pip Peek's panel edge) and which way it goes; nil: from the left edge.
+        var from: CGPoint?
+        var leftwards = false
     }
     private let session = Session()
+
+    /// Pip Peek asks for a take-off with "flight.go:x,y,dir" (dir 1 right, -1 left).
+    func on(_ event: PipEvent, _ host: PipHost) {
+        guard case .custom(let message) = event, message.hasPrefix("flight.go"),
+              host.pipOn, !host.simpler, session.flying == nil else { return }
+        let nums = message.split(separator: ":").dropFirst().first?.split(separator: ",").compactMap { Double($0) } ?? []
+        session.from = nums.count >= 2 ? CGPoint(x: nums[0], y: nums[1]) : nil
+        session.leftwards = nums.count >= 3 && nums[2] < 0
+        session.flying = Date()
+        let s = session
+        host.later(PipFlight.flightFor + 0.2) { s.flying = nil; s.from = nil }
+    }
 
     // MARK: Views
 
@@ -132,10 +147,16 @@ struct PipFlight: SandboxPlugin {
                     TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: host.simpler)) { tl in
                         let t = tl.date.timeIntervalSince(start)
                         let p = min(max(t / PipFlight.flightFor, 0), 1)
-                        let x = -90 + p * (geo.size.width + 180)
-                        let y = geo.size.height * 0.36 + sin(p * .pi * 2) * 46 - sin(p * .pi) * 30
+                        let w = geo.size.width
+                        let left = session.leftwards
+                        // From the panel's edge (Pip Peek) up and away, or straight across from the left edge.
+                        let x: CGFloat = session.from.map { f in left ? f.x - p * (f.x + 180) : f.x + p * (w - f.x + 180) }
+                            ?? (-90 + p * (w + 180))
+                        let y: CGFloat = session.from.map { f in f.y - p * geo.size.height * 0.28 + sin(p * .pi * 2) * 28 }
+                            ?? (geo.size.height * 0.36 + sin(p * .pi * 2) * 46 - sin(p * .pi) * 30)
                         Figure(pose: PipFlight.flapping(t), face: .o)
                             .frame(width: 130, height: 130)
+                            .scaleEffect(x: left ? -1 : 1, y: 1)
                             .position(x: x, y: y)
                     }
                 }
