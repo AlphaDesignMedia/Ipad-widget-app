@@ -81,6 +81,20 @@ are now parked in code and made light). The map agent is **Mappy**. He wants me 
 - Cap it at 4 (more go into a "…" menu), so the bar never overflows. Respect `liquidToolbar` spacers like the others.
 - **Done when:** I flip `topBar: true` on Dashboard and it appears up top, opens, and disappears when switched off.
 
+### G · Robyn · safety levels on the Pause switch (Aaron, 31 Oct: "Pause all proved it's the plugins")
+- Aaron used Pause all, and the app was smooth until he un-paused and tapped an icon. He wants steps, not just on and off:
+  **⏸ Paused → 🟢 Safe only → 🟡 + Experimental → 🔴 Everything**.
+- **Data (already there):** `PipFlags.verdicts`, Rob's per-plugin flag of green, amber or red (unknown counts as green). Please
+  move that table into a small data-only file, `PluginRisk.swift`, that both the host and Pip's flags read, so the core
+  doesn't depend on a plugin. Later, Tess's numbers update the same table.
+- **Host:** `paused: Bool` becomes `level: PluginLevel` (`.paused, .safe, .experimental, .everything`), stored under the
+  old key's neighbour `plugsLevel`. `isOn(id) = chosen(id) && level.allows(PluginRisk.of(id))`. Safe mode after a crash
+  starts at `.paused`, as now. **A fresh launch starts at `.safe`**, so a new or red plugin never runs until you ask.
+- **UI:** wherever Pause all is (Settings, and holding the bar): four steps in one row, with a one-line hint under
+  each ("Only plugins with a green flag"). It's the same spot and the same gesture, just four choices.
+- **Done when:** at Safe, Tidy Pip and Vend-O-Mat (amber) are off and come back at Experimental. Parked plugins stay
+  parked at every level.
+
 ### C · withdrawn, I'll do it in the plugin
 - I'll build the dashboard tile as a plugin overlay that you drag to place, with its spot saved and drawn under the panels,
   so there's no core work. If Aaron later wants it in the Arrange/Float system, that's a bigger core job, and I'll ask first.
