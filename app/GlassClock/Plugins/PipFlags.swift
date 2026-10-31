@@ -142,19 +142,23 @@ private struct FlagsCard: View {
 
     /// The only thing that changes while the panel is open, so it's the only thing recounted.
     private func counts() {
-        redOn = watch.filter { host.isOn($0.info.id) }.map(\.info)
-        offCount = settled.filter { !host.isOn($0) }.count
+        // chosen(), not isOn(): isOn is false for everything while the app is paused, so counting with it
+        // would tell Aaron his plugins are off when they're only resting. (Greg's core, 31 Oct)
+        redOn = watch.filter { host.chosen($0.info.id) }.map(\.info)
+        offCount = settled.filter { !host.chosen($0) }.count
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if host.paused { restingBanner }
+
             Text("A hunch, not a measurement. Switch one off and see if the app feels better.")
                 .font(.system(size: 12)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             // The one thing this card exists for: settle the suspects, in one tap.
             if redOn.isEmpty {
-                Label("None of the \(watch.count) flagged ones is running.", systemImage: "checkmark.circle")
+                Label("All \(watch.count) flagged ones are switched off.", systemImage: "checkmark.circle")
                     .font(.system(size: 14)).frame(minHeight: 44)
             } else {
                 Button { settle() } label: {
@@ -194,6 +198,31 @@ private struct FlagsCard: View {
         .onAppear { build(); pipSays() }
     }
 
+    /// Everything is paused. The switches below still mean what they say, they just aren't running yet,
+    /// and saying so is the whole job of this box.
+    private var restingBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(host.safeMode ? "Everything's paused, because the app stopped last time while it was open."
+                                : "Everything's paused.",
+                  systemImage: host.safeMode ? "lifepreserver" : "pause.circle")
+                .font(.system(size: 14, weight: .medium))
+                .fixedSize(horizontal: false, vertical: true)
+            Text(host.safeMode
+                 ? "Nothing's lost. Switch off anything you don't trust below, then start them again."
+                 : "The switches below are still yours; they just aren't running yet.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { host.setPaused(false) } label: {
+                Label("Start them again", systemImage: "play.circle")
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityHint("Brings back every plugin that's switched on. Anything switched off stays off.")
+        }
+        .padding(12)
+        .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 12))
+    }
+
     /// One flagged plugin: flag, name, switch. Tap the name for what it does and why it's flagged.
     @ViewBuilder private func row(_ r: Row) -> some View {
         let expanded = open == r.info.id
@@ -217,7 +246,7 @@ private struct FlagsCard: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(r.info.name), \(r.v.flag.word). \(expanded ? "Hide" : "Show") details.")
 
-                Toggle("", isOn: Binding(get: { host.isOn(r.info.id) },
+                Toggle("", isOn: Binding(get: { host.chosen(r.info.id) },
                                          set: { host.setOn(r.info.id, $0); counts() }))
                     .labelsHidden()
                     .accessibilityLabel("\(r.info.name) switched on")
@@ -247,8 +276,8 @@ private struct FlagsCard: View {
 
     /// Pip's note: one line about the heaviest thing that's actually on. Quiet at joy 0, silent with Pip off.
     private func pipSays() {
-        guard host.joy > 0, PipTalkTurns.floorFree(host) else { return }
-        let line = watch.first { host.isOn($0.info.id) }?.v.note
+        guard !host.paused, host.joy > 0, PipTalkTurns.floorFree(host) else { return }
+        let line = watch.first { host.chosen($0.info.id) }?.v.note
             ?? "Nothing heavy on. I feel quite light, actually."
         if host.say(line, for: PipFlags.Tune.sayFor) {
             PipTalkTurns.takeFloor(host, for: PipFlags.Tune.sayFor)
@@ -272,7 +301,7 @@ private struct FlagsCard: View {
     /// Only what this panel switched off, and then it forgets them.
     private func putBack() {
         settling = true
-        let list = settled.filter { !host.isOn($0) }
+        let list = settled.filter { !host.chosen($0) }
         for (i, id) in list.enumerated() {
             host.later(Double(i) * PipFlags.Tune.settleGap) { host.setOn(id, true) }
         }
