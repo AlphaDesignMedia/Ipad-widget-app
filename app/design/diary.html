@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Glass Clock: dev diary</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+:root{--bg:#eef1f7;--ink:#17202e;--muted:#5b6578;--card:#fff;--line:#d5dbe6;--blue:#3a5894;--bsoft:#e4eaf6;--g:#2a7f6f;--gs:#e1f1ec;--o:#b4561f;--os:#fbe7d9;
+ --display:"Bricolage Grotesque",ui-rounded,system-ui,sans-serif;--body:"Atkinson Hyperlegible",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#0d111b;--ink:#e7ecf5;--muted:#98a3b8;--card:#161d2c;--line:#283350;--blue:#8fb0f5;--bsoft:#1a2440;--g:#5fd0b8;--gs:#13302a;--o:#f09a62;--os:#3a2316;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;padding:22px max(14px,env(safe-area-inset-right)) 48px max(14px,env(safe-area-inset-left))}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:16px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(32px,5.5vw,52px);margin:0;letter-spacing:-.02em;line-height:1.05}
+h2{font-family:var(--display);font-weight:800;font-size:23px;margin:0}
+h3{font-family:var(--display);font-weight:800;font-size:17px;margin:0}
+p{margin:0}.muted{color:var(--muted)}
+section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;display:grid;gap:12px;min-width:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+figure{margin:0;display:grid;gap:6px}
+figure img{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
+figcaption{font-size:13px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+td,th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tbl{overflow-x:auto}
+.day{border-left:5px solid var(--blue)}
+.daytag{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.box{border-radius:12px;padding:12px;display:grid;gap:4px;align-content:start}
+.b1{background:var(--bsoft)}.b2{background:var(--gs)}.b3{background:var(--os)}
+ul,ol{margin:0;padding-left:20px}
+.flow{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;white-space:pre;overflow-x:auto}
+</style></head><body><div class="wrap">
+
+<header style="display:grid;gap:4px">
+ <p class="daytag">Glass Clock · made by Aaron, with a team that grew as it went</p>
+ <h1>Dev diary 📓</h1>
+ <p class="muted">Not how the code works, but how the app got made, so the lessons carry on to the next one.</p>
+</header>
+
+<section><h2>Two maps, one app</h2>
+ <div class="two">
+  <figure><img src="img/mind-map.jpg" alt="Aaron's hand-drawn mind map: Glass Clock in the middle, branching to UI, Be kind, Moods, Let the user choose, Panels, Classic and Always fair"><figcaption><b>Your mind map: the why.</b> What Glass Clock <i>is</i>.</figcaption></figure>
+  <figure><img src="img/world-map.png" alt="The Pip Works world map: the Yard, Noticeboard, Workshop, Stage, Shop, Gate, Kit, Peter's hut and Pandora's Box"><figcaption><b>The world map: the how.</b> Who makes it, and how.</figcaption></figure>
+ </div>
+ <p>They join up like this. Each branch of your map has someone in the Works who looks after it, and a test that proves it:</p>
+ <div class="tbl"><table>
+  <tr><th>Your branch</th><th>Looked after by</th><th>Proved by</th></tr>
+  <tr><td>💙 <b>Be kind · Always fair · Let the user choose</b></td><td>🧢 Peter and his Book</td><td>Every decision, before it ships</td></tr>
+  <tr><td>🚫 <b>No ads · No forced content</b></td><td>🧢 Peter (Monty can ask, never overrule)</td><td>The rules that never bend</td></tr>
+  <tr><td>🕐 <b>Classic:</b> only the basics, easy at its core, free accessibility</td><td>🛠 Robyn's backbone</td><td>👴 <b>the Dad test</b></td></tr>
+  <tr><td>✨ <b>Panels:</b> fun, beautiful, customise everything, lots of features</td><td>🌳 the Yard: plugins and the Sandbox</td><td>😄 <b>the Pip test</b> (play a little, flick away easily)</td></tr>
+  <tr><td>🎨 <b>Panels:</b> share, save</td><td>🗺 Mappy: Looks and the timeline</td><td>Testers sharing a design</td></tr>
+  <tr><td>🌤 <b>Moods:</b> gentle reminders of features, social corner, find designs</td><td>📊 the dashboard and Moods (later)</td><td>Testers finding a feature without being told</td></tr>
+  <tr><td>💷 <b>Free to try, no card trial</b></td><td>💼 Monty, inside Peter's rules</td><td>The beta: do people stay?</td></tr>
+  <tr><td>🧭 <b>UI:</b> user friendly, clean</td><td>everyone, plus 🧪 Tess for the smoothness</td><td>No stutters, no freezes</td></tr>
+ </table></div>
+ <div class="flow">  👥 testers ──▶ 📓 Findings ──▶ which branch of the mind map? ──▶ 🎬 you decide
+  (e.g. "my mate loved drawing with Pip" ──▶ Panels › fun ──▶ noted, not built)</div>
+</section>
+
+<section class="day"><p class="daytag">Saturday 31 October</p><h2>"Slow and steady"</h2>
+ <div class="cols">
+  <div class="box b1"><h3>📌 What happened</h3><ul>
+   <li>Pause all proved the stutters were plugins, not the app. The backbone held.</li>
+   <li>Glass Memory and Window Cleaner were made light, then parked.</li>
+   <li>The dashboard became a Glass Clock tile on the canvas.</li>
+   <li>The team grew: Robyn 💜, Tess 🧪, Mappy 🗺, Peter 🧢, Monty 💼.</li>
+   <li>The Plugin Kit's checker went live.</li>
+   <li>Decided: a TestFlight beta, with the Dad test as the north star.</li></ul></div>
+  <div class="box b2"><h3>🎓 Lessons for the next app</h3><ol>
+   <li>Rushing broke more than it fixed. One change at a time.</li>
+   <li>Build a backbone the experiments can't break, plus a big pause switch.</li>
+   <li>AI testing isn't people testing.</li>
+   <li>Write the principles down <i>before</i> the business pressure arrives.</li></ol></div>
+  <div class="box b3"><h3>🔎 Findings</h3><ul>
+   <li>A friend's favourite part was drawing with Pip. It's a hook, not a new app.</li>
+   <li>Older users flicking Pip away is fine, and it should be easy.</li></ul></div>
+ </div>
+</section>
+
+<section class="day"><p class="daytag">Friday 30 October</p><h2>"The show-off"</h2>
+ <div class="cols">
+  <div class="box b1"><h3>📌 What happened</h3><ul>
+   <li>A stable show-off build with everything on, plus a Tuck away button.</li>
+   <li>Drop Pip designed: two eyes, curvy, wings from the back.</li>
+   <li>A sketch sheet for drawing new Pips.</li>
+   <li>The show-off went really well.</li></ul></div>
+  <div class="box b2"><h3>🎓 Lessons</h3><ol>
+   <li>Pushing from an old copy wiped other people's work. Always check first.</li>
+   <li>Panicking about stability led to rushing, and rushing led to more instability.</li></ol></div>
+  <div class="box b3"><h3>🔎 Findings</h3><ul>
+   <li>One eye on Pip is unsettling. Two eyes are friendly.</li>
+   <li>Silhouette matters: a circle reads, and the drop adds something extra.</li></ul></div>
+ </div>
+</section>
+
+<section><h2>How the diary grows</h2>
+ <div class="flow">  🌙 each evening   Jules writes the day: what happened · a picture · lessons · findings
+  🧪 after a test   Rob and Tess add simulator screenshots
+  🎨 any time        you send a picture from your mood board, and it goes in that day
+  💾 forever         kept in the repo (diary/), with history</div>
+ <p class="muted">Your real dashboard's mood board stays yours. Send me pictures from it and they'll appear here on their day.</p>
+</section>
+</div></body></html>
