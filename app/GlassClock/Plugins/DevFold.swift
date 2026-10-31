@@ -4,17 +4,19 @@ import SwiftUI
 // Not a plugin: just a tidy disclosure row. Collapsed until you open it, and each one remembers its own state on the
 // device ("plug.devfold.<id>"). Fades instead of sliding when motion is simpler. Gets a VoiceOver label and hint.
 // Used as: `DevFold(id: "dash.needs", title: "Needs you") { ...rows... }`.
+// The contents are built only while it's open. It used to build them in `init`, so a folded-away list of forty
+// plugin rows was still put together on every single redraw of the card it sits in. (Rob, 31 Oct)
 
 struct DevFold<Content: View>: View {
     let title: String
     let summary: String?
-    let content: Content
+    @ViewBuilder let content: () -> Content
     @AppStorage private var open: Bool
 
-    init(id: String, title: String, summary: String? = nil, @ViewBuilder content: () -> Content) {
+    init(id: String, title: String, summary: String? = nil, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
         self.summary = summary
-        self.content = content()
+        self.content = content
         _open = AppStorage(wrappedValue: false, "plug.devfold.\(id)")
     }
 
@@ -47,7 +49,7 @@ struct DevFold<Content: View>: View {
             .accessibilityValue(open ? "Open" : "Closed")
             .accessibilityHint(open ? "Closes it." : "Opens it.")
             if open {
-                content.transition(.opacity)
+                content().transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

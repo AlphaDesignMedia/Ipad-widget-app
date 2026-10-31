@@ -2,8 +2,11 @@ import SwiftUI
 
 // GLASS MEMORY · plugin v1 (Dream). The glass remembers. Two small ideas in one plugin:
 // 1. Pip trails: when Pip is flicked or bumps an edge, they leave a very faint, soft smudge or two where they flew.
-//    The marks fade in slowly, stay on the device (capped at 60, the oldest go first) and grow a little stronger over
+//    The marks fade in slowly, stay on the device (capped at 24, the oldest go first) and grow a little stronger over
 //    a few days, like a ghost sketch layer. They never take a touch. Joy 0: none. Joy 1: barely there.
+//    OFF BY DEFAULT since 31 Oct: Aaron reported "dark marks on the screen" and that was these. A blurred
+//    Color.primary blob is black in Light mode, and they were building up and darkening with age. Now they're
+//    an opt-in, at well under half the old strength. Turn them on in this card. (Rob)
 //    "Clean the glass" wipes them; so does Window Cleaner Pip when it finishes (it posts "glass.cleaned").
 // 2. Glass ink: how Sketch's drawings look. Normal (as ever), Soft (see-through) or Frosted glass (blurred edge, a
 //    glassy glint). Works with Pip off. Sketch reads the choice (see `Layer` in Sketch.swift); Normal changes nothing.
@@ -17,17 +20,20 @@ struct GlassMemory: SandboxPlugin {
     // MARK: Data
 
     enum Tune {
-        static let cap = 60                     // marks kept, at most
+        static let cap = 24                     // marks kept, at most
         static let step = 0.1                   // seconds between looks at Pip while they fly
         static let maxTicks = 30                // a flight is followed for 3 seconds at most
         static let gap: CGFloat = 46            // how far Pip travels between marks
         static let perFlight = 5                // marks per flight, at most
         static let fadeIn = 9.0                 // seconds for a new mark to appear
         static let growDays = 5.0               // days for a mark to reach full strength
+        static let newborn = 0.6                // how strong a brand-new mark is, as a share of full
         static let shortest = 26.0
         static let longest = 90.0
         /// How strong a mark can get, by Joy (0: none).
-        static func strength(joy: Int) -> Double { [0, 0.09, 0.13, 0.18, 0.24, 0.3][min(max(joy, 0), 5)] }
+        /// Halved on 31 Oct: at the old numbers a blurred Color.primary blob reads as a dark mark on the
+        /// screen in Light mode, not a faint smudge on glass. Aaron reported them as a bug, and he was right.
+        static func strength(joy: Int) -> Double { [0, 0.04, 0.06, 0.08, 0.1, 0.13][min(max(joy, 0), 5)] }
     }
 
     /// One faint smudge: where, which way, how big, and when (so it can strengthen over days).
@@ -122,12 +128,12 @@ struct GlassMemory: SandboxPlugin {
         /// A mark grows from a quarter to full strength over a few days.
         func strength(_ m: Mark) -> Double {
             let days = max(0, Date.now.timeIntervalSince1970 - m.made) / 86400
-            return min(1, 0.25 + 0.75 * days / Tune.growDays)
+            return min(1, Tune.newborn + (1 - Tune.newborn) * days / Tune.growDays)
         }
     }
     fileprivate let mem = Memory()
 
-    private func marksWanted(_ host: PipHost) -> Bool { (host.value("glassmemory", "marks") as Bool?) ?? true }
+    private func marksWanted(_ host: PipHost) -> Bool { (host.value("glassmemory", "marks2") as Bool?) ?? false }
     /// New marks are made only with the plugin and the switch on, Pip on screen, and Joy above 0.
     private func marking(_ host: PipHost) -> Bool {
         host.isOn("glassmemory") && marksWanted(host) && host.pipHere && host.joy > 0
@@ -188,7 +194,7 @@ struct GlassMemory: SandboxPlugin {
     struct Smudges: View {
         let mem: Memory
         let host: PipHost
-        @AppStorage("plug.glassmemory.marks") private var marksOn = true
+        @AppStorage("plug.glassmemory.marks2") private var marksOn = false
 
         var body: some View {
             let top = Tune.strength(joy: host.joy)
@@ -229,7 +235,7 @@ struct GlassMemory: SandboxPlugin {
     struct MemoryCard: View {
         let mem: Memory
         let host: PipHost
-        @AppStorage("plug.glassmemory.marks") private var marksOn = true
+        @AppStorage("plug.glassmemory.marks2") private var marksOn = false
         @AppStorage("plug.glassmemory.ink") private var inkName = "normal"
 
         var body: some View {
@@ -239,6 +245,10 @@ struct GlassMemory: SandboxPlugin {
                 Toggle("Pip leaves marks", isOn: $marksOn)
                     .font(.system(size: 13.5))
                     .accessibilityLabel("Let Pip leave faint marks on the glass where they fly")
+                if !marksOn {
+                    Text("Off by default. Switched on, Pip leaves very faint smudges where they fly.")
+                        .font(.system(size: 12)).foregroundStyle(.tertiary)
+                }
                 Text(count == 0 ? "The glass is clean." : "\(count) faint \(count == 1 ? "mark" : "marks") on the glass. They fade in slowly and show at Joy 1 or more.")
                     .font(.system(size: 13.5)).foregroundStyle(.secondary)
                 Button("Clean the glass") {

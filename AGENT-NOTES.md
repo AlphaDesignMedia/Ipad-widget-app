@@ -22,6 +22,65 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## Plugin · Rob — 31 Oct, 02:05 · dark marks, and why the panels are slow
+
+**Aaron, on the build with the flags panel:** "still very buggy, dark marks on the screen, menu is still long runs slow."
+
+**Did**
+
+1. **The dark marks are Glass Memory.** Not a bug in the usual sense: `Smudges` draws up to 60 blurred
+   `Capsule().fill(Color.primary)` blobs, which in Light mode is *black*, at up to 0.3 opacity, and they
+   persist on the device and **get stronger every day** for five days. Aaron has been flicking Pip around
+   for two days, so he's been watching them darken. Dot — they read as marks on the screen, not as glass.
+   - Marks now **off by default**, under a new key (`plug.glassmemory.marks2`): the old key is already set
+     to on, on his iPad, so changing an `@AppStorage` default would never have reached him.
+   - Strength roughly **a third** of what it was (joy 5: 0.3 → 0.13), cap 60 → 24, and a new mark starts
+     at 0.6 of full instead of 0.25, so age matters much less.
+   - The frosted-ink half of the plugin is untouched. Sketch still reads it.
+   - **Still worth doing, Dot:** 24 views each with their own `.blur()` is 24 offscreen passes on every
+     frame of the whole app. One `Canvas` with `drawLayer { addFilter(.blur…) }` would be one. I left the
+     per-mark fade-in alone rather than redesign your plugin.
+
+2. **`DevFold` built its contents even when folded shut.** `self.content = content()` in `init`. So the
+   Plugin Desk's forty plugin rows were assembled on every redraw of the desk card whether or not the
+   list was open — and the dashboard and crew rundown use `DevFold` too. Now stores the closure and calls
+   it only while open. One line; probably the biggest single win here.
+
+3. **Plugin Desk:** the tally walked all forty plugins **four times** (once per verdict) in `body`. One
+   pass now. And its plugin list had its own `ScrollView` with `maxHeight: 420` *inside* the panel's
+   `ScrollView` — two scroll views in the same direction, which is why Aaron saw it overspill at the
+   bottom with the end out of reach. Inner one gone; the panel scrolls.
+
+4. **Pip's flags: cut right down.** My own mistake. I folded it into Plugin Desk to save a button, but
+   Aaron's complaint was that the menu is *long* — and I appended thirty more rows to the longest panel
+   in the app. It now shows the kill switch, the three flagged plugins, and **one line** for the other
+   twenty-odd. The green list is gone: Plugin Desk is right above it and already lists everything.
+   Also stopped recounting the whole plugin list on every redraw; it recounts only when a switch moves.
+
+**Need — core, for the Mac agent / Greg**
+
+`PluginPanel.body` (`PluginBar.swift:155`) is:
+
+```swift
+ViewThatFits(in: .vertical) { cards; ScrollView { cards } }
+```
+
+`ViewThatFits` **builds and measures every child**, so the whole panel tree — the desk's forty rows plus
+every `addsTo` section — is constructed **twice** on every state change. With `host.off` being observable,
+one toggle rebuilds all of it, twice. Suggest measuring the content height once (`onGeometryChange`) and
+picking the branch, or just always using the `ScrollView` with `.scrollBounceBehavior(.basedOnSize)`,
+which behaves the same to the eye. Not mine to change; flagging it because it's the common factor behind
+"menus run slow" across every panel, not just the desk.
+
+**Couldn't test:** none of this has been on an iPad. Build is green, 0 errors, 1 pre-existing core warning
+(`ContentView.swift:377`). Aaron — the dark marks already saved on your iPad will stop *showing*; "Clean
+the glass" in Glass Memory's card wipes them for good.
+
+**Still open:** Aaron switched two plugins off on his iPad by hand and they're still only off there, not in
+code. Tell me which two and I'll default them off.
+
+---
+
 ## 2026-10-30 (19:30) · Plugin · Dot (Director's Call, local branch `dot-director`, not pushed)
 
 **Did:** `DirectorsCall.swift` (id `director`, Dream, clapperboard icon), a line in `Plugins.swift` and one in `CrewLog`. Not built (no compiler here), not on the iPad. No core edits.
