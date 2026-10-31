@@ -44,8 +44,8 @@ struct PipFlags: SandboxPlugin {
     static let verdicts: [String: Verdict] = [
         "glass": .init(flag: .red, why: "Starts itself when you stop touching the screen, then wakes every 3s and loops a shine.",
                        note: "Window Cleaner sets off on its own when you leave the room. Lovely, but it's the only one here that starts without you."),
-        "busypip": .init(flag: .amber, why: "Wakes once a second the whole time it's on, whether or not it's doing anything.",
-                         note: "Busy Pip is busy once a second, whether or not there's anything to be busy about."),
+        "busypip": .init(flag: .green, why: "Looks once a second only while Pip could start something; every 5s when Pip's asleep, away or already busy.",
+                         note: "Busy Pip has learned to sit still when there's nothing to be busy about."),
         "tidy": .init(flag: .amber, why: "Wakes every 2 seconds, and keeps an animation looping.",
                       note: "Tidy Pip checks every couple of seconds, and keeps a little animation going round."),
         "vendomat": .init(flag: .amber, why: "Rests at 9s, but runs at about 22 frames a second while anything is in the air.",
