@@ -101,6 +101,7 @@ Source: `app/design/pip-drawing-sheets.html` (edit there, re-render).
 | B · Wings and movement | winged vs wingless · 4 wing shapes · wingless moves (stand, squash, lean, slide, hop) |
 | C · Pigeon morph | how it's built (4 circles) · round, tall, pecking, puffed · wing out · Pip → pigeon. Tiny check |
 | D · Living in the interface | peeking, clipped on, stretching round an edge, squeezed in · a blank panel layout with a clock |
+| E · Aaron's wedge pigeon | **Aaron's own shape** from his workshop video (31 Oct): one long sloped back, round belly. Built, pecking, proud, sitting, looking back, wing out, Pip → wedge. Tiny check |
 
 Why all four at once: they're light and mostly blank, so Aaron picks whichever one he fancies. No need to do them all.
 

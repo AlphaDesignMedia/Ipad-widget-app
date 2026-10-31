@@ -55,6 +55,9 @@ const S = {
   pTall:   { groups: [[[48, 68, 21], [62, 26, 13], [16, 84, 2]], [[62, 26, 13], [81, 30, .8]]], eyes: [[65, 23]], leg: [52, 87, 50, 98] },
   pPeck:   { groups: [[[44, 56, 25], [76, 74, 11], [6, 46, 2]], [[76, 74, 11], [90, 89, .8]]], eyes: [[77, 70]], leg: [42, 79, 42, 97] },
   pPuff:   { groups: [[[50, 62, 31], [62, 30, 12], [12, 74, 2]], [[62, 30, 12], [80, 33, .8]]], eyes: [[64, 27]], leg: [50, 91, 49, 99] },
+  // Aaron's wedge pigeon (31 Oct video): tail far down-left, one long sloped back to the head, round belly, flat bottom.
+  wedge:   { groups: [[[63, 76, 13], [64, 30, 10], [8, 86, 3]], [[64, 30, 10], [86, 34, .8]]], eyes: [[66, 27]],
+             leg: [58, 89, 57, 99], anchors: 4 },
 };
 
 // ── Drawing helpers
@@ -235,6 +238,42 @@ function page(letter, title, sub) {
   panel(120, 660, 520, 380); panel(700, 660, 380, 180); panel(700, 880, 380, 160);
   text(s, 890, 775, '10:24', 64, { anchor: 'middle', weight: 300, fill: '#bbb' });
   dots(s, 1120, 640, 400, 480);
+}
+// ── Sheet E: Aaron's wedge pigeon (from his Morph Workshop video, 31 Oct)
+{
+  /** Turns a shape round a point, for poses. */
+  const turn = (sh, deg, cx = 50, cy = 70) => {
+    const a = deg * Math.PI / 180, c = Math.cos(a), si = Math.sin(a);
+    const pt = (x, y) => [cx + (x - cx) * c - (y - cy) * si, cy + (x - cx) * si + (y - cy) * c];
+    return { ...sh, groups: sh.groups.map(g => g.map(([x, y, r]) => [...pt(x, y), r])),
+      eyes: sh.eyes && sh.eyes.map(([x, y]) => pt(x, y)), leg: sh.leg && [...pt(sh.leg[0], sh.leg[1]), ...pt(sh.leg[2], sh.leg[3])] };
+  };
+  const W = S.wedge;
+  const s = page('E', "Aaron's wedge pigeon", 'Your shape from the Morph Workshop: one long sloped back, a round belly, head up top. Four circles and a leg.');
+  text(s, 240, 160, 'How it is built', 17, { anchor: 'middle', weight: 600 });
+  shape(s, W, 240, 320, 250, { build: true });
+  const poses = [
+    ['Pecking', turn(W, 28)],
+    ['Proud', { ...W, groups: [[[60, 74, 15], [62, 24, 11], [10, 88, 3]], [[62, 24, 11], [85, 27, .8]]], eyes: [[64, 21]], leg: [57, 89, 56, 99] }],
+    ['Sitting (no leg)', { ...W, groups: [[[63, 80, 14], [64, 36, 10], [6, 92, 3]], [[64, 36, 10], [86, 40, .8]]], eyes: [[66, 33]], leg: null }],
+    ['Looking back', { ...W, groups: [[[63, 76, 13], [58, 30, 10], [8, 86, 3]], [[58, 30, 10], [37, 33, .8]]], eyes: [[56, 27]] }],
+  ];
+  poses.forEach(([label, sh], i) => {
+    const x = 540 + i * 210;
+    text(s, x, 160, label, 17, { anchor: 'middle', weight: 600 });
+    shape(s, sh, x, 300, 180);
+  });
+  tiny(s, [W, poses[0][1], poses[2][1]], 1360, 150);
+  text(s, 540, 470, 'Wing out', 17, { anchor: 'middle', weight: 600 });
+  shape(s, { ...W, wings: [[40, 60, 18, 14, -18]] }, 540, 600, 180);
+  text(s, 760, 470, 'Pip → wedge pigeon', 17, { anchor: 'start', weight: 600 });
+  const mid = { groups: [[[57, 72, 19], [58, 38, 15], [28, 82, 3]], [[58, 38, 15], [72, 26, 2]]], eyes: [[54, 44], [65, 38]] };
+  [[S.blob, 0], [mid, 1], [W, 2]]
+    .forEach(([sh, i]) => { shape(s, sh, 820 + i * 190, 600, 150); if (i < 2) text(s, 905 + i * 190, 606, '→', 26, { anchor: 'middle', fill: '#888' }); });
+  box(s, 56, 720, 1488, 420, 'Your wedge pigeon, your way', { sub: 'Push the tail further, round the belly, try a second leg. Then shrink it: does it read at 16 px?' });
+  dots(s, 56, 780, 1488, 360);
+  shape(s, W, 300, 960, 260, { style: 'ghost' });
+  shape(s, turn(W, 28), 620, 960, 200, { style: 'ghost' });
 }
 </script>
 </body>
