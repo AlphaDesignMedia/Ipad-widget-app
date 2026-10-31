@@ -482,10 +482,15 @@ struct ContentView: View {
                 Task { try? await Task.sleep(for: .seconds(0.8)); showsTour = true }
             }
         }
-        .onChange(of: style) {
-            StyleLibrary.saveDraft(style)
+        // Saved once the edits pause, rather than on every tick of a slider being dragged
+        // (dozens a second). A new change cancels the wait and starts it again.
+        .task(id: style) {
+            try? await Task.sleep(for: .milliseconds(400))
+            if !Task.isCancelled { StyleLibrary.saveDraft(style) }
         }
         .onChange(of: scenePhase) {
+            // Leaving the app saves at once, so an edit made in the last moment isn't lost.
+            if scenePhase != .active { StyleLibrary.saveDraft(style) }
             if scenePhase == .background && applyWhenLeaving && style != appliedStyle { apply() }
             // Opening the app also nudges the widget, so it never stays out of date for long.
             if scenePhase == .active { WidgetCenter.shared.reloadAllTimelines() }
