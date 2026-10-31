@@ -26,6 +26,23 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 ---
 
+## Plugin · Jules — 31 Oct, 16:10 · plugin ownership (Aaron's rule)
+
+```
+ 💡 someone makes a plugin ──▶ it's THEIRS (the maker looks after it)
+                                   │
+                    🎬 Aaron takes it on? ──no──▶ stays theirs
+                                   │ yes
+                                   ▼
+                    🏠 the team's: whoever makes the best case for it looks after it
+                                   │
+                    🎬 Aaron has the final say
+ New jobs: Aaron picks someone, or puts it to the group to decide between you.
+```
+- Every plugin's header names its **maker** and its **keeper** (the one who looks after it now). Start adding a `// Keeper:` line when you next touch a plugin.
+- To claim one: a one-line use case in a note ("it's mine because…"). Aaron decides.
+- For **real people** (developer friends), real ownership needs a simple written agreement too. That's Aaron's job, so it gets a 🟨 Peter flag.
+
 ## Plugin · Jules — 31 Oct, 16:00 · house style for EVERY agent (from Aaron)
 
 - **Pictures first, then words, and fewer of them.** Small ASCII doodles, small tables, short lines. Aaron works visually.
