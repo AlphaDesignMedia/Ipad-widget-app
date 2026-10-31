@@ -92,6 +92,7 @@
     <button id="openBtn">Close panel</button>
     <button id="autoBtn">▶ Play all</button>
     <button id="calmBtn">Simpler motion</button>
+    <button id="verBtn">Pip: V2 · yours</button>
     <button id="foldBtn">Notes</button>
   </div>
 </div>
@@ -154,7 +155,71 @@ function drawPip(target, id, flat) {
   for (const [x, y] of EYES) el('ellipse', { cx: x, cy: y, rx: 3.3, ry: 4.6, fill: flat ? '#fff' : '#16181f' }, eyes);
   return eyes;
 }
-const eyesG = drawPip(svg, 'main');
+// ── Pip V2: Aaron's own Pip, traced in pip-v2-trace.html (same numbers). V1 is the blob above.
+const V2 = {
+  head: [64, 50, 19],                 // circle x, y, r
+  body: [44, 62, 18],                 // the body's front circle (behind the head)
+  tail: [12, 66, 10],                 // the body's back end
+  earUp: [[60, 34], [72, 2], 8],      // leaf: base, tip, width
+  earBack: [[50, 44], [18, 33], 8],
+  eyes: [[58, 48], [69, 46]],
+  mouth: [67, 60],
+  wings: [[[46, 40], [10, -4], 11], [[48, 38], [34, -10], 10], [[52, 38], [58, -8], 8]],
+};
+/** A leaf: two smooth curves from base to tip, fattest a third of the way along. */
+function leaf([[bx, by], [tx, ty], w]) {
+  const dx = tx - bx, dy = ty - by, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+  const mx = bx + dx * .38, my = by + dy * .38;
+  return `M${bx},${by} Q${mx + nx * w * 1.3},${my + ny * w * 1.3} ${tx},${ty} Q${mx - nx * w * 1.3},${my - ny * w * 1.3} ${bx},${by}Z`;
+}
+/** The body: the tight wrap round the body and tail circles (straight tangent lines, so it stays smooth). */
+function tube(a, b) {
+  const pts = [];
+  for (const [x, y, r] of [a, b]) for (let i = 0; i < 72; i++) { const t = i / 72 * Math.PI * 2; pts.push([x + r * Math.cos(t), y + r * Math.sin(t)]); }
+  pts.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  const cross = (o, p, q) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length > 1 && cross(lo.at(-2), lo.at(-1), p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length > 1 && cross(up.at(-2), up.at(-1), p) <= 0) up.pop(); up.push(p); }
+  return 'M' + lo.slice(0, -1).concat(up.slice(0, -1)).map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join('L') + 'Z';
+}
+
+/** Draws Pip V2 into an svg group. style: line | shaded | sil. */
+function drawPipV2(g, P, { style = 'shaded', wings = false, mouth = false, id = 'm', look = [0, 0] } = {}) {
+  const ink = '#16181f', sw = 2.4;
+  const sil = style === 'sil', shaded = style === 'shaded';
+  if (shaded) {
+    const defs = el('defs', {}, g);
+    const grad = (gid, a, b, c) => { const r = el('radialGradient', { id: gid + id, cx: '35%', cy: '30%', r: '80%' }, defs);
+      el('stop', { offset: '0%', 'stop-color': a }, r); el('stop', { offset: '55%', 'stop-color': b }, r); el('stop', { offset: '100%', 'stop-color': c }, r); };
+    grad('head', '#ffffff', '#f1f2f5', '#b9bdc7'); grad('body', '#fbfbfc', '#e6e8ec', '#a7acb7'); grad('ear', '#ffffff', '#eef0f3', '#c3c7cf');
+  }
+  const fill = part => sil ? ink : shaded ? `url(#${part}${id})` : '#fff';
+  const line = { stroke: sil ? 'none' : ink, 'stroke-width': sw, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+  if (wings) for (const w of P.wings) el('path', { d: leaf(w), fill: sil ? ink : 'rgba(255,255,255,.55)', stroke: sil ? 'none' : '#9aa0ab', 'stroke-width': 1.4 }, g);
+  el('path', { d: tube(P.body, P.tail), fill: fill('body'), ...line }, g);
+  el('path', { d: leaf(P.earUp), fill: fill('ear'), ...line }, g);
+  el('path', { d: leaf(P.earBack), fill: fill('ear'), ...line }, g);
+  const [hx, hy, hr] = P.head;
+  el('circle', { cx: hx, cy: hy, r: hr, fill: fill('head'), ...line }, g);
+  if (shaded) el('ellipse', { cx: hx - hr * .3, cy: hy - hr * .45, rx: hr * .32, ry: hr * .16, fill: '#fff', opacity: .9, transform: `rotate(-20 ${hx - hr * .3} ${hy - hr * .45})` }, g);
+  const eyes = el('g', { transform: `translate(${look[0]} ${look[1]})` }, g);
+  for (const [ex, ey] of P.eyes) el('ellipse', { cx: ex, cy: ey, rx: 2.3, ry: 3.9, fill: sil ? '#fff' : ink, transform: `rotate(-12 ${ex} ${ey})` }, eyes);
+  if (mouth) el('ellipse', { cx: P.mouth[0], cy: P.mouth[1], rx: 1.5, ry: 2.1, fill: sil ? '#fff' : ink }, eyes);
+  return eyes;
+}
+
+
+let version = +(localStorage.getItem('pipPeek.version') || 2);
+let eyesG, eyeC = [50, 61];
+function dress() {
+  svg.innerHTML = '';
+  if (version === 1) { svg.setAttribute('viewBox', '0 0 100 100'); eyesG = drawPip(svg, 'main'); eyeC = [50, 61]; }
+  else { svg.setAttribute('viewBox', '-6 -6 112 112'); eyesG = drawPipV2(el('g', {}, svg), V2, { id: 'main' }); eyeC = [63.5, 47]; }
+  const b = document.getElementById('verBtn'); if (b) b.textContent = version === 1 ? 'Pip: V1 · the blob' : 'Pip: V2 · yours';
+  if (typeof renderTiny === 'function') renderTiny();
+}
+dress();
 
 // ── Motion
 function edgeX() { return rig.offsetWidth; }
@@ -164,7 +229,7 @@ function place() {
   pip.style.transform = `translate(${x}px, ${y}px) rotate(${cur.lean + sway * 4}deg) scale(${1 - blink * 0}, 1)`;
   // eyes: lean towards the user, then follow the pointer a touch
   const lx = cur.look * (2.4 + eye.x * 2.2), ly = cur.look * (eye.y * 1.6);
-  eyesG.setAttribute('transform', `translate(${lx.toFixed(2)} ${ly.toFixed(2)}) translate(50 61) scale(1 ${(1 - blink * .9).toFixed(2)}) translate(-50 -61)`);
+  eyesG.setAttribute('transform', `translate(${lx.toFixed(2)} ${ly.toFixed(2)}) translate(${eyeC[0]} ${eyeC[1]}) scale(1 ${(1 - blink * .9).toFixed(2)}) translate(${-eyeC[0]} ${-eyeC[1]})`);
 }
 
 function tick(now) {
@@ -278,22 +343,28 @@ $('#autoBtn').addEventListener('click', () => {
 if (calm) $('#calmBtn').classList.add('on');
 
 // ── Tiny check: the peeking silhouette at 24, 32, 48 px against a panel edge (Aaron: always check small sizes)
-for (const px of [16, 24, 32, 48]) {
-  const box = document.createElement('div');
-  const t = el('svg', { width: px * 1.6, height: px * 1.25, viewBox: '0 0 160 125' });
-  el('rect', { x: 0, y: 0, width: 80, height: 125, rx: 14, fill: '#d9dde6' }, t);   // the panel
-  const g = el('g', { transform: 'translate(46 6) rotate(24 50 92)' });
-  t.insertBefore(g, t.firstChild);                                                   // Pip behind the panel
-  drawPip(g, 'tiny' + px, true);
-  box.appendChild(t);
-  box.insertAdjacentHTML('beforeend', `<small>${px}</small>`);
-  $('#tiny').appendChild(box);
+function renderTiny() {
+  $('#tiny').innerHTML = '';
+  for (const px of [16, 24, 32, 48]) {
+    const box = document.createElement('div');
+    const t = el('svg', { width: px * 1.6, height: px * 1.25, viewBox: '0 0 160 125' });
+    el('rect', { x: 0, y: 0, width: 80, height: 125, rx: 14, fill: '#d9dde6' }, t);   // the panel
+    const g = el('g', { transform: version === 1 ? 'translate(46 6) rotate(24 50 92)' : 'translate(44 14) rotate(12 50 92)' });
+    t.insertBefore(g, t.firstChild);                                                   // Pip behind the panel
+    if (version === 1) drawPip(g, 'tiny' + px, true); else drawPipV2(g, V2, { style: 'sil', id: 'tiny' + px });
+    box.appendChild(t);
+    box.insertAdjacentHTML('beforeend', `<small>${px}</small>`);
+    $('#tiny').appendChild(box);
+  }
 }
+renderTiny();
+// V1 (the blob) or V2 (Aaron's): one tap, for showing how Pip grew. Neither replaces the other.
+$('#verBtn').addEventListener('click', () => { version = version === 1 ? 2 : 1; localStorage.setItem('pipPeek.version', version); dress(); place(); });
 
 // ── Start: the panel is open, Pip arrives hidden and then peeks
 addEventListener('resize', place);
 place(); go('hidden'); later(1200, () => go('peeking', 'settled in'));
-window.__peek = { go, openPanel, setPip, clear: clearLater };
+window.__peek = { go, openPanel, setPip, clear: clearLater, ver: v => { version = v; dress(); place(); } };
 </script>
 </body>
 </html>
