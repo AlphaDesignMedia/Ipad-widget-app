@@ -1,195 +1,201 @@
 {
- "syncedAt": "2026-10-31T15:15:00Z",
- "source": "Glass Clock Progress",
- "url": "https://claude.ai/artifact/UQ9Yo6F6RBNdoUn8B9sqeW",
- "status": {
-  "headline": "Sat 31 Oct: slow and steady day. Pause all proved the stutters are plugins, not the app. Glass Memory and Window Cleaner made light and parked. Dashboard is now a Glass Clock tile on the canvas. Robyn and Rob have job sheets; Peter and Monty joined the team. The Brief: https://claude.ai/artifact/Crwy8KDwPoVGB4pp5Z1qKP",
-  "ipadBuild": "Clean reinstall · 7:05 pm",
-  "ipadNote": "Same app, freshly signed. Your saved styles were reset by the reinstall. Free sign-in expires Tue 3 Nov.",
-  "updatedAt": "Sat 31 Oct, 3:15 pm"
- },
- "needsYou": [
-  {
-   "q": "Pick your tester circle (family and friends with iPads)?",
-   "suggested": "Start with 3 to 5, including one 'Dad test' tester (suggested)"
+  "syncedAt": "2026-10-31T15:15:00Z",
+  "source": "Glass Clock Progress",
+  "url": "https://claude.ai/artifact/UQ9Yo6F6RBNdoUn8B9sqeW",
+  "status": {
+    "headline": "Sat 31 Oct: slow and steady day. Pause all proved the stutters are plugins, not the app. Glass Memory and Window Cleaner made light and parked. Dashboard is now a Glass Clock tile on the canvas. Robyn and Rob have job sheets; Peter and Monty joined the team. The Brief: https://claude.ai/artifact/Crwy8KDwPoVGB4pp5Z1qKP",
+    "ipadBuild": "Clean reinstall · 7:05 pm",
+    "ipadNote": "Same app, freshly signed. Your saved styles were reset by the reinstall. Free sign-in expires Tue 3 Nov.",
+    "updatedAt": "Sat 31 Oct, 3:15 pm"
   },
-  {
-   "q": "Keep a Pandora's Box page (every worry as a joke disaster, with its real guard)?",
-   "suggested": "Yes, small and fun (suggested)"
-  }
- ],
- "upNext": [
-  {
-   "area": "Launch",
-   "title": "TestFlight beta for Glass Clock. North star: the Dad test (a 75-year-old adds a Glass Clock widget alone)"
+  "needsYou": [
+    {
+      "q": "Pick your tester circle (family and friends with iPads)?",
+      "suggested": "Start with 3 to 5, including one 'Dad test' tester (suggested)"
+    },
+    {
+      "q": "Keep a Pandora's Box page (every worry as a joke disaster, with its real guard)?",
+      "suggested": "Yes, small and fun (suggested)"
+    }
+  ],
+  "upNext": [
+    {
+      "area": "Launch",
+      "title": "TestFlight beta for Glass Clock. North star: the Dad test (a 75-year-old adds a Glass Clock widget alone)"
+    },
+    {
+      "area": "Launch",
+      "title": "A one-page, big-text tester guide: install TestFlight, add a widget, tell Aaron how it felt"
+    },
+    {
+      "area": "Stability",
+      "title": "Rob: polite Mac, then hire Tess the Tester (simulator only)"
+    },
+    {
+      "area": "Core",
+      "title": "Robyn: buttons follow the theme, then plugins in the top bar"
+    },
+    {
+      "area": "Core",
+      "title": "Robyn: safety levels on Pause (Paused, Safe, Experimental, Everything)"
+    },
+    {
+      "area": "Core",
+      "title": "Robyn: one kind of panel, with a close button"
+    },
+    {
+      "area": "Plugins",
+      "title": "Plugin Kit: checker live on every push; next, shared parts and a starter template"
+    },
+    {
+      "area": "Plugins",
+      "title": "Mappy: families and the timeline, from the Plugin Map"
+    },
+    {
+      "area": "Dashboard",
+      "title": "Dashboard tile moves to the top bar once Robyn's hook lands"
+    }
+  ],
+  "builds": [
+    {
+      "at": "2026-10-27T19:05:00Z",
+      "title": "Clean reinstall after the sign-in expired",
+      "changes": [
+        "Xcode signed back in; app trusted on the iPad",
+        "Widget updates again (it had frozen at 3:47 pm)",
+        "Saved styles were reset by the reinstall"
+      ]
+    },
+    {
+      "at": "2026-10-25T18:45:00Z",
+      "title": "Friend test build 2",
+      "changes": [
+        "Accessibility: Outline everything, with an Outline width slider",
+        "Automatic app colour: a calm blue, deeper in Light, lighter in Dark"
+      ]
+    },
+    {
+      "at": "2026-10-25T18:37:00Z",
+      "title": "Friend test build",
+      "changes": [
+        "Moods: quick cross-fade, fast taps queue",
+        "Arrange menu: Best for This Window, Groups Along the Bottom, Settings Only"
+      ]
+    }
+  ],
+  "usage": {
+    "plan": "Pro",
+    "at": "2026-10-27T21:00:52Z",
+    "windows": [
+      {
+        "label": "5-hour limit",
+        "percentUsed": 0
+      },
+      {
+        "label": "Weekly · all models",
+        "percentUsed": 98
+      }
+    ]
   },
-  {
-   "area": "Launch",
-   "title": "A one-page, big-text tester guide: install TestFlight, add a widget, tell Aaron how it felt"
-  },
-  {
-   "area": "Stability",
-   "title": "Rob: polite Mac, then hire Tess the Tester (simulator only)"
-  },
-  {
-   "area": "Core",
-   "title": "Robyn: buttons follow the theme, then plugins in the top bar"
-  },
-  {
-   "area": "Core",
-   "title": "Robyn: safety levels on Pause (Paused, Safe, Experimental, Everything)"
-  },
-  {
-   "area": "Core",
-   "title": "Robyn: one kind of panel, with a close button"
-  },
-  {
-   "area": "Plugins",
-   "title": "Plugin Kit: checker live on every push; next, shared parts and a starter template"
-  },
-  {
-   "area": "Plugins",
-   "title": "Mappy: families and the timeline, from the Plugin Map"
-  },
-  {
-   "area": "Dashboard",
-   "title": "Dashboard tile moves to the top bar once Robyn's hook lands"
-  }
- ],
- "builds": [
-  {
-   "at": "2026-10-27T19:05:00Z",
-   "title": "Clean reinstall after the sign-in expired",
-   "changes": [
-    "Xcode signed back in; app trusted on the iPad",
-    "Widget updates again (it had frozen at 3:47 pm)",
-    "Saved styles were reset by the reinstall"
-   ]
-  },
-  {
-   "at": "2026-10-25T18:45:00Z",
-   "title": "Friend test build 2",
-   "changes": [
-    "Accessibility: Outline everything, with an Outline width slider",
-    "Automatic app colour: a calm blue, deeper in Light, lighter in Dark"
-   ]
-  },
-  {
-   "at": "2026-10-25T18:37:00Z",
-   "title": "Friend test build",
-   "changes": [
-    "Moods: quick cross-fade, fast taps queue",
-    "Arrange menu: Best for This Window, Groups Along the Bottom, Settings Only"
-   ]
-  }
- ],
- "usage": {
-  "plan": "Pro",
-  "at": "2026-10-27T21:00:52Z",
-  "windows": [
-   {
-    "label": "5-hour limit",
-    "percentUsed": 0
-   },
-   {
-    "label": "Weekly · all models",
-    "percentUsed": 98
-   }
+  "reminders": [
+    {
+      "title": "Check Canva trial and cancel",
+      "due": "2026-11-03T09:00:00Z"
+    }
+  ],
+  "principles": [
+    "The default works every time",
+    "Small, specific wins",
+    "One job per feature",
+    "Undo everything",
+    "Contrast first, then glass",
+    "Right first time, not final",
+    "Design is his"
+  ],
+  "ideas": [
+    {
+      "title": "Pip, design partner (Chappie's brief): offline first, a 'FOR CHAPPIE' copy button, no AI inside Pip",
+      "branch": "Pip",
+      "status": "🌱 seed",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Plugin Kit: shared parts, rulebook, starter template",
+      "branch": "Panels › lots of features",
+      "status": "building",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Plugin keys: only allowed builders get the Kit",
+      "branch": "Panels › lots of features",
+      "status": "seed",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Friends build plugins, behind the Gate",
+      "branch": "Panels › customise everything",
+      "status": "seed",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Top bar: timeline, eras, moods, dashboard",
+      "branch": "UI › clean",
+      "status": "sketched",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Safety levels: Paused, Safe, Experimental, Everything",
+      "branch": "UI › user friendly",
+      "status": "sketched",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Panels with a close button that tuck while you draw",
+      "branch": "UI › user friendly",
+      "status": "sketched",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Dashboard as the mainframe (status here, not in chats)",
+      "branch": "Moods › unintrusive reminders",
+      "status": "building",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Dev diary with pictures",
+      "branch": "(how it's made)",
+      "status": "building",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Findings Book: what real testers did and said",
+      "branch": "(how it's made)",
+      "status": "seed",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "The Dad test and the Pip test",
+      "branch": "Classic › easy to understand",
+      "status": "sketched",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Pandora's Box page (worries as joke disasters, with real guards)",
+      "branch": "Be kind",
+      "status": "seed",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "Rebuild alphadesign.media with the new way of working",
+      "branch": "(beyond the app)",
+      "status": "parked",
+      "date": "2026-10-31"
+    },
+    {
+      "title": "The mind map in 3D, one day",
+      "branch": "(for fun)",
+      "status": "parked",
+      "date": "2026-10-31"
+    }
   ]
- },
- "reminders": [
-  {
-   "title": "Check Canva trial and cancel",
-   "due": "2026-11-03T09:00:00Z"
-  }
- ],
- "principles": [
-  "The default works every time",
-  "Small, specific wins",
-  "One job per feature",
-  "Undo everything",
-  "Contrast first, then glass",
-  "Right first time, not final",
-  "Design is his"
- ],
- "ideas": [
-  {
-   "title": "Plugin Kit: shared parts, rulebook, starter template",
-   "branch": "Panels › lots of features",
-   "status": "building",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Plugin keys: only allowed builders get the Kit",
-   "branch": "Panels › lots of features",
-   "status": "seed",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Friends build plugins, behind the Gate",
-   "branch": "Panels › customise everything",
-   "status": "seed",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Top bar: timeline, eras, moods, dashboard",
-   "branch": "UI › clean",
-   "status": "sketched",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Safety levels: Paused, Safe, Experimental, Everything",
-   "branch": "UI › user friendly",
-   "status": "sketched",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Panels with a close button that tuck while you draw",
-   "branch": "UI › user friendly",
-   "status": "sketched",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Dashboard as the mainframe (status here, not in chats)",
-   "branch": "Moods › unintrusive reminders",
-   "status": "building",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Dev diary with pictures",
-   "branch": "(how it's made)",
-   "status": "building",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Findings Book: what real testers did and said",
-   "branch": "(how it's made)",
-   "status": "seed",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "The Dad test and the Pip test",
-   "branch": "Classic › easy to understand",
-   "status": "sketched",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Pandora's Box page (worries as joke disasters, with real guards)",
-   "branch": "Be kind",
-   "status": "seed",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "Rebuild alphadesign.media with the new way of working",
-   "branch": "(beyond the app)",
-   "status": "parked",
-   "date": "2026-10-31"
-  },
-  {
-   "title": "The mind map in 3D, one day",
-   "branch": "(for fun)",
-   "status": "parked",
-   "date": "2026-10-31"
-  }
- ]
 }
