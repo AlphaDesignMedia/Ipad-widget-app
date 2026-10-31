@@ -65,3 +65,9 @@ So: **grow Idea inbox, don't add a new plugin.**
 - V1 scope: Pip's presence in the panel, a simple workspace, idea capture and stages, a FOR CHAPPIE copy button, kept on the iPad, its own switch.
 - Not in V1: compare and references (Sketch already does the drawing), personality sliders (Pip's own settings already cover Joy).
 - Waiting on Aaron's "go".
+
+## Chappie's feedback on the V1 sketch (31 Oct, creative, not a spec)
+1. Pip lives *in* the workspace: perches on the idea you're touching and peeks at a new one (inside the panel only, no overlay, still when idle).
+2. APPROVED needs Aaron's own tap: "Send to the dashboard?" Yes / Not yet. (The dashboard is hand-synced anyway: it's a paste.)
+3. Extra material (screenshots, references, notes, variations): **later**. V1 keeps room for it in the data, with no buttons for it yet.
+Layout stays as sketched. Still waiting on Aaron's "go".
