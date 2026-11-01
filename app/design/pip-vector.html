@@ -381,7 +381,7 @@ function drawPipGlass(pos, R, t, dt, target, emoji, vis) {
   const I = GL.I, ip = px; if (I.width !== ip) I.width = I.height = ip;
   const ix = I.getContext('2d'); ix.clearRect(0, 0, ip, ip);
   if (emoji && vis > 0) {
-    const sz = R * 1.15 * (.5 + .5 * e) * k;
+    const sz = R * 1.0 * (.5 + .5 * e) * k;
     ix.globalAlpha = Math.min(1, vis * 1.5); ix.font = `${sz}px "Apple Color Emoji","Noto Color Emoji",sans-serif`;
     ix.textAlign = 'center'; ix.textBaseline = 'middle'; ix.fillText(emoji, ip / 2, ip / 2 + R * .08 * k + sz * .06);
     ix.globalAlpha = 1;
