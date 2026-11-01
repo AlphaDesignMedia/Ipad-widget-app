@@ -144,6 +144,12 @@ struct BlobbyFrame {
     /// Stretch along the way he's moving when he's fast (Apple: motion blur / stretch encodes speed), and its angle.
     var stretch: CGFloat = 0
     var stretchAngle: Double = 0
+    /// Faint copies of the wings a moment ago, drawn soft while they beat fast, so they feather into each other (Aaron).
+    var ghosts: [Wing] = []
+    /// 0…1: how fast the wings are beating right now (the down-stroke is fastest).
+    var smear: Double = 0
+    /// 0…1: how fast he's swinging round: a cartoon smear on the turn (Aaron: "a little bit of blur, a little smudge").
+    var turnSmear: Double = 0
 }
 
 /// Pip's body in motion: which way he faces (a soft spring, so he swings round with some weight), his tail (lags
@@ -157,6 +163,34 @@ final class BlobbyRig {
     private var lastT = 0.0
     private var vx = 0.0, vy = 0.0
     private var phase = 0.0, effort = 0.0
+
+    // One wing beat (Aaron, 1 Nov: "every stroke of his wing is pulling him up, and he has to keep stroking to stay as
+    // high as he is"): a quick down-stroke (the first 35% of the beat) that lifts him, then a slower recovery while he
+    // sinks. u is where in the beat he is, 0..<1.
+    static let downStroke = 0.35
+    static func beatAt(_ ph: Double) -> Double {
+        let u = (ph / (2 * Double.pi)).truncatingRemainder(dividingBy: 1)
+        return u < 0 ? u + 1 : u
+    }
+    /// Where the wings are: -1 up … +1 down.
+    static func stroke(_ ph: Double) -> Double {
+        let u = beatAt(ph)
+        if u < downStroke { return -cos(u / downStroke * Double.pi) }
+        return cos((u - downStroke) / (1 - downStroke) * Double.pi)
+    }
+    /// How fast the wings are moving, 0…1 (1 at the middle of the down-stroke).
+    static func strokeSpeed(_ ph: Double) -> Double {
+        let u = beatAt(ph)
+        if u < downStroke { return sin(u / downStroke * Double.pi) }
+        return sin((u - downStroke) / (1 - downStroke) * Double.pi) * downStroke / (1 - downStroke)
+    }
+    /// How high the beat has carried him, 0…1: up fast on the down-stroke, then falling under his weight.
+    static func height(_ ph: Double) -> Double {
+        let u = beatAt(ph)
+        if u < downStroke { return sin(u / downStroke * Double.pi / 2) }
+        let v = (u - downStroke) / (1 - downStroke)
+        return 1 - v * v
+    }
 
     /// pos: where his head is (points, any fixed space); r: head radius (points); target: -1 left, 1 right, 0 no
     /// preference (he keeps his side); toYou: 0…1, how much he turns to look at you (a face emoji).
@@ -191,15 +225,23 @@ final class BlobbyRig {
         let beat: Double = (4.5 + 4.5 * flying) * (1 - 0.35 * climbing)
         if !simpler { phase += beat * dt }
         let effortK: Double = min(1.6, 0.5 + 0.5 * tune.effort)
-        let amp: Double = simpler ? 0 : (0.2 + 0.3 * flying + 0.3 * climbing) * effortK
+        // a slightly bigger flight pattern than before (Aaron)
+        let amp: Double = simpler ? 0 : (0.25 + 0.35 * flying + 0.35 * climbing) * effortK
         var f = BlobbyFrame()
-        let liftAmount: Double = rr * (0.03 + 0.09 * effort) * tune.effort
-        f.lift = simpler ? 0 : CGFloat(-sin(phase) * liftAmount)
+        let liftAmount: Double = rr * (0.03 + 0.09 * effort) * tune.effort * 1.3
+        f.lift = simpler ? 0 : CGFloat(-(BlobbyRig.height(phase) * 2 - 1) * liftAmount)
+        // the turn smear: only while he's swinging round fast
+        f.turnSmear = simpler ? 0 : min(1, max(0, abs(yawV) - 150) / 900)
         f.height = min(1, effort * 1.4)
         if !simpler {
             let fast: Double = speed2.squareRoot()
             f.stretch = CGFloat(min(0.22, max(0, fast - 300) / 4000))
             f.stretchAngle = atan2(vy, vx)
+            // swinging round fast and not darting: a sideways smear
+            if CGFloat(0.1 * f.turnSmear) > f.stretch {
+                f.stretch = CGFloat(0.1 * f.turnSmear)
+                f.stretchAngle = 0
+            }
         }
 
         let a = yaw * Double.pi / 180
@@ -252,35 +294,43 @@ final class BlobbyRig {
         let crown = head + up * 0.93 - face * 0.12
         let sweep = min(0.35, abs(vx) / rr * 0.02)
         let tall = 1 + 0.15 * max(0, cos(a))                              // a touch taller seen from the front
-        for w in BlobbyPicks.wings {
-            let root = crown + sideV * (w.side * 0.3)
-            // from the front both leaves even out (no lopsided perspective) and perk up a little (Aaron)
-            let deg: Double = w.deg + (53 - w.deg) * front + 10 * front
-            let pitch = deg * Double.pi / 180 - sweep
-            let lean: BV3 = backV * cos(pitch) + up * sin(pitch)
-            let spread: Double = 0.42 + 0.2 * front
-            let dir = bNorm(lean + sideV * (w.side * spread))
-            let nrm = bNorm(simd_cross(dir, backV))
-            let thin = max(0.6, abs(nrm.z))                                  // keeps some width from the front (Aaron)
-            var pts: [BV3] = [root]
-            for j in 1..<BlobbyPicks.leafStops.count {
-                let st = BlobbyPicks.leafStops[j]
-                let lagBehind: Double = w.side > 0 ? 0 : 0.3
-                let flutter: Double = amp * (sin(phase - st * 0.9 + lagBehind) * 0.8 + 0.2)
-                var seg = bTurn(dir, nrm, 0.28 * st - 0.14)
-                seg = bNorm(bTurn(seg, backV, w.side * flutter))
-                let len: Double = w.len + (3.05 - w.len) * front
-                let stepLen: Double = len * tune.wings * tall * (st - BlobbyPicks.leafStops[j - 1])
-                pts.append(pts[j - 1] + seg * stepLen)
+        func wingsAt(_ ph: Double) -> [BlobbyFrame.Wing] {
+            var out: [BlobbyFrame.Wing] = []
+            for w in BlobbyPicks.wings {
+                let root = crown + sideV * (w.side * 0.3)
+                // from the front both leaves even out (no lopsided perspective) and perk up a little (Aaron)
+                let deg: Double = w.deg + (53 - w.deg) * front + 10 * front
+                let pitch = deg * Double.pi / 180 - sweep
+                let lean: BV3 = backV * cos(pitch) + up * sin(pitch)
+                let spread: Double = 0.42 + 0.2 * front
+                let dir = bNorm(lean + sideV * (w.side * spread))
+                let nrm = bNorm(simd_cross(dir, backV))
+                let thin = max(0.6, abs(nrm.z))                                  // keeps some width from the front (Aaron)
+                var pts: [BV3] = [root]
+                for j in 1..<BlobbyPicks.leafStops.count {
+                    let st = BlobbyPicks.leafStops[j]
+                    let lagBehind: Double = w.side > 0 ? 0 : 0.3
+                    let flutter: Double = amp * (BlobbyRig.stroke(ph - st * 0.9 + lagBehind) * 0.8 + 0.2)
+                    var seg = bTurn(dir, nrm, 0.28 * st - 0.14)
+                    seg = bNorm(bTurn(seg, backV, w.side * flutter))
+                    let len: Double = w.len + (3.05 - w.len) * front
+                    let stepLen: Double = len * tune.wings * tall * (st - BlobbyPicks.leafStops[j - 1])
+                    pts.append(pts[j - 1] + seg * stepLen)
+                }
+                let circles: [BlobbyFrame.Circle] = pts.enumerated().map { j, p in
+                    let (pt, s) = flat(p)
+                    let wide: Double = max(0.6 / rr, BlobbyPicks.leafWidths[j] * thin)
+                    return .init(at: pt, r: CGFloat(wide * rr * s))
+                }
+                out.append(.init(circles: circles, depth: pts[3].z - head.z, back: false))
             }
-            let circles: [BlobbyFrame.Circle] = pts.enumerated().map { j, p in
-                let (pt, s) = flat(p)
-                let wide: Double = max(0.6 / rr, BlobbyPicks.leafWidths[j] * thin)
-                return .init(at: pt, r: CGFloat(wide * rr * s))
-            }
-            f.wings.append(.init(circles: circles, depth: pts[3].z - head.z, back: false))
+            if out.count == 2 { out[out[0].depth < out[1].depth ? 0 : 1].back = true }
+            return out
         }
-        if f.wings.count == 2 { f.wings[f.wings[0].depth < f.wings[1].depth ? 0 : 1].back = true }
+        f.wings = wingsAt(phase)
+        // fast strokes leave two faint wings behind, a moment apart, so they feather into each other
+        f.smear = simpler ? 0 : BlobbyRig.strokeSpeed(phase) * min(1, amp / 0.45)
+        if f.smear > 0.3 { f.ghosts = wingsAt(phase - 0.35) + wingsAt(phase - 0.7) }
 
         // the face, painted on the ball where it points
         func onHead(_ s: Double, _ u: Double) -> BV3 { let v = bNorm(face + sideV * s + up * u); return BV3(v.x, -v.y, v.z) }
@@ -423,6 +473,7 @@ struct PipBlobbyBody: View {
             // second (Rob: 11 fps flying with the old full box, every frame, plus Apple's glass on top)
             BlobbyGlassLayer(key: simpler ? 0 : Int(time * 30), r: r, frame: frame, shape: bodyPath, tune: tune)
                 .equatable()
+                .blur(radius: simpler ? 0 : r * CGFloat(0.07 * frame.turnSmear))     // a soft smudge on a fast turn
             // his face on top, sinking into the emoji while one is in
             Canvas { ctx, size in
                 ctx.translateBy(x: size.width / 2, y: size.height / 2)
@@ -458,7 +509,7 @@ struct BlobbyGlassLayer: View, Equatable {
         // his patch: every circle of him, plus room for the softening
         var rect = CGRect(x: -r, y: -r, width: r * 2, height: r * 2)
         for c in frame.tail { rect = rect.union(CGRect(x: c.at.x - c.r, y: c.at.y - c.r, width: c.r * 2, height: c.r * 2)) }
-        for w in frame.wings {
+        for w in frame.wings + frame.ghosts {
             for c in w.circles {
                 let rr: CGFloat = c.r * CGFloat(tune.nearWing)
                 rect = rect.union(CGRect(x: c.at.x - rr, y: c.at.y - rr, width: rr * 2, height: rr * 2))
@@ -468,10 +519,24 @@ struct BlobbyGlassLayer: View, Equatable {
         let head = CGPoint(x: -rect.minX, y: -rect.minY)
         let tip = frame.tail.last?.at ?? .zero
         let wings = frame.wings
+        let ghosts = frame.ghosts
+        let smear = frame.smear
         return Canvas { ctx, _ in
             ctx.addFilter(.blur(radius: soft))                                 // soft joins (Aaron: smoother)
             ctx.translateBy(x: head.x, y: head.y)
             ctx.blendMode = .plusLighter
+            // the wings a moment ago, faint and smudged, so a fast stroke feathers (Aaron, 1 Nov)
+            if !ghosts.isEmpty {
+                ctx.drawLayer { g in
+                    g.addFilter(.blur(radius: r * CGFloat(0.12 * smear)))
+                    g.blendMode = .plusLighter
+                    for (i, w) in ghosts.enumerated() {
+                        let k = (i < 2 ? 0.45 : 0.28) * smear
+                        g.fill(BlobbyPaths.wing(w, fat: w.back ? 1 : CGFloat(tune.nearWing)),
+                               with: .color(w.back ? Color(red: 0, green: 0, blue: k) : Color(red: 0, green: k, blue: 0)))
+                    }
+                }
+            }
             ctx.fill(shape, with: .color(Color(red: 1, green: 0, blue: 0)))
             for w in wings {
                 ctx.fill(BlobbyPaths.wing(w, fat: w.back ? 1 : CGFloat(tune.nearWing)),
