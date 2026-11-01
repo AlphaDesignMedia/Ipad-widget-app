@@ -503,7 +503,8 @@ function tick(now) {
   const wings = [];
   if (P.wings) {
     const still = reduce ? 0 : 1;
-    const beat = P.pose === 0 ? 8 : 3, amp = still * (P.pose === 0 ? .2 : .06);
+    // a real flap (Aaron, 1 Nov: "the wings need to flap too"): flying, a quick big beat; posed, slow and gentle
+    const beat = P.pose === 0 ? 9 : 4.5, amp = still * (P.pose === 0 ? .55 : .18);
     const fold = P.pose === 3 ? .35 : P.pose === 1 ? .25 : 0;                     // tucked back when hanging or peeking
     const sweep = Math.min(.35, speed * .06);                                     // swept back by the movement
     const back = norm(v3(-face.x, -face.y, -face.z));
@@ -519,7 +520,7 @@ function tick(now) {
       for (let j = 1; j < 5; j++) {
         const st = stops[j];
         // the beat travels out along the leaf (tip a little behind), plus a gentle bow, as drawn
-        const flutter = amp * Math.sin(t * beat - st * 1.3 + (sd > 0 ? 0 : 1.1));
+        const flutter = amp * (Math.sin(t * beat - st * .9 + (sd > 0 ? 0 : .3)) * .8 + .2);   // both together, the tip a touch behind
         let seg = turnAbout(dir, nrm, .28 * st - .14);                            // bow: the leaf curves like the drawing
         seg = norm(turnAbout(seg, back, sd * flutter));
         pts.push(add(pts[j - 1], seg, L * (st - stops[j - 1])));

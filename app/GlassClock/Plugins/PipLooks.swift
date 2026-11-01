@@ -155,7 +155,7 @@ struct PipLooks: SandboxPlugin {
                             .position(x: dropAt.x, y: dropAt.y + bob)
                         PipBlobbyBody(radius: 13, time: t, face: blink ? .blink : .awake, look: aimBlobby ?? .zero,
                                       facing: blobbyTurn.step(look: aimBlobby ?? .zero, at: t, snap: simpler),
-                                      emoji: inside.isEmpty ? nil : inside, simpler: simpler, flapping: false)
+                                      emoji: inside.isEmpty ? nil : inside, simpler: simpler, flapping: !simpler)
                             .position(x: blobbyAt.x, y: blobbyAt.y + bob)
                         label("Classic", on: look == .classic).position(x: classicAt.x, y: h - 14)
                         label("Drop", on: look == .drop).position(x: dropAt.x, y: h - 14)

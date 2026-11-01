@@ -10,7 +10,7 @@ import SwiftUI
 // are worked out once per size and kept; no shaders.
 // Inside him, a real emoji (Apple's) under the glass: it floats in the middle of his head and faces you; a face emoji
 // is his face instead, and his eyes step aside (Aaron, 1 Nov: one treatment for every emoji).
-// Made up by Jules (Aaron to judge): the wings' flutter, the glow, how he turns round.
+// Made up by Jules (Aaron to judge): the flap's swing and timing, the glow, how he turns round.
 // The browser version, for tuning: app/design/pip-3d.html (public page "Pip 3D · trailing circles").
 
 // MARK: Data
@@ -177,8 +177,10 @@ struct PipBlobbyBody: View {
                 ZStack {
                     Color.clear.glassEffect(.clear, in: BlobbyShape(path: shapes.body))
                     ForEach(0..<shapes.wings.count, id: \.self) { i in
+                        let f = flap(i, t)
                         Color.clear.glassEffect(.clear, in: BlobbyShape(path: shapes.wings[i]))
-                            .rotationEffect(.radians(flutter(i, t)), anchor: anchor)
+                            .scaleEffect(x: 1, y: 1 - 0.22 * f.squash, anchor: anchor)
+                            .rotationEffect(.radians(f.angle), anchor: anchor)
                     }
                 }
             }
@@ -192,11 +194,16 @@ struct PipBlobbyBody: View {
         .accessibilityHidden(true)
     }
 
-    /// Flutter, small: quicker when he flies.
-    private func flutter(_ i: Int, _ t: Double) -> Double {
-        if simpler { return 0 }
-        let beat: Double = flapping ? 8 : 3, amp: Double = flapping ? 0.2 : 0.06
-        return amp * sin(t * beat - Double(i) * 1.1)
+    /// The wings flap together from the crown (Aaron, 1 Nov: "the wings need to flap too"): flying, Classic's beat
+    /// (PipLook.flapSeconds each way) with a big swing; resting, a slow gentle one. A quick down-stroke, a slower lift,
+    /// and the wing shortens as it sweeps down (seen from the side). The far wing trails the near one a touch.
+    private func flap(_ i: Int, _ t: Double) -> (angle: Double, squash: Double) {
+        if simpler { return (0, 0) }
+        let period: Double = flapping ? PipLook.flapSeconds * 2 : 1.4
+        let swing: Double = flapping ? 0.55 : 0.18
+        let ph = (t / period - Double(i) * 0.08).truncatingRemainder(dividingBy: 1)
+        let down: Double = ph < 0.4 ? sin(ph / 0.4 * Double.pi / 2) : cos((ph - 0.4) / 0.6 * Double.pi / 2)   // 0 up … 1 down
+        return (swing * (down - 0.3), down)
     }
 
     /// Floats in the middle of his head, a touch high (Aaron's drawing, 1 Nov), facing you, breathing softly;
