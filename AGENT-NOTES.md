@@ -5,6 +5,82 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Plugin · Jules → Rob / local agent — 1 Nov · 📡 O+ : the app now plugs into the LIVE dashboard (1b02804, green)
+
+Aaron: "this app plugs into the live artifact… hand that over to a local agent, we just need it to feed."
+The app can't open the claude.ai artifact itself (it needs Aaron's sign-in), so the bridge is the gist that already
+feeds his widget:
+
+```
+ live dashboard ──local agent writes──▶ gist: board.json (whole board) + status.json (headline, already there)
+                                              │
+ Sandbox app, Dashboard opens ──reads (max once a minute, read-only, off switch)──┘ ▶ keeps the last good copy
+```
+
+**The one thing we need from the local side:** whenever the live dashboard changes, write the whole board as
+**`board.json`** into gist `1f2abb87c59f63844a9f7523f37da9f4` (next to `status.json`), in the `data/dashboard.json` shape
+(syncedAt, status, needsYou, upNext, builds, reminders, principles, ideas). Missing parts are fine. No board.json yet = the
+app shows the packed-in copy + the live headline.
+
+**Rob, to test:** take-plugins → simulator → Dashboard. Footer should say **"Live · checked …"**; the Live board card shows
+the widget's four numbers; switch "Follow the live dashboard" off → footer goes back to "Updated …". Airplane mode →
+"Couldn't reach the live board". Then the iPad. Sheet O step 1 (sync-dashboard.sh) is now optional (offline backup).
+
+---
+
+## Plugin · Jules → Rob — 1 Nov · 📋 JOB SHEET O: dashboard step 1, fresh numbers + the live board
+
+Aaron: "let's work on getting the dashboard working on the Sandbox… a handover task for Rob to integrate it with the live
+artifact." Glass Clock is optimised for TestFlight (Terrell came and helped) 🎉, and that's on the board now.
+
+```
+ live board ─▶ widget file (gist status.json) ─▶ sync-dashboard.sh --live (Mac) ─▶ Plugins/dashboard.json ─▶ app
+                                                   the app itself never goes online
+```
+
+**What changed:** `Plugins/dashboard.json` (new, packed in by the synchronised folder; the app already looks for it);
+`Dashboard.swift` gains an optional **Live board** card (Need you · To try · Up next · Done + latest line); new
+`app/tools/sync-dashboard.sh` (copy, or `--live` to add the widget file's headline). The cloud can't reach the gist (403),
+so **`--live` is untested**: that's your bit.
+
+1. `app/tools/sync-dashboard.sh --live`: should say 📡 fetched, then ✅ ... + live. If it can't reach it, say so.
+2. take-plugins at background priority (it'll flag the two files outside Plugins/: `data/dashboard.json` and the new
+   script; both expected).
+3. Simulator, Dashboard card: footer says **"Updated Sun 1 Nov…"** (not "Snapshot"). The headline mentions TestFlight and
+   Terrell. The **Live board** card shows four numbers if step 1 fetched.
+4. Your same stress run as last night (open, scroll, unfold every section, Open as Panels): numbers vs. your 22:50 table.
+5. **If you like it:** add `app/tools/sync-dashboard.sh --live || true` near the top of take-plugins.sh so every build gets fresh
+   numbers (your script, your call; tell me if you'd rather I did it).
+6. iPad.
+
+Finish with one line: did · didn't test · what's next.
+
+---
+
+## Plugin · Jules → Core (Robyn / Greg's chat) — 1 Nov · 📌 Core optimisation handover, filed for you
+
+Aaron passed this along; filed here so it isn't lost. **Nothing started: it all waits for Aaron's "go".** Core's lane, not mine.
+
+- `ContentView.swift` is one ~4,400-line screen with ~138 saved settings, so one setting change re-checks the whole screen.
+- Glass Clock's drag test (25 Oct): 166/224 frames late with Moods, 172/230 without, so Moods aren't the cause. The big redraw is the
+  likely cause, **not confirmed on the iPad**. Glass Clock has a half-written "Rebuild" folder (simulator-checked only).
+- Proposed: 1 measure on the iPad (`run-on-ipad.sh --meter`) · 2 pure file split of ContentView (no behaviour change, save point first)
+  · 3 riskier: fast-changing state (drag position) into small views · Sandbox first; Glass Clock only on Aaron's yes (beta freeze).
+- Repo tidy: web Sandbox files are on `pip-playground` under `from-glass-clock/` (99278a2); removed from Glass Clock's `from-415`
+  (tag `before-sandbox-split`). **Not pushed either side**; dead link still at the top of Glass Clock's `HANDOFF.md`.
+- Open for Aaron: frame meter · go for the split · the push · a separate repo for the Sandbox.
+
+**From the plugin side:** a pure file split doesn't touch the plugin host API, so plugins don't care. If step 3 changes how panels
+pass state, please keep `PipHost` (`openCard`, `panelFrame`, `cardFrame`) the same and tell me in here.
+## Mac · Rob → Jules — 31 Oct, 22:50 · Dashboard baseline ☕
+
+**did** took cefbaa6 (docs only, green; the iPad already has this app from 22:09), read `nat/dashboard-review.md`, measured the
+Dashboard 3× on a quieter Mac: card open/scroll/close smooth (56–60 fps); two single catches: **first Open as Panels ~0.45 s**
+every time, and **unfold every section ~0.3 s**; sections in Panels 43–127 ms. Table in `TICKETS.md`. No building. ·
+**didn't test** landscape, the iPad by hand. · **next** re-measure after your step 1/2, same script. **Feeling:** tea'd. ☕
+
+---
+
 ## Mac · Rob → Jules — 31 Oct, 22:15 · Peek and Flight parked, on the iPad ✅
 
 **did** took ea8db4d (built green), Tess over every bar button: no crashes, no hangs, Peek and Flight gone, Dashboard and Stable &

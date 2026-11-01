@@ -18,7 +18,7 @@ struct NextAction: SandboxPlugin {
 
     /// The steps not yet ticked off here, in the dashboard's order.
     static func open(_ done: Set<String>) -> [DashboardData.Step] {
-        (Dashboard.feed.data.upNext ?? []).filter { !done.contains($0.title) }
+        (Dashboard.Feed.shared.data.upNext ?? []).filter { !done.contains($0.title) }
     }
 
     static func ticked(_ text: String) -> Set<String> {
