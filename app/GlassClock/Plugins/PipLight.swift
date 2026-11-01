@@ -33,6 +33,28 @@ struct PipLight: SandboxPlugin {
     static let colour = Color(red: 1, green: 0.95, blue: 0.85)
     static let raysKey = "plug.piplight.rays"
     static let cornersKey = "plug.piplight.corners"
+
+    /// Aaron's sliders (1 Nov: "lets experiment with sliders and values"). Each is name, key, range, start; the starts
+    /// are v1's look. Saved when the finger lifts, so dragging doesn't write on every tick.
+    struct Knob {
+        let name: String
+        let key: String
+        let range: ClosedRange<Double>
+        let start: Double
+    }
+    static let knobs: [Knob] = [
+        Knob(name: "Reach", key: "plug.piplight.reach", range: 3...20, start: 9),          // in Pip radii
+        Knob(name: "Strength", key: "plug.piplight.strength", range: 0...3, start: 1),
+        Knob(name: "Spill width", key: "plug.piplight.spill", range: 0...14, start: 4),    // points
+        Knob(name: "Edge width", key: "plug.piplight.edge", range: 0.5...4, start: 1.5),   // points
+        Knob(name: "Falloff", key: "plug.piplight.falloff", range: 0.5...4, start: 2),     // 1 = even, higher = tighter
+        Knob(name: "Warmth", key: "plug.piplight.warmth", range: 0...2, start: 1),         // 0 white, 1 v1, 2 golden
+    ]
+
+    /// White at 0, v1's warm white at 1, golden at 2.
+    static func colour(warmth w: Double) -> Color {
+        Color(red: 1, green: 1 - 0.05 * w, blue: 1 - 0.15 * w)
+    }
     /// Rays drawn per lit edge when "Show the rays" is on.
     static let raysPerEdge = 5
 
@@ -139,54 +161,63 @@ struct PipLight: SandboxPlugin {
         let host: PipHost
         @AppStorage(PipLight.raysKey) private var showRays = false
         @AppStorage(PipLight.cornersKey) private var wrapCorners = true
+        @AppStorage("plug.piplight.reach") private var reachK = 9.0
+        @AppStorage("plug.piplight.strength") private var strength = 1.0
+        @AppStorage("plug.piplight.spill") private var spill = 4.0
+        @AppStorage("plug.piplight.edge") private var edge = 1.5
+        @AppStorage("plug.piplight.falloff") private var falloff = 2.0
+        @AppStorage("plug.piplight.warmth") private var warmth = 1.0
 
         var body: some View {
             let p = host.pipPosition
             let r: CGFloat = host.pip.radius
-            // "Light on panels" in Pip Looks, brighter while Pip wants you
-            let brightness = BlobbyTune.current.panelLight * (1 + 0.8 * BlobbyAttention.level)
+            // "Light on panels" in Pip Looks × Strength here, brighter while Pip wants you
+            let brightness = BlobbyTune.current.panelLight * strength * (1 + 0.8 * BlobbyAttention.level)
+            let colour = PipLight.colour(warmth: warmth)
             let panels: [(frame: CGRect, corner: CGFloat)] = [(host.panelFrame, 26), (host.cardFrame, 22), (host.barFrame, 30)]
-            let reach = r * PipLight.reach
+            let reach = r * CGFloat(reachK)
             let lit = PipLight.light(from: p, panels: panels, reach: reach)
+            let spillStyle = StrokeStyle(lineWidth: spill, lineCap: .round)                // the soft spill
+            let edgeStyle = StrokeStyle(lineWidth: edge, lineCap: .round)                  // the bright edge
             return Canvas { ctx, _ in
                 if wrapCorners {
-                    // one round fade centred on Pip: the same brightness as v1 at the nearest point, nothing at the reach
+                    // one round fade centred on Pip: brightest at Pip, nothing at the reach, shaped by Falloff
                     let fade = GraphicsContext.Shading.radialGradient(
                         Gradient(stops: (0...6).map { i -> Gradient.Stop in
                             let f = Double(i) / 6
-                            return .init(color: PipLight.colour.opacity(min(1, 0.9 * brightness * (1 - f) * (1 - f))), location: f)
+                            return .init(color: colour.opacity(min(1, 0.9 * brightness * pow(1 - f, falloff))), location: f)
                         }),
                         center: p, startRadius: 0, endRadius: reach)
                     for (frame, corner) in panels {
                         let rim = PipLight.rim(from: p, frame: frame, corner: corner, reach: reach)
                         guard !rim.isEmpty else { continue }
-                        ctx.stroke(rim, with: fade, style: StrokeStyle(lineWidth: 4, lineCap: .round))       // the soft spill
-                        ctx.stroke(rim, with: fade, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))     // the bright edge
+                        if spill > 0.1 { ctx.stroke(rim, with: fade, style: spillStyle) }
+                        ctx.stroke(rim, with: fade, style: edgeStyle)
                     }
                 }
                 for l in lit {
                     if !wrapCorners {
-                        // v1: a straight fade along the edge, from its brightest point
-                        let k = l.strength * brightness
+                        // v1: a straight fade along the edge, from its brightest point (strength is k², so this is k^falloff)
+                        let k = pow(l.strength, falloff / 2) * brightness
                         let fade = GraphicsContext.Shading.linearGradient(
                             Gradient(stops: [
-                                .init(color: PipLight.colour.opacity(0), location: 0),
-                                .init(color: PipLight.colour.opacity(min(1, 0.9 * k)), location: Self.place(l)),
-                                .init(color: PipLight.colour.opacity(0), location: 1),
+                                .init(color: colour.opacity(0), location: 0),
+                                .init(color: colour.opacity(min(1, 0.9 * k)), location: Self.place(l)),
+                                .init(color: colour.opacity(0), location: 1),
                             ]),
                             startPoint: l.a, endPoint: l.b)
                         var line = Path()
                         line.move(to: l.a)
                         line.addLine(to: l.b)
-                        ctx.stroke(line, with: fade, style: StrokeStyle(lineWidth: 4, lineCap: .round))     // the soft spill
-                        ctx.stroke(line, with: fade, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))   // the bright edge
+                        if spill > 0.1 { ctx.stroke(line, with: fade, style: spillStyle) }
+                        ctx.stroke(line, with: fade, style: edgeStyle)
                     }
                     if showRays {
                         for hit in PipLight.rays(l, count: PipLight.raysPerEdge) {
                             var ray = Path()
                             ray.move(to: p)
                             ray.addLine(to: hit)
-                            ctx.stroke(ray, with: .color(PipLight.colour.opacity(0.25 * l.strength)),
+                            ctx.stroke(ray, with: .color(colour.opacity(0.25 * l.strength)),
                                        style: StrokeStyle(lineWidth: 0.75, dash: [3, 4]))
                         }
                     }
@@ -217,10 +248,44 @@ struct PipLight: SandboxPlugin {
                     .accessibilityHint("The light follows the rounded corners too, instead of stopping where they start.")
                 Toggle("Show the rays", isOn: $showRays)
                     .accessibilityHint("Draws the lines Pip's light travels along, to see how it works.")
-                Text("Brightness: Pip Looks → Light on panels. Version 1 is plain lines; the pretty version comes next.")
+                ForEach(PipLight.knobs, id: \.key) { KnobRow(knob: $0) }
+                Button("Reset") {
+                    for k in PipLight.knobs { UserDefaults.standard.set(k.start, forKey: k.key) }
+                }
+                .accessibilityHint("Puts the light's sliders back to how they started.")
+                Text("Brightness also follows Pip Looks → Light on panels. The light comes from Pip's middle.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
             }
             .font(.system(size: 13.5))
+        }
+    }
+
+    /// One slider. Shows the value while dragging, saves when the finger lifts (VoiceOver's swipe saves straight away).
+    struct KnobRow: View {
+        let knob: Knob
+        @AppStorage private var value: Double
+        @State private var draft: Double?
+        @State private var dragging = false
+
+        init(knob: Knob) {
+            self.knob = knob
+            _value = AppStorage(wrappedValue: knob.start, knob.key)
+        }
+
+        var body: some View {
+            let shown = draft ?? value
+            HStack(spacing: 8) {
+                Text(knob.name).frame(width: 84, alignment: .leading)
+                Slider(value: Binding(get: { shown }, set: { dragging ? (draft = $0) : (value = $0) }),
+                       in: knob.range) { editing in
+                    dragging = editing
+                    if !editing, let d = draft { value = d; draft = nil }
+                }
+                .accessibilityLabel(knob.name)
+                Text(String(format: "%.2f", shown))
+                    .font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary)
+                    .frame(width: 36, alignment: .trailing)
+            }
         }
     }
 }
