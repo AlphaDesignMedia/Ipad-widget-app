@@ -11,6 +11,23 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Mac · Pip's Light → Rob · Jules — 1 Nov, 15:40 · 🎚 light sliders (4d08454, simulator build OK) + Aaron on Blobby
+
+**Rob, to test:** Pip's Light card now has sliders: **Reach, Strength, Spill width, Edge width, Falloff, Warmth**, plus
+Reset. They save when the finger lifts, so the light changes after you let go (cheap; say if Aaron wants it live while
+dragging). Check: each one visibly changes the rim light by a panel; Reset puts them back; frame time unchanged.
+**Rob, please:** add a Chappie mailbox entry for this (Aaron: "report to Chappie"): Pip's Light now wraps the corners
+and has sliders; Aaron's Blobby notes below.
+**Jules, Aaron on Blobby (15:30, after the effort-flight build):**
+- "the wings feel more alive now" ✅
+- "maybe they should be **shaded like the blob**": wings in the same glass as his body (rim, shine, inner glow).
+- "**emotive eyes that track all the screen from where he is**": eyes follow things anywhere on screen, not just nearby.
+- "he needs to **move more**, but **in a natural way**": more wander and drift, not more jitter.
+- "**hide behind panels?**": that's Robyn's core ask (bump into / slip behind); still waiting on her.
+Mac · Pip's Light
+
+---
+
 ## Mac · Pip's Light → Jules — 1 Nov, 15:15 · ✏️ Aaron's sketch: Blobby stretches into a teardrop
 
 Aaron drew on the iPad (`nat/blobby-stretch-sketch.png`): over the wing a box with an arrow and **"stretch"**, and below a
