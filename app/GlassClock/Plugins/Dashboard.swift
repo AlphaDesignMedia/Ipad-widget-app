@@ -361,21 +361,19 @@ struct Dashboard: SandboxPlugin {
         .onAppear { mind.greet(host); Feed.shared.refresh() }
     }
 
-    /// Reads the live feed, so the card redraws when it answers.
+    /// The side card: just a glance and the way in (Aaron, 1 Nov: one dashboard, no doubling).
     struct LiveBody: View {
         let host: PipHost
         @Bindable private var feed = Feed.shared
+        @AppStorage("plug.dashboard.tileShown") private var onCanvas = true
 
         var body: some View {
-            Front(data: feed.data, host: host)
-            Board(data: feed.data)
-            SettingsCard(title: "Live feed", icon: "antenna.radiowaves.left.and.right",
-                         footer: "Only downloads the board. Nothing is sent. Off shows the copy packed into the app.") {
-                Toggle("Follow the live dashboard", isOn: $feed.on)
-                if feed.on {
-                    Button("Check now") { feed.refresh(force: true) }
-                        .accessibilityHint("Downloads the latest board")
-                }
+            let data = feed.data
+            let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
+            GlassTile(data: data, waiting: waiting).frame(maxWidth: .infinity)
+            SettingsCard(footer: Dashboard.freshness) {
+                Toggle("On the canvas", isOn: $onCanvas)
+                    .accessibilityHint("Shows this tile on the canvas, where you can drag it anywhere.")
             }
         }
     }
@@ -434,7 +432,7 @@ struct Dashboard: SandboxPlugin {
 }
 
 /// One of the live board's four numbers.
-private struct LiveNumber: View {
+struct LiveNumber: View {
     let value: Int?
     let label: String
 

@@ -27,7 +27,7 @@ struct NextAction: SandboxPlugin {
 
     // MARK: Views
 
-    var addsTo: String? { "dashboard" }
+    var addsTo: String? { Dashboard.panelsSlot }  // only in the dashboard (1 Nov)
     func addOn(_ host: PipHost) -> some View { Steps(host: host) }
 
     /// Each part is its own row, so the panel's card puts a line between them.

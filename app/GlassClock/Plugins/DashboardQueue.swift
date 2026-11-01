@@ -131,7 +131,7 @@ struct DashboardQueue: SandboxPlugin {
 
     // MARK: Views
 
-    var addsTo: String? { "dashboard" }
+    var addsTo: String? { Dashboard.panelsSlot }  // only in the dashboard (1 Nov)
     func addOn(_ host: PipHost) -> some View { QueueSection(walk: walk, host: host) }
 
     struct QueueSection: View {

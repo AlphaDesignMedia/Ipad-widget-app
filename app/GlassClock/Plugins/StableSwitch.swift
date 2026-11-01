@@ -17,7 +17,7 @@ struct StableSwitch: SandboxPlugin {
     let info = PluginInfo(id: "stable", name: "Stable & Sandbox", version: "v1", shelf: .grounded,
                           icon: "lifepreserver", what: "One tap back to the known-good plugins, and a log to bring the rest back one at a time.")
 
-    var addsTo: String? { "dashboard" }
+    var addsTo: String? { Dashboard.panelsSlot }  // only in the dashboard (1 Nov)
 
     // MARK: Data
 

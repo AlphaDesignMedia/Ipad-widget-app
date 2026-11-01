@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// DASHBOARD PANELS · part of the Dashboard plugin (Jules, 31 Oct). Aaron: "my dashboard as a classic panels
+// DASHBOARD PANELS · part of the Dashboard plugin (Jules, 31 Oct; widget grid 1 Nov). Aaron: "my dashboard as a classic panels
 // dashboard". The whole Glass Clock Progress dashboard full screen, laid out like Glass Clock's Panels interface:
 // a glass sidebar of sections on the left and the chosen section's cards on a glass panel on the right.
 // Opened from the Dashboard card ("Open as Panels"). Read-only, like the rest of the plugin: answers stay on the
@@ -12,49 +12,6 @@ extension Dashboard {
 
     // MARK: Data
 
-    enum PanelSection: String, CaseIterable, Identifiable {
-        case status, needsYou, upNext, builds, ideas, reminders, principles
-        var id: Self { self }
-
-        var title: String {
-            switch self {
-            case .status: "Where we are"
-            case .needsYou: "Needs you"
-            case .upNext: "Up next"
-            case .builds: "Builds"
-            case .ideas: "Ideas"
-            case .reminders: "Reminders"
-            case .principles: "How we work"
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .status: "location"
-            case .needsYou: "questionmark.bubble"
-            case .upNext: "arrow.right.circle"
-            case .builds: "hammer"
-            case .ideas: "lightbulb"
-            case .reminders: "bell"
-            case .principles: "star"
-            }
-        }
-
-        /// The little number beside it in the sidebar, if it has one.
-        @MainActor func count(_ data: DashboardData, _ host: PipHost) -> Int? {
-            switch self {
-            case .status: nil
-            case .needsYou: (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
-            case .upNext: data.upNext?.count
-            case .builds: data.builds?.count
-            case .ideas: data.ideas?.count
-            case .reminders: data.reminders?.count
-            case .principles: data.principles?.count
-            }
-        }
-    }
-
-    static let sidebarWidth: CGFloat = 280
 
     // MARK: Views
 
@@ -67,39 +24,66 @@ extension Dashboard {
             Button {
                 open = true
             } label: {
-                Label("Open as Panels", systemImage: "rectangle.split.3x1")
+                Label("Open the dashboard", systemImage: "square.grid.2x2")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(PluginCardButton(on: true))
-            .accessibilityHint("Opens the whole dashboard full screen, with a sidebar of sections.")
+            .accessibilityHint("Opens the whole dashboard full screen, as widgets.")
             .fullScreenCover(isPresented: $open) {
-                PanelsScreen(data: Dashboard.Feed.shared.data, host: host) { open = false }
+                PanelsScreen(host: host) { open = false }
             }
         }
     }
 
-    /// The dashboard, full screen: sidebar on the left, the chosen panel on the right, a close button that's
-    /// always there.
+    /// The plugin sections that live only here (Next action, the queue, Busy Pip, Stable & Sandbox), so the
+    /// dashboard is in one place. They point `addsTo` at this slot instead of "dashboard", so the side card
+    /// doesn't repeat them.
+    static let panelsSlot = "dashboard.panels"
+
+    /// THE dashboard (Aaron, 1 Nov: "widgets like this", from his live board): a grid of small glass widgets in
+    /// three columns, Status · Actions · Direction. Each folds with – / +, remembered. Small by default: only
+    /// At a glance, Needs you and Next action start open. Reads the live feed, so it updates while open.
+    /// Private: Aaron's mission control. It lives in the Sandbox and never moves to Glass Clock.
     struct PanelsScreen: View {
-        let data: DashboardData
         let host: PipHost
         let close: () -> Void
-        @State private var section = PanelSection.status
-        /// Bumped when a question is answered, so the sidebar's counts redraw.
+        @Bindable private var feed = Feed.shared
+        /// Bumped when a question is answered, so counts redraw.
         @State private var taps = 0
 
+        init(host: PipHost, close: @escaping () -> Void) {
+            self.host = host
+            self.close = close
+        }
+
         var body: some View {
+            let data = feed.data
             ZStack(alignment: .topTrailing) {
                 LinearGradient(colors: [Color.indigo.opacity(0.55), Color.teal.opacity(0.45), Color.orange.opacity(0.35)],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
                     .ignoresSafeArea()
                     .accessibilityHidden(true)
 
-                HStack(alignment: .top, spacing: Corner.inset) {
-                    sidebar
-                    panel
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Corner.inset) {
+                        header
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .top, spacing: Corner.inset) {
+                                column("Status") { status(data) }
+                                column("Actions") { actions(data) }
+                                column("Direction") { direction(data) }
+                            }
+                            .frame(minWidth: 900)
+                            VStack(spacing: Corner.inset) {
+                                column("Status") { status(data) }
+                                column("Actions") { actions(data) }
+                                column("Direction") { direction(data) }
+                            }
+                        }
+                    }
+                    .padding(Corner.inset)
+                    .padding(.top, 4)
                 }
-                .padding(Corner.inset)
 
                 Button(action: close) {
                     Image(systemName: "xmark")
@@ -112,92 +96,150 @@ extension Dashboard {
                 .padding(Corner.inset + 6)
                 .accessibilityLabel("Close the dashboard")
             }
+            .onAppear { feed.refresh() }
         }
 
-        private var sidebar: some View {
-            let _ = taps
-            return VStack(alignment: .leading, spacing: 4) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("PROGRESS").font(.system(size: 11, weight: .semibold)).tracking(1.2).foregroundStyle(.secondary)
-                    Text(data.source ?? "Glass Clock Progress").font(.system(size: 20, weight: .bold))
-                    Text(Dashboard.freshness).font(.system(size: 12)).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 10)
-                .padding(.bottom, 12)
-                .accessibilityElement(children: .combine)
-
-                ForEach(PanelSection.allCases) { s in
-                    sidebarRow(s)
-                }
-                Spacer(minLength: 0)
+        private var header: some View {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("PROGRESS").font(.system(size: 11, weight: .semibold)).tracking(1.2).foregroundStyle(.secondary)
+                Text(feed.data.source ?? "Glass Clock Progress").font(.system(size: 24, weight: .bold))
+                Text(Dashboard.freshness).font(.system(size: 12)).foregroundStyle(.secondary)
             }
-            .padding(Corner.edge)
-            .frame(width: Dashboard.sidebarWidth, alignment: .leading)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .appGlass(RoundedRectangle(cornerRadius: Corner.panel, style: .continuous), panel: true)
+            .padding(.horizontal, 6)
+            .padding(.trailing, 70)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
         }
 
-        private func sidebarRow(_ s: PanelSection) -> some View {
-            let picked = section == s
-            let count = s.count(data, host)
-            return Button {
-                if host.simpler {
-                    section = s
-                } else {
-                    withAnimation(.easeOut(duration: 0.2)) { section = s }
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: s.icon).frame(width: 22)
-                    Text(s.title)
-                    Spacer(minLength: 4)
-                    if let count, count > 0 {
-                        Text("\(count)")
-                            .font(.system(size: 12, weight: .semibold))
-                            .padding(.horizontal, 8).padding(.vertical, 2)
-                            .background(Capsule().fill(Color.primary.opacity(s == .needsYou ? 0.16 : 0.07)))
+        private func column<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
+            VStack(alignment: .leading, spacing: Corner.inset) {
+                Text(title.uppercased()).font(.system(size: 11, weight: .semibold)).tracking(1.2)
+                    .foregroundStyle(.secondary).padding(.horizontal, 6)
+                    .accessibilityAddTraits(.isHeader)
+                content()
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+
+        /// A plugin's section, if that plugin is on.
+        private func addOn(_ id: String) -> (any SandboxPlugin)? {
+            host.plugins.first { $0.info.id == id && $0.addsTo == Dashboard.panelsSlot && $0.hasAddOn && host.isOn(id) }
+        }
+
+        @ViewBuilder private func plugin(_ id: String, icon: String, open: Bool = false) -> some View {
+            if let p = addOn(id) {
+                Widget(id: id, title: p.info.name, icon: icon, startsOpen: open) { p.anyAddOn(host) }
+            }
+        }
+
+        @ViewBuilder private func status(_ data: DashboardData) -> some View {
+            Widget(id: "glance", title: "At a glance", icon: "location", note: data.status?.updatedAt, startsOpen: true) {
+                if let live = data.live { LiveNumbers(live: live) }
+                StatusPanel(data: data, host: host)
+            }
+            Widget(id: "builds", title: "Builds", icon: "hammer", note: data.builds.map { "\($0.count)" }) {
+                BuildsPanel(builds: data.builds ?? [])
+            }
+            plugin("stable", icon: "shield")
+            plugin("busypip", icon: "gauge.with.dots.needle.33percent")
+        }
+
+        @ViewBuilder private func actions(_ data: DashboardData) -> some View {
+            let _ = taps
+            let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
+            Widget(id: "needs", title: "Needs you", icon: "questionmark.bubble",
+                   note: waiting > 0 ? "\(waiting) waiting" : nil, startsOpen: true) {
+                AsksPanel(asks: data.needsYou ?? [], host: host) { taps += 1 }
+            }
+            plugin("dashqueue", icon: "tray.full")
+            Widget(id: "livefeed", title: "Live feed", icon: "antenna.radiowaves.left.and.right",
+                   note: feed.on ? "on" : "off") {
+                SettingsCard(footer: "Only downloads the board. Nothing is sent. Off shows the copy packed into the app.") {
+                    Toggle("Follow the live dashboard", isOn: $feed.on)
+                    if feed.on {
+                        Button("Check now") { feed.refresh(force: true) }
+                            .accessibilityHint("Downloads the latest board")
                     }
                 }
-                .font(.system(size: 15, weight: picked ? .semibold : .regular))
-                .padding(.horizontal, 10).padding(.vertical, 9)
-                .background(
-                    RoundedRectangle(cornerRadius: max(4, Corner.card - 4), style: .continuous)
-                        .fill(picked ? PipLook.accent.opacity(0.22) : Color.clear)
-                )
-                .contentShape(.rect)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(count.map { "\(s.title), \($0)" } ?? s.title)
-            .accessibilityAddTraits(picked ? .isSelected : [])
         }
 
-        private var panel: some View {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Corner.inset) {
-                    Label(section.title, systemImage: section.icon)
-                        .font(.system(size: 26, weight: .bold))
-                        .padding(.trailing, 60)
-                        .accessibilityAddTraits(.isHeader)
-                    content
-                }
-                .padding(Corner.edge)
-                .frame(maxWidth: 760, alignment: .leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        @ViewBuilder private func direction(_ data: DashboardData) -> some View {
+            plugin("nextaction", icon: "arrow.right.circle", open: true)
+            Widget(id: "upnext", title: "Up next", icon: "list.bullet", note: data.upNext.map { "\($0.count)" }) {
+                UpNextPanel(steps: data.upNext ?? [])
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Widget(id: "ideas", title: "Ideas", icon: "lightbulb", note: data.ideas.map { "\($0.count) ideas" }) {
+                IdeasPanel(ideas: data.ideas ?? [])
+            }
+            Widget(id: "reminders", title: "Reminders", icon: "bell", note: data.reminders.map { "\($0.count)" }) {
+                RemindersPanel(reminders: data.reminders ?? [])
+            }
+            Widget(id: "principles", title: "How we work", icon: "star") {
+                PrinciplesPanel(principles: data.principles ?? [])
+            }
+        }
+    }
+
+    /// One glass widget on the dashboard, like the live board's: title, a small note on the right, – / + to fold.
+    struct Widget<Content: View>: View {
+        let title: String
+        let icon: String
+        let note: String?
+        @ViewBuilder let content: () -> Content
+        @AppStorage private var open: Bool
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        init(id: String, title: String, icon: String, note: String? = nil, startsOpen: Bool = false,
+             @ViewBuilder content: @escaping () -> Content) {
+            self.title = title
+            self.icon = icon
+            self.note = note
+            self.content = content
+            _open = AppStorage(wrappedValue: startsOpen, "plug.dashboard.widget.\(id)")
+        }
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 10) {
+                Button {
+                    if reduceMotion { open.toggle() } else { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: icon).frame(width: 20).foregroundStyle(.secondary)
+                        Text(title).font(.system(size: 16, weight: .bold))
+                        Spacer(minLength: 4)
+                        if let note {
+                            Text(note).font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: open ? "minus" : "plus").font(.system(size: 13, weight: .semibold))
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(note.map { "\(title), \($0)" } ?? title)
+                .accessibilityValue(open ? "open" : "folded")
+                .accessibilityHint(open ? "Folds it away" : "Opens it")
+
+                if open {
+                    VStack(alignment: .leading, spacing: Corner.inset) { content() }
+                }
+            }
+            .padding(Corner.edge)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .appGlass(RoundedRectangle(cornerRadius: Corner.panel, style: .continuous), panel: true)
         }
+    }
 
-        @ViewBuilder private var content: some View {
-            switch section {
-            case .status: StatusPanel(data: data, host: host)
-            case .needsYou: AsksPanel(asks: data.needsYou ?? [], host: host) { taps += 1 }
-            case .upNext: UpNextPanel(steps: data.upNext ?? [])
-            case .builds: BuildsPanel(builds: data.builds ?? [])
-            case .ideas: IdeasPanel(ideas: data.ideas ?? [])
-            case .reminders: RemindersPanel(reminders: data.reminders ?? [])
-            case .principles: PrinciplesPanel(principles: data.principles ?? [])
+    /// The live board's four numbers.
+    struct LiveNumbers: View {
+        let live: DashboardData.Live
+        var body: some View {
+            HStack {
+                LiveNumber(value: live.needYou, label: "Need you")
+                LiveNumber(value: live.toTry, label: "To try")
+                LiveNumber(value: live.upNext, label: "Up next")
+                LiveNumber(value: live.done, label: "Done")
             }
         }
     }
