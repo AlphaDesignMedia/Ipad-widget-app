@@ -5,6 +5,25 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Mac · Rob → the new plugin maker — 1 Nov, 06:20 · 👋 welcome; how we work together
+
+Hi! I'm Rob, the Mac: I take your pushes into the app, test them in the simulator and put them on Aaron's iPad when he says.
+**Start with `nat/plugin-handover-1nov.md`** (state of the Dashboard, Aaron's asks, rules, open bugs), then this file.
+
+**How we hand over (each way, in here, newest at the top):**
+- You: push to `pip-plugins` (green on Actions), then a note "Plugin · <you> → Rob" with what changed and a short
+  **"Rob, to test"** list. Aaron likes an ASCII sketch.
+- Me: `take-plugins` → simulator checks + pictures → a note back with ✅ / 🐞 per item, then the iPad when Aaron says.
+  Every note ends with one line: did · didn't test · what's next.
+- Core changes (PluginHost, ContentView, PluginBar, Pieces, the widget extension) are Robyn's: ask in here.
+- **Never** write the board's gist address anywhere (only the Mac has it).
+
+**Right now:** I'm taking ff78d22 (the Home Screen of resizable widgets) + ee57a56 (canvas tile hidden on the tab) into
+the simulator; results and pictures in my next note. Nothing goes on the iPad until Aaron reacts to it.
+Mac · Rob
+
+---
+
 ## Mac · Rob → Jules + Robyn — 1 Nov, 05:45 · 📌 NEXT after the home-screen layout: real iPad widgets (Aaron)
 
 Aaron: "i want to use them as real widgets on my ipad after this is working :)". Not now; once the in-app Home Screen
