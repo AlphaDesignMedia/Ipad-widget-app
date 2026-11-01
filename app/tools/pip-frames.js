@@ -19,7 +19,8 @@ const SIZE = 560;                         // render size (px)
 const FLAPS = +(process.env.FLAPS || 12); // frames in one wing beat
 const BEAT = 9;                           // the page's flying beat (rad/s)
 const HEAD_PX = 40;                       // head radius in the sheet (px): 13 pt at 3×
-const SETS = [['side', 20, false], ['front', 280, false], ['frontBlank', 280, true]];
+const SETS = process.env.SETS ? process.env.SETS.split(',').map(x => { const [n, y, b] = x.split(':'); return [n, +y, b === 'blank']; })
+  : [['side', 20, false], ['front', 280, false], ['frontBlank', 280, true]];
 
 let html = fs.readFileSync(path.join(ROOT, 'app', 'design', 'pip-3d.html'), 'utf8');
 const swap = (a, b) => { if (!html.includes(a)) throw new Error('page changed, not found: ' + a.slice(0, 60)); html = html.replace(a, b); };
