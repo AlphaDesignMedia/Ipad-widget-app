@@ -477,7 +477,8 @@ extension PipBlobbyBody {
             return CGPoint(x: p.x + (to.x - p.x) * CGFloat(e), y: p.y + (to.y - p.y) * CGFloat(e))
         }
         let shrink = CGFloat(1 - e * 0.7)
-        let closed = face == .blink || face == .asleep
+        // he blinks on his own every few seconds too (Aaron: "he needs to blink"), not with Reduce Motion
+        let closed = face == .blink || face == .asleep || (!simpler && DropMath.blinking(time))
         for v in frame.eyes where v.z > 0.05 {
             ctx.drawLayer { l in
                 l.opacity = alpha * min(1, v.z * 4)
