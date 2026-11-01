@@ -488,7 +488,7 @@ struct BusyPip: SandboxPlugin {
         }
     }
 
-    var addsTo: String? { "dashboard" }
+    var addsTo: String? { Dashboard.panelsSlot }  // only in the dashboard (1 Nov)
     func addOn(_ host: PipHost) -> some View { Report() }
 
     /// "Pip's rounds" in the Dashboard: the last real round, line by line.

@@ -228,13 +228,19 @@ struct Dashboard: SandboxPlugin {
 
     /// THE LIVE FEED (Aaron, 1 Nov: "it needs to plug into the live one, not just static").
     /// Read-only: it downloads two small files and never sends anything. Off switch in the card.
-    ///   board.json   the whole board (a local agent writes it whenever the live dashboard changes)
+    ///   board.json   the whole board, from a secret gist whose address lives only on the Mac
+    ///                (Private/board-feed.txt, ignored by git; Rob, 1 Nov). No file = no board.json, headline only.
     ///   status.json  the headline that already feeds the iPad widget
     /// Last good copy is kept, so offline still shows the newest board seen. Checks at most once a minute,
     /// and only when the dashboard is open.
     @MainActor @Observable final class Feed {
         static let shared = Feed()
-        static let base = "https://gist.githubusercontent.com/AlphaDesignMedia/1f2abb87c59f63844a9f7523f37da9f4/raw/"
+        nonisolated static let base = "https://gist.githubusercontent.com/AlphaDesignMedia/1f2abb87c59f63844a9f7523f37da9f4/raw/"
+        /// The private board's address, packed in from the Mac only. Never written into the repo, notes or logs.
+        nonisolated static let boardBase: String? = Bundle.main.url(forResource: "board-feed", withExtension: "txt")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
         private static let cacheKey = "plug.dashboard.liveBoard"
         private static let switchKey = "plug.dashboard.liveOn"
 
@@ -243,11 +249,13 @@ struct Dashboard: SandboxPlugin {
         private(set) var data: DashboardData
         private(set) var state: State = .starting
         private var lastTry: Date?
+        /// When the last good download landed. Kept across launches, so the footer can say how old the copy is.
+        private(set) var lastGood: Date? = UserDefaults.standard.object(forKey: "plug.dashboard.lastGood") as? Date
 
         var on: Bool {
             get { access(keyPath: \.on); return UserDefaults.standard.object(forKey: Self.switchKey) as? Bool ?? true }
             set { withMutation(keyPath: \.on) { UserDefaults.standard.set(newValue, forKey: Self.switchKey) }
-                  if newValue { refresh(force: true) } }
+                  if newValue { refresh(force: true) } else { state = .starting } }
         }
 
         init() {
@@ -260,18 +268,24 @@ struct Dashboard: SandboxPlugin {
             }
         }
 
+        /// e.g. "Couldn't reach the live board · last checked 3:23 am · board from Sun 1 Nov, 4:20 am".
         var freshness: String {
             let when = Dashboard.date(data.syncedAt) ?? "an unknown date"
+            guard on else { return Dashboard.feed.packed ? "Updated \(when) · live feed off" : "Snapshot, \(when) · live feed off" }
+            let checked = lastGood.map { "last checked \(Self.clock($0))" } ?? "never checked"
             switch state {
             case .live(let at): return "Live · checked \(Self.clock(at)) · board from \(when)"
-            case .checking: return "Checking the live board… showing \(when)"
-            case .offline where on: return "Couldn't reach the live board. Showing \(when)."
-            default: return Dashboard.feed.packed ? "Updated \(when)" : "Snapshot, \(when)."
+            case .checking: return "Checking the live board… · \(checked) · board from \(when)"
+            case .offline: return "Couldn't reach the live board · \(checked) · board from \(when)"
+            case .starting: return "\(checked.prefix(1).uppercased() + checked.dropFirst()) · board from \(when)"
             }
         }
 
+        /// "3:23 am" today, otherwise "Sat 31 Oct, 3:23 am".
         static func clock(_ d: Date) -> String {
-            let f = DateFormatter(); f.locale = Locale(identifier: "en_GB"); f.dateFormat = "h:mm a"; return f.string(from: d)
+            let f = DateFormatter(); f.locale = Locale(identifier: "en_GB")
+            f.dateFormat = Calendar.current.isDateInToday(d) ? "h:mm a" : "EEE d MMM, h:mm a"
+            return f.string(from: d)
         }
 
         func refresh(force: Bool = false) {
@@ -280,8 +294,8 @@ struct Dashboard: SandboxPlugin {
             lastTry = Date()
             state = .checking
             Task {
-                async let board = Self.fetch("board.json")
-                async let head = Self.fetch("status.json")
+                async let board = Self.fetch(Self.boardBase, "board.json")
+                async let head = Self.fetch(Self.base, "status.json")
                 let (b, h) = await (board, head)
                 var next = data
                 if let b, let full = try? JSONDecoder().decode(DashboardData.self, from: b) {
@@ -289,12 +303,20 @@ struct Dashboard: SandboxPlugin {
                     UserDefaults.standard.set(b, forKey: Self.cacheKey)
                 }
                 if let h, let live = try? JSONDecoder().decode(DashboardData.Live.self, from: h) { next.live = live }
-                if b != nil || h != nil { data = next; state = .live(Date()) } else { state = .offline }
+                if b != nil || h != nil {
+                    data = next
+                    let now = Date()
+                    lastGood = now
+                    UserDefaults.standard.set(now, forKey: "plug.dashboard.lastGood")
+                    state = .live(now)
+                } else {
+                    state = .offline
+                }
             }
         }
 
-        nonisolated private static func fetch(_ name: String) async -> Data? {
-            guard let url = URL(string: base + name + "?t=\(Int(Date().timeIntervalSince1970))") else { return nil }
+        nonisolated private static func fetch(_ base: String?, _ name: String) async -> Data? {
+            guard let base, base.hasPrefix("https://"), let url = URL(string: base + name + "?t=\(Int(Date().timeIntervalSince1970))") else { return nil }
             var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 6)
             req.httpMethod = "GET"
             guard let (body, resp) = try? await URLSession.shared.data(for: req),
@@ -354,21 +376,19 @@ struct Dashboard: SandboxPlugin {
         .onAppear { mind.greet(host); Feed.shared.refresh() }
     }
 
-    /// Reads the live feed, so the card redraws when it answers.
+    /// The side card: just a glance and the way in (Aaron, 1 Nov: one dashboard, no doubling).
     struct LiveBody: View {
         let host: PipHost
         @Bindable private var feed = Feed.shared
+        @AppStorage("plug.dashboard.tileShown") private var onCanvas = true
 
         var body: some View {
-            Front(data: feed.data, host: host)
-            Board(data: feed.data)
-            SettingsCard(title: "Live feed", icon: "antenna.radiowaves.left.and.right",
-                         footer: "Only downloads the board. Nothing is sent. Off shows the copy packed into the app.") {
-                Toggle("Follow the live dashboard", isOn: $feed.on)
-                if feed.on {
-                    Button("Check now") { feed.refresh(force: true) }
-                        .accessibilityHint("Downloads the latest board")
-                }
+            let data = feed.data
+            let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
+            GlassTile(data: data, waiting: waiting).frame(maxWidth: .infinity)
+            SettingsCard(footer: Dashboard.freshness) {
+                Toggle("On the canvas", isOn: $onCanvas)
+                    .accessibilityHint("Shows this tile on the canvas, where you can drag it anywhere.")
             }
         }
     }
@@ -427,7 +447,7 @@ struct Dashboard: SandboxPlugin {
 }
 
 /// One of the live board's four numbers.
-private struct LiveNumber: View {
+struct LiveNumber: View {
     let value: Int?
     let label: String
 
@@ -489,6 +509,14 @@ struct DashboardData: Codable, Sendable {
     var principles: [String]?
     var ideas: [Idea]?
     var live: Live?
+    /// Commands for Rob from the master chat (Rob, 1 Nov), newest first. Shown read-only in the dashboard.
+    var outboxForRob: [RobJob]?
+
+    struct RobJob: Codable, Sendable {
+        var date: String?
+        var done: Bool?
+        var command: String
+    }
 
     /// The live board's headline: the small file that feeds the iPad widget, fetched on the Mac by
     /// sync-dashboard.sh at build time (never by the app).
@@ -500,5 +528,27 @@ struct DashboardData: Codable, Sendable {
         var latestUpdate: String?
         var ipadBuild: String?
         var updatedAt: String?
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+/// Reads each part on its own, so one part in an unexpected shape is skipped instead of losing the whole board.
+extension DashboardData {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        syncedAt = try? c.decodeIfPresent(String.self, forKey: .syncedAt)
+        source = try? c.decodeIfPresent(String.self, forKey: .source)
+        status = try? c.decodeIfPresent(Status.self, forKey: .status)
+        needsYou = try? c.decodeIfPresent([Ask].self, forKey: .needsYou)
+        upNext = try? c.decodeIfPresent([Step].self, forKey: .upNext)
+        reminders = try? c.decodeIfPresent([Reminder].self, forKey: .reminders)
+        builds = try? c.decodeIfPresent([Build].self, forKey: .builds)
+        principles = try? c.decodeIfPresent([String].self, forKey: .principles)
+        ideas = try? c.decodeIfPresent([Idea].self, forKey: .ideas)
+        live = try? c.decodeIfPresent(Live.self, forKey: .live)
+        outboxForRob = try? c.decodeIfPresent([RobJob].self, forKey: .outboxForRob)
     }
 }
