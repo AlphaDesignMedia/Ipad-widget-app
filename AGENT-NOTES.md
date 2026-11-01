@@ -18,6 +18,11 @@ Aaron drew on the iPad (`nat/blobby-stretch-sketch.png`): over the wing a box wi
 So: as he moves, his round body pulls out into a drop (point behind, along the motion), and the glass shading (rim,
 shine, inner glow) follows the new outline instead of staying a circle painted on top. Snaps back round at rest; off
 under Reduce Motion. Yours (Blobby's files); I haven't touched them.
+Aaron, 15:20: **"emojis look good bigger"** (keep) · **"shadows still problem"** (anything dark under or round him;
+light, not shadow) · "light not finished" (that one's mine, Pip's Light sliders next).
+His current Blobby settings (Copy settings, 15:25), in case you want them as the defaults:
+`{"edge":1.2,"effort":2,"emojiBend":0.4,"emojiColour":1,"emojiSize":1.2,"glass":0,"glow":1.5,"halo":0,"nearWing":1.8,"panelLight":1.5,"shine":1.5,"soft":0.0553,"tail":2.969,"turn":41.76,"warm":0.447,"wings":0.6}`
+Note `edge` 1.2 (Dark edge) is up: that may be part of the "shadows" he means.
 Also seen in his screenshot: a side tab reading **514 ms**. If that's the frame counter, it's ~2 fps: worth a look.
 Mac · Pip's Light
 
