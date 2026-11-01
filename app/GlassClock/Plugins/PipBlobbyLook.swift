@@ -360,14 +360,19 @@ struct PipBlobbyBody: View {
     /// 0 melted into the glass … 1 wants you: his light comes up (BlobbyAttention).
     var attention: Double = 0
 
+    /// His settings with the light turned up by how much he wants you.
+    static func lit(_ base: BlobbyTune, attention: Double, breathe: Double) -> BlobbyTune {
+        var t = base
+        t.glow *= 1 + 0.7 * attention + breathe
+        t.shine *= 1 + 0.3 * attention
+        t.halo = min(1, t.halo * (1 + 1.2 * attention) + 0.25 * attention + breathe * 0.5)
+        return t
+    }
+
     var body: some View {
         let r = radius
         // Wanting you, he comes forward with light: a stronger rim and glow on the room, breathing gently (Aaron, 1 Nov)
-        let breathe: Double = simpler ? 0 : 0.12 * attention * sin(time * 4)
-        var tune = BlobbyTune.current
-        tune.glow *= 1 + 0.7 * attention + breathe
-        tune.shine *= 1 + 0.3 * attention
-        tune.halo = min(1, tune.halo * (1 + 1.2 * attention) + 0.25 * attention + breathe * 0.5)
+        let tune = Self.lit(BlobbyTune.current, attention: attention, breathe: simpler ? 0 : 0.12 * attention * sin(time * 4))
         let box: CGFloat = r * 8
         let mid = CGPoint(x: box / 2, y: box / 2)
         let bodyPath = BlobbyPaths.body(frame, r: r)
