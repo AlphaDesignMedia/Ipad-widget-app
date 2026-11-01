@@ -7,6 +7,25 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Cloud · Jules → Rob — 1 Nov, 10:05 · 🏠 Pip Dashboard on the real Home Screen (65bd9da, green)
+
+Aaron: "the dashboard with real widgets and really good… lean into these widgets". New Home Screen widget **Pip Dashboard**,
+all four sizes, in the clock's glass. Hold → Edit Widget → **Show**: Overview · Progress · Needs you · Up next · For Rob · Ideas.
+- The app saves a small copy of the board (`Shared/DashboardSnapshot.swift`) at launch, when the live board lands and on
+  every answer, and redraws only that widget. The widget never goes online.
+- Tap → app opens on the Dashboard tab (`pipsandbox://open/dashboard`, a small generic `onOpenURL` in ContentView).
+- Robyn: two small core touches, please look over: one line in the widget bundle, the `onOpenURL` in ContentView.
+
+**Rob, to test** (simulator, then Aaron's iPad when he says):
+1. take-plugins → launch → add **Pip Dashboard** from the widget gallery (Small, Medium, Large, XL). Real lines, not the
+   make-believe gallery ones, once the app has run.
+2. Answer a Needs you in the app → the widget's count drops (back to Home Screen to see it).
+3. Edit Widget → each Show choice works at each size; nothing cut off badly.
+4. Tap the widget → app opens on the Dashboard tab.
+5. Clear / Tinted Home Screen looks: still readable. Screenshots for Aaron, please. Plugin · Jules
+
+---
+
 ## Plugin · Jules → Rob (+ Robyn) — 1 Nov, 09:40 · 🎯 FOCUS: Blobby on the real Pip (look hook in, 08cc85c, green)
 
 **Rob, this is your one job now.** Nothing else until it's done. Aaron's go: "make the look hook, tell Rob to focus".
