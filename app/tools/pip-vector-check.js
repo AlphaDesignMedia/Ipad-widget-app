@@ -5,9 +5,9 @@ const { chromium } = require('playwright');
   p.on('pageerror', e => console.log('ERR', e.message));
   await p.goto('file://' + require('path').join(__dirname, '..', 'design', 'pip-vector.html'));
   await p.evaluate(() => { window.__manual = true; auto = false; document.querySelector('.note').remove(); document.querySelector('.bar').remove(); });
-  const keep = { 60: 'rest', 150: 'flying right', 196: 'turning', 206: 'turning', 240: 'flying left', 330: 'rest (left)', 430: '😊 face', 560: '⭐ inside' };
+  const keep = { 150: 'flying right', 206: 'turning', 330: 'rest (left)', 405: '😊 coming in', 430: '😊 face', 573: '⭐ coming in', 600: '⭐ inside', 685: '⭐ going' };
   const out = [];
-  for (let i = 0; i <= 560; i++) {
+  for (let i = 0; i <= 690; i++) {
     const t = 10 + i / 60;
     const label = await p.evaluate(([i, t, keep]) => {
       // a little script: rest, fly right, turn, fly left, rest, emoji

@@ -186,37 +186,74 @@ function drawPip(ctx, pos, R, t, dt, target, emoji, vis) {
   ctx.save(); ctx.beginPath(); ctx.arc(H.x, H.y, R, 0, Math.PI * 2); ctx.clip(); ctx.fillStyle = bounce;
   ctx.fillRect(H.x - R, H.y - R, R * 2, R * 2); ctx.restore();
 
-  // the emoji, inside the ball (or as his face), then the glass's shine over it
+  // his face flows into the emoji (Aaron, 1 Nov: "its face does need to go into the emoji"): the emoji grows out of
+  // where his face is and settles in the middle of his head; his eyes and smile slide into it and fade. Going, the
+  // other way round. The emoji is glass too (Aaron: "the glass emoji makes sense to me"): see glassEmoji().
+  const onHead = (s, u) => norm(add(add(f.face, f.sideV, s), f.up, u));
+  const e = vis * vis * (3 - 2 * vis);                                   // eased
+  const fn = onHead(0, -.38), fp = fn.z > 0 ? proj(add(O, fn), O, R) : H;
+  const centre = { x: H.x, y: H.y + R * .06 };
+  const into = { x: fp.x + (centre.x - fp.x) * e, y: fp.y + (centre.y - fp.y) * e };
   if (emoji && vis > 0) {
+    const size = R * (isFace ? 1.15 : .95) * (.35 + .65 * e) * 1.34;
     ctx.save(); ctx.beginPath(); ctx.arc(H.x, H.y, R * .96, 0, Math.PI * 2); ctx.clip();
-    ctx.globalAlpha = vis; ctx.font = `${R * (isFace ? 1.15 : .95)}px "Apple Color Emoji","Noto Color Emoji"`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(emoji, H.x, H.y + R * .06);
+    ctx.globalAlpha = Math.min(1, vis * 1.4);
+    ctx.drawImage(glassEmoji(emoji), into.x - size / 2, into.y - size / 2, size, size);
     ctx.restore();
   }
   const hl = ctx.createRadialGradient(H.x - R * .4, H.y - R * .45, 0, H.x - R * .4, H.y - R * .45, R * .28);
   hl.addColorStop(0, 'rgba(255,255,255,.95)'); hl.addColorStop(.35, 'rgba(255,255,255,.5)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = hl; ctx.fillRect(H.x - R, H.y - R, R * 2, R * 2);
 
-  // face: tall eyes and a small smile, painted onto the sphere where his face points (hidden round the back)
-  const faceOn = 1 - emote;
+  // face: tall eyes and a small smile, painted onto the sphere where his face points (hidden round the back);
+  // while an emoji is in, they slide into it and fade
+  const faceOn = emoji ? 1 - e : 1;
+  const pull = p => ({ x: p.x + (into.x - p.x) * e * .8, y: p.y + (into.y - p.y) * e * .8 });
   if (faceOn > .02) {
-    const onHead = (s, u) => norm(add(add(f.face, f.sideV, s), f.up, u));
     for (const s of [-.3, .3]) {
       const n = onHead(s, -.32); if (n.z < .05) continue;
-      const p = proj(add(O, n), O, R);
+      const p = pull(proj(add(O, n), O, R)), k = 1 - e * .6;
       ctx.save(); ctx.globalAlpha = faceOn * Math.min(1, n.z * 4); ctx.translate(p.x, p.y);
-      ctx.scale(Math.max(.25, n.z), 1); ctx.beginPath(); ctx.ellipse(0, 0, R * .1, R * .155, 0, 0, Math.PI * 2);
+      ctx.scale(Math.max(.25, n.z) * k, k); ctx.beginPath(); ctx.ellipse(0, 0, R * .1, R * .155, 0, 0, Math.PI * 2);
       ctx.fillStyle = GLASS.eye; ctx.fill(); ctx.restore();
     }
     const m = onHead(0, -.62);
     if (m.z > .1) {
-      const p = proj(add(O, m), O, R);
-      ctx.save(); ctx.globalAlpha = faceOn * Math.min(1, m.z * 3); ctx.translate(p.x, p.y); ctx.scale(Math.max(.3, m.z), 1);
+      const p = pull(proj(add(O, m), O, R)), k = 1 - e * .6;
+      ctx.save(); ctx.globalAlpha = faceOn * Math.min(1, m.z * 3); ctx.translate(p.x, p.y); ctx.scale(Math.max(.3, m.z) * k, k);
       ctx.beginPath(); ctx.moveTo(-R * .12, 0); ctx.quadraticCurveTo(0, R * .1, R * .12, 0);
       ctx.lineWidth = R * .05; ctx.lineCap = 'round'; ctx.strokeStyle = GLASS.eye; ctx.stroke(); ctx.restore();
     }
   }
   wingPaths.filter(w => w.z >= 0).forEach(drawWing);
+}
+
+// ---------- a glass emoji (Aaron: "here's the glass"): Apple's emoji, a little see-through, a bright edge where the
+// light hits (top left, like Pip), a soft dark edge on the other side, a sheen. Made once per emoji, then reused.
+const glassCache = {};
+function glassEmoji(ch) {
+  if (glassCache[ch]) return glassCache[ch];
+  const S = 160, mk = () => { const c = document.createElement('canvas'); c.width = c.height = S; return c; };
+  const base = mk(), b = base.getContext('2d');
+  b.font = '118px "Apple Color Emoji","Noto Color Emoji",sans-serif'; b.textAlign = 'center'; b.textBaseline = 'middle';
+  b.fillText(ch, S / 2, S / 2 + 6);
+  const sil = col => { const c = mk(), x = c.getContext('2d'); x.drawImage(base, 0, 0); x.globalCompositeOperation = 'source-in';
+    x.fillStyle = col; x.fillRect(0, 0, S, S); return c; };
+  const edge = (col, dx, dy) => { const c = sil(col), x = c.getContext('2d'), cut = sil('#000');
+    x.globalCompositeOperation = 'destination-out';
+    for (let k = 1; k <= 5; k++) { x.globalAlpha = .3; x.drawImage(cut, dx * k, dy * k); }
+    return c; };
+  const out = mk(), o = out.getContext('2d');
+  o.globalAlpha = .8; o.drawImage(base, 0, 0); o.globalAlpha = 1;
+  o.globalCompositeOperation = 'source-atop';
+  o.fillStyle = 'rgba(205,225,255,.14)'; o.fillRect(0, 0, S, S);                       // a touch of Pip's glass colour
+  o.globalAlpha = .75; o.drawImage(edge('#fff', 1.4, 1.8), 0, 0);                      // light edge, top left
+  o.globalAlpha = .3; o.drawImage(edge('rgb(25,25,70)', -1.4, -1.8), 0, 0);            // dark edge, bottom right
+  o.globalAlpha = 1;
+  const g = o.createRadialGradient(S * .36, S * .3, 0, S * .36, S * .3, S * .32);       // sheen
+  g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  o.fillStyle = g; o.fillRect(0, 0, S, S);
+  return glassCache[ch] = out;
 }
 
 // ---------- the page
