@@ -52,6 +52,10 @@ extension Dashboard {
         @Bindable private var feed = Feed.shared
         /// Bumped when a question is answered, so counts redraw.
         @State private var taps = 0
+        /// How far the screen has been pulled down by a swipe on the header (Aaron, 1 Nov: swipe it closed).
+        @State private var pull: CGFloat = 0
+        @State private var screenHeight: CGFloat = 800
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
         init(host: PipHost, close: (() -> Void)? = nil) {
             self.host = host
@@ -95,19 +99,55 @@ extension Dashboard {
                     .accessibilityLabel("Close the dashboard")
                 }
             }
+            .offset(y: pull)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
+            .accessibilityAction(.escape) { close?() }
             .onAppear { feed.refresh() }
+        }
+
+        /// Swipe down on the header to close, like the system's sheets: it follows the finger; past a third of the
+        /// screen (or a quick flick) it closes, otherwise it springs back. Simpler motion: no following, a swipe closes.
+        /// Only while it's a full-screen cover: as a tab there's nothing to close.
+        private var swipeToClose: some Gesture {
+            DragGesture(minimumDistance: 10)
+                .onChanged { drag in
+                    guard close != nil, !(host.simpler || reduceMotion) else { return }
+                    let down = drag.translation.height
+                    pull = down > 0 ? down : down / 6          // a little give upwards, like a sheet
+                }
+                .onEnded { drag in
+                    guard let close else { return }
+                    let down = drag.translation.height, flung = drag.predictedEndTranslation.height
+                    let simpler = host.simpler || reduceMotion
+                    if down > (simpler ? 60 : screenHeight / 3) || flung > screenHeight / 2 {
+                        close()
+                    } else if simpler {
+                        pull = 0
+                    } else {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { pull = 0 }
+                    }
+                }
         }
 
         private var header: some View {
             VStack(alignment: .leading, spacing: 2) {
+                if close != nil {
+                    // The grabber, as on the system's sheets: says "pull me down".
+                    Capsule().fill(.secondary.opacity(0.5)).frame(width: 40, height: 5)
+                        .frame(maxWidth: .infinity).padding(.bottom, 6).padding(.trailing, -70)
+                        .accessibilityHidden(true)
+                }
                 Text("PROGRESS").font(.system(size: 11, weight: .semibold)).tracking(1.2).foregroundStyle(.secondary)
                 Text(feed.data.source ?? "Glass Clock Progress").font(.system(size: 24, weight: .bold))
                 Text(Dashboard.freshness).font(.system(size: 12)).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 6)
             .padding(.trailing, 70)
+            .contentShape(.rect)
+            .highPriorityGesture(swipeToClose, including: close != nil ? .all : .subviews)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
+            .accessibilityHint(close != nil ? "Swipe down here to close, or use the close button." : "")
         }
 
         private func column<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
