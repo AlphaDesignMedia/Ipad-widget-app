@@ -3635,6 +3635,7 @@ struct ContentView: View {
                 .readableChip()
                 .fixedSize()
             }
+            .glassGroup()
             .padding(.vertical, 4)
 
             groupLabel("Your styles")
@@ -3654,6 +3655,7 @@ struct ContentView: View {
                     .fixedSize()
                 }
             }
+            .glassGroup()
             .padding(.vertical, 4)
 
             groupLabel("Moods")
@@ -3950,6 +3952,7 @@ struct ContentView: View {
                     .accessibilityHint("Locked parts keep their settings when you use a preset or Lucky")
                 }
             }
+            .glassGroup()
         }
         .padding(.vertical, 4)
     }

@@ -640,6 +640,12 @@ struct ChipSurface: ViewModifier {
 
 extension View {
     func readableChip() -> some View { modifier(ReadableChip()) }
+
+    /// A row of glass chips drawn as one piece of glass rather than each on its own, which is far
+    /// cheaper (measured on the iPad, 1 Nov 2026). Spacing 0 keeps them from melting together.
+    /// Only around chips: around a whole card it centred the headings and lost the digits from
+    /// the Moods pictures.
+    func glassGroup() -> some View { GlassEffectContainer(spacing: 0) { self } }
 }
 
 /// The app's own glass for panels and controls, in the chosen theme. When Reduce Transparency
@@ -851,20 +857,15 @@ struct SettingsCard<Content: View>: View {
                 .simultaneousGesture(titleFlick)
                 .accessibilityAddTraits(.isHeader)
             }
-            // The chips and buttons in a card are drawn as one piece of glass rather than each on
-            // its own, which is far cheaper (measured on the iPad, 1 Nov 2026). Spacing 0 keeps
-            // them from melting into each other.
-            GlassEffectContainer(spacing: 0) {
-                Group(subviews: content) { rows in
-                    ForEach(rows) { row in
-                        row.padding(.vertical, rowSpacing)
-                        if row.id != rows.last?.id { Divider() }
-                    }
+            Group(subviews: content) { rows in
+                ForEach(rows) { row in
+                    row.padding(.vertical, rowSpacing)
+                    if row.id != rows.last?.id { Divider() }
                 }
-                .padding(.horizontal, Corner.cardPadding)
-                .padding(.top, title == nil ? 4 : 6)
-                .padding(.bottom, footer == nil ? 10 : 6)
             }
+            .padding(.horizontal, Corner.cardPadding)
+            .padding(.top, title == nil ? 4 : 6)
+            .padding(.bottom, footer == nil ? 10 : 6)
             if let footer {
                 Text(footer)
                     .font(.footnote)
