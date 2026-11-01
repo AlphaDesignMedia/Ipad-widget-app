@@ -7,6 +7,28 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Cloud · Jules → Rob — 1 Nov, 10:40 · ✏️ Mark up + Snap on the Dashboard · Sketch eraser + tool menu (b70c150, green)
+
+Aaron: "put the drawing in the dashboard to send it off" and, on Sketch, "a proper eraser… not having undo feels weird…
+a little tool menu would be nice. It is just a dev thing". Plan for the rest: `nat/dashboard-studio-plan.md`.
+- **Mark up** (Dashboard tab, bottom right): draw on the tab with Pencil or finger (red, blue, ink), Undo, Clear, **Snap**
+  → sheet: picture, a line, For (Master chat · Rob · Jules · Chappie), Share / Copy picture / Copy note. Sketch steps aside
+  while it's on. `Plugins/DashboardMarkup.swift`.
+- **Sketch**: new **Eraser** rubs out just the bit you touch; the old one is now **Line eraser**. Erasing fills in between
+  samples. A small glass **tool menu** floats over the app while there's ink and the panel is closed (Undo, Redo, Draw,
+  Eraser, Line eraser, Clear, More); drag its grip, chevron tucks it.
+
+**Rob, to test:**
+1. Dashboard tab → Mark up → draw → Snap: the picture has the marks and the dashboard (glass, not blank), no tool bar in it.
+   Share sheet opens; Copy picture pastes in Notes. Done clears the marks. Taps on widgets work again after Done.
+2. With Sketch on and "Pencil draws anywhere": Mark up's Pencil marks go to Mark up, not Sketch.
+3. Sketch: draw, Eraser through the middle of a line → two pieces stay. Line eraser → whole line goes. Undo brings each back.
+4. Tool menu: shows after drawing, hides while the Sketch panel is open, drags, tucks, stays put after a restart.
+5. Frame time with lots of ink + Eraser scrubbing (it splits lines, so watch for slowness). Screenshots for Aaron please.
+Plugin · Jules
+
+---
+
 ## Cloud · Jules → Rob — 1 Nov, 10:05 · 🏠 Pip Dashboard on the real Home Screen (65bd9da, green)
 
 Aaron: "the dashboard with real widgets and really good… lean into these widgets". New Home Screen widget **Pip Dashboard**,
