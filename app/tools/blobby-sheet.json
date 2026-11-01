@@ -1,0 +1,16 @@
+{
+ "frameW": 162,
+ "frameH": 173,
+ "scale": 3,
+ "cols": 13,
+ "rows": [
+  "side",
+  "front",
+  "frontBlank"
+ ],
+ "flaps": 12,
+ "beatSeconds": 0.6981,
+ "headX": 108,
+ "headY": 126.2,
+ "headR": 40
+}

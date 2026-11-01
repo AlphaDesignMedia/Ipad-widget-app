@@ -132,9 +132,9 @@ struct PipLooks: SandboxPlugin {
             let dropRadius: CGFloat = 18
             return GeometryReader { geo in
                 let w: CGFloat = geo.size.width, h: CGFloat = geo.size.height
-                let classicAt = CGPoint(x: w * 0.13, y: h * 0.46)
-                let dropAt = CGPoint(x: w * 0.42, y: h * 0.46)
-                let blobbyAt = CGPoint(x: w * 0.8, y: h * 0.5)
+                let classicAt = CGPoint(x: w * 0.12, y: h * 0.46)
+                let dropAt = CGPoint(x: w * 0.38, y: h * 0.46)
+                let blobbyAt = CGPoint(x: w * 0.76, y: h * 0.52)
                 let aimBlobby: CGSize? = DropMath.aim(finger, from: blobbyAt, in: geo.size)
                 let aimClassic: CGSize? = DropMath.aim(finger, from: classicAt, in: geo.size)
                 let aimDrop: CGSize? = DropMath.aim(finger, from: dropAt, in: geo.size)
@@ -153,7 +153,7 @@ struct PipLooks: SandboxPlugin {
                         PipDropBody(picks: .aaron30Oct, pose: pose, time: t, face: blink ? .blink : .awake, radius: dropRadius,
                                     simpler: simpler, flapping: !simpler)
                             .position(x: dropAt.x, y: dropAt.y + bob)
-                        PipBlobbyBody(radius: 13, time: t, face: blink ? .blink : .awake, look: aimBlobby ?? .zero,
+                        PipBlobbyBody(radius: 20, time: t, face: blink ? .blink : .awake, look: aimBlobby ?? .zero,
                                       facing: blobbyTurn.step(look: aimBlobby ?? .zero, at: t, snap: simpler),
                                       emoji: inside.isEmpty ? nil : inside, simpler: simpler, flapping: !simpler)
                             .position(x: blobbyAt.x, y: blobbyAt.y + bob)
