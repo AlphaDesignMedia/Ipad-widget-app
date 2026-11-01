@@ -31,6 +31,7 @@ extension Dashboard {
             .accessibilityHint("Opens the whole dashboard full screen, as widgets.")
             .fullScreenCover(isPresented: $open) {
                 PanelsScreen(host: host) { open = false }
+                    .presentationBackground(.ultraThinMaterial)
             }
         }
     }
@@ -59,11 +60,6 @@ extension Dashboard {
         var body: some View {
             let data = feed.data
             ZStack(alignment: .topTrailing) {
-                LinearGradient(colors: [Color.indigo.opacity(0.55), Color.teal.opacity(0.45), Color.orange.opacity(0.35)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .ignoresSafeArea()
-                    .accessibilityHidden(true)
-
                 ScrollView {
                     VStack(alignment: .leading, spacing: Corner.inset) {
                         header
@@ -189,6 +185,8 @@ extension Dashboard {
         @ViewBuilder let content: () -> Content
         @AppStorage private var open: Bool
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        /// Your clock widget's saved style: the same card and colour as the widget (no look of its own).
+        @State private var style = ClockStyle.load()
 
         init(id: String, title: String, icon: String, note: String? = nil, startsOpen: Bool = false,
              @ViewBuilder content: @escaping () -> Content) {
@@ -227,7 +225,8 @@ extension Dashboard {
             }
             .padding(Corner.edge)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .appGlass(RoundedRectangle(cornerRadius: Corner.panel, style: .continuous), panel: true)
+            .foregroundStyle(style.color == .auto ? AnyShapeStyle(.primary) : AnyShapeStyle(style.color.color))
+            .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28)))
         }
     }
 

@@ -79,6 +79,8 @@ extension Dashboard {
     struct GlassTile: View {
         let data: DashboardData
         let waiting: Int
+        /// Same card and colour as your clock widget.
+        @State private var style = ClockStyle.load()
 
         var body: some View {
             VStack(alignment: .leading, spacing: 10) {
@@ -114,7 +116,8 @@ extension Dashboard {
             }
             .padding(16)
             .frame(maxWidth: Dashboard.widgetWidth, alignment: .leading)
-            .appGlass(RoundedRectangle(cornerRadius: Corner.card, style: .continuous))
+            .foregroundStyle(style.color == .auto ? AnyShapeStyle(.primary) : AnyShapeStyle(style.color.color))
+            .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28)))
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Progress dashboard")
         }
