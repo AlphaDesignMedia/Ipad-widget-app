@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // PIP LOOKS · plugin v1 (Dream). Pip's look list: Classic (the orb, the default), Drop (Aaron's 3D liquid drop,
 // from the Pip Drop Workshop, picks of 30 Oct 2026) or Blobby (V2, Aaron 1 Nov: his trailing circles in Liquid Glass,
@@ -109,12 +110,67 @@ struct PipLooks: SandboxPlugin {
                         .accessibilityAddTraits(look == l ? .isSelected : [])
                     }
                 }
-                if look == .blobby { insidePicker }
+                if look == .blobby {
+                    insidePicker
+                    TuneBlobby()
+                }
                 Text(PipLooks.waitingNote)
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(.system(size: 13.5))
+        }
+
+        /// Aaron's sliders: everything we tuned on the web page, live on Pip. Folded away until he opens it.
+        struct TuneBlobby: View {
+            @State private var open = false
+            @State private var tune = BlobbyTune.current
+            @State private var copied = false
+            private struct Row: Identifiable {
+                let label: String; let path: WritableKeyPath<BlobbyTune, Double>; let range: ClosedRange<Double>
+                var id: String { label }
+            }
+            private let rows: [Row] = [
+                Row(label: "Glassiness", path: \.glass, range: 0...2), Row(label: "Inner glow", path: \.glow, range: 0...1.5),
+                Row(label: "Shine", path: \.shine, range: 0...1.5), Row(label: "Warm bounce", path: \.warm, range: 0...1),
+                Row(label: "Soft edges", path: \.soft, range: 0.05...0.35), Row(label: "Glow round him", path: \.halo, range: 0...0.6),
+                Row(label: "Emoji size", path: \.emojiSize, range: 0.5...1.2), Row(label: "Emoji colour", path: \.emojiColour, range: 0...1),
+                Row(label: "Emoji bend", path: \.emojiBend, range: 0...0.4), Row(label: "Tail length", path: \.tail, range: 1.5...4),
+                Row(label: "Wings", path: \.wings, range: 0.6...1.4), Row(label: "Near wing width", path: \.nearWing, range: 1...1.8),
+                Row(label: "Turn speed", path: \.turn, range: 20...120), Row(label: "Flying effort", path: \.effort, range: 0...2)]
+
+            var body: some View {
+                DisclosureGroup(isExpanded: $open) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(rows) { row in slider(row) }
+                        HStack(spacing: 8) {
+                            Button("Reset") { tune = BlobbyTune(); BlobbyTune.save(tune) }
+                                .buttonStyle(PluginCardButton(on: false))
+                            Button(copied ? "Copied ✓" : "Copy settings") {
+                                UIPasteboard.general.string = tune.text
+                                copied = true
+                            }
+                            .buttonStyle(PluginCardButton(on: false))
+                            .accessibilityHint("Puts Blobby's settings on the clipboard, to paste to Jules.")
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding(.top, 6)
+                } label: {
+                    Text("Tune Blobby").font(.system(size: 13.5, weight: .semibold))
+                }
+            }
+
+            private func slider(_ row: Row) -> some View {
+                let value = Binding<Double>(get: { tune[keyPath: row.path] },
+                                            set: { tune[keyPath: row.path] = $0; BlobbyTune.save(tune) })
+                return HStack {
+                    Text(row.label).frame(width: 118, alignment: .leading)
+                    Slider(value: value, in: row.range).accessibilityLabel(row.label)
+                    Text(String(format: "%.2f", value.wrappedValue)).monospacedDigit()
+                        .font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 34, alignment: .trailing)
+                }
+            }
         }
 
         /// What Blobby has inside: an emoji (Apple's own), or nothing. Face emoji become his face.
