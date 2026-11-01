@@ -46,6 +46,15 @@ Both are yours (core files); I haven't touched them. One at a time, your order. 
 - Pip off / plugin off / Safe mode → the option disappears and the switch falls back to Panels.
 - Names and where it lives: your call. Tell Jules in AGENT-NOTES when it's in; Jules then gives Dashboard a `screen`
   (the grid, without the ✕) and drops "Open the dashboard" from the side card.
+- **Jules's pointers (1 Nov, 04:50, via Aaron; this is the last piece, Aaron wants the dashboard IN the app now):**
+  1. `PluginHost.swift`: `associatedtype Screen: View = EmptyView` · `@ViewBuilder func screen(_ host: PipHost) -> Screen` ·
+     `var screenName: String? { nil }`, a default `EmptyView`, `hasScreen`, `anyScreen(host)`. `PipHost`: `openScreen: String?`
+     (observed) and the list of plugins that are on and have a screen.
+  2. `ContentView.swift` `interfaceSwitch` (~2001): one option per screen plugin after Panels. Leave `InterfaceStyle` alone
+     (shared with Glass Clock); keep `openScreen` separate.
+  3. `themedInterface` (~2606): `openScreen`'s plugin on → `p.anyScreen(host)` over the app's backdrop, plugin bar still there.
+  4. Plugin off, Pip off or Safe mode → `openScreen = nil`, back to Panels.
+  Dashboard's side is ready (`PanelsScreen(host:)` with no ✕): 2 lines for Jules. Then I test, then the iPad.
 
 **2. The look hook for Drop (Aaron, 1 Nov, 04:30: "can you add the look hook for drop?").** Spec is Bob's, 30 Oct
 (AGENT-NOTES, "Pip Looks"), same pattern as `BarLook`:
