@@ -32,6 +32,7 @@ struct PipLight: SandboxPlugin {
     /// Warm white, like Blobby's glow.
     static let colour = Color(red: 1, green: 0.95, blue: 0.85)
     static let raysKey = "plug.piplight.rays"
+    static let cornersKey = "plug.piplight.corners"
     /// Rays drawn per lit edge when "Show the rays" is on.
     static let raysPerEdge = 5
 
@@ -77,6 +78,48 @@ struct PipLight: SandboxPlugin {
         return out
     }
 
+    /// "Wrap the corners" (step 1 of the pretty version): the part of a panel's rounded outline that faces `p`, straight
+    /// edges and corners together, as one path. Light fades by distance from Pip, so it carries on round the corners
+    /// without a seam. Each straight edge faces Pip or not; each corner faces Pip between the two points where Pip's
+    /// line of sight just touches it.
+    static func rim(from p: CGPoint, frame: CGRect, corner: CGFloat, reach: CGFloat) -> Path {
+        var path = Path()
+        guard !frame.isNull, !frame.isEmpty, frame.insetBy(dx: -reach, dy: -reach).contains(p) else { return path }
+        let c = min(corner, frame.width / 2, frame.height / 2)
+        // straight edges: two ends, and the outward direction it faces
+        let edges: [(CGPoint, CGPoint, CGVector)] = [
+            (CGPoint(x: frame.minX + c, y: frame.minY), CGPoint(x: frame.maxX - c, y: frame.minY), CGVector(dx: 0, dy: -1)),
+            (CGPoint(x: frame.minX + c, y: frame.maxY), CGPoint(x: frame.maxX - c, y: frame.maxY), CGVector(dx: 0, dy: 1)),
+            (CGPoint(x: frame.minX, y: frame.minY + c), CGPoint(x: frame.minX, y: frame.maxY - c), CGVector(dx: -1, dy: 0)),
+            (CGPoint(x: frame.maxX, y: frame.minY + c), CGPoint(x: frame.maxX, y: frame.maxY - c), CGVector(dx: 1, dy: 0)),
+        ]
+        for (e0, e1, n) in edges where (p.x - e0.x) * n.dx + (p.y - e0.y) * n.dy > 0 && hypot(e1.x - e0.x, e1.y - e0.y) > 1 {
+            path.move(to: e0)
+            path.addLine(to: e1)
+        }
+        guard c > 1 else { return path }
+        // corners: centre, and the middle of the quarter circle it covers (screen angles, y down)
+        let corners: [(CGPoint, Double)] = [
+            (CGPoint(x: frame.minX + c, y: frame.minY + c), -0.75 * .pi),
+            (CGPoint(x: frame.maxX - c, y: frame.minY + c), -0.25 * .pi),
+            (CGPoint(x: frame.maxX - c, y: frame.maxY - c), 0.25 * .pi),
+            (CGPoint(x: frame.minX + c, y: frame.maxY - c), 0.75 * .pi),
+        ]
+        for (centre, mid) in corners {
+            let dist = hypot(p.x - centre.x, p.y - centre.y)
+            guard dist > c else { continue }
+            let toPip = atan2(Double(p.y - centre.y), Double(p.x - centre.x))
+            let half = acos(Double(c / dist))                                     // the span facing Pip, either side
+            let off = remainder(toPip - mid, 2 * .pi)
+            let lo = max(off - half, -.pi / 4), hi = min(off + half, .pi / 4)
+            guard hi > lo else { continue }
+            let start = mid + lo
+            path.move(to: CGPoint(x: centre.x + c * CGFloat(cos(start)), y: centre.y + c * CGFloat(sin(start))))
+            path.addRelativeArc(center: centre, radius: c, startAngle: .radians(start), delta: .radians(hi - lo))
+        }
+        return path
+    }
+
     /// Where the rays land on a lit edge, evenly spread, for "Show the rays".
     static func rays(_ lit: Lit, count: Int) -> [CGPoint] {
         guard count > 1 else { return [lit.peak] }
@@ -95,6 +138,7 @@ struct PipLight: SandboxPlugin {
     struct Light: View {
         let host: PipHost
         @AppStorage(PipLight.raysKey) private var showRays = false
+        @AppStorage(PipLight.cornersKey) private var wrapCorners = true
 
         var body: some View {
             let p = host.pipPosition
@@ -102,22 +146,41 @@ struct PipLight: SandboxPlugin {
             // "Light on panels" in Pip Looks, brighter while Pip wants you
             let brightness = BlobbyTune.current.panelLight * (1 + 0.8 * BlobbyAttention.level)
             let panels: [(frame: CGRect, corner: CGFloat)] = [(host.panelFrame, 26), (host.cardFrame, 22), (host.barFrame, 30)]
-            let lit = PipLight.light(from: p, panels: panels, reach: r * PipLight.reach)
+            let reach = r * PipLight.reach
+            let lit = PipLight.light(from: p, panels: panels, reach: reach)
             return Canvas { ctx, _ in
+                if wrapCorners {
+                    // one round fade centred on Pip: the same brightness as v1 at the nearest point, nothing at the reach
+                    let fade = GraphicsContext.Shading.radialGradient(
+                        Gradient(stops: (0...6).map { i -> Gradient.Stop in
+                            let f = Double(i) / 6
+                            return .init(color: PipLight.colour.opacity(min(1, 0.9 * brightness * (1 - f) * (1 - f))), location: f)
+                        }),
+                        center: p, startRadius: 0, endRadius: reach)
+                    for (frame, corner) in panels {
+                        let rim = PipLight.rim(from: p, frame: frame, corner: corner, reach: reach)
+                        guard !rim.isEmpty else { continue }
+                        ctx.stroke(rim, with: fade, style: StrokeStyle(lineWidth: 4, lineCap: .round))       // the soft spill
+                        ctx.stroke(rim, with: fade, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))     // the bright edge
+                    }
+                }
                 for l in lit {
-                    let k = l.strength * brightness
-                    let fade = GraphicsContext.Shading.linearGradient(
-                        Gradient(stops: [
-                            .init(color: PipLight.colour.opacity(0), location: 0),
-                            .init(color: PipLight.colour.opacity(min(1, 0.9 * k)), location: Self.place(l)),
-                            .init(color: PipLight.colour.opacity(0), location: 1),
-                        ]),
-                        startPoint: l.a, endPoint: l.b)
-                    var line = Path()
-                    line.move(to: l.a)
-                    line.addLine(to: l.b)
-                    ctx.stroke(line, with: fade, style: StrokeStyle(lineWidth: 4, lineCap: .round))     // the soft spill
-                    ctx.stroke(line, with: fade, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))   // the bright edge
+                    if !wrapCorners {
+                        // v1: a straight fade along the edge, from its brightest point
+                        let k = l.strength * brightness
+                        let fade = GraphicsContext.Shading.linearGradient(
+                            Gradient(stops: [
+                                .init(color: PipLight.colour.opacity(0), location: 0),
+                                .init(color: PipLight.colour.opacity(min(1, 0.9 * k)), location: Self.place(l)),
+                                .init(color: PipLight.colour.opacity(0), location: 1),
+                            ]),
+                            startPoint: l.a, endPoint: l.b)
+                        var line = Path()
+                        line.move(to: l.a)
+                        line.addLine(to: l.b)
+                        ctx.stroke(line, with: fade, style: StrokeStyle(lineWidth: 4, lineCap: .round))     // the soft spill
+                        ctx.stroke(line, with: fade, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))   // the bright edge
+                    }
                     if showRays {
                         for hit in PipLight.rays(l, count: PipLight.raysPerEdge) {
                             var ray = Path()
@@ -145,10 +208,13 @@ struct PipLight: SandboxPlugin {
 
     struct LightCard: View {
         @AppStorage(PipLight.raysKey) private var showRays = false
+        @AppStorage(PipLight.cornersKey) private var wrapCorners = true
 
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
                 Text("Pip glows, so the edges of panels near them catch the light: brightest nearest Pip, fading along the edge.")
+                Toggle("Wrap the corners", isOn: $wrapCorners)
+                    .accessibilityHint("The light follows the rounded corners too, instead of stopping where they start.")
                 Toggle("Show the rays", isOn: $showRays)
                     .accessibilityHint("Draws the lines Pip's light travels along, to see how it works.")
                 Text("Brightness: Pip Looks → Light on panels. Version 1 is plain lines; the pretty version comes next.")
