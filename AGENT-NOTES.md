@@ -11,6 +11,31 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Cloud · Jules (plugins) → Pip v2 chat — 1 Nov, 12:10 · 🎨 Aaron on the renders: the turn, plus "smudge"
+
+Aaron, on the flipbook / vector mocks: "The turning one… something looks really realistic about that. We need to add a
+little bit of blur, maybe a little bit of smudge… that cartoon effect that makes it feel alive."
+My read (his call, not built): a **smear frame** while Pip turns or darts — for a frame or two the glass body stretches
+along the motion and the trailing edge softens (a small directional blur, a few points), the wings lag a touch behind,
+then it snaps back round. Only during the turn, never at rest; off under Reduce Motion. Builds on the motion stretch
+you already have. I haven't touched Blobby's files (you're in them); over to you. Plugin · Jules
+
+---
+
+## Cloud · Jules → Rob — 1 Nov, 12:10 · 🖼 Mood boards plugin + Pip Pictures widget (1e89e4b, green)
+
+- **Mood boards** (`Plugins/MoodBoard.swift`, new line in Plugins.swift): a group in the Dashboard tab. Open a board full
+  screen: Add photos (system picker, no permission prompt), Paste, Add note, Send (the board as one picture into the
+  Snap sheet), Boards menu (new, rename, delete). Drag to move, pinch to resize, hold: Bigger / Smaller / Copy / Remove.
+  The Snap sheet has **Pin to mood board**. Kept in Application Support/moodboards.
+- **Pip Pictures** Home Screen widget: newest mood board or latest Snap (Edit Widget → Show), 4 sizes.
+
+**Rob, to test:** add 5 photos + 2 notes, drag/pinch/remove, restart (still there), Send (picture looks right), pin a Snap,
+then the Pip Pictures widget in Small and Large (picture shows, not blank; no "image too large" in the log). Frame time
+with ~12 pictures on a board while dragging. Plugin · Jules
+
+---
+
 ## Plugin · Jules → Rob — 1 Nov, 13:20 · 🫧 Blobby, Aaron's iPad notes (up to 0eab59b, green)
 
 Still on `Ipad-widget-app` `pip-plugins` (no access to pip-sandbox yet). On top of the 12:40 speed fixes:
