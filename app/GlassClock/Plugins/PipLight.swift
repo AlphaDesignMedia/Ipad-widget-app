@@ -50,7 +50,9 @@ struct PipLight: SandboxPlugin {
         Knob(name: "Falloff", key: "plug.piplight.falloff", range: 0.5...4, start: 2),     // 1 = even, higher = tighter
         Knob(name: "Warmth", key: "plug.piplight.warmth", range: 0...2, start: 1),         // 0 white, 1 v1, 2 golden
         Knob(name: "Bloom depth", key: "plug.piplight.bloomDepth", range: 4...48, start: 16), // points into the panel
+        Knob(name: "Glint size", key: "plug.piplight.glintSize", range: 1...12, start: 4),    // points
     ]
+    static let glintsKey = "plug.piplight.glints"
     static let bloomKey = "plug.piplight.bloom"
     /// Bloom is drawn as this many soft bands, deepest faintest: cheap, and an old-game stepped look.
     static let bloomBands = 4
@@ -146,6 +148,21 @@ struct PipLight: SandboxPlugin {
         return path
     }
 
+    /// "Glints": the point on a panel's rounded outline nearest `p`, and the way the edge runs there (for the sparkle's
+    /// streak). The nearest point of a rounded rectangle: pull `p` into the rectangle shrunk by the corner, then step back
+    /// out by the corner radius towards `p`. Works the same on straight edges and round corners. Nil if Pip is inside.
+    static func glint(from p: CGPoint, frame: CGRect, corner: CGFloat) -> (point: CGPoint, along: CGVector)? {
+        guard !frame.isNull, !frame.isEmpty, !frame.contains(p) else { return nil }
+        let c = min(corner, frame.width / 2, frame.height / 2)
+        let core = frame.insetBy(dx: c, dy: c)
+        let q = CGPoint(x: min(max(p.x, core.minX), core.maxX), y: min(max(p.y, core.minY), core.maxY))
+        let dx = p.x - q.x, dy = p.y - q.y
+        let len = hypot(dx, dy)
+        guard len > c else { return nil }
+        let nx = dx / len, ny = dy / len
+        return (CGPoint(x: q.x + nx * c, y: q.y + ny * c), CGVector(dx: -ny, dy: nx))
+    }
+
     /// Where the rays land on a lit edge, evenly spread, for "Show the rays".
     static func rays(_ lit: Lit, count: Int) -> [CGPoint] {
         guard count > 1 else { return [lit.peak] }
@@ -173,6 +190,8 @@ struct PipLight: SandboxPlugin {
         @AppStorage("plug.piplight.warmth") private var warmth = 1.0
         @AppStorage(PipLight.bloomKey) private var bloom = true
         @AppStorage("plug.piplight.bloomDepth") private var bloomDepth = 16.0
+        @AppStorage(PipLight.glintsKey) private var glints = true
+        @AppStorage("plug.piplight.glintSize") private var glintSize = 4.0
 
         var body: some View {
             let p = host.pipPosition
@@ -247,6 +266,33 @@ struct PipLight: SandboxPlugin {
                         }
                     }
                 }
+                if glints {
+                    // a tiny four-point sparkle where each panel's edge is nearest Pip: long along the edge, short across
+                    for (frame, corner) in panels {
+                        guard let g = PipLight.glint(from: p, frame: frame, corner: corner) else { continue }
+                        let d = hypot(p.x - g.point.x, p.y - g.point.y)
+                        guard d < reach else { continue }
+                        let k = min(1, brightness * pow(1 - Double(d / reach), falloff))
+                        let s = CGFloat(glintSize)
+                        let across = CGVector(dx: -g.along.dy, dy: g.along.dx)
+                        ctx.fill(Path(ellipseIn: CGRect(x: g.point.x - 2 * s, y: g.point.y - 2 * s, width: 4 * s, height: 4 * s)),
+                                 with: .radialGradient(Gradient(colors: [colour.opacity(0.5 * k), colour.opacity(0)]),
+                                                       center: g.point, startRadius: 0, endRadius: 2 * s))
+                        for (dir, length) in [(g.along, 3 * s), (across, 1.5 * s)] {
+                            let a = CGPoint(x: g.point.x - dir.dx * length, y: g.point.y - dir.dy * length)
+                            let b = CGPoint(x: g.point.x + dir.dx * length, y: g.point.y + dir.dy * length)
+                            var streak = Path()
+                            streak.move(to: a)
+                            streak.addLine(to: b)
+                            ctx.stroke(streak, with: .linearGradient(
+                                Gradient(colors: [colour.opacity(0), .white.opacity(k), colour.opacity(0)]),
+                                startPoint: a, endPoint: b), lineWidth: 1)
+                        }
+                        let dot = 0.35 * s
+                        ctx.fill(Path(ellipseIn: CGRect(x: g.point.x - dot, y: g.point.y - dot, width: 2 * dot, height: 2 * dot)),
+                                 with: .color(.white.opacity(k)))
+                    }
+                }
             }
             .blendMode(.plusLighter)
             .allowsHitTesting(false)
@@ -266,6 +312,7 @@ struct PipLight: SandboxPlugin {
         @AppStorage(PipLight.raysKey) private var showRays = false
         @AppStorage(PipLight.cornersKey) private var wrapCorners = true
         @AppStorage(PipLight.bloomKey) private var bloom = true
+        @AppStorage(PipLight.glintsKey) private var glints = true
 
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
@@ -274,6 +321,8 @@ struct PipLight: SandboxPlugin {
                     .accessibilityHint("The light follows the rounded corners too, instead of stopping where they start.")
                 Toggle("Bloom", isOn: $bloom)
                     .accessibilityHint("A soft glow on the panel, just inside the lit edge.")
+                Toggle("Glints", isOn: $glints)
+                    .accessibilityHint("A tiny sparkle where each panel's edge is nearest Pip. It only moves when Pip does.")
                 Toggle("Show the rays", isOn: $showRays)
                     .accessibilityHint("Draws the lines Pip's light travels along, to see how it works.")
                 ForEach(PipLight.knobs, id: \.key) { KnobRow(knob: $0) }
