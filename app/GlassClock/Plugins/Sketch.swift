@@ -21,18 +21,29 @@ struct Sketch: SandboxPlugin {
     // MARK: Data
 
     enum Tool: String, Codable, CaseIterable, Sendable {
-        case pen, marker, highlighter, eraser
-        var label: String { rawValue.capitalized }
+        // `rubber` is the proper eraser: it rubs out just the bit you touch (Aaron, 1 Nov: "we could have a proper
+        // eraser"). `eraser` keeps its saved name and stays the line eraser, which takes a whole line at once.
+        case pen, marker, highlighter, rubber, eraser
+        var label: String {
+            switch self {
+            case .rubber: "Eraser"
+            case .eraser: "Line eraser"
+            default: rawValue.capitalized
+            }
+        }
         var icon: String {
             switch self {
             case .pen: "pencil.tip"
             case .marker: "paintbrush.pointed"
             case .highlighter: "highlighter"
-            case .eraser: "eraser"
+            case .rubber: "eraser"
+            case .eraser: "eraser.line.dashed"
             }
         }
+        /// Both erasers rub out rather than draw.
+        var erases: Bool { self == .rubber || self == .eraser }
         /// Width and opacity from the web's TOOLS (k, a).
-        var k: Double { switch self { case .pen: 1; case .marker: 2.6; case .highlighter: 5; case .eraser: 4 } }
+        var k: Double { switch self { case .pen: 1; case .marker: 2.6; case .highlighter: 5; case .rubber, .eraser: 4 } }
         var alpha: Double { switch self { case .marker: 0.9; case .highlighter: 0.35; default: 1 } }
         /// How much pressure (or finger speed) changes the width. The highlighter is a flat chisel.
         var thinning: Double { switch self { case .pen: 1.1; case .marker: 0.5; default: 0 } }
@@ -130,6 +141,23 @@ struct Sketch: SandboxPlugin {
             j = i
         }
         return inside
+    }
+
+    /// The proper eraser: what's left of a stroke outside the eraser's circle, as one or more strokes.
+    nonisolated static func cut(_ s: Stroke, at p: CGPoint, within r: CGFloat) -> [Stroke] {
+        var pieces: [Stroke] = []
+        var piece = Stroke(tool: s.tool, colour: s.colour)
+        for i in 0..<s.count {
+            let q = s.point(i)
+            if hypot(q.x - p.x, q.y - p.y) < r + s.width(i) / 2 {
+                if piece.count > 1 { pieces.append(piece) }
+                piece = Stroke(tool: s.tool, colour: s.colour)
+            } else {
+                piece.add(q, Double(s.width(i)))
+            }
+        }
+        if piece.count > 1 { pieces.append(piece) }
+        return pieces
     }
 
     nonisolated static func touches(_ s: Stroke, _ p: CGPoint, within r: CGFloat) -> Bool {
@@ -237,7 +265,7 @@ struct Sketch: SandboxPlugin {
         func pick(colour c: String) {
             colour = c
             host?.setValue(c, "sketch", "colour")
-            if tool == .eraser { pick(previous == .eraser ? .pen : previous) }
+            if tool.erases { pick(previous.erases ? .pen : previous) }
         }
 
         func resize(_ s: Double) { size = s; host?.setValue(s, "sketch", "size") }
@@ -251,14 +279,14 @@ struct Sketch: SandboxPlugin {
         // Who may draw
 
         /// Another plugin has the Pencil for a moment (the Dashboard's Mark up), so Sketch lets it through.
-        @ObservationIgnored var standsAside = false
+        var standsAside = false
 
         func accepts(_ type: UITouch.TouchType) -> Bool {
             if standsAside { return false }
             switch type {
-            case .pencil: anywhere || open
-            case .direct: open && finger
-            default: false
+            case .pencil: return anywhere || open
+            case .direct: return open && finger
+            default: return false
             }
         }
 
@@ -283,7 +311,7 @@ struct Sketch: SandboxPlugin {
         /// Pencil double-tap and squeeze, as set in the iPad's Apple Pencil settings.
         func pencil(_ action: UIPencilPreferredAction) {
             switch action {
-            case .switchEraser: pick(tool == .eraser ? (previous == .eraser ? .pen : previous) : .eraser)
+            case .switchEraser: pick(tool.erases ? (previous.erases ? .pen : previous) : .rubber)
             case .switchPrevious: pick(previous)
             case .showColorPalette, .showInkAttributes, .showContextualPalette:
                 guard let host else { return }
@@ -312,7 +340,7 @@ struct Sketch: SandboxPlugin {
             samples.forEach(append)
             guard show, let d = draft else { return }
             if byPencil { host?.post(.ink(.pencil(lastRaw))) }
-            if d.tool == .eraser {
+            if d.tool.erases {
                 erase(along: d)
                 cursor = d.point(d.count - 1)
             } else {
@@ -323,7 +351,7 @@ struct Sketch: SandboxPlugin {
         func end() {
             defer { draft = nil; live = nil; cursor = nil }
             guard var d = draft else { return }
-            if d.tool == .eraser {
+            if d.tool.erases {
                 erase(along: d)
                 guard erasedAny else { return }
                 remember(before)
@@ -340,7 +368,7 @@ struct Sketch: SandboxPlugin {
         }
 
         func cancel() {
-            if draft?.tool == .eraser, erasedAny { strokes = before }
+            if draft?.tool.erases == true, erasedAny { strokes = before }
             draft = nil
             live = nil
             cursor = nil
@@ -349,7 +377,7 @@ struct Sketch: SandboxPlugin {
         private func append(_ s: Sample) {
             guard let d = draft else { return }
             lastRaw = s.at
-            if d.tool == .eraser { draft?.add(s.at, size * Tool.eraser.k); return }
+            if d.tool.erases { draft?.add(s.at, size * Tool.eraser.k); return }
             let dt = max(s.time - lastTime, 0.001)
             let speed = Double(hypot(s.at.x - lastAt.x, s.at.y - lastAt.y)) / dt
             // Streamline: each point eases 60% of the way to the Pencil, which smooths the wobble.
@@ -366,9 +394,19 @@ struct Sketch: SandboxPlugin {
         private func erase(along d: Stroke) {
             let r = CGFloat(size * Tool.eraser.k / 2)
             while erasedTo < d.count {
+                // Every few points between this sample and the last, so a quick swipe doesn't skip a line.
                 let p = d.point(erasedTo)
-                if strokes.contains(where: { Sketch.touches($0, p, within: r) }) {
-                    strokes.removeAll { Sketch.touches($0, p, within: r) }
+                let from = erasedTo > 0 ? d.point(erasedTo - 1) : p
+                let steps = max(1, Int((hypot(p.x - from.x, p.y - from.y) / max(1, r / 2)).rounded(.up)))
+                for n in 1...steps {
+                    let t = CGFloat(n) / CGFloat(steps)
+                    let q = CGPoint(x: from.x + (p.x - from.x) * t, y: from.y + (p.y - from.y) * t)
+                    guard strokes.contains(where: { Sketch.touches($0, q, within: r) }) else { continue }
+                    if d.tool == .rubber {
+                        strokes = strokes.flatMap { Sketch.touches($0, q, within: r) ? Sketch.cut($0, at: q, within: r) : [$0] }
+                    } else {
+                        strokes.removeAll { Sketch.touches($0, q, within: r) }
+                    }
                     erasedAny = true
                 }
                 erasedTo += 1
@@ -506,7 +544,7 @@ struct Sketch: SandboxPlugin {
 
     // MARK: Views
 
-    func overlay(_ host: PipHost) -> some View { Layer(ink: ink) }
+    func overlay(_ host: PipHost) -> some View { Layer(ink: ink).overlay { MiniTools(ink: ink) } }
     func card(_ host: PipHost) -> some View { Tools(ink: ink) }
 
     /// The ink over the app (and paper, while the card is open), plus the invisible view that hears the Pencil.
@@ -566,13 +604,13 @@ struct Sketch: SandboxPlugin {
         let ink: Ink
         var body: some View {
             let live = ink.live, cursor = ink.cursor, tool = ink.tool
-            let brush = tool == .eraser ? ink.size * Tool.eraser.k : max(8, Sketch.width(tool, size: ink.size, force: 0.5, altitude: nil, speed: 0))
+            let brush = tool.erases ? ink.size * Tool.eraser.k : max(8, Sketch.width(tool, size: ink.size, force: 0.5, altitude: nil, speed: 0))
             let colour = Color(hex: ink.colour)
             Canvas { ctx, _ in
                 if let live { Sketch.draw(live, in: ctx) }
                 if let c = cursor {
                     let ring = Path(ellipseIn: CGRect(x: c.x - brush / 2, y: c.y - brush / 2, width: brush, height: brush))
-                    if tool == .eraser {
+                    if tool.erases {
                         ctx.stroke(ring, with: .color(.secondary), lineWidth: Look.hoverRing)
                     } else {
                         ctx.fill(ring, with: .color(colour.opacity(Look.hoverInk)))
@@ -654,7 +692,7 @@ struct Sketch: SandboxPlugin {
         }
 
         private func swatch(_ i: Int) -> some View {
-            let c = Sketch.colours[i], picked = ink.colour == c && ink.tool != .eraser
+            let c = Sketch.colours[i], picked = ink.colour == c && !ink.tool.erases
             return Button { ink.pick(colour: c) } label: {
                 Circle().fill(Color(hex: c))
                     .overlay(Circle().inset(by: Look.swatchRing / 2).stroke(.white.opacity(0.7), lineWidth: Look.swatchRing))
@@ -669,6 +707,97 @@ struct Sketch: SandboxPlugin {
             .buttonStyle(.plain)
             .accessibilityLabel(Sketch.colourNames[i])
             .accessibilityAddTraits(picked ? .isSelected : [])
+        }
+    }
+
+    /// The little tool menu (Aaron, 1 Nov: "undo is just such a natural thing now that not having it feels weird…
+    /// a little tool menu would be nice. It is just a dev thing"). It floats over the app while there's ink to undo or
+    /// rub out and the Sketch panel is closed: Undo, Redo, Draw, Eraser, Line eraser, Clear, and More for the panel.
+    /// Drag the grip to move it (its spot is kept); the chevron tucks it into a small tab.
+    struct MiniTools: View {
+        let ink: Ink
+        @AppStorage("plug.sketch.miniTucked") private var tucked = false
+        /// Where it sits, as a share of the screen, so it stays put when the iPad turns.
+        @AppStorage("plug.sketch.miniX") private var x = 0.04
+        @AppStorage("plug.sketch.miniY") private var y = 0.42
+        @GestureState private var drag = CGSize.zero
+
+        var body: some View {
+            if !ink.open, !ink.standsAside, !ink.strokes.isEmpty || !ink.undos.isEmpty || !ink.redos.isEmpty {
+                GeometryReader { geo in
+                    pill(geo.size)
+                        .fixedSize()
+                        .position(x: place(x, drag.width, geo.size.width, margin: 30),
+                                  y: place(y, drag.height, geo.size.height, margin: tucked ? 50 : 190))
+                }
+                .transition(.opacity)
+            }
+        }
+
+        private func pill(_ size: CGSize) -> some View {
+            VStack(spacing: 2) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    .frame(width: 40, height: 22)
+                    .contentShape(.rect)
+                    .gesture(
+                        DragGesture()
+                            .updating($drag) { v, state, _ in state = v.translation }
+                            .onEnded { v in
+                                guard size.width > 0, size.height > 0 else { return }
+                                x = min(max(x + v.translation.width / size.width, 0), 1)
+                                y = min(max(y + v.translation.height / size.height, 0), 1)
+                            }
+                    )
+                    .accessibilityHidden(true)
+                if !tucked {
+                    button("Undo", "arrow.uturn.backward") { ink.undo() }.disabled(ink.undos.isEmpty)
+                    button("Redo", "arrow.uturn.forward") { ink.redo() }.disabled(ink.redos.isEmpty)
+                    Divider().frame(width: 24).padding(.vertical, 2)
+                    tool("Draw", "pencil.tip", on: !ink.tool.erases) { if ink.tool.erases { ink.pick(.pen) } }
+                    tool(Tool.rubber.label, Tool.rubber.icon, on: ink.tool == .rubber) { ink.pick(.rubber) }
+                    tool(Tool.eraser.label, Tool.eraser.icon, on: ink.tool == .eraser) { ink.pick(.eraser) }
+                    Divider().frame(width: 24).padding(.vertical, 2)
+                    button("Clear", "trash") { ink.clear() }.disabled(ink.strokes.isEmpty)
+                    button("More tools", "slider.horizontal.3") {
+                        withAnimation(.easeOut(duration: 0.2)) { ink.host?.openCard = "sketch" }
+                    }
+                }
+                button(tucked ? "Show drawing tools" : "Tuck the drawing tools away", tucked ? "chevron.down" : "chevron.up") {
+                    withAnimation(.easeOut(duration: 0.2)) { tucked.toggle() }
+                }
+            }
+            .padding(4)
+            .appGlass(.capsule)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Drawing tools")
+        }
+
+        private func button(_ name: String, _ icon: String, _ action: @escaping () -> Void) -> some View {
+            Button(action: action) {
+                Image(systemName: icon).font(.system(size: 16, weight: .semibold))
+                    .frame(width: 40, height: 36).contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(name)
+        }
+
+        private func tool(_ name: String, _ icon: String, on: Bool, _ action: @escaping () -> Void) -> some View {
+            Button(action: action) {
+                Image(systemName: icon).font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(on ? Color.white : Color.primary)
+                    .frame(width: 34, height: 34)
+                    .background(on ? PipLook.accent : .clear, in: .circle)
+                    .frame(width: 40, height: 38).contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(name)
+            .accessibilityAddTraits(on ? .isSelected : [])
+        }
+
+        /// A share of the screen plus the drag, in points, kept clear of the edges.
+        private func place(_ share: Double, _ moved: CGFloat, _ length: CGFloat, margin: CGFloat) -> CGFloat {
+            min(max(CGFloat(share) * length + moved, margin), max(margin, length - margin))
         }
     }
 
