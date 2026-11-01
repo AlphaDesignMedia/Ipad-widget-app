@@ -250,7 +250,11 @@ struct Sketch: SandboxPlugin {
 
         // Who may draw
 
+        /// Another plugin has the Pencil for a moment (the Dashboard's Mark up), so Sketch lets it through.
+        @ObservationIgnored var standsAside = false
+
         func accepts(_ type: UITouch.TouchType) -> Bool {
+            if standsAside { return false }
             switch type {
             case .pencil: anywhere || open
             case .direct: open && finger

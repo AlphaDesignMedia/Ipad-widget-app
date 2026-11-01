@@ -132,6 +132,7 @@ extension Dashboard {
                 .padding(.top, 8)
             }
             .onAppear { feed.refresh() }
+            .modifier(MarkUp(host: host))      // draw on the dashboard and snap it to send (DashboardMarkup.swift)
         }
 
         private func shows(_ g: DashGroup, _ data: DashboardData) -> Bool {
