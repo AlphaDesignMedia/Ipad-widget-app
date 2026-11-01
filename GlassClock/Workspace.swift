@@ -851,15 +851,20 @@ struct SettingsCard<Content: View>: View {
                 .simultaneousGesture(titleFlick)
                 .accessibilityAddTraits(.isHeader)
             }
-            Group(subviews: content) { rows in
-                ForEach(rows) { row in
-                    row.padding(.vertical, rowSpacing)
-                    if row.id != rows.last?.id { Divider() }
+            // The chips and buttons in a card are drawn as one piece of glass rather than each on
+            // its own, which is far cheaper (measured on the iPad, 1 Nov 2026). Spacing 0 keeps
+            // them from melting into each other.
+            GlassEffectContainer(spacing: 0) {
+                Group(subviews: content) { rows in
+                    ForEach(rows) { row in
+                        row.padding(.vertical, rowSpacing)
+                        if row.id != rows.last?.id { Divider() }
+                    }
                 }
+                .padding(.horizontal, Corner.cardPadding)
+                .padding(.top, title == nil ? 4 : 6)
+                .padding(.bottom, footer == nil ? 10 : 6)
             }
-            .padding(.horizontal, Corner.cardPadding)
-            .padding(.top, title == nil ? 4 : 6)
-            .padding(.bottom, footer == nil ? 10 : 6)
             if let footer {
                 Text(footer)
                     .font(.footnote)

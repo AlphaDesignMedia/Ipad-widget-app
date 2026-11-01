@@ -2189,7 +2189,7 @@ struct ContentView: View {
             // it, as widgets do on the iPad's Home Screen (owner, 22 Oct 2026), rather than its
             // text jumping when the size snaps.
             LiveClockCard(live: liveEdit, style: style, date: context.date, homeScreen: homeScreen,
-                          previewSize: previewSize, card: card, scale: scale)
+                          previewSize: previewSize, card: card, scale: scale, eases: !reduceMotion)
         }
         // (The glass corner highlights while editing are gone, owner 22 Oct 2026.)
         // A small glass tag on the bottom edge, so the preview isn't mistaken for the real
@@ -3885,9 +3885,9 @@ struct ContentView: View {
 
     /// Rolls the dice on `parts`, leaving locked parts alone.
     private func roll(_ parts: Set<StylePart>) {
-        withAnimation(reduceMotion ? nil : .smooth) {
-            style = style.taking(parts.subtracting(lockedParts), from: .lucky(from: style))
-        }
+        // Not animated here: the preview eases into the new style by itself (`LiveClockCard`),
+        // and animating the whole screen with it made every card and glass tint move too.
+        style = style.taking(parts.subtracting(lockedParts), from: .lucky(from: style))
     }
 
     /// A mood's style (already with locked parts kept) and its backdrop.
@@ -3897,7 +3897,7 @@ struct ContentView: View {
         guard !moodSettling else { pendingMood = (mood, scene); return }
         moodSettling = true
         quietBackdrop = true
-        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { style = mood }
+        style = mood   // the preview eases into it by itself
         backdrop = scene
         Task {
             try? await Task.sleep(for: .seconds(0.45))
@@ -3913,10 +3913,8 @@ struct ContentView: View {
 
     /// Applies a preset, leaving locked parts alone.
     private func use(_ preset: ClockStyle) {
-        withAnimation(reduceMotion ? nil : .smooth) {
-            style = style.taking(Set(StylePart.allCases).subtracting(lockedParts), from: preset)
-            if !lockedParts.contains(.font) { suggestsFont = true }
-        }
+        style = style.taking(Set(StylePart.allCases).subtracting(lockedParts), from: preset)   // the preview eases by itself
+        if !lockedParts.contains(.font) { withAnimation(reduceMotion ? nil : .smooth) { suggestsFont = true } }
     }
 
     /// Lock chips: a locked part keeps its settings when a preset or Lucky is used.

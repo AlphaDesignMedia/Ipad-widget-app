@@ -21,8 +21,11 @@ struct LiveClockCard: View {
     var previewSize: PreviewSize
     var card: CGSize
     var scale: CGFloat
+    /// Eases into a new style (a preset, a mood, Lucky). Off with Reduce Motion.
+    var eases = true
 
     var body: some View {
+        let dragging = live.style != nil
         let shown = live.style ?? style
         ZStack {
             ClockFace(date: date, style: shown, simulatedAccent: homeScreen.accent,
@@ -38,6 +41,10 @@ struct LiveClockCard: View {
             // colour mask between styles was the costliest part of a tap on the Home Screen
             // picker (2026-10-21). Size changes still animate.
             .transaction(value: homeScreen) { $0.animation = nil }
+            // Only the preview eases into a new style; the rest of the screen just switches,
+            // which costs far less than animating every card and glass tint along with it.
+            // A held slider follows the finger exactly, with no easing.
+            .animation(eases && !dragging ? .smooth(duration: 0.3) : nil, value: shown)
     }
 }
 
