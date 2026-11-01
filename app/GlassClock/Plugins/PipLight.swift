@@ -89,7 +89,7 @@ struct PipLight: SandboxPlugin {
     // MARK: Views
 
     func overlay(_ host: PipHost) -> some View { Light(host: host) }
-    func card(_ host: PipHost) -> some View { Card() }
+    func card(_ host: PipHost) -> some View { LightCard() }
 
     /// The light over the app: each lit stretch as a line that fades out from its brightest point.
     struct Light: View {
@@ -143,7 +143,7 @@ struct PipLight: SandboxPlugin {
         }
     }
 
-    struct Card: View {
+    struct LightCard: View {
         @AppStorage(PipLight.raysKey) private var showRays = false
 
         var body: some View {
