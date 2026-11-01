@@ -28,7 +28,7 @@ Reset puts the sliders back. Pip off or away: nothing. Nothing moves by itself (
 
 ## On Aaron's iPad
 
-Up to glints (da0eb4c, Rob's 15:48 install). **Colour from Pip is new**: simulator build OK, GitHub on push, not yet
+Up to glints (da0eb4c, Rob's 15:48 install). **Colour from Pip and the alignment fix are new**: simulator build OK, GitHub on push, not yet
 on the iPad.
 
 ## Open
@@ -37,8 +37,9 @@ on the iPad.
    bar, cards and side panel. GitHub **issue #3** (Robyn, Aaron approved). Pip's Light asked there for frame + corner
    radius, closed panels dropped. When it lands: add them to the `panels` list in `Light` (one line). Same data feeds
    Robyn's bump / slip behind panels.
-2. **Panel corner radii are guesses** (panel 26, card 22, bar 30). If the light sits off the curve, match them to the
-   real ones.
+2. **Fixed after Aaron's iPad screenshot:** the bar's light sat a status bar lower than the bar (the host's frames are
+   window space, Pip's are inside the safe area). Now shifted like Pip's Weight / Tidy Pip do, and the bar is a capsule.
+   Panel and card corners (26, 22) are still guesses: match them if the light sits off the curve.
 3. **Frame time** near a panel with everything on: not measured yet with bloom + glints. Turn steps off one by one if
    it's costly.
 4. Ideas not built: "other lights" (the clock, the sun in Weather) using the same core; a live preview while dragging

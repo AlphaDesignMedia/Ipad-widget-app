@@ -225,7 +225,13 @@ struct PipLight: SandboxPlugin {
             let plain = PipLight.colour(warmth: warmth)
             let mood = fromPip ? PipLight.moodColour(host.pip) : nil
             let colour = mood.map { plain.mix(with: $0, by: moodTint) } ?? plain
-            let panels: [(frame: CGRect, corner: CGFloat)] = [(host.panelFrame, 26), (host.cardFrame, 22), (host.barFrame, 30)]
+            // the host's frames are in window space; Pip's are inside the safe area (Aaron's iPad, 1 Nov: the bar's light sat
+            // a status bar lower than the bar). The bar is a capsule: a huge corner is clamped to half its height.
+            let inset = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+                .flatMap(\.windows).first(where: \.isKeyWindow)?.safeAreaInsets ?? .zero
+            let mine = { (f: CGRect) in f.isNull ? f : f.offsetBy(dx: -inset.left, dy: -inset.top) }
+            let panels: [(frame: CGRect, corner: CGFloat)] = [(mine(host.panelFrame), 26), (mine(host.cardFrame), 22),
+                                                              (mine(host.barFrame), .greatestFiniteMagnitude)]
             let reach = r * CGFloat(reachK)
             let lit = PipLight.light(from: p, panels: panels, reach: reach)
             let spillStyle = StrokeStyle(lineWidth: spill, lineCap: .round)                // the soft spill

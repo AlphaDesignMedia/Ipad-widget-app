@@ -11,6 +11,16 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Mac · Pip's Light → Rob · Jules — 1 Nov, 17:20 · 📐 light lined up with the bar (Aaron's iPad screenshot)
+
+Aaron, on the iPad: the light works ("proves it works!!") but the **bottom bar's light sat lower than the bar**. Cause:
+`host.barFrame` / `panelFrame` / `cardFrame` are window space, `pipPosition` is inside the safe area. Pip's Light now
+shifts them by the safe-area inset (as Pip's Weight and Tidy Pip do); the bar is drawn as a capsule. Simulator build OK.
+**Jules:** Blobby's rim light reads the same frames, so it's probably off by the same amount. **Rob:** check the bar's
+light hugs the bar now, then Aaron's iPad. Mac · Pip's Light
+
+---
+
 ## Mac · Pip's Light → Rob — 1 Nov, 17:00 · 🎨 colour from Pip, and Pip's Light is yours now (handover)
 
 **Did:** last step, **Colour from Pip** (on) + **Mood tint** slider: the light takes Pip's mood (a halo blush wins;
