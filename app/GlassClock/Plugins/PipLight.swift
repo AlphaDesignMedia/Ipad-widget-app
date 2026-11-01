@@ -11,9 +11,13 @@ import SwiftUI
 // nat/pip-light-brief.md. The maths (`PipLight.light`) is the core they build on; other plugins can call it.
 // Where: the edges of the open panel, the open card and the plugin bar. Pip off or away: nothing. Nothing takes touches.
 // Cost: a few lines in one Canvas, redrawn only when Pip moves. Simpler motion: the same (nothing animates by itself).
+// v2 (Pip's Light agent, 1 Nov, each with its own switch in the card): Wrap the corners · sliders (Aaron: "experiment
+// with sliders and values") · Bloom · Glints · Colour from Pip. Waiting on core: the app's own panels (Settings, Groups,
+// the widget panel) aren't reported to the host yet (GitHub issue #3); add them to `panels` in `Light` when they are.
+// Handover: nat/pip-light-handover.md.
 
 struct PipLight: SandboxPlugin {
-    let info = PluginInfo(id: "piplight", name: "Pip's Light", version: "v1", shelf: .dream,
+    let info = PluginInfo(id: "piplight", name: "Pip's Light", version: "v2", shelf: .dream,
                           icon: "light.max", what: "Pip glows, so the edges of panels near them catch the light.")
 
     // MARK: Data
@@ -51,8 +55,26 @@ struct PipLight: SandboxPlugin {
         Knob(name: "Warmth", key: "plug.piplight.warmth", range: 0...2, start: 1),         // 0 white, 1 v1, 2 golden
         Knob(name: "Bloom depth", key: "plug.piplight.bloomDepth", range: 4...48, start: 16), // points into the panel
         Knob(name: "Glint size", key: "plug.piplight.glintSize", range: 1...12, start: 4),    // points
+        Knob(name: "Mood tint", key: "plug.piplight.moodTint", range: 0...1, start: 0.6),     // 0 none, 1 full colour
     ]
     static let glintsKey = "plug.piplight.glints"
+    static let moodKey = "plug.piplight.mood"
+
+    /// "Colour from Pip": the light takes Pip's mood. A blush on Pip's halo wins; otherwise their face picks one. Nil:
+    /// the plain light (Warmth). Soft, light colours only, so it stays light, never a stain.
+    static func moodColour(_ pip: PipModel) -> Color? {
+        if let blush = pip.halo { return blush }
+        if pip.asleep { return Color(red: 0.75, green: 0.72, blue: 1) }             // lavender
+        if pip.dizzy { return Color(red: 0.72, green: 1, blue: 0.82) }              // mint
+        if pip.happy { return Color(red: 1, green: 0.84, blue: 0.5) }               // gold
+        switch pip.mood {
+        case .surprised: return .white
+        case .curious: return Color(red: 0.62, green: 0.9, blue: 1)                 // sky
+        case .shy: return Color(red: 1, green: 0.72, blue: 0.82)                    // pink
+        case .sleepy: return Color(red: 0.75, green: 0.72, blue: 1)                 // lavender
+        default: return nil
+        }
+    }
     static let bloomKey = "plug.piplight.bloom"
     /// Bloom is drawn as this many soft bands, deepest faintest: cheap, and an old-game stepped look.
     static let bloomBands = 4
@@ -192,13 +214,17 @@ struct PipLight: SandboxPlugin {
         @AppStorage("plug.piplight.bloomDepth") private var bloomDepth = 16.0
         @AppStorage(PipLight.glintsKey) private var glints = true
         @AppStorage("plug.piplight.glintSize") private var glintSize = 4.0
+        @AppStorage(PipLight.moodKey) private var fromPip = true
+        @AppStorage("plug.piplight.moodTint") private var moodTint = 0.6
 
         var body: some View {
             let p = host.pipPosition
             let r: CGFloat = host.pip.radius
             // "Light on panels" in Pip Looks × Strength here, brighter while Pip wants you
             let brightness = BlobbyTune.current.panelLight * strength * (1 + 0.8 * BlobbyAttention.level)
-            let colour = PipLight.colour(warmth: warmth)
+            let plain = PipLight.colour(warmth: warmth)
+            let mood = fromPip ? PipLight.moodColour(host.pip) : nil
+            let colour = mood.map { plain.mix(with: $0, by: moodTint) } ?? plain
             let panels: [(frame: CGRect, corner: CGFloat)] = [(host.panelFrame, 26), (host.cardFrame, 22), (host.barFrame, 30)]
             let reach = r * CGFloat(reachK)
             let lit = PipLight.light(from: p, panels: panels, reach: reach)
@@ -313,6 +339,7 @@ struct PipLight: SandboxPlugin {
         @AppStorage(PipLight.cornersKey) private var wrapCorners = true
         @AppStorage(PipLight.bloomKey) private var bloom = true
         @AppStorage(PipLight.glintsKey) private var glints = true
+        @AppStorage(PipLight.moodKey) private var fromPip = true
 
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
@@ -323,6 +350,8 @@ struct PipLight: SandboxPlugin {
                     .accessibilityHint("A soft glow on the panel, just inside the lit edge.")
                 Toggle("Glints", isOn: $glints)
                     .accessibilityHint("A tiny sparkle where each panel's edge is nearest Pip. It only moves when Pip does.")
+                Toggle("Colour from Pip", isOn: $fromPip)
+                    .accessibilityHint("The light takes Pip's mood: gold when happy, pink when shy, lavender when sleepy.")
                 Toggle("Show the rays", isOn: $showRays)
                     .accessibilityHint("Draws the lines Pip's light travels along, to see how it works.")
                 ForEach(PipLight.knobs, id: \.key) { KnobRow(knob: $0) }
