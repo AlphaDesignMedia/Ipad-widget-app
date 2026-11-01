@@ -79,6 +79,7 @@ extension Dashboard {
     @MainActor static func setAnswer(_ a: Answer?, _ q: String, _ host: PipHost) {
         host.setValue(a?.rawValue, "dashboard", stableKey(q))
         AnswerBook.shared.changes += 1
+        publish(host)      // the Home Screen widget shows what still needs you
     }
 
     /// The FOR DASHBOARD paste: every answered question, in plain words.

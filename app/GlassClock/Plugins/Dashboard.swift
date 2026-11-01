@@ -305,6 +305,7 @@ struct Dashboard: SandboxPlugin {
                 if let h, let live = try? JSONDecoder().decode(DashboardData.Live.self, from: h) { next.live = live }
                 if b != nil || h != nil {
                     data = next
+                    Dashboard.publish(PipHost.shared)      // the Home Screen widget's copy (DashboardHomeScreen.swift)
                     let now = Date()
                     lastGood = now
                     UserDefaults.standard.set(now, forKey: "plug.dashboard.lastGood")
@@ -361,6 +362,9 @@ struct Dashboard: SandboxPlugin {
     }
 
     private let mind = Mind()
+
+    /// Fills the Home Screen widget's copy at launch, so it's ready before the dashboard is first opened.
+    func start(_ host: PipHost) throws { Dashboard.publish(host) }
 
     // MARK: Views
 

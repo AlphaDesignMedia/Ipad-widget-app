@@ -491,6 +491,13 @@ struct ContentView: View {
             // Opening the app also nudges the widget, so it never stays out of date for long.
             if scenePhase == .active { WidgetCenter.shared.reloadAllTimelines() }
         }
+        // Pip Sandbox: a Home Screen widget can open a plugin's tab, e.g. pipsandbox://open/dashboard (Jules, 1 Nov).
+        .onOpenURL { url in
+            let host = PipHost.shared
+            guard url.scheme == "pipsandbox", url.host == "open",
+                  let id = url.pathComponents.last, host.screenPlugins.contains(where: { $0.info.id == id }) else { return }
+            host.openScreen = id
+        }
     }
 
     /// The backdrop fills the window, with the preview on it and the settings in a fixed glass
