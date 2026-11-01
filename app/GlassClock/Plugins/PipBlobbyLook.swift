@@ -81,6 +81,9 @@ struct PipBlobbyBody: View {
     var look: CGSize = .zero
     var facing: Double = 1
     var emoji: String? = nil
+    /// When the emoji popped in (same clock as `time`). nil: it stays. Otherwise it's a moment: it pops in, he looks
+    /// at you, and after a couple of seconds it melts back into his own face (Aaron, 1 Nov).
+    var emojiAt: Double? = nil
     var simpler: Bool = false
     var flapping: Bool = false
     var halo: Color = PipLook.glow
@@ -88,12 +91,15 @@ struct PipBlobbyBody: View {
     var body: some View {
         let r = radius
         let box: CGFloat = r * 8
-        let faceEmoji: Bool = emoji.map(BlobbyPicks.isFace) ?? false
-        // side view most of the time; the front view while turning round, and whenever a face emoji is on (he looks at you)
-        let row: BlobbySheet.Row = faceEmoji ? .frontBlank : (abs(facing) < 0.55 ? .front : .side)
+        let m = moment
+        let shown: String? = m.vis > 0.01 ? emoji : nil
+        let faceEmoji: Bool = shown.map(BlobbyPicks.isFace) ?? false
+        // side view most of the time; the front view while turning round, and while a face emoji is on (he looks at
+        // you): his own face underneath, the faceless frame over it, so as the emoji goes his face comes back through
+        let row: BlobbySheet.Row = faceEmoji || abs(facing) < 0.55 ? .front : .side
         let closed: Bool = face == .blink || face == .asleep || face == .sleepy
         let (i, next, blend) = flapFrames
-        let shut: Bool = closed && row != .frontBlank
+        let shut: Bool = closed && !faceEmoji
         let mirror: CGFloat = facing < 0 ? -1 : 1
         ZStack {
             // his glow, under everything
@@ -102,8 +108,9 @@ struct PipBlobbyBody: View {
                 sprite(img)
                 // smoothing: the next frame fades in over this one, so the flipbook flows instead of clunking
                 if !shut, blend > 0.02, let nxt = BlobbySheet.frame(row, next) { sprite(nxt).opacity(blend) }
-                if let e = emoji {
-                    emojiView(e, isFace: faceEmoji)
+                if faceEmoji, let blank = BlobbySheet.frame(.frontBlank, i) { sprite(blank).opacity(m.vis) }
+                if let e = shown {
+                    emojiView(e, isFace: faceEmoji, vis: m.vis, pop: m.pop)
                     // the glass's own shine back over the emoji, so it sits inside him, not on top
                     sprite(img).blendMode(.screen).opacity(0.55)
                         .mask(Circle().frame(width: r * 2, height: r * 2))
@@ -125,6 +132,17 @@ struct PipBlobbyBody: View {
             .offset(x: (BlobbySheet.frameW / 2 - BlobbySheet.headX) * s, y: (BlobbySheet.frameH / 2 - BlobbySheet.headY) * s)
     }
 
+    /// The emoji moment: pops in (0.3 s, a little overshoot), stays 2.5 s, melts away (0.6 s). Reduce Motion: no pop.
+    private var moment: (vis: Double, pop: Double) {
+        guard let at = emojiAt else { return (1, 1) }
+        let since = time - at
+        if since < 0 { return (0, 1) }
+        if since < 0.3 { let v = since / 0.3; return (v, simpler ? 1 : 0.6 + 0.4 * sin(v * Double.pi / 2) * 1.08) }
+        if since < 2.8 { return (1, 1) }
+        if since < 3.4 { return (1 - (since - 2.8) / 0.6, 1) }
+        return (0, 1)
+    }
+
     /// The wing beat: flying, the 3D page's quick beat; resting, a slow gentle one. Still with Reduce Motion.
     /// Gives this frame, the next one and how far we are between them (for the fade).
     private var flapFrames: (Int, Int, Double) {
@@ -138,19 +156,20 @@ struct PipBlobbyBody: View {
 
     /// Floats in the very middle of his head (Aaron, 1 Nov: "isn't perfectly central"), facing you, breathing softly;
     /// a face emoji is his face, also centred, as he looks at you. Drawn mirrored back, so it never reads backwards.
-    private func emojiView(_ e: String, isFace: Bool) -> some View {
+    private func emojiView(_ e: String, isFace: Bool, vis: Double, pop: Double) -> some View {
         let r = radius
         let t: Double = simpler ? 0 : time
         let drift: CGFloat = isFace ? 0.3 : 1
         let dx = CGFloat(sin(t * 0.7) * 0.05) * r * drift
         let dy = CGFloat(sin(t * 1.1 + 1) * 0.06) * r * drift
         let spot = CGPoint.zero                                  // dead centre of his head (Aaron, 1 Nov)
-        let pulse = CGFloat(1 + 0.04 * (0.5 + 0.5 * sin(t * 2.2)))
+        // the breathing pulse, the pop in, and shrinking a little as it melts away
+        let pulse = CGFloat((1 + 0.04 * (0.5 + 0.5 * sin(t * 2.2))) * pop * (0.7 + 0.3 * vis))
         return Text(e)
             .font(.system(size: r * (isFace ? 1.15 : 0.95)))
             .scaleEffect(x: (facing < 0 ? -1 : 1) * pulse, y: pulse)
             .rotationEffect(.radians(simpler ? 0 : sin(t * 0.8) * 0.06))
-            .opacity(isFace ? 1 : 0.92)
+            .opacity((isFace ? 1 : 0.92) * vis)
             .offset(x: spot.x + dx, y: spot.y + dy)
     }
 }

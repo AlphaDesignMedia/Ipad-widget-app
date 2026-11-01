@@ -81,6 +81,7 @@ struct PipLooks: SandboxPlugin {
         @State private var turn = DropTurn()
         @State private var blobbyTurn = BlobbyTurn()
         @AppStorage("plug.looks.emoji") private var inside: String = "⭐"
+        @State private var emoteAt: Double = 0          // when the last emoji popped in (a moment, then his face again)
 
         var body: some View {
             let look = Look(rawValue: chosen) ?? .classic
@@ -112,10 +113,10 @@ struct PipLooks: SandboxPlugin {
         /// What Blobby has inside: an emoji (Apple's own), or nothing. Face emoji become his face.
         private var insidePicker: some View {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Inside him").font(.system(size: 13.5, weight: .semibold))
+                Text("Inside him (tap one: he shows it, then back to himself)").font(.system(size: 13.5, weight: .semibold))
                 HStack(spacing: 4) {
                     ForEach([""] + BlobbyPicks.emoji, id: \.self) { e in
-                        Button { inside = e } label: {
+                        Button { inside = e; emoteAt = Date().timeIntervalSinceReferenceDate } label: {
                             Text(e.isEmpty ? "None" : e).font(.system(size: e.isEmpty ? 12 : 17))
                                 .frame(maxWidth: .infinity, minHeight: 36)
                         }
@@ -155,7 +156,7 @@ struct PipLooks: SandboxPlugin {
                             .position(x: dropAt.x, y: dropAt.y + bob)
                         PipBlobbyBody(radius: 20, time: t, face: blink ? .blink : .awake, look: aimBlobby ?? .zero,
                                       facing: blobbyTurn.step(look: aimBlobby ?? .zero, at: t, snap: simpler),
-                                      emoji: inside.isEmpty ? nil : inside, simpler: simpler, flapping: !simpler)
+                                      emoji: inside.isEmpty ? nil : inside, emojiAt: simpler ? nil : emoteAt, simpler: simpler, flapping: !simpler)
                             .position(x: blobbyAt.x, y: blobbyAt.y + bob)
                         label("Classic", on: look == .classic).position(x: classicAt.x, y: h - 14)
                         label("Drop", on: look == .drop).position(x: dropAt.x, y: h - 14)
