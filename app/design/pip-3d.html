@@ -5,75 +5,122 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pip 3D · trailing circles</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1020; font: 14px/1.35 -apple-system, system-ui, "Helvetica Neue", sans-serif; user-select: none; -webkit-user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #c9d2e3; font: 14px/1.35 -apple-system, system-ui, "Helvetica Neue", sans-serif; user-select: none; -webkit-user-select: none; }
   #stage { position: absolute; inset: 0; touch-action: none; }
   #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  #panel { position: absolute; right: 16px; top: 16px; width: 290px; max-height: calc(100% - 32px); overflow: auto; padding: 14px 16px; border-radius: 22px;
-           background: rgba(255,255,255,.86); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); color: #1b1d28; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+  #panel { position: absolute; right: 16px; top: 16px; width: 300px; max-height: calc(100% - 32px); overflow: auto; padding: 14px 16px; border-radius: 22px;
+           background: rgba(255,255,255,.88); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); color: #1b1d28; box-shadow: 0 8px 30px rgba(0,0,0,.22); }
   #panel h1 { margin: 0 0 4px; font-size: 17px; } #panel p { margin: 0 0 10px; color: #555; font-size: 12.5px; }
-  .lbl { margin-top: 12px; font-size: 11px; letter-spacing: 1px; font-weight: 600; color: #777; text-transform: uppercase; }
+  .tag { font-size: 11px; font-weight: 700; color: #b5480b; background: #ffe9d6; border-radius: 8px; padding: 2px 7px; vertical-align: middle; }
+  .note { font-size: 11.5px; color: #8a5a2b; background: #fff6ea; border-radius: 10px; padding: 8px 10px; }
+  details { margin-top: 10px; border-top: 1px solid #e6e8ef; padding-top: 8px; }
+  summary { font-weight: 700; font-size: 13px; cursor: pointer; }
+  .lbl { margin-top: 10px; font-size: 11px; letter-spacing: 1px; font-weight: 600; color: #777; text-transform: uppercase; }
   .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .seg button, .btn { border: 0; border-radius: 14px; padding: 7px 12px; background: #e8eaf2; color: #1b1d28; font: 600 13px -apple-system, system-ui, sans-serif; }
+  .seg button, .btn { border: 0; border-radius: 14px; padding: 7px 11px; background: #e8eaf2; color: #1b1d28; font: 600 12.5px -apple-system, system-ui, sans-serif; }
   .seg button.on { background: #1b1d28; color: #fff; }
-  .row { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; } .row span:last-child { color: #777; }
+  .row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; } .row span:last-child { color: #777; }
   input[type=range] { width: 100%; }
   label.chk { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 13px; }
-  #hint { position: absolute; left: 16px; bottom: 16px; color: rgba(255,255,255,.75); font-size: 13px; pointer-events: none; }
-  #nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #fff; padding: 40px; text-align: center; }
-  @media (max-width: 700px) { #panel { width: auto; left: 12px; right: 12px; top: auto; bottom: 12px; max-height: 45%; } #hint { display: none; } }
+  #emoji button { font-size: 19px; padding: 3px 8px; } #emoji button[data-e=""] { font-size: 12.5px; padding: 7px 11px; }
+  #eown { width: 64px; border: 0; border-radius: 14px; padding: 4px 8px; background: #e8eaf2; font-size: 19px; text-align: center; }
+  #hint { position: absolute; left: 16px; bottom: 16px; color: rgba(20,24,40,.65); font-size: 13px; pointer-events: none; }
+  #nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 40px; text-align: center; }
+  @media (max-width: 700px) { #panel { width: auto; left: 12px; right: 12px; top: auto; bottom: 12px; max-height: 46%; } #hint { display: none; } }
 </style>
 </head>
 <body>
 <div id="stage"><canvas id="c"></canvas></div>
 <div id="nogl">This page needs WebGL, which this browser has switched off.</div>
-<div id="hint">Drag anywhere: Pip follows. Still, it's a blob from the front. Moving, it trails like a flame.</div>
+<div id="hint">Free: drag anywhere and Pip follows. Peek, Sit and Hang put Pip on the glass panel.</div>
 <div id="panel">
-  <h1>Pip in 3D <span style="font-size:11px;font-weight:700;color:#b5480b;background:#ffe9d6;border-radius:8px;padding:2px 7px;vertical-align:middle">EXPERIMENT</span></h1>
-  <p>From Aaron's drawings (Sheets A and B). V2 direction: a teardrop made of circles trailing from the centre, each one joined to the next by straight tangent lines (like the drawings), so the sides run straight to the tip and bend into a flame when Pip moves. Real 3D, lit. A toy to judge the shape.</p>
-  <p style="font-size:11.5px;color:#8a5a2b;background:#fff6ea;border-radius:10px;padding:8px 10px">Not Pip's approved design. From Aaron's drawings: the teardrop, straight sides, tall oval eyes, the lean, the paddle wing shape (Sheet B "maybe"). <b>Made up by Jules, needs Aaron's drawing:</b> where the wings join and their angles, the flap, how far it leans, the curl amount, the glass recipe.</p>
-  <div class="lbl">Look</div>
-  <div class="seg" id="look"><button data-v="3" class="on">Liquid glass</button><button data-v="0">Pearl</button><button data-v="1">Fairy blue</button><button data-v="2">Silhouette</button></div>
-  <div class="lbl">Behind</div>
-  <div class="seg" id="backdrop"><button data-v="1" class="on">Warm (the app)</button><button data-v="2">Dots</button><button data-v="0">Night</button></div>
-  <div class="lbl">Wings: paddles, from Sheet B</div>
-  <div class="seg" id="wings"><button data-v="0" class="on">None</button><button data-v="1">One pair</button><button data-v="2">Two pairs (the fairy)</button></div>
-  <div class="row"><span>Trailing circles</span><span id="nv"></span></div><input type="range" id="n" min="3" max="10" step="1" value="6">
-  <div class="row"><span>Tip length</span><span id="lv"></span></div><input type="range" id="len" min="1.2" max="3.4" step="0.05" value="2.2">
-  <div class="row"><span>Curl</span><span id="cv2"></span></div><input type="range" id="curl" min="-1" max="1" step="0.05" value="0.25">
-  <div class="row"><span>Taper (1 = straight sides)</span><span id="tv"></span></div><input type="range" id="taper" min="0.6" max="2.4" step="0.05" value="1.0">
-  <div class="row"><span>Lean when moving</span><span id="rv"></span></div><input type="range" id="rise" min="0" max="1" step="0.05" value="0.55">
-  <div class="row"><span>Blend (how much they melt)</span><span id="bv"></span></div><input type="range" id="blend" min="0.05" max="1.2" step="0.05" value="0.55">
-  <div class="row"><span>Fade to the tip</span><span id="fv"></span></div><input type="range" id="fade" min="0" max="1" step="0.05" value="0.25">
-  <div class="row"><span>Soft edges</span><span id="ev"></span></div><input type="range" id="edge" min="0" max="0.8" step="0.05" value="0">
-  <div class="row"><span>Turn to see it in 3D</span><span id="yv"></span></div><input type="range" id="yaw" min="-180" max="180" step="1" value="0">
-  <label class="chk"><input type="checkbox" id="auto" checked> Drift on its own</label>
-  <div class="seg" style="margin-top:12px"><button class="btn" id="copy">Copy settings</button></div>
+  <h1>Pip in 3D <span class="tag">EXPERIMENT</span></h1>
+  <p>Aaron's drawings first. Starts from Aaron's baseline (1 Nov). Posture from Sheet A "Your Pip" and Sheet B "Draw Pip flying": the head leads, the back slopes down behind it.</p>
+  <p class="note"><b>From Aaron's drawings:</b> teardrop of joined circles, the posture, the wings (his overlay, 1 Nov: two long leaves from the crown, fanned back), low eyes, peek / sit / hang, the faces.
+  <b>Aaron's idea (1 Nov):</b> an emoji inside him, like a heart.
+  <b>Made up by Jules (needs Aaron's eye):</b> the wings' flutter, how far Pip turns when moving, the lighting recipes, the panel's rows; where the emoji floats, how it sloshes and beats, its light tinting his glow, and clear glass while it's in.</p>
+  <div class="seg"><button class="btn" id="pick">Your pick: Sit · warm · smile</button><button class="btn" id="baseline">Aaron's baseline</button><button class="btn" id="drawn">Drawing proportions</button><button class="btn" id="copy">Copy settings</button></div>
   <p id="copied" style="display:none;margin-top:8px;user-select:text;-webkit-user-select:text;font:12px ui-monospace,Menlo,monospace"></p>
+
+  <div class="lbl">In Glass Clock</div>
+  <div class="seg" id="pose"><button data-v="0" class="on">Free</button><button data-v="1">Peek</button><button data-v="2">Sit</button><button data-v="3">Hang</button></div>
+  <label class="chk"><input type="checkbox" id="showPanel" checked> Show the glass panel</label>
+  <div class="lbl">Face (from the drawings)</div>
+  <div class="seg" id="face"><button data-v="0" class="on">Calm</button><button data-v="1">Smile</button><button data-v="2">Oh</button><button data-v="3">Sleepy</button></div>
+  <div class="lbl">Inside him <span class="tag">NEW</span></div>
+  <div class="seg" id="emoji"><button data-e="">None</button><button data-e="❤️" class="on">❤️</button><button data-e="💙">💙</button><button data-e="✨">✨</button><button data-e="⭐">⭐</button><button data-e="😊">😊</button><button data-e="💤">💤</button><button data-e="⚡">⚡</button><input id="eown" placeholder="+" aria-label="Your own emoji"></div>
+  <div class="seg" id="ewhere"><button data-v="0" class="on">Centre</button><button data-v="1">Up in his head</button><button data-v="2">Chest</button><button data-v="3">Body</button></div>
+  <div class="row"><span>Clear glass (so you see it bend)</span><span id="ecv"></span></div><input type="range" id="eclear" min="0" max="1" step="0.05" value="0.85">
+  <div class="row"><span>Size</span><span id="esv"></span></div><input type="range" id="esize" min="0.3" max="1" step="0.05" value="0.55">
+  <div class="row"><span>Its light (in his glass and glow)</span><span id="elv"></span></div><input type="range" id="elight" min="0" max="1" step="0.05" value="0.5">
+
+  <details open><summary>Lighting studio</summary>
+    <div class="seg" id="env"><button data-v="0" class="on">Soft studio</button><button data-v="1">Glass Clock warm</button><button data-v="2">Night</button></div>
+    <div class="row"><span>Edge glow</span><span id="gv"></span></div><input type="range" id="glow" min="0" max="1.5" step="0.05" value="0.8">
+    <div class="row"><span>Highlight size (small → broad)</span><span id="hv"></span></div><input type="range" id="hsize" min="0" max="1" step="0.05" value="0.25">
+    <div class="row"><span>Highlight strength</span><span id="sv"></span></div><input type="range" id="hstr" min="0" max="1.2" step="0.05" value="0.35">
+    <div class="row"><span>Reflections</span><span id="rfv"></span></div><input type="range" id="refl" min="0" max="1" step="0.05" value="0.35">
+    <div class="row"><span>Glass tint (clear → frosty blue)</span><span id="tnv"></span></div><input type="range" id="tint" min="0" max="1" step="0.05" value="0.35">
+  </details>
+
+  <details open><summary>Shape (Aaron's baseline)</summary>
+    <div class="row"><span>Smooth (irons out ridges)</span><span id="smv"></span></div><input type="range" id="smooth" min="0" max="1" step="0.05" value="0.6">
+    <div class="lbl">Posture</div>
+    <div class="seg" id="posture"><button data-v="0" class="on">Drawings (back slopes down)</button><button data-v="1">Upright (before)</button></div>
+    <div class="row"><span>Trailing circles</span><span id="nv"></span></div><input type="range" id="n" min="3" max="10" step="1" value="10">
+    <div class="row"><span>Tip length</span><span id="lv"></span></div><input type="range" id="len" min="1.2" max="3.4" step="0.05" value="3.4">
+    <div class="row"><span>Curl (− tip turns up · + down)</span><span id="cv2"></span></div><input type="range" id="curl" min="-1" max="1" step="0.05" value="-0.7">
+    <div class="row"><span>Taper (1 = straight sides)</span><span id="tv"></span></div><input type="range" id="taper" min="0.6" max="2.4" step="0.05" value="1.9">
+    <div class="row"><span>Turn when moving</span><span id="rv"></span></div><input type="range" id="rise" min="0" max="1" step="0.05" value="0.65">
+    <div class="row"><span>Blend (wings into the body)</span><span id="bv"></span></div><input type="range" id="blend" min="0.05" max="1.2" step="0.05" value="0.5">
+    <div class="row"><span>Fade to the tip</span><span id="fv"></span></div><input type="range" id="fade" min="0" max="1" step="0.05" value="0.5">
+    <div class="row"><span>Soft edges</span><span id="ev"></span></div><input type="range" id="edge" min="0" max="0.8" step="0.05" value="0.8">
+    <div class="lbl">Wings: leaves, from the top of the head</div>
+    <div class="seg" id="wings"><button data-v="0">None</button><button data-v="1" class="on">One pair</button></div>
+    <div class="row"><span>Turn to see it in 3D</span><span id="yv"></span></div><input type="range" id="yaw" min="-180" max="180" step="1" value="0">
+    <div class="lbl">Look</div>
+    <div class="seg" id="look"><button data-v="3" class="on">Liquid glass</button><button data-v="0">Pearl</button><button data-v="2">Silhouette</button></div>
+    <label class="chk"><input type="checkbox" id="auto" checked> Drift on its own (Free)</label>
+  </details>
 </div>
 <script>
 'use strict';
-// PIP 3D · Jules, 1 Nov 2026. Aaron: "think of it like trailing blending circles from the centre… like a fire… 3D new V2 Pip".
-// A head ball, a chain of smaller balls easing after it in 3D (each one a gap behind the one before, rising like a flame
-// and leaning away from you), all melted together with a smooth union and lit with a fixed light (ray-marched in WebGL).
-// Moving: the chain streams behind. Still: it settles up and back, so from the front Pip reads as a round blob.
-// Browser toy only. Nothing here is in the app; Pip Peek and Pip Flight stay parked until Aaron agrees the shape.
+// PIP 3D · Jules · EXPERIMENT, not Pip's approved design (nat/pip-design-decisions.md).
+// Aaron's drawings are the authority. Pass 3 (1 Nov): Aaron's baseline kept; posture from Sheet A "Your Pip" and Sheet B
+// "Draw Pip flying" (head leads, back slopes down); leaf wings from the top of the head (Sheet B, his V2 drawing);
+// a lighting studio with an edge glow that spills onto a Glass Clock panel; peek / sit / hang from his sheets; his faces.
+// Ray-marched in WebGL: circles joined by tangent lines (round cones), smooth-joined; leaves pressed thin.
+// Pass 4 (1 Nov): an emoji inside him (Aaron's idea), seen through the glass; opens on his pick (Sit · warm · smile).
 
 const $ = s => document.querySelector(s);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const P = { n: 6, len: 2.2, curl: .25, taper: 1.0, rise: .55, blend: .55, fade: .25, edge: 0, yaw: 0, look: 3, backdrop: 1, wings: 0, auto: !reduce };
-const MAXB = 24, R0 = 1, S = 3.2, CAM = 8;
+const BASE = { n: 10, len: 3.4, curl: -0.7, taper: 1.9, rise: .65, blend: .5, fade: .5, edge: .8, look: 3, wings: 1, smooth: .6 };
+// Measured from Sheet A "Your Pip" and Sheet B "Draw Pip flying": straight sides, body about 2.5 head-radii long.
+const DRAWN = { n: 8, len: 2.5, curl: -.2, taper: 1.0 };
+const STUDIO = { glow: .8, hsize: .25, hstr: .35, refl: .35, tint: .35, env: 0 };
+// The view Aaron liked best (1 Nov, "bottom right is looking niceee"): it opens on this.
+const PICK = { pose: 2, env: 1, face: 1 };
+const INSIDE = { emoji: '❤️', esize: .55, elight: .5, ewhere: 0, eclear: .85 };
+const P = Object.assign({ yaw: 0, posture: 0, pose: 0, face: 0, panel: true, auto: !reduce }, BASE, STUDIO, PICK, INSIDE);
+try { Object.assign(P, JSON.parse(localStorage.getItem('pip3d.v3') || '{}')); } catch {}
+const save = () => { try { localStorage.setItem('pip3d.v3', JSON.stringify(P)); } catch {} };
+const MAXB = 12, R0 = 1, S = 3.2, CAM = 8;
 
 // ---------- WebGL
-const cv = $('#c'), gl = cv.getContext('webgl', { antialias: false, premultipliedAlpha: false });
+const cv = $('#c'), gl = cv.getContext('webgl', { antialias: false });
 if (!gl) { $('#nogl').style.display = 'flex'; throw new Error('no webgl'); }
 const vs = `attribute vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
 const fs = `
 precision highp float;
-uniform vec2 res; uniform vec4 b[${MAXB}]; uniform float tipf[${MAXB}]; uniform int nb; uniform int nbody; uniform float k;
-uniform float fade; uniform float edge; uniform int backdrop;
-uniform vec4 bound; uniform int look; uniform vec3 eyeA; uniform vec3 eyeB; uniform float eyeR; uniform float blink;
-uniform float tanHalf;
-uniform vec4 wa[4]; uniform vec4 wb[4]; uniform vec3 wn[4]; uniform int nw; uniform float wsq;
+uniform vec2 res; uniform float tanHalf;
+uniform vec4 b[${MAXB}]; uniform float tipf[${MAXB}]; uniform int nb; uniform float k;
+uniform vec4 w0[2]; uniform vec4 w1[2]; uniform vec4 w2[2]; uniform vec4 w3[2]; uniform vec4 w4[2]; uniform vec3 wn[2]; uniform int nw;
+uniform vec4 bound; uniform int look; uniform float fade; uniform float edge;
+uniform vec3 eyeA; uniform vec3 eyeB; uniform float eyeR; uniform float blink;
+uniform vec3 fSide; uniform vec3 fUp; uniform vec3 mouthC; uniform int mouth;
+uniform int env; uniform float glowAmt; uniform vec3 glowCol; uniform float specPow; uniform float specAmt; uniform float reflAmt; uniform float tintAmt;
+uniform int showPanel; uniform vec3 pc; uniform vec3 ph;
+
 float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
 // Two circles joined by their tangent lines, in 3D (Inigo Quilez's round cone): Aaron's hull-of-circles construction.
 float roundCone(vec3 p, vec3 a, vec3 b, float r1, float r2){
@@ -85,109 +132,205 @@ float roundCone(vec3 p, vec3 a, vec3 b, float r1, float r2){
   if (sign(y) * a2 * y2 < kk) return sqrt(x2 + y2) * il2 - r1;
   return (sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
 }
-// A paddle wing (Sheet B, "maybe"): a small circle at the root hulled to a bigger one at the end, pressed thin.
-float wing(vec3 p, vec3 a, vec3 e, float r1, float r2, vec3 nrm){
-  vec3 q = p - a; float s = dot(q, nrm); q += nrm * (s / wsq - s);
-  return roundCone(a + q, a, e, r1, r2) * wsq;
+// A leaf wing: a small root circle, two wide circles, a tip circle, joined by tangent lines (so the edges curve,
+// like the drawings' leaves), pressed thin.
+float leaf(vec3 p, vec4 a, vec4 m, vec4 m2, vec4 m3, vec4 t, vec3 nrm){
+  const float sq = .22;
+  vec3 q = p - a.xyz; float s = dot(q, nrm); q += nrm * (s / sq - s); q += a.xyz;
+  float d = roundCone(q, a.xyz, m.xyz, a.w, m.w);
+  d = min(d, roundCone(q, m.xyz, m2.xyz, m.w, m2.w));
+  d = min(d, roundCone(q, m2.xyz, m3.xyz, m2.w, m3.w));
+  d = min(d, roundCone(q, m3.xyz, t.xyz, m3.w, t.w));
+  return d * sq;
 }
-float map(vec3 p){
-  // The body: each circle hulled to the next, so the sides run straight to the tip.
+float pipBody(vec3 p){
+  // The body's circles are joined cleanly. (A soft blend between joints puffed each one out a little, which showed
+  // as rings: Aaron's "ridges".) Far-away joints are skipped early, to keep it light.
   float d = length(p - b[0].xyz) - b[0].w;
   for (int i = 1; i < ${MAXB}; i++) {
-    if (i >= nbody) break;
-    d = smin(d, roundCone(p, b[i - 1].xyz, b[i].xyz, b[i - 1].w, b[i].w), k * .5);
-  }
-  for (int i = 0; i < 4; i++) {
-    if (i >= nw) break;
-    d = smin(d, wing(p, wa[i].xyz, wb[i].xyz, wa[i].w, wb[i].w, wn[i]), .12);
+    if (i >= nb) break;
+    vec3 mid = (b[i - 1].xyz + b[i].xyz) * .5;
+    float reach = length(b[i].xyz - b[i - 1].xyz) * .5 + max(b[i - 1].w, b[i].w);
+    if (length(p - mid) - reach > d) continue;
+    d = min(d, roundCone(p, b[i - 1].xyz, b[i].xyz, b[i - 1].w, b[i].w));
   }
   return d;
 }
-vec3 normal(vec3 p){
-  const vec2 e = vec2(.0015, -.0015);
-  return normalize(e.xyy * map(p + e.xyy) + e.yyx * map(p + e.yyx) + e.yxy * map(p + e.yxy) + e.xxx * map(p + e.xxx));
+float pipWings(vec3 p){
+  float d = 1e5;
+  for (int i = 0; i < 2; i++) {
+    if (i >= nw) break;
+    d = min(d, leaf(p, w0[i], w1[i], w2[i], w3[i], w4[i], wn[i]));
+  }
+  return d;
 }
-// How far along a trail this point is: 0 on the head, 1 at a tip (weighted by the nearest balls).
+float pip(vec3 p){ return smin(pipBody(p), pipWings(p), .04 + k * .2); }
+// Smooth: the light reads a softened surface (a wider sample), so joins and creases melt away; the outline stays crisp.
+uniform float smoothE;
+vec3 pipNormal(vec3 p, float eps){
+  vec2 e = vec2(eps, -eps);
+  return normalize(e.xyy * pip(p + e.xyy) + e.yyx * pip(p + e.yyx) + e.yxy * pip(p + e.yxy) + e.xxx * pip(p + e.xxx));
+}
+// The glass panel: a rounded slab, like a Glass Clock panel.
+float panel(vec3 p){ vec3 q = abs(p - pc) - ph + vec3(.35, .35, 0.); return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.) - .35; }
+vec3 panelNormal(vec3 p){
+  const vec2 e = vec2(.002, -.002);
+  return normalize(e.xyy * panel(p + e.xyy) + e.yyx * panel(p + e.yyx) + e.yxy * panel(p + e.yxy) + e.xxx * panel(p + e.xxx));
+}
 float tipness(vec3 p){
   float w = 0., s = 0.;
   for (int i = 0; i < ${MAXB}; i++) {
     if (i >= nb) break;
     float d = max(length(p - b[i].xyz) - b[i].w, 0.);
-    float wi = exp(-d * 9.);
-    w += wi; s += wi * tipf[i];
+    float wi = exp(-d * 9.); w += wi; s += wi * tipf[i];
   }
   return s / max(w, 1e-4);
 }
-// Tall oval eyes, like the drawings.
-bool eye(vec3 p, vec3 c){ vec3 q = p - c; q.y /= 1.55 * max(blink, .1); return length(q) < eyeR; }
-// What's behind Pip: a backdrop on a far plane, so glass can bend it.
-vec3 scene(vec3 ro, vec3 rd){
+// The room: what's behind everything (soft studio, Glass Clock warm, night). blurry = the panel's frosted view of it.
+vec3 room(vec3 ro, vec3 rd, float blurry){
   float t = (-7. - ro.z) / min(rd.z, -.05); vec2 q = (ro + rd * t).xy;
-  if (backdrop == 0) return mix(vec3(.10, .12, .24), vec3(.03, .04, .09), clamp(.5 - q.y / 16., 0., 1.));
-  vec3 c = mix(vec3(.99, .80, .60), vec3(.60, .40, .50), clamp(.5 - q.y / 14., 0., 1.));
-  c += vec3(.30, .22, .55) * exp(-dot(q - vec2(-7., 4.), q - vec2(-7., 4.)) * .03);
-  c += vec3(.15, .45, .50) * exp(-dot(q - vec2(8., -5.), q - vec2(8., -5.)) * .025);
-  c += vec3(.55, .25, .15) * exp(-dot(q - vec2(2., 7.), q - vec2(2., 7.)) * .04);
+  float v = clamp(.5 - q.y / 15., 0., 1.);
+  vec3 c;
+  if (env == 0) c = mix(vec3(.86, .89, .95), vec3(.62, .67, .78), v);
+  else if (env == 1) {
+    c = mix(vec3(.99, .80, .60), vec3(.60, .40, .50), v);
+    c += vec3(.30, .22, .55) * exp(-dot(q - vec2(-7., 4.), q - vec2(-7., 4.)) * .03);
+    c += vec3(.15, .45, .50) * exp(-dot(q - vec2(8., -5.), q - vec2(8., -5.)) * .025);
+  } else c = mix(vec3(.10, .12, .24), vec3(.03, .04, .09), v);
   vec2 g = fract(q * 1.1) - .5;
-  float dots = smoothstep(.11, .07, length(g));
-  return mix(c, c * .8 + .14, dots * (backdrop == 2 ? .85 : .4));
+  c = mix(c, c * .85 + .1, smoothstep(.11, .07, length(g)) * .3 * (1. - blurry));
+  return c;
+}
+// The sky Pip reflects: soft box lights, like a studio.
+vec3 sky(vec3 r){
+  vec3 c = env == 2 ? vec3(.12, .14, .25) : env == 1 ? vec3(1., .88, .76) : vec3(.92, .94, 1.);
+  c += vec3(1.) * smoothstep(.75, .95, dot(r, normalize(vec3(-.5, .8, .4)))) * .6;   // a soft box, top left
+  return c * (.55 + .45 * clamp(r.y * .5 + .5, 0., 1.));
+}
+bool eye(vec3 p, vec3 c){ vec3 q = p - c; float u = dot(q, fSide), v = dot(q, fUp) / (1.55 * max(blink, .1)); return length(vec2(u, v)) < eyeR && length(q) < eyeR * 2.; }
+bool mouthAt(vec3 p){
+  if (mouth == 0) return false;
+  vec3 q = p - mouthC; if (length(q) > .4) return false;
+  vec2 m = vec2(dot(q, fSide), dot(q, fUp));
+  if (mouth == 1) return abs(length(m - vec2(0., .13)) - .13) < .028 && m.y < .06;   // a small smile (Sheet A)
+  return abs(length(m * vec2(1., .85)) - .065) < .03;                               // "o" (Sheet B, flying)
+}
+// The emoji inside him (Aaron's idea, 1 Nov): a picture floating in the glass, facing you, seen along the bent ray
+// inside him (so the glass magnifies and wobbles it). Adds its light to "lit"; returns its colour, premultiplied.
+uniform sampler2D emo; uniform vec4 emoP; uniform float emoLight; uniform vec3 emoCol;
+uniform vec3 emoX; uniform vec3 emoY; uniform vec3 emoZ; uniform int emoKind;   // 0 none, 1 the emoji
+uniform float clarity;                                                           // 0 his usual glass, 1 crystal clear (only with an emoji in)
+vec4 inside(vec3 o, vec3 d, float far, inout vec3 lit){
+  if (emoKind == 0) return vec4(0.);
+  float s = clamp(dot(emoP.xyz - o, d), 0., far); vec3 c = o + d * s - emoP.xyz;
+  lit += emoCol * exp(-dot(c, c) / (emoP.w * emoP.w) * 2.) * .3;           // its light, filling the glass round it
+  // a real emoji (the device's own: Apple's on the iPad), facing you; only the glass bends it
+  float dn = dot(d, emoZ); if (abs(dn) < .02) return vec4(0.);
+  float te = dot(emoP.xyz - o, emoZ) / dn;
+  if (te < 0. || te > far) return vec4(0.);
+  vec3 q = o + d * te - emoP.xyz;
+  vec2 uv = vec2(dot(q, emoX), dot(q, emoY)) / (2. * emoP.w) + .5;
+  if (uv.x < 0. || uv.y < 0. || uv.x > 1. || uv.y > 1.) return vec4(0.);
+  lit += texture2D(emo, uv, 4.).rgb * .8;                                   // a soft bloom right round it
+  return texture2D(emo, uv);
+}
+// Pip's colour at a point on his surface, and how solid it is there (the tip fades, the edges soften).
+vec4 shadePip(vec3 p, vec3 rd, vec3 behind){
+  // Wings are thin: they get a fine normal (Smooth would blur them through) and are lighter, glowier glass.
+  bool wingHere = pipWings(p) < pipBody(p);
+  vec3 n = pipNormal(p, wingHere ? .004 : smoothE);
+  float cosi = max(dot(n, -rd), 0.);
+  float tf = tipness(p);
+  bool ink = look == 2;
+  float a = ink ? 1. : 1. - smoothstep(1. - fade, 1.001, tf) * step(.001, fade);
+  if (!ink && edge > .001) a *= mix(1., smoothstep(0., edge, cosi), .85 * (1. - clarity * .8));   // clear: see the bending right to his edge
+  vec3 L = normalize(vec3(-.5, .8, .65));
+  vec3 Rr = reflect(rd, n);
+  float spec = pow(max(dot(Rr, L), 0.), specPow) * specAmt;
+  float F = .04 + .96 * pow(1. - cosi, 5.);
+  vec3 col;
+  if (ink) col = vec3(.11, .11, .17);
+  else if (look == 3) {
+    // Liquid glass: bend what's behind, a soft tint where it's thick, subtle reflections.
+    vec3 rdi = refract(rd, n, 1. / 1.4);
+    vec3 pin = p - n * .01; float ti = .02;
+    for (int j = 0; j < 32; j++) { float d = -pip(pin + rdi * ti); if (d < .003) break; ti += max(d, .015); if (ti > 7.) break; }
+    vec3 pe = pin + rdi * ti, ne = -pipNormal(pe, smoothE);
+    vec3 rdo = refract(rdi, ne, 1.4); if (dot(rdo, rdo) < .01) rdo = reflect(rdi, ne);
+    vec3 refr = vec3(room(pe, normalize(rdo + rdi * .025), 0.).r, room(pe, rdo, 0.).g, room(pe, normalize(rdo - rdi * .025), 0.).b);
+    float milk = 1. - clarity;                                                  // with something inside, he turns clear
+    refr = mix(refr, behind, .25 * milk);
+    refr *= exp(-ti * vec3(.22, .10, .03) * tintAmt * 2. * milk);
+    refr = mix(refr, refr * .8 + vec3(.75, .85, 1.) * .2, tintAmt * .5 * milk);
+    vec3 lit = vec3(0.); vec4 em = inside(pin, rdi, ti, lit);                 // the emoji, under the glass
+    refr = refr * (1. - em.a) + em.rgb * mix(1., .85, tintAmt) + lit * emoLight;
+    col = mix(refr, sky(Rr), F * reflAmt * 1.6) + spec;
+  } else {
+    vec3 base = mix(vec3(.80, .82, .95), vec3(1., .96, .99), n.y * .5 + .5);
+    col = base * (.4 + .65 * max(dot(n, L), 0.)) + sky(Rr) * F * reflAmt + spec;
+    vec3 lit = vec3(0.); vec4 em = inside(p, rd, 3., lit);                    // pearl: the emoji glows through, milky
+    col = mix(col, col * (1. - em.a) + em.rgb, .5) + lit * emoLight * .6;
+  }
+  if (!ink && wingHere) { a *= .62; col = mix(col, behind, .25); }
+  if (!ink) {
+    if (!wingHere && (eye(p, eyeA) || eye(p, eyeB) || mouthAt(p))) { col = vec3(.05, .06, .12) + spec * .5; a = 1.; }
+    col += glowCol * pow(1. - cosi, 2.4 + clarity * 3.) * glowAmt * .9;      // the edge glow (tighter to his outline when clear)
+    col += glowCol * (1. - a) * .3 * glowAmt;                 // the fading tip glows
+  }
+  return vec4(col, a);
 }
 void main(){
   vec2 uv = (gl_FragCoord.xy * 2. - res) / res.y;
   vec3 ro = vec3(0., 0., ${CAM.toFixed(1)});
   vec3 rd = normalize(vec3(uv * tanHalf, -1.));
-  bool ink = look == 2, glass = look == 3;
-  vec3 bg = ink ? mix(vec3(.93, .94, .97), vec3(.86, .88, .93), gl_FragCoord.y / res.y) : scene(ro, rd);
-  vec3 tint = look == 1 ? vec3(.45, .72, 1.) : glass ? vec3(.9, .95, 1.) : vec3(.82, .86, 1.);
+  bool ink = look == 2;
+  vec3 col = ink ? mix(vec3(.93, .94, .97), vec3(.86, .88, .93), gl_FragCoord.y / res.y) : room(ro, rd, 0.);
+
+  // Pip: only where the ray can reach him.
+  float tP = 1e5, md = 1e5;
   vec3 oc = ro - bound.xyz; float bb = dot(oc, rd), cc = dot(oc, oc) - bound.w * bound.w, h = bb * bb - cc;
-  if (h < 0.) { gl_FragColor = vec4(bg, 1.); return; }
-  h = sqrt(h);
-  float t = max(0., -bb - h), tEnd = -bb + h, md = 1e5;
-  bool hit = false;
-  for (int i = 0; i < 90; i++) {
-    vec3 p = ro + rd * t; float d = map(p); md = min(md, d);
-    if (d < .002) { hit = true; break; }
-    t += d; if (t > tEnd) break;
-  }
-  vec3 col = bg;
-  if (!ink) col += tint * exp(-md * 2.6) * (glass ? .10 : backdrop == 0 ? .32 : .16);   // the glow
-  if (hit) {
-    vec3 p = ro + rd * t;
-    vec3 n = normal(p);
-    // Soft tip: the trail fades out towards its end, like a flame. Soft edges: feathered where it turns away.
-    // Silhouette stays hard: it's for judging the shape.
-    float tf = tipness(p);
-    float a = ink ? 1. : 1. - smoothstep(1. - fade, 1.001, tf) * step(.001, fade);
-    if (!ink && edge > .001) a *= smoothstep(0., edge, max(dot(n, -rd), 0.));
-    vec3 behind = col;
-    vec3 L = normalize(vec3(-.5, .8, .65)), L2 = normalize(vec3(.6, -.55, .55));
-    float cosi = max(dot(n, -rd), 0.);
-    float dif = max(dot(n, L), 0.);
-    float rim = pow(1. - cosi, 3.);
-    float spec = pow(max(dot(reflect(rd, n), L), 0.), 60.);
-    float spec2 = pow(max(dot(reflect(rd, n), L2), 0.), 30.);
-    if (ink) { col = vec3(.11, .11, .17); }
-    else if (glass) {
-      // Liquid glass: bend what's behind (a little more for red than blue), reflect the sky at the edges.
-      float F = .04 + .96 * pow(1. - cosi, 5.);
-      vec3 rdi = refract(rd, n, 1. / 1.45);
-      vec3 pin = p - n * .01; float ti = .02;
-      for (int j = 0; j < 40; j++) { float d = -map(pin + rdi * ti); if (d < .002) break; ti += max(d, .01); if (ti > 8.) break; }
-      vec3 pe = pin + rdi * ti, ne = -normal(pe);
-      vec3 rdo = refract(rdi, ne, 1.45); if (dot(rdo, rdo) < .01) rdo = reflect(rdi, ne);
-      vec3 refr = vec3(scene(pe, normalize(rdo + rdi * .03)).r, scene(pe, rdo).g, scene(pe, normalize(rdo - rdi * .03)).b);
-      refr *= exp(-ti * vec3(.10, .05, .02));                  // a whisper of blue where it's thick
-      vec3 refl = mix(vec3(1.), vec3(.75, .8, .95), clamp(-reflect(rd, n).y * .5 + .5, 0., 1.));
-      col = mix(refr, refl, F) + spec * 1.3 + spec2 * .35 + vec3(1.) * pow(1. - cosi, 7.) * .35;
-      if (eye(p, eyeA) || eye(p, eyeB)) col = vec3(.05, .06, .12) + spec * .8;
-    } else {
-      vec3 base = look == 1 ? mix(vec3(.25, .5, .95), vec3(.6, .85, 1.), n.y * .5 + .5)
-                            : mix(vec3(.80, .82, .95), vec3(1., .96, .99), n.y * .5 + .5) + vec3(.06, -.02, .06) * n.x;
-      col = base * (.38 + .68 * dif) + rim * tint * .9 + spec * .85;
-      if (eye(p, eyeA) || eye(p, eyeB)) col = vec3(.06, .08, .16) + spec * .6;
+  if (h > 0.) {
+    h = sqrt(h);
+    float t = max(0., -bb - h), tEnd = -bb + h;
+    for (int i = 0; i < 90; i++) {
+      float d = pip(ro + rd * t); md = min(md, d);
+      if (d < .002) { tP = t; break; }
+      t += d; if (t > tEnd) break;
     }
-    if (!ink) col += tint * (1. - a) * .35;                    // the fading tip glows a little
-    col = mix(behind, col, a);
+  }
+  // The panel.
+  float tG = 1e5;
+  if (showPanel == 1 && !ink) {
+    float t = 0.;
+    for (int i = 0; i < 48; i++) { float d = panel(ro + rd * t); if (d < .002) { tG = t; break; } t += d; if (t > 20.) break; }
+  }
+  if (!ink) col += glowCol * exp(-md * 3.2) * .12 * glowAmt;   // the glow round Pip, on the room
+
+  if (tG < tP) {
+    // Frosted glass panel: the room blurred, a bright rim, and Pip's glow bleeding into it.
+    vec3 p = ro + rd * tG, n = panelNormal(p);
+    vec3 frost = room(ro, rd, 1.) * .72 + vec3(.16);
+    vec2 f = (p.xy - pc.xy);
+    // a few soft rows, like settings in a Glass Clock panel
+    for (int r = 0; r < 4; r++) {
+      float y = ph.y - .75 - float(r) * .62;
+      vec2 q = abs(f - vec2(0., y)) - vec2(ph.x - .55, .2);
+      float box = length(max(q, 0.)) - .12;
+      frost = mix(frost, frost + vec3(.07), smoothstep(.02, -.02, box));
+    }
+    float rim = pow(1. - abs(dot(n, rd)), 3.);
+    frost += vec3(1.) * rim * .35;
+    float near = pip(p);
+    frost += glowCol * exp(-max(near, 0.) * 1.6) * .28 * glowAmt;          // Pip's light on the glass
+    frost += glowCol * exp(-max(near, 0.) * 5.) * .16 * glowAmt;
+    if (tP < 1e4) {                                                        // Pip seen through the frosted glass
+      vec4 s = shadePip(ro + rd * tP, rd, frost);
+      frost = mix(frost, mix(frost, s.rgb, s.a), .4);
+    }
+    col = frost;
+  } else if (tP < 1e4) {
+    vec4 s = shadePip(ro + rd * tP, rd, col);
+    col = mix(col, s.rgb, s.a);
   }
   gl_FragColor = vec4(col, 1.);
 }`;
@@ -195,139 +338,220 @@ function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src
   if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
 const prog = gl.createProgram();
 gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
-const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aLoc = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(aLoc); gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
-const U = {}; ['wa', 'wb', 'wn', 'nw', 'wsq', 'res', 'b', 'tipf', 'fade', 'edge', 'backdrop', 'nb', 'nbody', 'k', 'bound', 'look', 'eyeA', 'eyeB', 'eyeR', 'blink', 'tanHalf'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+const U = {};
+['res', 'tanHalf', 'b', 'tipf', 'nb', 'k', 'w0', 'w1', 'w2', 'w3', 'w4', 'wn', 'nw', 'bound', 'look', 'fade', 'edge', 'eyeA', 'eyeB', 'eyeR', 'blink',
+ 'smoothE', 'fSide', 'fUp', 'mouthC', 'mouth', 'env', 'glowAmt', 'glowCol', 'specPow', 'specAmt', 'reflAmt', 'tintAmt', 'showPanel', 'pc', 'ph',
+ 'emo', 'emoP', 'emoKind', 'emoLight', 'emoCol', 'emoX', 'emoY', 'emoZ', 'clarity']
+  .forEach(n => U[n] = gl.getUniformLocation(prog, n));
 
-// ---------- the chain (data, then logic)
+// ---------- the emoji inside him: drawn by the device's own emoji font onto a small canvas, sent to the glass
+const emo = { p: null, v: { x: 0, y: 0, z: 0 }, on: false, heart: false, col: [1, 1, 1] };
+const emoTex = gl.createTexture(), EC = document.createElement('canvas'); EC.width = EC.height = 256;
+gl.uniform1i(U.emo, 0);
+function setEmoji(ch) {
+  const c = EC.getContext('2d', { willReadFrequently: true }); c.clearRect(0, 0, 256, 256);
+  emo.on = !!ch;
+  emo.heart = /[❤♥\u{1F493}-\u{1F49F}\u{1F5A4}\u{1F90D}\u{1F90E}\u{1F9E1}\u{1FA75}-\u{1FA77}]/u.test(ch || '');
+  if (ch) {
+    c.font = '150px "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    const m = c.measureText(ch), up = m.actualBoundingBoxAscent || 120, dn = m.actualBoundingBoxDescent || 30;
+    c.fillText(ch, 128, 128 + (up - dn) / 2);
+    // its average colour (for its light), brightened so the strongest channel is full
+    const d = c.getImageData(0, 0, 256, 256).data; let r = 0, g = 0, b = 0;
+    for (let i = 0; i < d.length; i += 32) { const a = d[i + 3]; r += d[i] * a; g += d[i + 1] * a; b += d[i + 2] * a; }
+    const top = Math.max(r, g, b); emo.col = top ? [r / top, g / top, b / top] : [1, 1, 1];
+  }
+  gl.bindTexture(gl.TEXTURE_2D, emoTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, EC); gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+setEmoji(P.emoji);
+
+// ---------- maths
 const v3 = (x = 0, y = 0, z = 0) => ({ x, y, z });
-const head = v3(), vel = v3();
-let target = v3();
-const tail = Array.from({ length: 10 }, (_, i) => v3(0, (i + 1) * .4, -(i + 1) * .2));
+const add = (a, c, k = 1) => v3(a.x + c.x * k, a.y + c.y * k, a.z + c.z * k);
 const norm = v => { const l = Math.hypot(v.x, v.y, v.z) || 1; return v3(v.x / l, v.y / l, v.z / l); };
 const cross = (a, c) => v3(a.y * c.z - a.z * c.y, a.z * c.x - a.x * c.z, a.x * c.y - a.y * c.x);
-const add = (a, c, k = 1) => v3(a.x + c.x * k, a.y + c.y * k, a.z + c.z * k);
-/** v turned by angle round axis (unit). */
 const turnAbout = (v, ax, ang) => { const c = Math.cos(ang), s = Math.sin(ang), d = v.x * ax.x + v.y * ax.y + v.z * ax.z, x = cross(ax, v);
   return v3(v.x * c + x.x * s + ax.x * d * (1 - c), v.y * c + x.y * s + ax.y * d * (1 - c), v.z * c + x.z * s + ax.z * d * (1 - c)); };
 
-/** Each ball eases towards a spot one gap behind the one before, pulled towards a resting direction (`rest`) by `pull`. */
-function follow(chain, root, gap, lag, restOf, pull) {
+// ---------- the chain
+const head = v3(), vel = v3();
+let target = v3(), face = norm(v3(.75, 0, .66));
+const tail = Array.from({ length: 10 }, (_, i) => v3(-(i + 1) * .3, -(i + 1) * .05, -(i + 1) * .2));
+function follow(chain, root, gap, lag, restOf, pull, n) {
   let prev = root;
-  for (let i = 0; i < chain.length; i++) {
-    const c = chain[i], rest = typeof restOf === 'function' ? restOf(i) : restOf;
-    const rl = Math.hypot(rest.x, rest.y, rest.z) || 1;
-    let dx = c.x - prev.x, dy = c.y - prev.y, dz = c.z - prev.z;
-    const d = Math.hypot(dx, dy, dz) || 1;
-    dx = dx / d * (1 - pull) + rest.x / rl * pull; dy = dy / d * (1 - pull) + rest.y / rl * pull; dz = dz / d * (1 - pull) + rest.z / rl * pull;
-    const dl = Math.hypot(dx, dy, dz) || 1;
-    c.x += (prev.x + dx / dl * gap - c.x) * (1 - lag);
-    c.y += (prev.y + dy / dl * gap - c.y) * (1 - lag);
-    c.z += (prev.z + dz / dl * gap - c.z) * (1 - lag);
+  for (let i = 0; i < n; i++) {
+    const c = chain[i], rest = norm(restOf(i));
+    let d = norm(v3(c.x - prev.x, c.y - prev.y, c.z - prev.z));
+    d = norm(add(v3(d.x * (1 - pull), d.y * (1 - pull), d.z * (1 - pull)), rest, pull));
+    c.x += (prev.x + d.x * gap - c.x) * (1 - lag); c.y += (prev.y + d.y * gap - c.y) * (1 - lag); c.z += (prev.z + d.z * gap - c.z) * (1 - lag);
     prev = c;
   }
 }
-// Even steps from the head's size down to the tip, so the sides run straight (taper 1) or curve (other values).
 const radii = (n, r0, taper, end = .06) => Array.from({ length: n }, (_, i) => r0 * Math.max(end, Math.pow(1 - (i + 1) / (n + 1), taper)));
 
-// ---------- loop
+// ---------- the scene
 let W = 1, H = 1, dragging = false, held = false, t0 = performance.now();
 function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);   // light on the iPad
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
   W = innerWidth; H = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
   gl.viewport(0, 0, cv.width, cv.height);
 }
 addEventListener('resize', resize); resize();
 const toWorld = (px, py) => v3((px / W * 2 - 1) * S * (W / H), -(py / H * 2 - 1) * S, 0);
+/** The panel, in world units: right of centre on a wide screen, low down on a narrow one. */
+function panelBox() {
+  const A = W / H, wide = W > 700, hw = wide ? Math.min(S * A * .24, 3.2) : S * A * .8;
+  const cx = wide ? S * A * .22 : 0;
+  if (P.pose === 2) return { c: v3(cx, wide ? -1.6 : -S * .6, 0), h: v3(hw, wide ? 1.4 : S * .25, .1) };   // sit: low
+  if (P.pose === 3) return { c: v3(cx, wide ? 1.9 : S * .55, 0), h: v3(hw, wide ? 1.1 : S * .25, .1) };    // hang: high
+  return wide ? { c: v3(cx, -.5, 0), h: v3(hw, S * .55, .1) } : { c: v3(0, -S * .5, 0), h: v3(hw, S * .3, .1) };
+}
 
 function tick(now) {
   const t = (now - t0) / 1000;
-  // Home is left of centre when the panel is beside it, so Pip never hides under the panel.
-  const home = v3(W > 700 ? -S * (W / H) * .22 : 0, W > 700 ? 0 : S * .3, 0);
-  if (P.auto && !dragging) {
-    const k = t * .45, still = Math.sin(t * .35) > .55;
-    target = still ? target : v3(home.x + Math.sin(k) * S * .55 * Math.min(1.3, W / H), home.y + Math.sin(k * 2) * S * .4, 0);
-  } else if (!dragging && !held) {
-    target = home;
+  const pb = panelBox();
+  const top = pb.c.y + pb.h.y, bottom = pb.c.y - pb.h.y, left = pb.c.x - pb.h.x;
+  // Where Pip wants to be, and which way he faces at rest, for each pose.
+  let face0 = norm(v3(.75, 0, .66)), z = .6, restUp = false;
+  if (P.pose === 1) {                      // peek round the panel's left edge, from behind it (Sheet A, "Your Pip")
+    const peekBob = reduce ? .2 : .2 + .25 * Math.max(0, Math.sin(t * .7));
+    target = v3(left + .2 - peekBob, top - 1.2, -1.5); face0 = norm(v3(-.5, .05, .86)); z = -1.5;
+  } else if (P.pose === 2) {               // sit on the top edge (Sheet B, "stand")
+    target = v3(pb.c.x - pb.h.x * .2, top + R0 * .8, .9); face0 = norm(v3(.6, -.05, .8)); z = .9;
+  } else if (P.pose === 3) {               // hang from the bottom edge, tip up (Sheet A, push and pull)
+    target = v3(pb.c.x + pb.h.x * .2, bottom - R0 * P.len * .92, .3); face0 = norm(v3(.15, -.1, .98)); z = .3; restUp = true;
+  } else {
+    const home = W > 700 ? v3(left - 1.7, .7, .6) : v3(.9, S * .3, .6);
+    if (P.auto && !dragging) {
+      const k2 = t * .4, still = Math.sin(t * .33) > .5;
+      if (!still) target = v3(home.x + Math.sin(k2) * 1.8, home.y + Math.sin(k2 * 2) * 1.1, .6);
+    } else if (!dragging && !held) target = home;
   }
   const px = head.x, py = head.y;
-  head.x += (target.x - head.x) * .08; head.y += (target.y - head.y) * .08;
+  head.x += (target.x - head.x) * .08; head.y += (target.y - head.y) * .08; head.z += (z - head.z) * .08;
   vel.x += ((head.x - px) * 60 - vel.x) * .1; vel.y += ((head.y - py) * 60 - vel.y) * .1;
-  const bob = reduce ? 0 : Math.sin(t * 1.6) * .06;
+  const bob = reduce || P.pose ? 0 : Math.sin(t * 1.6) * .06;
 
-  // The tail rests pointing up, as in the drawings, curling a little more with each circle (the tiny check's lean).
-  // Moving, the whole teardrop leans away from where it's going and stays a teardrop (Sheet A: "stretch, squash,
-  // lean or tip over"). No thin trailing tail: the circles are held stiffly in line.
-  const lean = v3(Math.max(-.9, Math.min(.9, -vel.x * .12 * P.rise)), 0, 0);
-  const restOf = i => { const a = P.curl * 1.3 * (i + 1) / P.n; return v3(Math.sin(a) + lean.x, Math.cos(a) - Math.abs(lean.x) * .3, -.12); };
-  follow(tail, head, R0 * P.len / P.n, .1, restOf, .85);
-  const balls = [[head, R0]];
+  // Facing: at rest a three-quarter view (as drawn); moving, turned towards where he's going (by "Turn when moving").
+  const speed = Math.hypot(vel.x, vel.y);
+  const toward = norm(v3(vel.x, vel.y * .6, .35));
+  const want = norm(add(face0, toward, Math.min(1, speed * .35) * P.rise * 2));
+  face = norm(add(face, v3(want.x - face.x, want.y - face.y, want.z - face.z), .08));
+  const side = norm(cross(v3(0, 1, 0), face)), up = norm(cross(face, side));
+
+  // The body: circles held in line behind the head, the back sloping down (the drawings), curled by "Curl".
+  const restOf = i => {
+    if (restUp) return v3(0, 1, 0);
+    if (P.posture === 1) { const a = P.curl * 1.3 * (i + 1) / P.n; return v3(Math.sin(a), Math.cos(a), -.12); }
+    const back = v3(-face.x, -face.y - .32, -face.z);                     // behind, and down
+    return turnAbout(norm(back), side, -P.curl * .9 * (i + 1) / P.n);    // − turns the tip up (as Aaron drew it), + down
+  };
+  follow(tail, head, R0 * P.len / P.n, .1, restOf, .85, P.n);
+  const balls = [[head, R0, 0]];
   const tr = radii(P.n, R0, P.taper);
   for (let i = 0; i < P.n; i++) balls.push([tail[i], tr[i], (i + 1) / P.n]);
-  const nbody = balls.length;
 
-  // Paddle wings (Sheet B's "maybe"): from the shoulders, where the round base meets the straight sides.
-  // Upper pair out and up; the fairy's lower pair smaller, out and a little down. They flap round the spine and
-  // sweep back as Pip moves.
+  // Wings, as Aaron drew them over the side view (1 Nov): two long leaves, both rising from the top of the head,
+  // fanned apart (one steep, one swept back), broad with curved edges and a pointed tip, about three head-radii
+  // long, broad side seen from the side. From the drawing: root, angles, length, shape. Jules's guess: the flutter.
   const wings = [];
   if (P.wings) {
-    const spine = norm(v3(tail[0].x - head.x, tail[0].y - head.y, tail[0].z - head.z));
-    const sideV = norm(cross(spine, v3(0, 0, 1)));
-    const flapA = reduce ? 0 : Math.sin(t * 8) * .55;
-    const pairs = P.wings === 2 ? [[38, 1.95, .44, 0], [-22, 1.3, .3, .9]] : [[34, 2.1, .46, 0]];
-    for (const [deg, L, r2, lagPhase] of pairs) for (const sd of [-1, 1]) {
-      const sideHere = v3(-sideV.x * sd, -sideV.y * sd, -sideV.z * sd);
-      const root = add(add(add(head, spine, R0 * .42), sideHere, R0 * .66), v3(0, 0, -1), R0 * .25);
-      const a = deg * Math.PI / 180;
-      let dir = norm(add(v3(sideHere.x * Math.cos(a), sideHere.y * Math.cos(a), sideHere.z * Math.cos(a)), spine, Math.sin(a)));
-      dir = norm(add(dir, v3(-vel.x, -vel.y, 0), .05));                       // swept back by the movement
-      const flap = reduce ? 0 : Math.sin(t * 8 - lagPhase) * .55;
-      dir = norm(turnAbout(dir, spine, flap * sd));
-      dir = norm(add(dir, v3(0, 0, -1), .25));
-      let nrm = norm(add(v3(0, 0, 1), dir, -dir.z));                          // flat to you, so you see its face
-      nrm = norm(turnAbout(nrm, dir, flap * .6 * sd));
-      wings.push([root, add(root, dir, R0 * L), R0 * .07, R0 * r2, nrm]);
+    const still = reduce ? 0 : 1;
+    const beat = P.pose === 0 ? 8 : 3, amp = still * (P.pose === 0 ? .2 : .06);
+    const fold = P.pose === 3 ? .35 : P.pose === 1 ? .25 : 0;                     // tucked back when hanging or peeking
+    const sweep = Math.min(.35, speed * .06);                                     // swept back by the movement
+    const back = norm(v3(-face.x, -face.y, -face.z));
+    const crown = add(add(head, up, R0 * .93), face, -R0 * .12);
+    // [side, angle above the back line in degrees, length]: one steep, one swept back (the drawing)
+    for (const [sd, deg, len] of [[1, 62, 2.8], [-1, 44, 3.3]]) {
+      const root = add(crown, side, sd * R0 * .12);
+      const pitch = (deg * Math.PI / 180) - fold - sweep;
+      // in the drawing's plane: up and back from the crown, tilted out a little to its own side
+      let dir = norm(add(add(v3(back.x * Math.cos(pitch), back.y * Math.cos(pitch), back.z * Math.cos(pitch)), up, Math.sin(pitch)), side, sd * .18));
+      let nrm = norm(cross(dir, back));                                           // broad side to the side view
+      const L = R0 * len, stops = [0, .25, .5, .76, 1], wide = [.07, .34, .4, .26, .03], pts = [root];
+      for (let j = 1; j < 5; j++) {
+        const st = stops[j];
+        // the beat travels out along the leaf (tip a little behind), plus a gentle bow, as drawn
+        const flutter = amp * Math.sin(t * beat - st * 1.3 + (sd > 0 ? 0 : 1.1));
+        let seg = turnAbout(dir, nrm, .28 * st - .14);                            // bow: the leaf curves like the drawing
+        seg = norm(turnAbout(seg, back, sd * flutter));
+        pts.push(add(pts[j - 1], seg, L * (st - stops[j - 1])));
+      }
+      wings.push([pts.map((q, j) => [q, R0 * wide[j]]), nrm]);
     }
   }
 
-  // Turn the whole Pip round its head, to see it from any side.
+  // Turn the whole Pip round his head, to see him from any side.
   const a = P.yaw * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
   const turn = p => { const dx = p.x - head.x, dz = p.z - head.z; return v3(head.x + dx * ca + dz * sa, p.y + bob, head.z - dx * sa + dz * ca); };
-  const data = new Float32Array(MAXB * 4), tips = new Float32Array(MAXB);
-  balls.slice(0, MAXB).forEach((ball, i) => { tips[i] = ball[2] ?? 0; });
-  let minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9, minz = 1e9, maxz = -1e9;
-  balls.slice(0, MAXB).forEach(([p, r], i) => {
-    const q = turn(p); data.set([q.x, q.y, q.z, r], i * 4);
-    minx = Math.min(minx, q.x - r); maxx = Math.max(maxx, q.x + r); miny = Math.min(miny, q.y - r); maxy = Math.max(maxy, q.y + r);
-    minz = Math.min(minz, q.z - r); maxz = Math.max(maxz, q.z + r);
-  });
-  const wa = new Float32Array(16), wb = new Float32Array(16), wnv = new Float32Array(12);
   const turnV = v => v3(v.x * ca + v.z * sa, v.y, -v.x * sa + v.z * ca);
-  wings.forEach(([ra, rb, r1, r2, nrm], i) => {
-    const qa = turn(ra), qb = turn(rb), qn = turnV(nrm);
-    wa.set([qa.x, qa.y, qa.z, r1], i * 4); wb.set([qb.x, qb.y, qb.z, r2], i * 4); wnv.set([qn.x, qn.y, qn.z], i * 3);
-    minx = Math.min(minx, qb.x - r2); maxx = Math.max(maxx, qb.x + r2); miny = Math.min(miny, qb.y - r2); maxy = Math.max(maxy, qb.y + r2);
-    minz = Math.min(minz, qb.z - r2); maxz = Math.max(maxz, qb.z + r2);
+  const data = new Float32Array(MAXB * 4), tips = new Float32Array(MAXB);
+  let lo = v3(1e9, 1e9, 1e9), hi = v3(-1e9, -1e9, -1e9);
+  const grow = (q, r) => { lo = v3(Math.min(lo.x, q.x - r), Math.min(lo.y, q.y - r), Math.min(lo.z, q.z - r)); hi = v3(Math.max(hi.x, q.x + r), Math.max(hi.y, q.y + r), Math.max(hi.z, q.z + r)); };
+  balls.slice(0, MAXB).forEach(([p, r, tf], i) => { const q = turn(p); data.set([q.x, q.y, q.z, r], i * 4); tips[i] = tf; grow(q, r); });
+  const WS = [0, 1, 2, 3, 4].map(() => new Float32Array(8)), WN = new Float32Array(6);
+  wings.forEach(([pts, nrm], i) => {
+    pts.forEach(([q, r], j) => { const qq = turn(q); WS[j].set([qq.x, qq.y, qq.z, r], i * 4); grow(qq, r); });
+    const qn = turnV(nrm); WN.set([qn.x, qn.y, qn.z], i * 3);
   });
-  const bc = v3((minx + maxx) / 2, (miny + maxy) / 2, (minz + maxz) / 2);
-  const br = Math.hypot(maxx - minx, maxy - miny, maxz - minz) / 2 + 1.4;   // room for the glow
+  const bc = v3((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, (lo.z + hi.z) / 2);
+  const br = Math.hypot(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z) / 2 + 1.2;
 
-  // Eyes: on the head, facing you, leaning the way Pip moves.
-  const f = v3(Math.max(-.45, Math.min(.45, vel.x * .12)), Math.max(-.3, Math.min(.3, vel.y * .08)) + .12, 1);
-  const fl = Math.hypot(f.x, f.y, f.z); f.x /= fl; f.y /= fl; f.z /= fl;
-  const side = v3(f.z, 0, -f.x), sl = Math.hypot(side.x, side.z) || 1; side.x /= sl; side.z /= sl;
-  const eyeAt = s => { let e = v3(f.x + side.x * s * .3, f.y - .16, f.z + side.z * s * .3); const l = Math.hypot(e.x, e.y, e.z);
-    return turn(v3(head.x + e.x / l * R0, head.y + e.y / l * R0, head.z + e.z / l * R0)); };
-  const blinkK = (!reduce && (t % 4.3) < .12) ? .12 : 1;
+  // Face: tall oval eyes, set close and a little low (the drawings); a mouth only where Aaron drew one.
+  const sT = turnV(side), uT = turnV(up);
+  const onHead = (s, u) => { const e = norm(add(add(face, side, s), up, u)); return turn(add(head, e, R0)); };
+  const ea = onHead(-.3, -.32), eb = onHead(.3, -.32), mc = onHead(0, -.62);
+  const blinkK = P.face === 3 ? .1 : (!reduce && (t % 4.3) < .12) ? .12 : 1;
 
-  gl.uniform2f(U.res, cv.width, cv.height);
-  gl.uniform4fv(U.wa, wa); gl.uniform4fv(U.wb, wb); gl.uniform3fv(U.wn, wnv); gl.uniform1i(U.nw, wings.length); gl.uniform1f(U.wsq, .28);
-  gl.uniform4fv(U.b, data); gl.uniform1fv(U.tipf, tips); gl.uniform1f(U.fade, P.fade); gl.uniform1f(U.edge, P.edge); gl.uniform1i(U.backdrop, P.backdrop); gl.uniform1i(U.nb, Math.min(MAXB, balls.length)); gl.uniform1i(U.nbody, nbody);
-  gl.uniform1f(U.k, P.blend); gl.uniform4f(U.bound, bc.x, bc.y, bc.z, br); gl.uniform1i(U.look, P.look);
-  const ea = eyeAt(-1), eb = eyeAt(1);
-  gl.uniform3f(U.eyeA, ea.x, ea.y, ea.z); gl.uniform3f(U.eyeB, eb.x, eb.y, eb.z);
-  gl.uniform1f(U.eyeR, R0 * .1); gl.uniform1f(U.blink, blinkK); gl.uniform1f(U.tanHalf, S / CAM);
+  // The emoji inside (Aaron's idea). Jules's guesses: it floats a little behind the head's centre, lags and sloshes
+  // when Pip moves (like something in liquid), and a heart beats (lub-dub), its light pulsing with it.
+  let beat = 0, eScale = 1, ex = v3(1, 0, 0), ey = v3(0, 1, 0), ez = v3(0, 0, 1);
+  if (emo.on) {
+    // Where it floats (Aaron to choose): the centre of his head, up in his head (above the eyes), his chest, his body.
+    // Each spot keeps the whole emoji inside the glass, sloshing included.
+    const spots = [add(add(head, face, -R0 * .28), up, R0 * .04), add(add(head, face, -R0 * .22), up, R0 * .3),
+                   add(add(head, face, -R0 * .3), up, -R0 * .22), tail[0]];
+    const home = spots[P.ewhere] || spots[0];
+    if (!emo.p || reduce) emo.p = v3(home.x, home.y, home.z);
+    else {
+      for (const c of ['x', 'y', 'z']) { emo.v[c] = (emo.v[c] + (home[c] - emo.p[c]) * .1) * .8; emo.p[c] += emo.v[c]; }
+      const off = v3(emo.p.x - home.x, emo.p.y - home.y, emo.p.z - home.z), ol = Math.hypot(off.x, off.y, off.z), lim = R0 * .12;
+      if (ol > lim) emo.p = add(home, off, lim / ol);
+    }
+    if (!reduce) {
+      if (emo.heart) { const ph = (t % 1.05) / 1.05; beat = Math.exp(-(((ph - .1) / .05) ** 2)) + .55 * Math.exp(-(((ph - .3) / .06) ** 2)); }
+      eScale = emo.heart ? 1 + .1 * beat : 1 + .03 * Math.sin(t * 1.7);
+    }
+  }
+  const ep = emo.p ? turn(emo.p) : v3();
+
+  // Lighting studio: the glow colour follows the room (and, with an emoji inside, takes on a little of its colour).
+  let glowCol = P.env === 1 ? [1, .86, .7] : P.env === 2 ? [.55, .75, 1] : [.82, .9, 1];
+  if (emo.on) glowCol = glowCol.map((g, i) => g + (emo.col[i] - g) * P.elight * .45);
+
+  gl.uniform2f(U.res, cv.width, cv.height); gl.uniform1f(U.tanHalf, S / CAM);
+  gl.uniform4fv(U.b, data); gl.uniform1fv(U.tipf, tips); gl.uniform1i(U.nb, Math.min(MAXB, balls.length)); gl.uniform1f(U.k, P.blend);
+  ['w0', 'w1', 'w2', 'w3', 'w4'].forEach((n, j) => gl.uniform4fv(U[n], WS[j])); gl.uniform3fv(U.wn, WN); gl.uniform1i(U.nw, wings.length);
+  gl.uniform4f(U.bound, bc.x, bc.y, bc.z, br); gl.uniform1i(U.look, P.look); gl.uniform1f(U.fade, P.fade); gl.uniform1f(U.edge, P.edge);
+  gl.uniform3f(U.eyeA, ea.x, ea.y, ea.z); gl.uniform3f(U.eyeB, eb.x, eb.y, eb.z); gl.uniform1f(U.eyeR, R0 * .1); gl.uniform1f(U.blink, blinkK);
+  gl.uniform3f(U.fSide, sT.x, sT.y, sT.z); gl.uniform3f(U.fUp, uT.x, uT.y, uT.z); gl.uniform3f(U.mouthC, mc.x, mc.y, mc.z);
+  gl.uniform1f(U.smoothE, .0015 + P.smooth * .09);
+  gl.uniform1i(U.mouth, P.face === 1 ? 1 : P.face === 2 ? 2 : 0);
+  gl.uniform1i(U.env, P.env); gl.uniform1f(U.glowAmt, P.glow * (1 + beat * .25 * P.elight)); gl.uniform3fv(U.glowCol, glowCol);
+  gl.uniform1i(U.emoKind, emo.on ? 1 : 0); gl.uniform4f(U.emoP, ep.x, ep.y, ep.z, R0 * P.esize * eScale);
+  gl.uniform1f(U.emoLight, P.elight * (1 + beat * .6)); gl.uniform3fv(U.emoCol, emo.col);
+  gl.uniform3f(U.emoX, ex.x, ex.y, ex.z); gl.uniform3f(U.emoY, ey.x, ey.y, ey.z); gl.uniform3f(U.emoZ, ez.x, ez.y, ez.z);
+  gl.uniform1f(U.clarity, emo.on ? P.eclear : 0);
+  gl.uniform1f(U.specPow, 160 - P.hsize * 140); gl.uniform1f(U.specAmt, P.hstr); gl.uniform1f(U.reflAmt, P.refl); gl.uniform1f(U.tintAmt, P.tint);
+  gl.uniform1i(U.showPanel, P.panel || P.pose ? 1 : 0); gl.uniform3f(U.pc, pb.c.x, pb.c.y, pb.c.z); gl.uniform3f(U.ph, pb.h.x, pb.h.y, pb.h.z);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   requestAnimationFrame(tick);
 }
@@ -335,31 +559,45 @@ requestAnimationFrame(tick);
 
 // ---------- touch and controls
 const stage = $('#stage');
-stage.addEventListener('pointerdown', e => { dragging = true; held = true; target = toWorld(e.clientX, e.clientY); stage.setPointerCapture(e.pointerId); });
+stage.addEventListener('pointerdown', e => { if (P.pose) return; dragging = true; held = true; target = toWorld(e.clientX, e.clientY); stage.setPointerCapture(e.pointerId); });
 stage.addEventListener('pointermove', e => { if (dragging) target = toWorld(e.clientX, e.clientY); });
 stage.addEventListener('pointerup', () => { dragging = false; });
 stage.addEventListener('pointercancel', () => { dragging = false; });
 
-function seg(id, key) {
-  const el = $('#' + id);
-  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
-    P[key] = +b.dataset.v; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
+const segs = [['look', 'look'], ['wings', 'wings'], ['pose', 'pose'], ['face', 'face'], ['env', 'env'], ['posture', 'posture'], ['ewhere', 'ewhere']];
+const ranges = [['n', 'nv'], ['len', 'lv'], ['curl', 'cv2'], ['taper', 'tv'], ['rise', 'rv', v => Math.round(v * 100) + '%'], ['blend', 'bv'],
+  ['fade', 'fv', v => Math.round(v * 100) + '%'], ['edge', 'ev', v => Math.round(v * 100) + '%'], ['yaw', 'yv', v => v + '°'],
+  ['smooth', 'smv', v => Math.round(v * 100) + '%'], ['glow', 'gv'], ['hsize', 'hv'], ['hstr', 'sv'], ['refl', 'rfv'], ['tint', 'tnv'],
+  ['esize', 'esv', v => Math.round(v * 100) + '%'], ['elight', 'elv', v => Math.round(v * 100) + '%'], ['eclear', 'ecv', v => Math.round(v * 100) + '%']];
+function sync() {
+  for (const [id, key] of segs) $('#' + id).querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === P[key]));
+  let mine = true;
+  $('#emoji').querySelectorAll('button').forEach(b => { const on = b.dataset.e === P.emoji; b.classList.toggle('on', on); if (on) mine = false; });
+  if (mine && document.activeElement !== $('#eown')) $('#eown').value = P.emoji;
+  for (const [id, out, fmt] of ranges) { $('#' + id).value = P[id]; $('#' + out).textContent = (fmt || (v => v))(P[id]); }
+  $('#auto').checked = P.auto; $('#showPanel').checked = P.panel;
 }
-seg('look', 'look'); seg('wings', 'wings'); seg('backdrop', 'backdrop');
-function bind(id, key, out, fmt = v => v) {
-  const el = $('#' + id), o = $('#' + out);
-  const set = () => { P[key] = +el.value; o.textContent = fmt(+el.value); };
-  el.addEventListener('input', set); set();
-}
-bind('n', 'n', 'nv'); bind('len', 'len', 'lv'); bind('curl', 'curl', 'cv2'); bind('taper', 'taper', 'tv'); bind('rise', 'rise', 'rv', v => Math.round(v * 100) + '%');
-bind('blend', 'blend', 'bv'); bind('fade', 'fade', 'fv', v => Math.round(v * 100) + '%'); bind('edge', 'edge', 'ev', v => Math.round(v * 100) + '%'); bind('yaw', 'yaw', 'yv', v => v + '°');
-$('#auto').checked = P.auto; $('#auto').addEventListener('change', e => { P.auto = e.target.checked; held = false; });
+for (const [id, key] of segs) $('#' + id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; P[key] = +b.dataset.v; held = false; sync(); save(); });
+for (const [id] of ranges) $('#' + id).addEventListener('input', e => { P[id] = +e.target.value; sync(); save(); });
+$('#auto').addEventListener('change', e => { P.auto = e.target.checked; held = false; save(); });
+$('#showPanel').addEventListener('change', e => { P.panel = e.target.checked; save(); });
+$('#emoji').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; P.emoji = b.dataset.e; $('#eown').value = ''; setEmoji(P.emoji); sync(); save(); });
+$('#eown').addEventListener('input', e => {
+  const v = e.target.value.trim();
+  const one = !v ? '' : (window.Intl && Intl.Segmenter) ? [...new Intl.Segmenter().segment(v)][0].segment : Array.from(v)[0];   // the first emoji typed
+  P.emoji = one; setEmoji(one); sync(); save();
+});
+$('#pick').addEventListener('click', () => { Object.assign(P, PICK); held = false; sync(); save(); });
+$('#baseline').addEventListener('click', () => { Object.assign(P, BASE, STUDIO, { posture: 0, yaw: 0 }); sync(); save(); });
+$('#drawn').addEventListener('click', () => { Object.assign(P, BASE, STUDIO, DRAWN, { posture: 0, yaw: 0 }); sync(); save(); });
 $('#copy').addEventListener('click', async () => {
-  const text = 'Pip 3D settings (Aaron): ' + JSON.stringify({ n: P.n, len: P.len, curl: P.curl, taper: P.taper, rise: P.rise, blend: P.blend, fade: P.fade, edge: P.edge, look: ['pearl', 'fairy blue', 'silhouette', 'liquid glass'][P.look], wings: ['none', 'one pair', 'two pairs'][P.wings] });
+  const keys = ['smooth', 'n', 'len', 'curl', 'taper', 'rise', 'blend', 'fade', 'edge', 'posture', 'glow', 'hsize', 'hstr', 'refl', 'tint', 'env', 'pose', 'face', 'wings', 'look', 'emoji', 'ewhere', 'eclear', 'esize', 'elight'];
+  const text = 'Pip 3D settings (Aaron): ' + JSON.stringify(Object.fromEntries(keys.map(k => [k, P[k]])));
   try { await navigator.clipboard.writeText(text); $('#copy').textContent = 'Copied'; }
   catch { $('#copied').textContent = text; $('#copied').style.display = 'block'; }
   setTimeout(() => { $('#copy').textContent = 'Copy settings'; }, 1600);
 });
+sync();
 </script>
 </body>
 </html>
