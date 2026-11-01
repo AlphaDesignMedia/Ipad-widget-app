@@ -48,8 +48,17 @@ extension Dashboard {
         return String(clean[..<end.lowerBound]) + "."
     }
 
+    /// Bumped on every answer. `answer` reads it, so everything that counts answers (the Home Screen widgets, the
+    /// groups badge, the canvas tile, the side card) redraws when one changes, whoever changed it. (Rob, 1 Nov: after
+    /// a "Yes" the Needs you widget still said "5 need you"; it never knew an answer had changed.)
+    @MainActor @Observable final class AnswerBook {
+        static let shared = AnswerBook()
+        var changes = 0
+    }
+
     @MainActor static func answer(_ q: String, _ host: PipHost) -> Answer? {
-        (host.value("dashboard", stableKey(q)) as String?).flatMap(Answer.init(rawValue:))
+        _ = AnswerBook.shared.changes      // watched: views showing counts redraw on any answer
+        return (host.value("dashboard", stableKey(q)) as String?).flatMap(Answer.init(rawValue:))
     }
 
     /// Answers are kept by question, so a new board with new questions starts fresh. (Not `hashValue`: that
@@ -62,6 +71,7 @@ extension Dashboard {
 
     @MainActor static func setAnswer(_ a: Answer?, _ q: String, _ host: PipHost) {
         host.setValue(a?.rawValue, "dashboard", stableKey(q))
+        AnswerBook.shared.changes += 1
     }
 
     /// The FOR DASHBOARD paste: every answered question, in plain words.
