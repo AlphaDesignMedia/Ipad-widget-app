@@ -211,7 +211,7 @@ extension Dashboard {
 
         var body: some View {
             if shown {
-                let data = Dashboard.feed.data
+                let data = Dashboard.Feed.shared.data
                 let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
                 GeometryReader { geo in
                     GlassTile(data: data, waiting: waiting)

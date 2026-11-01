@@ -5,7 +5,8 @@ import SwiftUI
 // sections to its panel (`addsTo: "dashboard"`), so the dashboard grows one small plugin at a time.
 // Data: `dashboard.json` in this folder (packed into the app at build; a copy of the web sandbox's
 // data/dashboard.json, refreshed on the Mac by app/tools/sync-dashboard.sh, which can also add the live board's
-// headline as `live`). If the file is missing, the snapshot below. The app itself never goes online. Works the same with Pip off; Pip adds one line at most.
+// headline as `live`). If the file is missing, the snapshot below. Then the live feed (Feed, below) downloads the
+// newest board when the dashboard opens, read-only, with an off switch. Works the same with Pip off; Pip adds one line at most.
 // Where: the dashboard button in the plugin bar.
 
 struct Dashboard: SandboxPlugin {
@@ -211,7 +212,7 @@ struct Dashboard: SandboxPlugin {
 
     // MARK: Logic
 
-    /// Loaded once: the packed-in file if there is one, otherwise the snapshot.
+    /// The packed-in file if there is one, otherwise the snapshot. The starting point before the live feed answers.
     static let feed: (data: DashboardData, packed: Bool) = {
         if let url = Bundle.main.url(forResource: "dashboard", withExtension: "json"),
            let raw = try? Data(contentsOf: url),
@@ -222,10 +223,84 @@ struct Dashboard: SandboxPlugin {
         return (data, false)
     }()
 
-    /// "Updated Thu 29 Oct, 7:45 pm", or "Snapshot, …" while no fresh file has been packed in.
-    static var freshness: String {
-        let when = date(feed.data.syncedAt) ?? "an unknown date"
-        return feed.packed ? "Updated \(when)" : "Snapshot, \(when). The packed-in file is missing, so these may be old."
+    /// What the footer says: live, last live copy, packed-in file, or snapshot.
+    @MainActor static var freshness: String { Feed.shared.freshness }
+
+    /// THE LIVE FEED (Aaron, 1 Nov: "it needs to plug into the live one, not just static").
+    /// Read-only: it downloads two small files and never sends anything. Off switch in the card.
+    ///   board.json   the whole board (a local agent writes it whenever the live dashboard changes)
+    ///   status.json  the headline that already feeds the iPad widget
+    /// Last good copy is kept, so offline still shows the newest board seen. Checks at most once a minute,
+    /// and only when the dashboard is open.
+    @MainActor @Observable final class Feed {
+        static let shared = Feed()
+        static let base = "https://gist.githubusercontent.com/AlphaDesignMedia/1f2abb87c59f63844a9f7523f37da9f4/raw/"
+        private static let cacheKey = "plug.dashboard.liveBoard"
+        private static let switchKey = "plug.dashboard.liveOn"
+
+        enum State: Equatable { case starting, checking, live(Date), offline }
+
+        private(set) var data: DashboardData
+        private(set) var state: State = .starting
+        private var lastTry: Date?
+
+        var on: Bool {
+            get { access(keyPath: \.on); return UserDefaults.standard.object(forKey: Self.switchKey) as? Bool ?? true }
+            set { withMutation(keyPath: \.on) { UserDefaults.standard.set(newValue, forKey: Self.switchKey) }
+                  if newValue { refresh(force: true) } }
+        }
+
+        init() {
+            if let raw = UserDefaults.standard.data(forKey: Self.cacheKey),
+               let cached = try? JSONDecoder().decode(DashboardData.self, from: raw),
+               (cached.syncedAt ?? "") >= (Dashboard.feed.data.syncedAt ?? "") {
+                data = cached
+            } else {
+                data = Dashboard.feed.data
+            }
+        }
+
+        var freshness: String {
+            let when = Dashboard.date(data.syncedAt) ?? "an unknown date"
+            switch state {
+            case .live(let at): return "Live · checked \(Self.clock(at)) · board from \(when)"
+            case .checking: return "Checking the live board… showing \(when)"
+            case .offline where on: return "Couldn't reach the live board. Showing \(when)."
+            default: return Dashboard.feed.packed ? "Updated \(when)" : "Snapshot, \(when)."
+            }
+        }
+
+        static func clock(_ d: Date) -> String {
+            let f = DateFormatter(); f.locale = Locale(identifier: "en_GB"); f.dateFormat = "h:mm a"; return f.string(from: d)
+        }
+
+        func refresh(force: Bool = false) {
+            guard on else { state = .starting; return }
+            if !force, let lastTry, Date().timeIntervalSince(lastTry) < 60 { return }
+            lastTry = Date()
+            state = .checking
+            Task {
+                async let board = Self.fetch("board.json")
+                async let head = Self.fetch("status.json")
+                let (b, h) = await (board, head)
+                var next = data
+                if let b, let full = try? JSONDecoder().decode(DashboardData.self, from: b) {
+                    next = full
+                    UserDefaults.standard.set(b, forKey: Self.cacheKey)
+                }
+                if let h, let live = try? JSONDecoder().decode(DashboardData.Live.self, from: h) { next.live = live }
+                if b != nil || h != nil { data = next; state = .live(Date()) } else { state = .offline }
+            }
+        }
+
+        nonisolated private static func fetch(_ name: String) async -> Data? {
+            guard let url = URL(string: base + name + "?t=\(Int(Date().timeIntervalSince1970))") else { return nil }
+            var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 6)
+            req.httpMethod = "GET"
+            guard let (body, resp) = try? await URLSession.shared.data(for: req),
+                  (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+            return body
+        }
     }
 
     /// An ISO date as "Thu 29 Oct, 7:45 pm".
@@ -274,10 +349,28 @@ struct Dashboard: SandboxPlugin {
         // The Glass Clock-style widget and the answerable questions first (DashboardWidget.swift), then the rest.
         VStack(spacing: Corner.inset) {
             PanelsButton(host: host)
-            Front(data: Dashboard.feed.data, host: host)
-            Board(data: Dashboard.feed.data)
+            LiveBody(host: host)
         }
-        .onAppear { mind.greet(host) }
+        .onAppear { mind.greet(host); Feed.shared.refresh() }
+    }
+
+    /// Reads the live feed, so the card redraws when it answers.
+    struct LiveBody: View {
+        let host: PipHost
+        @Bindable private var feed = Feed.shared
+
+        var body: some View {
+            Front(data: feed.data, host: host)
+            Board(data: feed.data)
+            SettingsCard(title: "Live feed", icon: "antenna.radiowaves.left.and.right",
+                         footer: "Only downloads the board. Nothing is sent. Off shows the copy packed into the app.") {
+                Toggle("Follow the live dashboard", isOn: $feed.on)
+                if feed.on {
+                    Button("Check now") { feed.refresh(force: true) }
+                        .accessibilityHint("Downloads the latest board")
+                }
+            }
+        }
     }
 
     struct Board: View {
@@ -287,7 +380,7 @@ struct Dashboard: SandboxPlugin {
             VStack(spacing: Corner.inset) {
                 if let live = data.live {
                     SettingsCard(title: "Live board", icon: "dot.radiowaves.left.and.right",
-                                 footer: "From the live dashboard, \(Dashboard.date(live.updatedAt) ?? "date unknown"). Fetched when this build was made.") {
+                                 footer: "From the live dashboard, \(Dashboard.date(live.updatedAt) ?? "date unknown").") {
                         HStack {
                             LiveNumber(value: live.needYou, label: "Need you")
                             LiveNumber(value: live.toTry, label: "To try")

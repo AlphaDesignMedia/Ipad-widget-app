@@ -73,7 +73,7 @@ extension Dashboard {
             .buttonStyle(PluginCardButton(on: true))
             .accessibilityHint("Opens the whole dashboard full screen, with a sidebar of sections.")
             .fullScreenCover(isPresented: $open) {
-                PanelsScreen(data: Dashboard.feed.data, host: host) { open = false }
+                PanelsScreen(data: Dashboard.Feed.shared.data, host: host) { open = false }
             }
         }
     }
