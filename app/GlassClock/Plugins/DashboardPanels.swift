@@ -37,123 +37,246 @@ extension Dashboard {
     /// doesn't repeat them.
     static let panelsSlot = "dashboard.panels"
 
-    /// THE dashboard (Aaron, 1 Nov: "widgets like this", from his live board): a grid of small glass widgets in
-    /// three columns, Status · Actions · Direction. Each folds with – / +, remembered. Small by default: only
-    /// At a glance, Needs you and Next action start open. Reads the live feed, so it updates while open.
+    /// The dashboard's groups, like Panels' settings groups, in Status · Actions · Direction order.
+    enum DashGroup: String, CaseIterable, Identifiable {
+        case glance, builds, stable, busypip, needs, forrob, dashqueue, nextaction, upnext, ideas, reminders, principles
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .glance: "At a glance"
+            case .builds: "Builds"
+            case .stable: "Stable & Sandbox"
+            case .busypip: "Busy Pip"
+            case .needs: "Needs you"
+            case .forrob: "For Rob"
+            case .dashqueue: "Dashboard queue"
+            case .nextaction: "Next action"
+            case .upnext: "Up next"
+            case .ideas: "Ideas"
+            case .reminders: "Reminders"
+            case .principles: "How we work"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .glance: "location"
+            case .builds: "hammer"
+            case .stable: "shield"
+            case .busypip: "gauge.with.dots.needle.33percent"
+            case .needs: "questionmark.bubble"
+            case .forrob: "terminal"
+            case .dashqueue: "tray.full"
+            case .nextaction: "arrow.right.circle"
+            case .upnext: "list.bullet"
+            case .ideas: "lightbulb"
+            case .reminders: "bell"
+            case .principles: "star"
+            }
+        }
+
+        /// Groups that come from another plugin (shown only while that plugin is on).
+        var plugin: String? {
+            switch self {
+            case .stable: "stable"
+            case .busypip: "busypip"
+            case .dashqueue: "dashqueue"
+            case .nextaction: "nextaction"
+            default: nil
+            }
+        }
+    }
+
+    /// THE dashboard, as its own tab (Aaron, 1 Nov: "it should look more like the real Panels but function like a
+    /// widget… don't remake what's already there"). Laid out like Panels, from Panels' own parts: the groups pill on
+    /// the left (frosted glass, glossy bead, shimmer), the Progress widget on the stage where the clock widget sits,
+    /// and the settings column of `SettingsCard`s on the right. Picking a group glides the column to it; scrolling the
+    /// column moves the bead. Tap the widget to jump to what needs you. Narrow windows: icons only, widget on top.
     /// Private: Aaron's mission control. It lives in the Sandbox and never moves to Glass Clock.
     struct PanelsScreen: View {
         let host: PipHost
-        /// nil when it's shown as its own tab (Robyn's screen hook): no ✕ then.
-        let close: (() -> Void)?
         @Bindable private var feed = Feed.shared
         /// Bumped when a question is answered, so counts redraw.
         @State private var taps = 0
-        /// How far the screen has been pulled down by a swipe on the header (Aaron, 1 Nov: swipe it closed).
-        @State private var pull: CGFloat = 0
-        @State private var screenHeight: CGFloat = 800
+        @State private var selected = DashGroup.glance
+        @State private var jump: DashGroup?
+        @State private var columnHeight: CGFloat = 800
+        @Namespace private var bead
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @AppStorage("appTheme") private var appTheme = AppTheme.home
+        @AppStorage("reduceGlass") private var reducesGlass = false
+        @AppStorage("glassAmount") private var glassAmount = GlassAmount.standard
+        @AppStorage(Tweak.frost.key) private var tweakFrost = Tweak.frost.standard
 
-        init(host: PipHost, close: (() -> Void)? = nil) {
-            self.host = host
-            self.close = close
-        }
+        init(host: PipHost) { self.host = host }
 
         var body: some View {
             let data = feed.data
-            ZStack(alignment: .topTrailing) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Corner.inset) {
-                        header
-                        ViewThatFits(in: .horizontal) {
-                            HStack(alignment: .top, spacing: Corner.inset) {
-                                column("Status") { status(data) }
-                                column("Actions") { actions(data) }
-                                column("Direction") { direction(data) }
-                            }
-                            .frame(minWidth: 900)
-                            VStack(spacing: Corner.inset) {
-                                column("Status") { status(data) }
-                                column("Actions") { actions(data) }
-                                column("Direction") { direction(data) }
-                            }
-                        }
+            let groups = DashGroup.allCases.filter { shows($0, data) }
+            GeometryReader { geo in
+                let wide = geo.size.width >= 980
+                HStack(alignment: .top, spacing: 16) {
+                    groupsList(groups, iconsOnly: !wide)
+                        .frame(width: wide ? 230 : 68)
+                    if wide {
+                        stage(data)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .padding(Corner.inset)
-                    .padding(.top, 4)
+                    column(groups, data, showsWidget: !wide)
+                        .frame(width: wide ? min(440, max(360, geo.size.width * 0.33)) : nil)
+                        .frame(maxWidth: wide ? nil : .infinity)
                 }
-
-                if let close {
-                    Button(action: close) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 17, weight: .semibold))
-                            .frame(width: 44, height: 44)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .appGlass(Circle(), interactive: true)
-                    .padding(Corner.inset + 6)
-                    .accessibilityLabel("Close the dashboard")
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
             }
-            .offset(y: pull)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
-            .accessibilityAction(.escape) { close?() }
             .onAppear { feed.refresh() }
         }
 
-        /// Swipe down on the header to close, like the system's sheets: it follows the finger; past a third of the
-        /// screen (or a quick flick) it closes, otherwise it springs back. Simpler motion: no following, a swipe closes.
-        /// Only while it's a full-screen cover: as a tab there's nothing to close.
-        private var swipeToClose: some Gesture {
-            DragGesture(minimumDistance: 10)
-                .onChanged { drag in
-                    guard close != nil, !(host.simpler || reduceMotion) else { return }
-                    let down = drag.translation.height
-                    pull = down > 0 ? down : down / 6          // a little give upwards, like a sheet
+        private func shows(_ g: DashGroup, _ data: DashboardData) -> Bool {
+            if let id = g.plugin { return addOn(id) != nil }
+            if g == .forrob { return !(data.outboxForRob ?? []).isEmpty }
+            return true
+        }
+
+        // MARK: Groups (Panels' groups pill)
+
+        private func groupsList(_ groups: [DashGroup], iconsOnly: Bool) -> some View {
+            ScrollView {
+                VStack(spacing: 4) {
+                    ForEach(groups) { g in groupButton(g, iconsOnly: iconsOnly) }
                 }
-                .onEnded { drag in
-                    guard let close else { return }
-                    let down = drag.translation.height, flung = drag.predictedEndTranslation.height
-                    let simpler = host.simpler || reduceMotion
-                    if down > (simpler ? 60 : screenHeight / 3) || flung > screenHeight / 2 {
-                        close()
-                    } else if simpler {
-                        pull = 0
-                    } else {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { pull = 0 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .fixedSize(horizontal: false, vertical: true)
+            .background {
+                if appTheme.isGlassy && !reducesGlass {
+                    GlassAmount.backing(GlassAmount.frosted(glassAmount, by: tweakFrost), in: .rect(cornerRadius: Corner.panel))
+                }
+            }
+            .appGlass(.rect(cornerRadius: Corner.panel), panel: true)
+            .animation(reduceMotion ? nil : .snappy, value: selected)
+        }
+
+        private func groupButton(_ g: DashGroup, iconsOnly: Bool) -> some View {
+            let on = selected == g
+            return Button {
+                selected = g
+                jump = g
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: g.icon).font(.body.weight(.semibold)).foregroundStyle(.tint).frame(width: 24)
+                    if !iconsOnly {
+                        Text(g.title).font(.body.weight(on ? .semibold : .regular)).foregroundStyle(.primary).lineLimit(1)
+                        Spacer(minLength: 0)
+                        if let n = badge(g) {
+                            Text(n).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        }
                     }
                 }
-        }
-
-        private var header: some View {
-            VStack(alignment: .leading, spacing: 2) {
-                if close != nil {
-                    // The grabber, as on the system's sheets: says "pull me down".
-                    Capsule().fill(.secondary.opacity(0.5)).frame(width: 40, height: 5)
-                        .frame(maxWidth: .infinity).padding(.bottom, 6).padding(.trailing, -70)
-                        .accessibilityHidden(true)
+                .padding(.horizontal, iconsOnly ? 0 : 16)
+                .padding(.vertical, iconsOnly ? 0 : 12)
+                .frame(width: iconsOnly ? 44 : nil, height: iconsOnly ? 44 : nil)
+                .background {
+                    if on {
+                        GlossyBead(shape: Capsule())
+                            .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                            .matchedGeometryEffect(id: "dashboard group", in: bead)
+                    }
                 }
-                Text("PROGRESS").font(.system(size: 11, weight: .semibold)).tracking(1.2).foregroundStyle(.secondary)
-                Text(feed.data.source ?? "Glass Clock Progress").font(.system(size: 24, weight: .bold))
-                Text(Dashboard.freshness).font(.system(size: 12)).foregroundStyle(.secondary)
+                .shimmer(trigger: on, in: Capsule())
+                .contentShape(.capsule)
             }
-            .padding(.horizontal, 6)
-            .padding(.trailing, 70)
-            .contentShape(.rect)
-            .highPriorityGesture(swipeToClose, including: close != nil ? .all : .subviews)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
-            .accessibilityHint(close != nil ? "Swipe down here to close, or use the close button." : "")
+            .buttonStyle(.plain)
+            .accessibilityLabel(badge(g).map { "\(g.title), \($0)" } ?? g.title)
+            .accessibilityAddTraits(on ? .isSelected : [])
         }
 
-        private func column<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
-            VStack(alignment: .leading, spacing: Corner.inset) {
-                Text(title.uppercased()).font(.system(size: 11, weight: .semibold)).tracking(1.2)
-                    .foregroundStyle(.secondary).padding(.horizontal, 6)
-                    .accessibilityAddTraits(.isHeader)
-                content()
+        private func badge(_ g: DashGroup) -> String? {
+            let data = feed.data
+            let _ = taps
+            switch g {
+            case .needs:
+                let n = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
+                return n > 0 ? "\(n)" : nil
+            case .forrob:
+                let n = (data.outboxForRob ?? []).filter { $0.done != true }.count
+                return n > 0 ? "\(n)" : nil
+            case .upnext: return data.upNext.map { "\($0.count)" }
+            case .ideas: return data.ideas.map { "\($0.count)" }
+            default: return nil
             }
-            .frame(maxWidth: .infinity, alignment: .top)
+        }
+
+        // MARK: Stage (the widget, where the clock sits in Panels)
+
+        private func stage(_ data: DashboardData) -> some View {
+            VStack(spacing: 14) {
+                Spacer(minLength: 0)
+                widget(data)
+                Text(Dashboard.freshness)
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .modifier(PanelLabelBacking())
+                Spacer(minLength: 0)
+            }
+            .padding(.bottom, 60)
+        }
+
+        /// The Progress widget: a glance, like the clock widget. Tap it to jump to what needs you (or the glance).
+        private func widget(_ data: DashboardData) -> some View {
+            let _ = taps
+            let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
+            return GlassTile(data: data, waiting: waiting)
+                .contentShape(.rect(cornerRadius: 28))
+                .onTapGesture {
+                    let to: DashGroup = waiting > 0 ? .needs : .glance
+                    selected = to
+                    jump = to
+                }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint(waiting > 0 ? "Shows what needs you" : "Shows the glance")
+        }
+
+        // MARK: Column (Panels' settings column: SettingsCards, each group in turn)
+
+        private func column(_ groups: [DashGroup], _ data: DashboardData, showsWidget: Bool) -> some View {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Corner.inset) {
+                        if showsWidget {
+                            widget(data).frame(maxWidth: .infinity)
+                            Text(Dashboard.freshness).font(.footnote).foregroundStyle(.secondary)
+                                .modifier(PanelLabelBacking())
+                        }
+                        ForEach(groups) { g in
+                            VStack(alignment: .leading, spacing: Corner.inset) { content(g, data) }
+                                .id(g)
+                                // The group crossing a line a third of the way down is the one in use, as in Panels.
+                                .onGeometryChange(for: Bool.self) { p in
+                                    let f = p.frame(in: .named("dashboardColumn"))
+                                    let line = max(120, columnHeight / 3)
+                                    return f.minY <= line && f.maxY >= line
+                                } action: { onLine in
+                                    if onLine, jump == nil, selected != g { selected = g }
+                                }
+                        }
+                    }
+                    .padding(.bottom, 24)
+                }
+                .coordinateSpace(name: "dashboardColumn")
+                .scrollIndicators(.hidden)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { columnHeight = $0 }
+                .onChange(of: jump) { _, to in
+                    guard let to else { return }
+                    if reduceMotion { proxy.scrollTo(to, anchor: .top) } else {
+                        withAnimation(.smooth(duration: 0.45)) { proxy.scrollTo(to, anchor: .top) }
+                    }
+                    host.later(0.6) { jump = nil }
+                }
+            }
         }
 
         /// A plugin's section, if that plugin is on.
@@ -161,118 +284,28 @@ extension Dashboard {
             host.plugins.first { $0.info.id == id && $0.addsTo == Dashboard.panelsSlot && $0.hasAddOn && host.isOn(id) }
         }
 
-        @ViewBuilder private func plugin(_ id: String, icon: String, open: Bool = false) -> some View {
-            if let p = addOn(id) {
-                Widget(id: id, title: p.info.name, icon: icon, startsOpen: open) { p.anyAddOn(host) }
-            }
-        }
-
-        @ViewBuilder private func status(_ data: DashboardData) -> some View {
-            Widget(id: "glance", title: "At a glance", icon: "location", note: data.status?.updatedAt, startsOpen: true) {
-                if let live = data.live { LiveNumbers(live: live) }
-                StatusPanel(data: data, host: host)
-            }
-            Widget(id: "builds", title: "Builds", icon: "hammer", note: data.builds.map { "\($0.count)" }) {
-                BuildsPanel(builds: data.builds ?? [])
-            }
-            plugin("stable", icon: "shield")
-            plugin("busypip", icon: "gauge.with.dots.needle.33percent")
-        }
-
-        @ViewBuilder private func actions(_ data: DashboardData) -> some View {
-            let _ = taps
-            let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
-            Widget(id: "needs", title: "Needs you", icon: "questionmark.bubble",
-                   note: waiting > 0 ? "\(waiting) waiting" : nil, startsOpen: true) {
-                AsksPanel(asks: data.needsYou ?? [], host: host) { taps += 1 }
-            }
-            if let jobs = data.outboxForRob, !jobs.isEmpty {
-                let waiting = jobs.filter { $0.done != true }.count
-                Widget(id: "forrob", title: "For Rob", icon: "terminal",
-                       note: waiting > 0 ? "\(waiting) to do" : "all done", startsOpen: waiting > 0) {
-                    ForRobList(jobs: jobs)
-                }
-            }
-            plugin("dashqueue", icon: "tray.full")
-            Widget(id: "livefeed", title: "Live feed", icon: "antenna.radiowaves.left.and.right",
-                   note: feed.on ? "on" : "off") {
-                SettingsCard(footer: "Only downloads the board. Nothing is sent. Off shows the copy packed into the app.") {
+        @ViewBuilder private func content(_ g: DashGroup, _ data: DashboardData) -> some View {
+            switch g {
+            case .glance:
+                SettingsCard(title: "At a glance", icon: "location", footer: Dashboard.freshness) {
+                    if let live = data.live { LiveNumbers(live: live) }
                     Toggle("Follow the live dashboard", isOn: $feed.on)
-                    if feed.on {
-                        Button("Check now") { feed.refresh(force: true) }
-                            .accessibilityHint("Downloads the latest board")
-                    }
+                        .accessibilityHint("Only downloads the board. Nothing is sent.")
+                }
+                StatusPanel(data: data, host: host)
+            case .builds: BuildsPanel(builds: Array((data.builds ?? []).prefix(3)))
+            case .needs: AsksPanel(asks: data.needsYou ?? [], host: host) { taps += 1 }
+            case .forrob:
+                SettingsCard(title: "For Rob", icon: "terminal") { ForRobList(jobs: data.outboxForRob ?? []) }
+            case .upnext: UpNextPanel(steps: data.upNext ?? [])
+            case .ideas: IdeasPanel(ideas: data.ideas ?? [])
+            case .reminders: RemindersPanel(reminders: data.reminders ?? [])
+            case .principles: PrinciplesPanel(principles: data.principles ?? [])
+            case .stable, .busypip, .dashqueue, .nextaction:
+                if let id = g.plugin, let p = addOn(id) {
+                    SettingsCard(title: g.title, icon: g.icon) { p.anyAddOn(host) }
                 }
             }
-        }
-
-        @ViewBuilder private func direction(_ data: DashboardData) -> some View {
-            plugin("nextaction", icon: "arrow.right.circle", open: true)
-            Widget(id: "upnext", title: "Up next", icon: "list.bullet", note: data.upNext.map { "\($0.count)" }) {
-                UpNextPanel(steps: data.upNext ?? [])
-            }
-            Widget(id: "ideas", title: "Ideas", icon: "lightbulb", note: data.ideas.map { "\($0.count) ideas" }) {
-                IdeasPanel(ideas: data.ideas ?? [])
-            }
-            Widget(id: "reminders", title: "Reminders", icon: "bell", note: data.reminders.map { "\($0.count)" }) {
-                RemindersPanel(reminders: data.reminders ?? [])
-            }
-            Widget(id: "principles", title: "How we work", icon: "star") {
-                PrinciplesPanel(principles: data.principles ?? [])
-            }
-        }
-    }
-
-    /// One glass widget on the dashboard, like the live board's: title, a small note on the right, – / + to fold.
-    struct Widget<Content: View>: View {
-        let title: String
-        let icon: String
-        let note: String?
-        @ViewBuilder let content: () -> Content
-        @AppStorage private var open: Bool
-        @Environment(\.accessibilityReduceMotion) private var reduceMotion
-        /// Your clock widget's saved style: the same card and colour as the widget (no look of its own).
-        @State private var style = ClockStyle.load()
-
-        init(id: String, title: String, icon: String, note: String? = nil, startsOpen: Bool = false,
-             @ViewBuilder content: @escaping () -> Content) {
-            self.title = title
-            self.icon = icon
-            self.note = note
-            self.content = content
-            _open = AppStorage(wrappedValue: startsOpen, "plug.dashboard.widget.\(id)")
-        }
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 10) {
-                Button {
-                    if reduceMotion { open.toggle() } else { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: icon).frame(width: 20).foregroundStyle(.secondary)
-                        Text(title).font(.system(size: 16, weight: .bold))
-                        Spacer(minLength: 4)
-                        if let note {
-                            Text(note).font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: open ? "minus" : "plus").font(.system(size: 13, weight: .semibold))
-                    }
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(note.map { "\(title), \($0)" } ?? title)
-                .accessibilityValue(open ? "open" : "folded")
-                .accessibilityHint(open ? "Folds it away" : "Opens it")
-
-                if open {
-                    VStack(alignment: .leading, spacing: Corner.inset) { content() }
-                }
-            }
-            .padding(Corner.edge)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(style.color == .auto ? AnyShapeStyle(.primary) : AnyShapeStyle(style.color.color))
-            .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28)))
         }
     }
 
@@ -329,8 +362,6 @@ extension Dashboard {
         let host: PipHost
 
         var body: some View {
-            let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
-            GlassTile(data: data, waiting: waiting)
             SettingsCard(title: "Where we are", icon: "location", footer: data.status?.updatedAt) {
                 if let headline = data.status?.headline {
                     Text(Dashboard.clean(headline)).fixedSize(horizontal: false, vertical: true)
