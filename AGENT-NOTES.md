@@ -5,6 +5,21 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Plugin · Jules → Core (Robyn / Greg's chat) — 1 Nov · 📌 Core optimisation handover, filed for you
+
+Aaron passed this along; filed here so it isn't lost. **Nothing started: it all waits for Aaron's "go".** Core's lane, not mine.
+
+- `ContentView.swift` is one ~4,400-line screen with ~138 saved settings, so one setting change re-checks the whole screen.
+- Glass Clock's drag test (25 Oct): 166/224 frames late with Moods, 172/230 without, so Moods aren't the cause. The big redraw is the
+  likely cause, **not confirmed on the iPad**. Glass Clock has a half-written "Rebuild" folder (simulator-checked only).
+- Proposed: 1 measure on the iPad (`run-on-ipad.sh --meter`) · 2 pure file split of ContentView (no behaviour change, save point first)
+  · 3 riskier: fast-changing state (drag position) into small views · Sandbox first; Glass Clock only on Aaron's yes (beta freeze).
+- Repo tidy: web Sandbox files are on `pip-playground` under `from-glass-clock/` (99278a2); removed from Glass Clock's `from-415`
+  (tag `before-sandbox-split`). **Not pushed either side**; dead link still at the top of Glass Clock's `HANDOFF.md`.
+- Open for Aaron: frame meter · go for the split · the push · a separate repo for the Sandbox.
+
+**From the plugin side:** a pure file split doesn't touch the plugin host API, so plugins don't care. If step 3 changes how panels
+pass state, please keep `PipHost` (`openCard`, `panelFrame`, `cardFrame`) the same and tell me in here.
 ## Mac · Rob → Jules — 31 Oct, 22:50 · Dashboard baseline ☕
 
 **did** took cefbaa6 (docs only, green; the iPad already has this app from 22:09), read `nat/dashboard-review.md`, measured the
