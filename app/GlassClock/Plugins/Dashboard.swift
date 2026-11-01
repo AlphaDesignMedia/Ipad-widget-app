@@ -3,8 +3,9 @@ import SwiftUI
 // DASHBOARD · plugin v1 (On trial). Your Glass Clock Progress dashboard inside the Sandbox: where things are,
 // what needs you and what's due. Read-only: nothing here changes the real dashboard. Other plugins add their
 // sections to its panel (`addsTo: "dashboard"`), so the dashboard grows one small plugin at a time.
-// Data: `dashboard.json` packed into the app at build (the web sandbox's data/dashboard.json shape), or, until
-// that's packed in, the snapshot below. No network. Works the same with Pip off; Pip adds one line at most.
+// Data: `dashboard.json` in this folder (packed into the app at build; a copy of the web sandbox's
+// data/dashboard.json, refreshed on the Mac by app/tools/sync-dashboard.sh, which can also add the live board's
+// headline as `live`). If the file is missing, the snapshot below. The app itself never goes online. Works the same with Pip off; Pip adds one line at most.
 // Where: the dashboard button in the plugin bar.
 
 struct Dashboard: SandboxPlugin {
@@ -224,7 +225,7 @@ struct Dashboard: SandboxPlugin {
     /// "Updated Thu 29 Oct, 7:45 pm", or "Snapshot, …" while no fresh file has been packed in.
     static var freshness: String {
         let when = date(feed.data.syncedAt) ?? "an unknown date"
-        return feed.packed ? "Updated \(when)" : "Snapshot, \(when). Fresh numbers arrive with the next build."
+        return feed.packed ? "Updated \(when)" : "Snapshot, \(when). The packed-in file is missing, so these may be old."
     }
 
     /// An ISO date as "Thu 29 Oct, 7:45 pm".
@@ -284,6 +285,18 @@ struct Dashboard: SandboxPlugin {
 
         var body: some View {
             VStack(spacing: Corner.inset) {
+                if let live = data.live {
+                    SettingsCard(title: "Live board", icon: "dot.radiowaves.left.and.right",
+                                 footer: "From the live dashboard, \(Dashboard.date(live.updatedAt) ?? "date unknown"). Fetched when this build was made.") {
+                        HStack {
+                            LiveNumber(value: live.needYou, label: "Need you")
+                            LiveNumber(value: live.toTry, label: "To try")
+                            LiveNumber(value: live.upNext, label: "Up next")
+                            LiveNumber(value: live.done, label: "Done")
+                        }
+                        if let latest = live.latestUpdate { Text(Dashboard.clean(latest)) }
+                    }
+                }
                 SettingsCard(title: "Where we are", icon: "location", footer: Dashboard.freshness) {
                     DevFold(id: "dash.where", title: "status") {
                         if let headline = data.status?.headline {
@@ -317,6 +330,21 @@ struct Dashboard: SandboxPlugin {
                 }
             }
         }
+    }
+}
+
+/// One of the live board's four numbers.
+private struct LiveNumber: View {
+    let value: Int?
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value.map(String.init) ?? "–").font(.title2.weight(.semibold)).monospacedDigit()
+            Text(label).font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -367,4 +395,17 @@ struct DashboardData: Codable, Sendable {
     var builds: [Build]?
     var principles: [String]?
     var ideas: [Idea]?
+    var live: Live?
+
+    /// The live board's headline: the small file that feeds the iPad widget, fetched on the Mac by
+    /// sync-dashboard.sh at build time (never by the app).
+    struct Live: Codable, Sendable {
+        var needYou: Int?
+        var toTry: Int?
+        var upNext: Int?
+        var done: Int?
+        var latestUpdate: String?
+        var ipadBuild: String?
+        var updatedAt: String?
+    }
 }

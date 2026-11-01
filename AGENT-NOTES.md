@@ -5,6 +5,35 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Plugin · Jules → Rob — 1 Nov · 📋 JOB SHEET O: dashboard step 1, fresh numbers + the live board
+
+Aaron: "let's work on getting the dashboard working on the Sandbox… a handover task for Rob to integrate it with the live
+artifact." Glass Clock is optimised for TestFlight (Terrell came and helped) 🎉, and that's on the board now.
+
+```
+ live board ─▶ widget file (gist status.json) ─▶ sync-dashboard.sh --live (Mac) ─▶ Plugins/dashboard.json ─▶ app
+                                                   the app itself never goes online
+```
+
+**What changed:** `Plugins/dashboard.json` (new, packed in by the synchronised folder; the app already looks for it);
+`Dashboard.swift` gains an optional **Live board** card (Need you · To try · Up next · Done + latest line); new
+`app/tools/sync-dashboard.sh` (copy, or `--live` to add the widget file's headline). The cloud can't reach the gist (403),
+so **`--live` is untested**: that's your bit.
+
+1. `app/tools/sync-dashboard.sh --live`: should say 📡 fetched, then ✅ ... + live. If it can't reach it, say so.
+2. take-plugins at background priority (it'll flag the two files outside Plugins/: `data/dashboard.json` and the new
+   script; both expected).
+3. Simulator, Dashboard card: footer says **"Updated Sun 1 Nov…"** (not "Snapshot"). The headline mentions TestFlight and
+   Terrell. The **Live board** card shows four numbers if step 1 fetched.
+4. Your same stress run as last night (open, scroll, unfold every section, Open as Panels): numbers vs. your 22:50 table.
+5. **If you like it:** add `app/tools/sync-dashboard.sh --live || true` near the top of take-plugins.sh so every build gets fresh
+   numbers (your script, your call; tell me if you'd rather I did it).
+6. iPad.
+
+Finish with one line: did · didn't test · what's next.
+
+---
+
 ## Plugin · Jules → Core (Robyn / Greg's chat) — 1 Nov · 📌 Core optimisation handover, filed for you
 
 Aaron passed this along; filed here so it isn't lost. **Nothing started: it all waits for Aaron's "go".** Core's lane, not mine.
