@@ -3,7 +3,41 @@
 This is the one place to look. Older notes (OVERNIGHT_PLAN.md, IDEAS.md) are history and a backlog.
 Ticks show what's done. Scheduled runs work top to bottom and tick things off here.
 
-## The rebuild (decided 22 Oct) — start here
+## How we work (decided 1 Nov) — start here
+
+**Two apps, two jobs.**
+- **Glass Clock is the product.** It only gets things that work and are tested. Stable and smooth comes first.
+- **Pip Sandbox is the playground.** Anything goes, plugins included. It never ships.
+- **One app per session.** Start each chat by saying which: "Glass Clock session" or "Sandbox session". A sandbox session never touches Glass Clock.
+
+**Bringing a feature over from the sandbox.**
+1. Aaron says yes, naming the feature.
+2. It gets its own branch, `port-<name>`, so `main` is untouched until it's ready.
+3. It's checked before it lands: it builds, it runs on the iPad, the stress tests are no worse (`Scripts/stress-on-ipad.sh`: slider drag, moods, Home Screen taps), and the widget still updates.
+4. It merges into `main` and goes on the iPad.
+
+It arrives as a **normal feature in its own file**, not a plugin. The sandbox keeps the plugin system; Glass Clock keeps the finished results.
+
+**Branches.** `main` is "works on the iPad": nothing lands there without the checks above, and auto-save no longer commits to it. Day-to-day work happens on `from-415`, sandbox ports on `port-*`; auto-save keeps both safe on GitHub.
+
+**Keep it smooth.**
+- Measure, don't guess: run `Scripts/stress-on-ipad.sh` before and after anything that could affect speed. Restart the iPad first if an Instruments recording got stuck.
+- Small steps: one change, one check on the iPad, one save.
+- Split the big screen (`ContentView.swift`) into files, one piece at a time, before porting much. Each ported feature should then touch one file. `LiveEdit.swift` (the slider fix, 1 Nov) was the first piece.
+- The Rebuild folder (below) is retired in favour of splitting in place; anything better in it gets taken across, then the folder goes.
+
+**Smoothness so far (1 Nov, measured on the iPad).**
+- [x] Draft saved once edits pause, not on every slider tick.
+- [x] Sliders redraw only the preview while held: 257 of 370 frames late → 3 of 748.
+- [x] Presets, moods and Lucky ease only the preview, not the whole screen.
+- [x] Glass chips (Lucky, Your styles, Locks) drawn as one piece of glass.
+- [ ] Neon mood: changing to it freezes the app for seconds. Not the glow, the fade or memory. Next to find.
+- [ ] Home Screen style taps: about a third of the frames they should get.
+- [ ] Low Power Mode turns on Simpler effects by itself (idea, waiting for a yes).
+
+**Every week:** re-sign the iPad build (free signing lasts 7 days; next due Tue 3 Nov).
+
+## The rebuild (decided 22 Oct, retired 1 Nov: we split in place instead)
 
 ## Latest run (22 Oct, 3:10 p.m.)
 - Nothing new built: "Now", "Next" and "Then" are all ticked. Your live session was committing changes at the same moment (3:09 p.m.), so I left the code alone to avoid treading on it. Nothing installed on the iPad.
