@@ -147,6 +147,13 @@ extension Dashboard {
                    note: waiting > 0 ? "\(waiting) waiting" : nil, startsOpen: true) {
                 AsksPanel(asks: data.needsYou ?? [], host: host) { taps += 1 }
             }
+            if let jobs = data.outboxForRob, !jobs.isEmpty {
+                let waiting = jobs.filter { $0.done != true }.count
+                Widget(id: "forrob", title: "For Rob", icon: "terminal",
+                       note: waiting > 0 ? "\(waiting) to do" : "all done", startsOpen: waiting > 0) {
+                    ForRobList(jobs: jobs)
+                }
+            }
             plugin("dashqueue", icon: "tray.full")
             Widget(id: "livefeed", title: "Live feed", icon: "antenna.radiowaves.left.and.right",
                    note: feed.on ? "on" : "off") {
@@ -227,6 +234,33 @@ extension Dashboard {
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(style.color == .auto ? AnyShapeStyle(.primary) : AnyShapeStyle(style.color.color))
             .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28)))
+        }
+    }
+
+    /// Commands for Rob from the master chat: not done first, done ones greyed. Read-only (the text can be selected).
+    struct ForRobList: View {
+        let jobs: [DashboardData.RobJob]
+        var body: some View {
+            let ordered = jobs.filter { $0.done != true } + jobs.filter { $0.done == true }
+            ForEach(ordered.indices, id: \.self) { i in
+                let job = ordered[i]
+                let done = job.done == true
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: done ? "checkmark.circle" : "circle")
+                        Text(job.date ?? "").font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                    Text(Dashboard.clean(job.command))
+                        .font(.system(size: 12.5, design: .monospaced))
+                        .lineLimit(done ? 2 : nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+                .opacity(done ? 0.5 : 1)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(done ? "Done" : "To do"), \(job.date ?? ""): \(Dashboard.clean(job.command))")
+            }
         }
     }
 

@@ -249,6 +249,8 @@ struct Dashboard: SandboxPlugin {
         private(set) var data: DashboardData
         private(set) var state: State = .starting
         private var lastTry: Date?
+        /// When the last good download landed. Kept across launches, so the footer can say how old the copy is.
+        private(set) var lastGood: Date? = UserDefaults.standard.object(forKey: "plug.dashboard.lastGood") as? Date
 
         var on: Bool {
             get { access(keyPath: \.on); return UserDefaults.standard.object(forKey: Self.switchKey) as? Bool ?? true }
@@ -266,19 +268,24 @@ struct Dashboard: SandboxPlugin {
             }
         }
 
+        /// e.g. "Couldn't reach the live board · last checked 3:23 am · board from Sun 1 Nov, 4:20 am".
         var freshness: String {
             let when = Dashboard.date(data.syncedAt) ?? "an unknown date"
             guard on else { return Dashboard.feed.packed ? "Updated \(when) · live feed off" : "Snapshot, \(when) · live feed off" }
+            let checked = lastGood.map { "last checked \(Self.clock($0))" } ?? "never checked"
             switch state {
             case .live(let at): return "Live · checked \(Self.clock(at)) · board from \(when)"
-            case .checking: return "Checking the live board… showing \(when)"
-            case .offline where on: return "Couldn't reach the live board. Showing \(when)."
-            default: return Dashboard.feed.packed ? "Updated \(when)" : "Snapshot, \(when)."
+            case .checking: return "Checking the live board… · \(checked) · board from \(when)"
+            case .offline: return "Couldn't reach the live board · \(checked) · board from \(when)"
+            case .starting: return "\(checked.prefix(1).uppercased() + checked.dropFirst()) · board from \(when)"
             }
         }
 
+        /// "3:23 am" today, otherwise "Sat 31 Oct, 3:23 am".
         static func clock(_ d: Date) -> String {
-            let f = DateFormatter(); f.locale = Locale(identifier: "en_GB"); f.dateFormat = "h:mm a"; return f.string(from: d)
+            let f = DateFormatter(); f.locale = Locale(identifier: "en_GB")
+            f.dateFormat = Calendar.current.isDateInToday(d) ? "h:mm a" : "EEE d MMM, h:mm a"
+            return f.string(from: d)
         }
 
         func refresh(force: Bool = false) {
@@ -296,7 +303,15 @@ struct Dashboard: SandboxPlugin {
                     UserDefaults.standard.set(b, forKey: Self.cacheKey)
                 }
                 if let h, let live = try? JSONDecoder().decode(DashboardData.Live.self, from: h) { next.live = live }
-                if b != nil || h != nil { data = next; state = .live(Date()) } else { state = .offline }
+                if b != nil || h != nil {
+                    data = next
+                    let now = Date()
+                    lastGood = now
+                    UserDefaults.standard.set(now, forKey: "plug.dashboard.lastGood")
+                    state = .live(now)
+                } else {
+                    state = .offline
+                }
             }
         }
 
@@ -494,6 +509,14 @@ struct DashboardData: Codable, Sendable {
     var principles: [String]?
     var ideas: [Idea]?
     var live: Live?
+    /// Commands for Rob from the master chat (Rob, 1 Nov), newest first. Shown read-only in the dashboard.
+    var outboxForRob: [RobJob]?
+
+    struct RobJob: Codable, Sendable {
+        var date: String?
+        var done: Bool?
+        var command: String
+    }
 
     /// The live board's headline: the small file that feeds the iPad widget, fetched on the Mac by
     /// sync-dashboard.sh at build time (never by the app).
@@ -510,4 +533,22 @@ struct DashboardData: Codable, Sendable {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+/// Reads each part on its own, so one part in an unexpected shape is skipped instead of losing the whole board.
+extension DashboardData {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        syncedAt = try? c.decodeIfPresent(String.self, forKey: .syncedAt)
+        source = try? c.decodeIfPresent(String.self, forKey: .source)
+        status = try? c.decodeIfPresent(Status.self, forKey: .status)
+        needsYou = try? c.decodeIfPresent([Ask].self, forKey: .needsYou)
+        upNext = try? c.decodeIfPresent([Step].self, forKey: .upNext)
+        reminders = try? c.decodeIfPresent([Reminder].self, forKey: .reminders)
+        builds = try? c.decodeIfPresent([Build].self, forKey: .builds)
+        principles = try? c.decodeIfPresent([String].self, forKey: .principles)
+        ideas = try? c.decodeIfPresent([Idea].self, forKey: .ideas)
+        live = try? c.decodeIfPresent(Live.self, forKey: .live)
+        outboxForRob = try? c.decodeIfPresent([RobJob].self, forKey: .outboxForRob)
+    }
 }

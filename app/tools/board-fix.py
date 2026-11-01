@@ -54,6 +54,8 @@ if "status" in new and words and not new["status"].get("updatedAt"):
 for part, key in (("needsYou", "q"), ("upNext", "title"), ("reminders", "title"), ("ideas", "title")):
     if part in new:
         new[part] = objects(new[part], key)
+if "outboxForRob" in new:
+    new["outboxForRob"] = [{"command": x, "done": False} if isinstance(x, str) else x for x in new["outboxForRob"]]
 if "builds" in new:
     new["builds"] = [dict(b, at=b.get("at") or synced) for b in objects(new["builds"], "title")]
 
