@@ -47,12 +47,13 @@ extension Dashboard {
     /// Private: Aaron's mission control. It lives in the Sandbox and never moves to Glass Clock.
     struct PanelsScreen: View {
         let host: PipHost
-        let close: () -> Void
+        /// nil when it's shown as its own tab (Robyn's screen hook): no ✕ then.
+        let close: (() -> Void)?
         @Bindable private var feed = Feed.shared
         /// Bumped when a question is answered, so counts redraw.
         @State private var taps = 0
 
-        init(host: PipHost, close: @escaping () -> Void) {
+        init(host: PipHost, close: (() -> Void)? = nil) {
             self.host = host
             self.close = close
         }
@@ -81,16 +82,18 @@ extension Dashboard {
                     .padding(.top, 4)
                 }
 
-                Button(action: close) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
+                if let close {
+                    Button(action: close) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 17, weight: .semibold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .appGlass(Circle(), interactive: true)
+                    .padding(Corner.inset + 6)
+                    .accessibilityLabel("Close the dashboard")
                 }
-                .buttonStyle(.plain)
-                .appGlass(Circle(), interactive: true)
-                .padding(Corner.inset + 6)
-                .accessibilityLabel("Close the dashboard")
             }
             .onAppear { feed.refresh() }
         }
@@ -357,6 +360,10 @@ extension Dashboard {
                                 copied = false
                                 taps += 1
                                 answered()
+                                if asks.allSatisfy({ Dashboard.answer($0.q, host) != nil }), host.joy > 0,
+                                   PipTalkTurns.spend(host) {
+                                    host.say(Dashboard.doneLine, for: 1.8)
+                                }
                             }
                             .buttonStyle(PluginCardButton(on: picked == a))
                             .accessibilityLabel("\(a.label): \(Dashboard.clean(ask.q))")

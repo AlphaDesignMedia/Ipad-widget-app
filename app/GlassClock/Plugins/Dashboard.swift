@@ -368,7 +368,7 @@ struct Dashboard: SandboxPlugin {
     func overlay(_ host: PipHost) -> some View { CanvasTile(host: host) }
 
     func card(_ host: PipHost) -> some View {
-        // The Glass Clock-style widget and the answerable questions first (DashboardWidget.swift), then the rest.
+        // A glance and the way in. Everything else lives in the dashboard itself (DashboardPanels.swift).
         VStack(spacing: Corner.inset) {
             PanelsButton(host: host)
             LiveBody(host: host)
@@ -389,58 +389,6 @@ struct Dashboard: SandboxPlugin {
             SettingsCard(footer: Dashboard.freshness) {
                 Toggle("On the canvas", isOn: $onCanvas)
                     .accessibilityHint("Shows this tile on the canvas, where you can drag it anywhere.")
-            }
-        }
-    }
-
-    struct Board: View {
-        let data: DashboardData
-
-        var body: some View {
-            VStack(spacing: Corner.inset) {
-                if let live = data.live {
-                    SettingsCard(title: "Live board", icon: "dot.radiowaves.left.and.right",
-                                 footer: "From the live dashboard, \(Dashboard.date(live.updatedAt) ?? "date unknown").") {
-                        HStack {
-                            LiveNumber(value: live.needYou, label: "Need you")
-                            LiveNumber(value: live.toTry, label: "To try")
-                            LiveNumber(value: live.upNext, label: "Up next")
-                            LiveNumber(value: live.done, label: "Done")
-                        }
-                        if let latest = live.latestUpdate { Text(Dashboard.clean(latest)) }
-                    }
-                }
-                SettingsCard(title: "Where we are", icon: "location", footer: Dashboard.freshness) {
-                    DevFold(id: "dash.where", title: "status") {
-                        if let headline = data.status?.headline {
-                            Text(Dashboard.clean(headline))
-                        }
-                        if let build = data.status?.ipadBuild {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("On the iPad: \(build)")
-                                if let note = data.status?.ipadNote {
-                                    Text(Dashboard.clean(note)).font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                            .accessibilityElement(children: .combine)
-                        }
-                    }
-                }
-                if let due = data.reminders, !due.isEmpty {
-                    SettingsCard(title: "Reminders", icon: "bell") {
-                        DevFold(id: "dash.reminders", title: "reminders", summary: "\(due.count) set") {
-                            ForEach(due.indices, id: \.self) { i in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(Dashboard.clean(due[i].title))
-                                    if let when = Dashboard.date(due[i].due) {
-                                        Text(when).font(.caption).foregroundStyle(.secondary)
-                                    }
-                                }
-                                .accessibilityElement(children: .combine)
-                            }
-                        }
-                    }
-                }
             }
         }
     }

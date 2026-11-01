@@ -8,8 +8,8 @@ import UIKit
 //    animates, so it costs nothing while it sits there. It sits on the canvas (drag it anywhere, and its spot is
 //    kept; tap it to open the dashboard), and also at the top of the Dashboard card. "On the canvas" in the card
 //    switches the canvas one off.
-// 2. Answering: each "Needs you" question gets three big buttons. Your answers stay on the iPad, and "Copy for
-//    the dashboard" makes a FOR DASHBOARD paste to send on. Nothing leaves the app on its own.
+// 2. Answering lives in the dashboard grid's Needs you (DashboardPanels.swift); the answer store and the
+//    FOR DASHBOARD paste are here. Nothing leaves the app on its own.
 // Pip: at most one short line, and only when you answer everything. Works the same with Pip off.
 // Simpler motion: nothing here moves anyway.
 
@@ -133,73 +133,6 @@ extension Dashboard {
                 .font(.system(size: 12, weight: .semibold))
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(Capsule().fill(Color.primary.opacity(lit ? 0.12 : 0.05)))
-        }
-    }
-
-    /// The widget, then the questions with their buttons. Shown at the top of the Dashboard card.
-    struct Front: View {
-        let data: DashboardData
-        let host: PipHost
-        /// Bumped on every tap, so the counts and buttons redraw (answers live in storage).
-        @State private var taps = 0
-        @State private var copied = false
-        @AppStorage("plug.dashboard.tileShown") private var onCanvas = true
-
-        var body: some View {
-            let asks = data.needsYou ?? []
-            let _ = taps
-            let waiting = asks.filter { Dashboard.answer($0.q, host) == nil }.count
-            VStack(alignment: .leading, spacing: Corner.inset) {
-                Toggle("On the canvas", isOn: $onCanvas)
-                    .font(.system(size: 13.5))
-                    .accessibilityHint("Shows this tile on the canvas, where you can drag it anywhere.")
-                GlassTile(data: data, waiting: waiting)
-                    .frame(maxWidth: .infinity)
-                if !asks.isEmpty {
-                    SettingsCard(title: "Needs you", icon: "questionmark.bubble") {
-                        ForEach(asks.indices, id: \.self) { i in
-                            question(asks[i], asks)
-                        }
-                        Button {
-                            UIPasteboard.general.string = Dashboard.paste(asks, host)
-                            copied = true
-                        } label: {
-                            Label(copied ? "Copied. Paste it to the team" : "Copy for the dashboard",
-                                  systemImage: copied ? "checkmark" : "doc.on.doc")
-                        }
-                        .buttonStyle(PluginCardButton(on: waiting < asks.count))
-                        .disabled(waiting == asks.count)
-                        .accessibilityHint("Copies your answers as a FOR DASHBOARD message.")
-                    }
-                }
-            }
-        }
-
-        private func question(_ ask: DashboardData.Ask, _ asks: [DashboardData.Ask]) -> some View {
-            let picked = Dashboard.answer(ask.q, host)
-            return VStack(alignment: .leading, spacing: 6) {
-                Text(Dashboard.clean(ask.q))
-                if let s = ask.suggested {
-                    Text(Dashboard.clean(s)).font(.caption).foregroundStyle(.secondary)
-                }
-                HStack(spacing: PluginBarLook.cardGap) {
-                    ForEach(Answer.allCases, id: \.self) { a in
-                        Button(a.label) {
-                            Dashboard.setAnswer(picked == a ? nil : a, ask.q, host)
-                            copied = false
-                            taps += 1
-                            if asks.allSatisfy({ Dashboard.answer($0.q, host) != nil }), host.joy > 0,
-                               PipTalkTurns.spend(host) {
-                                host.say(Dashboard.doneLine, for: 1.8)
-                            }
-                        }
-                        .buttonStyle(PluginCardButton(on: picked == a))
-                        .accessibilityLabel("\(a.label): \(Dashboard.clean(ask.q))")
-                        .accessibilityAddTraits(picked == a ? .isSelected : [])
-                    }
-                }
-            }
-            .padding(.vertical, 4)
         }
     }
 
