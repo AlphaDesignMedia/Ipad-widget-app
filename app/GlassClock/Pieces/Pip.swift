@@ -492,8 +492,16 @@ struct PipLayer: View {
             let t = tl.date.timeIntervalSinceReferenceDate
             let flap = flaps ? 0.5 - 0.5 * cos(.pi * t / PipLook.flapSeconds) : 0
             ZStack {
-                PipBody(face: pip.face, flap: flap, spin: (t / 0.5).truncatingRemainder(dividingBy: 1), glow: pip.glow,
-                        halo: pip.halo ?? PipLook.glow, look: pip.look, size: PipLook.size * pip.scale)
+                if let style = host.activePipStyle {
+                    // the look hook: a plugin's body for Pip (Pip Looks), in place of the orb
+                    style.body(PipStyleContext(face: pip.face, flap: flap, flapping: flaps,
+                                               spin: (t / 0.5).truncatingRemainder(dividingBy: 1), glow: pip.glow,
+                                               halo: pip.halo ?? PipLook.glow, look: pip.look, size: PipLook.size * pip.scale,
+                                               time: t, simpler: pip.simpler, pos: pip.pos, held: pip.held))
+                } else {
+                    PipBody(face: pip.face, flap: flap, spin: (t / 0.5).truncatingRemainder(dividingBy: 1), glow: pip.glow,
+                            halo: pip.halo ?? PipLook.glow, look: pip.look, size: PipLook.size * pip.scale)
+                }
                 if pip.face == .asleep { snore(t) }
             }
         }

@@ -5,8 +5,9 @@ import SwiftUI
 // an emoji inside; PipBlobbyLook.swift). One tap back to Classic.
 // Where: the drop button in the plugin bar. The card shows both looks side by side; drag (or hover) in it and
 // they turn to look at your finger.
-// For now Drop shows only in the card. Pip wears it everywhere once the core adds the look hook (`host.pipStyle`,
-// asked for in AGENT-NOTES.md). The two lines that switch it on are at the bottom of `apply`, ready.
+// Pip wears the chosen look everywhere through the core's look hook (`host.pipStyle`, 1 Nov). Pip Looks off: Classic.
+// Blobby turns with the way Pip is moving (Aaron: "if I grab him, his face needs to turn"), and Pip's emotes
+// (the `pip.emote` channel) show inside him for a moment, then melt back into his face.
 // A port of app/design/pip-drop-workshop.html (see app/design/PIP-DROP-3D.md for how the 3D works).
 
 struct PipLooks: SandboxPlugin {
@@ -24,7 +25,7 @@ struct PipLooks: SandboxPlugin {
     static let selfID = "looks"
     static let lookKey = "look"                       // "plug.looks.look": "classic" or "drop"
     static let emojiKey = "emoji"                     // "plug.looks.emoji": what Blobby has inside ("" = nothing)
-    static let waitingNote = "Drop and Blobby show here for now; Pip will wear them everywhere once the backbone adds the look hook."
+    static let waitingNote = "Pip wears the look everywhere. In Blobby, Pip's emotes show inside him for a moment."
     static let lines: [Look: String] = [.classic: "Back to my old self.", .drop: "Ooh, liquid.", .blobby: "Look, I'm see-through!"]
 
     // MARK: Logic
@@ -34,28 +35,31 @@ struct PipLooks: SandboxPlugin {
         return raw.flatMap { Look(rawValue: $0) } ?? .classic
     }
 
-    func start(_ host: PipHost) throws { PipLooks.apply(PipLooks.chosen(host), host, speak: false) }
+    func start(_ host: PipHost) throws {
+        PipLooks.apply(PipLooks.chosen(host), host, speak: false)
+        BlobbyEmote.listen()
+    }
 
     /// Saves the choice and (once the core hook exists) dresses Pip in it.
     @MainActor static func apply(_ look: Look, _ host: PipHost, speak: Bool = true) {
         host.setValue(look.rawValue, selfID, lookKey)
         if speak, host.joy > 0, PipTalkTurns.floorFree(host), let line = lines[look] { host.say(line, for: 2) }
-        // Core hook, not there yet (AGENT-NOTES.md, Bob 30 Oct). When it lands, un-comment these two lines:
-        // host.pipStyle = look == .drop ? PipStyle(owner: selfID, body: { ctx in
-        //     PipLooks.dropView(face: ctx.face, look: ctx.look, time: ctx.time, size: ctx.size, simpler: ctx.simpler, flapping: ctx.flapping, spin: ctx.spin) })
-        //   : look == .blobby ? PipStyle(owner: selfID, body: { ctx in
-        //     PipLooks.blobbyView(face: ctx.face, look: ctx.look, time: ctx.time, size: ctx.size, simpler: ctx.simpler, flapping: ctx.flapping, halo: ctx.halo, host: host) }) : nil
+        // The core's look hook: Pip wears it everywhere (nil: Classic).
+        host.pipStyle = look == .drop ? PipStyle(owner: selfID, body: { ctx in
+            PipLooks.dropView(face: ctx.face, look: ctx.look, time: ctx.time, size: ctx.size, simpler: ctx.simpler,
+                              flapping: ctx.flapping, spin: ctx.spin) })
+          : look == .blobby ? PipStyle(owner: selfID, body: { ctx in PipLooks.blobbyView(ctx) }) : nil
     }
 
     /// Pip's whole body in the Blobby look, for the core to draw in place of `PipBody` (same centre, Pip's own space).
     /// `size` is the orb's diameter, so the head is the same size as Classic's orb.
-    @MainActor static func blobbyView(face: PipFace, look: CGSize, time: Double, size: CGFloat, simpler: Bool,
-                                      flapping: Bool, halo: Color, host: PipHost) -> AnyView {
-        let facing = BlobbyTurn.live.step(look: look, at: time, snap: simpler)
-        let inside: String? = host.value(selfID, emojiKey)
-        return AnyView(PipBlobbyBody(radius: size / 2, time: time, face: face, look: look, facing: facing,
-                                     emoji: (inside ?? "").isEmpty ? nil : inside, simpler: simpler,
-                                     flapping: flapping, halo: halo))
+    /// He faces the way he's moving (dragged, flicked or flying), else where he's looking. His emotes show inside him.
+    @MainActor static func blobbyView(_ ctx: PipStyleContext) -> AnyView {
+        let facing = BlobbyTurn.live.step(look: ctx.look, pos: ctx.pos, at: ctx.time, snap: ctx.simpler)
+        let emote = BlobbyEmote.last
+        return AnyView(PipBlobbyBody(radius: ctx.size / 2, time: ctx.time, face: ctx.face, look: ctx.look, facing: facing,
+                                     emoji: emote?.emoji, emojiAt: emote?.at, simpler: ctx.simpler,
+                                     flapping: ctx.flapping || ctx.held, halo: ctx.halo))
     }
 
     /// Pip's whole body in the Drop look, for the core to draw in place of `PipBody` (same centre, Pip's own space).

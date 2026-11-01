@@ -70,6 +70,15 @@ struct BarLook {
     var button: @MainActor (AnyView, Bool) -> AnyView
 }
 
+/// A plugin's look for Pip's whole body (Pip Looks: Drop, Blobby). The core draws `body` in place of the orb.
+/// The view is centred on Pip and may be bigger than the orb (8 × the radius, for the glow); touches stay as they are.
+struct PipStyleContext {
+    var face: PipFace; var flap: Double; var flapping: Bool; var spin: Double; var glow: Double; var halo: Color
+    var look: CGSize; var size: CGFloat; var time: Double; var simpler: Bool   // size = the orb's diameter
+    var pos: CGPoint; var held: Bool                                          // where Pip is, and if a finger has them
+}
+struct PipStyle { let owner: String; var body: @MainActor (PipStyleContext) -> AnyView }
+
 /// How close you and Pip are, as a ladder over one number, 0...1 (like an old game's friendship byte).
 /// Pip's Bond keeps the number; plugins read `host.stage` or ask `host.unlocked(.pal)` to open up as you go.
 enum BondStage: Int, CaseIterable, Comparable {
@@ -186,6 +195,10 @@ final class PipHost {
     /// The bar look, while its owner is on.
     /// (Its owner's own switch, not whether it's running, so the look holds steady while plugins are paused.)
     var activeBarLook: BarLook? { barLook.flatMap { chosen($0.owner) ? $0 : nil } }
+    /// A plugin's look for Pip's body (the look hook, 1 Nov). nil: Classic, the orb.
+    var pipStyle: PipStyle?
+    /// The body look, while its owner is on (off, paused or Safe mode: Classic).
+    var activePipStyle: PipStyle? { pipStyle.flatMap { isOn($0.owner) ? $0 : nil } }
     /// How lively plugins should be: 0 still, 1 calm (the default), 2 cosy, 3 playful, 4 giddy, 5 unhinged.
     /// One setting for every plugin; the Joy Slider sets it. Read `joy`, which respects simpler motion.
     var joySetting = UserDefaults.standard.object(forKey: "pipJoy") as? Int ?? 1 {

@@ -55,18 +55,42 @@ enum BlobbySheet {
 
 // MARK: Logic
 
-/// Which way he faces (1 right, -1 left), easing through 0 as he turns round, towards where he's looking.
+/// Which way he faces (1 right, -1 left), easing through 0 as he turns round (through the front view): the way he's
+/// moving when he moves (Aaron, 1 Nov: "he needs to turn with the motion"), otherwise where he's looking.
 final class BlobbyTurn {
     static let live = BlobbyTurn()          // the one the core's Pip uses
     private var facing: Double = 1
     private var last: Double = 0
+    private var lastPos: CGPoint? = nil
+    private var speedX: Double = 0          // sideways speed, pt/s, smoothed
 
-    func step(look: CGSize, at t: Double, snap: Bool) -> Double {
-        let target: Double = look.width < -0.15 ? -1 : (look.width > 0.15 ? 1 : (facing >= 0 ? 1 : -1))
+    func step(look: CGSize, pos: CGPoint? = nil, at t: Double, snap: Bool) -> Double {
         let dt: Double = last == 0 ? 0 : min(0.1, max(0, t - last))
+        if let p = pos {
+            if let q = lastPos, dt > 0 { speedX += ((p.x - q.x) / dt - speedX) * min(1, dt * 8) }
+            lastPos = p
+        }
+        let moving: Double = abs(speedX) > 40 ? (speedX > 0 ? 1 : -1) : 0
+        let target: Double = moving != 0 ? moving
+            : look.width < -0.15 ? -1 : (look.width > 0.15 ? 1 : (facing >= 0 ? 1 : -1))
         last = t
         if snap { facing = target } else { facing += (target - facing) * min(1, dt * 5) }
         return facing
+    }
+}
+
+/// Pip's latest emote (from the `pip.emote` channel: Pip's Emotes or any plugin), shown inside Blobby for a moment.
+@MainActor enum BlobbyEmote {
+    static var last: (emoji: String, at: Double)? = nil
+    private static var token: NSObjectProtocol? = nil
+
+    static func listen() {
+        if let token { NotificationCenter.default.removeObserver(token) }
+        token = NotificationCenter.default.addObserver(forName: PipEmotes.channel, object: nil, queue: .main) { note in
+            guard let e = note.object as? String, !e.isEmpty else { return }
+            let now = Date().timeIntervalSinceReferenceDate
+            MainActor.assumeIsolated { last = (e, now) }
+        }
     }
 }
 
