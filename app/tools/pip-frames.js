@@ -18,7 +18,7 @@ swap("uniform vec2 res;", "uniform float matteU; uniform vec2 res;");
 swap(": room(ro, rd, 0.);", ": vec3(matteU);");
 swap("if (!ink) col += glowCol * exp(-md * 3.2) * .12 * glowAmt;", "");
 swap("const bob = reduce || P.pose ? 0 : Math.sin(t * 1.6) * .06;", "const bob = 0;");
-swap("const home = W > 700 ? v3(left - 1.7, .7, .6) : v3(.9, S * .3, .6);", "const home = v3(0, .9, .6);");
+swap("const home = W > 700 ? v3(left - 1.7, .7, .6) : v3(.9, S * .3, .6);", "const home = v3(.3, -.9, .6);");
 swap("try { Object.assign(P, JSON.parse(localStorage.getItem('pip3d.v3') || '{}')); } catch {}", "Object.assign(P, window.OVR || {});");
 swap("getContext('webgl', { antialias: false })", "getContext('webgl', { antialias: false, preserveDrawingBuffer: true })");
 // time and frames by hand
@@ -75,6 +75,9 @@ fs.writeFileSync(tmp, html);
   const boxes = [];
   for (let f = 0; f < FLAPS; f++) boxes.push(await grab(start + f * period / FLAPS));
   boxes.push(await grab(4300 * 2 + 30));                           // a blink (the page blinks every 4.3 s)
+  const TURNS = [0, 45, 90, 135, 180, 225, 270, 315];              // turned round his head: he's round, not a flat plane
+  for (const y of TURNS) { await page.evaluate(y => { P.yaw = y; }, y); boxes.push(await grab(start)); }
+  await page.evaluate(() => { P.yaw = 0; });
   const pad = 6;
   const bx = [Math.min(...boxes.map(b => b[0])) - pad, Math.min(...boxes.map(b => b[1])) - pad,
               Math.max(...boxes.map(b => b[2])) + pad, Math.max(...boxes.map(b => b[3])) + pad];
@@ -82,7 +85,7 @@ fs.writeFileSync(tmp, html);
   const out = await page.evaluate(([x0, y0, x1, y1]) => {
     const w = x1 - x0, h = y1 - y0, list = window.__frames.map(c => {
       const k = document.createElement('canvas'); k.width = w; k.height = h; k.getContext('2d').drawImage(c, -x0, -y0); return k.toDataURL('image/png'); });
-    const cols = 6, sc = .5, rows = Math.ceil(list.length / cols), s = document.createElement('canvas');
+    const cols = 9, sc = .5, rows = Math.ceil(list.length / cols), s = document.createElement('canvas');
     s.width = cols * w * sc; s.height = rows * h * sc; const x = s.getContext('2d');
     const g = x.createLinearGradient(0, 0, 0, s.height); g.addColorStop(0, '#1d5f86'); g.addColorStop(1, '#123e66');
     x.fillStyle = g; x.fillRect(0, 0, s.width, s.height);
@@ -90,7 +93,7 @@ fs.writeFileSync(tmp, html);
     return { list, strip: s.toDataURL('image/png'), w, h };
   }, bx);
   const save = (name, url) => fs.writeFileSync(path.join(OUT, name), Buffer.from(url.split(',')[1], 'base64'));
-  out.list.forEach((u, i) => save(i < FLAPS ? `fly-${String(i).padStart(2, '0')}.png` : 'blink.png', u));
+  out.list.forEach((u, i) => save(i < FLAPS ? `fly-${String(i).padStart(2, '0')}.png` : i === FLAPS ? 'blink.png' : `turn-${String((i - FLAPS - 1) * 45).padStart(3, '0')}.png`, u));
   save('preview-strip.png', out.strip);
   console.log(`frames: ${out.list.length}, ${out.w}×${out.h}px → ${OUT}`);
   await browser.close();
