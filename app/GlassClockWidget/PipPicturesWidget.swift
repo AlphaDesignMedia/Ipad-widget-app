@@ -79,8 +79,8 @@ struct PipPicturesWidgetView: View {
             if let image = entry.image {
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFill()
                     .widgetAccentedRenderingMode(.fullColor)
+                    .scaledToFill()
                     .accessibilityLabel(entry.choice == .moodBoard ? "Mood board: \(entry.title)" : "Latest snap: \(entry.title)")
                 if family != .systemSmall {
                     Text(entry.title.uppercased())
