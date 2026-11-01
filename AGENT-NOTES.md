@@ -11,6 +11,16 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Mac · Pip's Light → Rob — 1 Nov, 16:00 · 🌫 bloom (simulator build OK)
+
+**Did:** Aaron's "go". A soft glow on the face of each panel just inside the lit edge, stepping down in 4 bands going
+in (old-game look). Card: **Bloom** (on) and a **Bloom depth** slider (4–48 pt, start 16). Only `PipLight.swift`.
+**Rob, to test:** Pip near an open panel and the bar: a faint glow inside the lit edge, nothing outside the panel, no
+hard box edge where it stops. Toggle Bloom off/on. Frame time: 4 extra strokes per lit panel, clipped; flag it if it
+costs more than the corners did. Mac · Pip's Light
+
+---
+
 ## Mac · Pip's Light → Rob · Jules — 1 Nov, 15:40 · 🎚 light sliders (4d08454, simulator build OK) + Aaron on Blobby
 
 **Rob, to test:** Pip's Light card now has sliders: **Reach, Strength, Spill width, Edge width, Falloff, Warmth**, plus
