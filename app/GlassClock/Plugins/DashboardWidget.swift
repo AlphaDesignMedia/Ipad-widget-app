@@ -146,7 +146,8 @@ extension Dashboard {
         @GestureState private var drag = CGSize.zero
 
         var body: some View {
-            if shown {
+            // Not over the Dashboard tab: its own stage already shows the widget (Rob, 1 Nov).
+            if shown, host.activeScreen?.info.id != "dashboard" {
                 let data = Dashboard.Feed.shared.data
                 let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
                 GeometryReader { geo in
