@@ -34,7 +34,7 @@ enum BlobbySheet {
     static let frameW: CGFloat = 162, frameH: CGFloat = 173     // one frame, in sheet pixels
     static let flaps = 12                                       // frames per wing beat; then the blink
     static let beatSeconds = 0.6981                             // the 3D page's flying beat
-    static let headX: CGFloat = 108, headY: CGFloat = 126.2     // his head's centre in a frame
+    static let headX: CGFloat = 106.5, headY: CGFloat = 125.5   // his head's centre in a frame (measured from the sheet)
     static let headR: CGFloat = 40                              // his head's radius in the sheet
 
     @MainActor private static var frames: [[CGImage]]? = nil
@@ -92,13 +92,16 @@ struct PipBlobbyBody: View {
         // side view most of the time; the front view while turning round, and whenever a face emoji is on (he looks at you)
         let row: BlobbySheet.Row = faceEmoji ? .frontBlank : (abs(facing) < 0.55 ? .front : .side)
         let closed: Bool = face == .blink || face == .asleep || face == .sleepy
-        let i: Int = closed && row != .frontBlank ? BlobbySheet.flaps : flapFrame
+        let (i, next, blend) = flapFrames
+        let shut: Bool = closed && row != .frontBlank
         let mirror: CGFloat = facing < 0 ? -1 : 1
         ZStack {
             // his glow, under everything
             Circle().fill(halo.opacity(0.4)).frame(width: r * 2.6, height: r * 2.6).blur(radius: r * 0.5)
-            if let img = BlobbySheet.frame(row, i) {
+            if let img = BlobbySheet.frame(row, shut ? BlobbySheet.flaps : i) {
                 sprite(img)
+                // smoothing: the next frame fades in over this one, so the flipbook flows instead of clunking
+                if !shut, blend > 0.02, let nxt = BlobbySheet.frame(row, next) { sprite(nxt).opacity(blend) }
                 if let e = emoji {
                     emojiView(e, isFace: faceEmoji)
                     // the glass's own shine back over the emoji, so it sits inside him, not on top
@@ -123,22 +126,25 @@ struct PipBlobbyBody: View {
     }
 
     /// The wing beat: flying, the 3D page's quick beat; resting, a slow gentle one. Still with Reduce Motion.
-    private var flapFrame: Int {
-        if simpler { return 0 }
+    /// Gives this frame, the next one and how far we are between them (for the fade).
+    private var flapFrames: (Int, Int, Double) {
+        if simpler { return (0, 0, 0) }
         let period: Double = flapping ? BlobbySheet.beatSeconds : 1.6
-        let ph = (time / period).truncatingRemainder(dividingBy: 1)
-        return min(BlobbySheet.flaps - 1, max(0, Int(ph * Double(BlobbySheet.flaps))))
+        let n = BlobbySheet.flaps
+        let at = (time / period).truncatingRemainder(dividingBy: 1) * Double(n)
+        let i = min(n - 1, max(0, Int(at)))
+        return (i, (i + 1) % n, at - Double(i))
     }
 
-    /// Floats in the middle of his head, a touch high (Aaron's drawing, 1 Nov), facing you, breathing softly;
-    /// a face emoji sits on the front of his head, as his face. Drawn mirrored back, so it never reads backwards.
+    /// Floats in the very middle of his head (Aaron, 1 Nov: "isn't perfectly central"), facing you, breathing softly;
+    /// a face emoji is his face, also centred, as he looks at you. Drawn mirrored back, so it never reads backwards.
     private func emojiView(_ e: String, isFace: Bool) -> some View {
         let r = radius
         let t: Double = simpler ? 0 : time
         let drift: CGFloat = isFace ? 0.3 : 1
         let dx = CGFloat(sin(t * 0.7) * 0.05) * r * drift
         let dy = CGFloat(sin(t * 1.1 + 1) * 0.06) * r * drift
-        let spot = isFace ? CGPoint(x: -0.12 * r, y: 0.12 * r) : CGPoint(x: 0, y: -0.08 * r)
+        let spot = CGPoint.zero                                  // dead centre of his head (Aaron, 1 Nov)
         let pulse = CGFloat(1 + 0.04 * (0.5 + 0.5 * sin(t * 2.2)))
         return Text(e)
             .font(.system(size: r * (isFace ? 1.15 : 0.95)))
