@@ -39,6 +39,7 @@ import os
         if let phase = UserDefaults.standard.string(forKey: "checkO") { Task { await OCheck.run(phase) } }
         if let phase = UserDefaults.standard.string(forKey: "checkP") { Task { await PCheck.run(phase) } }
         if let phase = UserDefaults.standard.string(forKey: "checkQ") { Task { await QCheck.run(phase) } }
+        if let phase = UserDefaults.standard.string(forKey: "checkR") { Task { await RCheck.run(phase) } }
         guard UserDefaults.standard.bool(forKey: "stressMenus") else { return }
         Task { await run() }
     }
@@ -1013,6 +1014,44 @@ import os
             note("switch round \(r): " + row.joined(separator: " | "))
         }
         _ = pick(startTab == "classic" ? "Classic" : "Panels")
+        note("DONE")
+    }
+}
+
+/// `-checkR room`: Pip's Manners v1.1 (Rob, 1 Nov 2026). Flicks go in through the host, as a finger's do; reads how much
+/// room Pip keeps, keep-away after a hard flick, the Manners card line, a tap making up, and Manners off.
+/// Lines go to Documents/Diagnostics/r-room.txt.
+@MainActor enum RCheck {
+    static func run(_ phase: String) async {
+        let folder = URL.documentsDirectory.appending(path: "Diagnostics", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: "r-\(phase).txt")
+        var out: [String] = []
+        func note(_ s: String) { out.append(s); try? out.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8) }
+        func pause(_ s: Double) async { try? await Task.sleep(for: .seconds(s)) }
+        let host = PipHost.shared
+        func state() -> String {
+            let p = CGPoint(x: 500, y: 500), t = PipRoom.trail(p, host)
+            return "room \(Int(PipRoom.room(host).rounded())) pt · keeps away: \(PipRoom.keepsAway(host)) · trail point \(Int(hypot(t.x - p.x, t.y - p.y))) pt further back"
+        }
+        await pause(6)
+        if host.paused { host.setPaused(false) }
+        for id in [PipTalkTurns.mannersID, "bond"] where !host.chosen(id) { host.setOn(id, true) }
+        await pause(1)
+        note("start · \(state())")
+        for n in 1...3 { host.post(.flick(speed: 700)); await pause(0.3); note("flick \(n) (700 pt/s) · \(state())") }
+        host.post(.flick(speed: 300)); await pause(0.3); note("slow let-go (300 pt/s, not a flick) · \(state())")
+        host.post(.flick(speed: 1400)); await pause(0.3); note("hard flick (1400 pt/s) · \(state())")
+        host.post(.flick(speed: 1400)); await pause(0.3); note("another hard flick · \(state()) (most is 250)")
+        host.openCard = PipTalkTurns.mannersID; await pause(2)
+        note("Manners card · \(KLCheck.label { $0.contains("room") || $0.contains("keeping away") || $0.contains("away") }?.prefix(120) ?? "no room line found")")
+        MCheck.snap("r-card")
+        host.openCard = nil; await pause(1)
+        host.post(.tap); await pause(0.3); note("tap Pip · \(state())")
+        host.setOn(PipTalkTurns.mannersID, false); await pause(0.5); note("Manners off · \(state())")
+        host.setOn(PipTalkTurns.mannersID, true); await pause(0.5); note("Manners on again · \(state())")
+        for _ in 0..<6 { host.post(.tap) }
+        await pause(0.3); note("six taps (back to friends) · \(state())")
         note("DONE")
     }
 }
