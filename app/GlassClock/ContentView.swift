@@ -1905,13 +1905,37 @@ struct ContentView: View {
         .accessibilityHint("Drag to move the dock")
     }
 
+    /// Pip Sandbox: a plugin's screen (a tab after Classic and Panels), over the app's own backdrop, under the
+    /// same top bar. The plugin bar stays (it's drawn over everything by PipLayer).
+    private func screenInterface(_ plugin: any SandboxPlugin) -> some View {
+        NavigationStack {
+            ZStack {
+                AnyView(backdropView)
+                    .ignoresSafeArea()
+                StatusScrim()
+                plugin.anyScreen(PipHost.shared)
+            }
+            .navigationTitle("Pip Sandbox")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { toolbarItems }
+            .modifier(AppTextSize(size: pinchesWholeApp ? settingsTextSize : nil))
+        }
+    }
+
+    /// One option in the top switch: Classic, Panels, or a plugin's screen.
+    private enum TopTab: Hashable {
+        case style(InterfaceStyle)
+        case screen(String)
+    }
+
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
-        if interface == .classic {
+        let onScreen = PipHost.shared.activeScreen != nil
+        if interface == .classic && !onScreen {
             ToolbarItem(placement: .topBarLeading) { layoutMenu }
         }
         ToolbarItem(placement: .topBarLeading) { tourButton.tint(iconsOnGlass) }
-        if interface == .panels {
+        if interface == .panels && !onScreen {
             if liquidToolbar { ToolbarSpacer(.fixed, placement: .topBarLeading) }
             ToolbarItem(placement: .topBarLeading) { fullScreenButton.tint(iconsOnGlass) }
             if liquidToolbar { ToolbarSpacer(.fixed, placement: .topBarLeading) }
@@ -1999,11 +2023,27 @@ struct ContentView: View {
 
     /// Classic (simple) or Panels (everything), always one tap away in the middle of the top bar.
     private var interfaceSwitch: some View {
-        GlassPicker("Interface", selection: Binding(
-            get: { interface },
-            set: { next in withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { interface = next } }
-        ), options: InterfaceStyle.allCases) { $0.label }
-        .frame(width: 220)
+        // Pip Sandbox: plugin screens (Dashboard) join Classic and Panels as extra tabs.
+        let host = PipHost.shared
+        let screens = host.screenPlugins
+        let options = InterfaceStyle.allCases.map(TopTab.style) + screens.map { TopTab.screen($0.info.id) }
+        return GlassPicker("Interface", selection: Binding(
+            get: { host.activeScreen.map { TopTab.screen($0.info.id) } ?? .style(interface) },
+            set: { next in
+                withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
+                    switch next {
+                    case .style(let style): host.openScreen = nil; interface = style
+                    case .screen(let id): host.openScreen = id
+                    }
+                }
+            }
+        ), options: options) { tab in
+            switch tab {
+            case .style(let style): style.label
+            case .screen(let id): screens.first { $0.info.id == id }?.screenName ?? id
+            }
+        }
+        .frame(width: 220 + 110 * CGFloat(screens.count))
         .appGlass(.capsule)
         .opacity(switchSettled ? 0.75 : 1)
         // (It used to slide sideways to line up with the widget, but its tap area stayed behind,
@@ -2603,9 +2643,14 @@ struct ContentView: View {
     /// The interface in the app's look and colours.
     private var themedInterface: some View {
         Group {
-            switch interface {
-            case .classic: classicInterface.transition(interfaceTransition)
-            case .panels: panelsInterface.transition(interfaceTransition)
+            // Pip Sandbox: a plugin's own screen, chosen in the top switch (Dashboard), in place of Classic/Panels.
+            if let screen = PipHost.shared.activeScreen {
+                AnyView(screenInterface(screen)).transition(interfaceTransition)
+            } else {
+                switch interface {
+                case .classic: classicInterface.transition(interfaceTransition)
+                case .panels: panelsInterface.transition(interfaceTransition)
+                }
             }
         }
         .tint(AppColor.resolve(appColor))

@@ -88,6 +88,7 @@ enum BondStage: Int, CaseIterable, Comparable {
     associatedtype Overlay: View = EmptyView
     associatedtype Card: View = EmptyView
     associatedtype AddOn: View = EmptyView
+    associatedtype Screen: View = EmptyView
     var info: PluginInfo { get }
     /// Runs at launch and whenever the plugin is switched on. Throw to be switched off, with your error shown in Settings.
     func start(_ host: PipHost) throws
@@ -101,12 +102,20 @@ enum BondStage: Int, CaseIterable, Comparable {
     var addsTo: String? { get }
     /// That section's rows. It shows under the panel's own cards, titled with this plugin's name and icon.
     @ViewBuilder func addOn(_ host: PipHost) -> AddOn
+    /// A whole screen of its own: a tab after Classic and Panels in the top switch, named `screenName`
+    /// (Dashboard, Aaron 1 Nov 2026). Drawn over the app's backdrop, under the top bar; the plugin bar stays.
+    /// Leave both out for none.
+    @ViewBuilder func screen(_ host: PipHost) -> Screen
+    var screenName: String? { get }
 }
 
 extension SandboxPlugin {
     func start(_ host: PipHost) throws {}
     func on(_ event: PipEvent, _ host: PipHost) {}
     var addsTo: String? { nil }
+    var screenName: String? { nil }
+    var hasScreen: Bool { screenName != nil && ObjectIdentifier(Screen.self) != ObjectIdentifier(EmptyView.self) }
+    func anyScreen(_ host: PipHost) -> AnyView { AnyView(screen(host)) }
     var hasCard: Bool { ObjectIdentifier(Card.self) != ObjectIdentifier(EmptyView.self) }
     var hasAddOn: Bool { ObjectIdentifier(AddOn.self) != ObjectIdentifier(EmptyView.self) }
     // For the host, which holds plugins of every type in one list.
@@ -125,6 +134,10 @@ extension SandboxPlugin where Card == EmptyView {
 
 extension SandboxPlugin where AddOn == EmptyView {
     func addOn(_ host: PipHost) -> EmptyView { EmptyView() }
+}
+
+extension SandboxPlugin where Screen == EmptyView {
+    func screen(_ host: PipHost) -> EmptyView { EmptyView() }
 }
 
 // MARK: The host
@@ -147,6 +160,13 @@ final class PipHost {
     private(set) var safeMode = false
     /// The plugin whose card is open in the plugin bar.
     var openCard: String?
+    /// The plugin screen chosen in the top switch (a tab after Classic and Panels), or nil. Not kept: the app
+    /// always opens on Classic or Panels.
+    var openScreen: String?
+    /// Plugins with a screen that are on now; each is a tab in the top switch. None in Safe mode or Pause all.
+    var screenPlugins: [any SandboxPlugin] { safeMode ? [] : plugins.filter { $0.hasScreen && isOn($0.info.id) } }
+    /// The open screen, if its plugin is still on. Switching it off (or Safe mode) falls back to Classic/Panels.
+    var activeScreen: (any SandboxPlugin)? { openScreen.flatMap { id in screenPlugins.first { $0.info.id == id } } }
     /// Pip's own switch (Settings > Accessibility > Pip), kept up to date by PipLayer.
     var pipOn = true
     /// Where the open panel is, in window space, so an overlay that takes touches (Sketch) can leave it

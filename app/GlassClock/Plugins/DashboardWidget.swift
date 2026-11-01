@@ -162,9 +162,9 @@ extension Dashboard {
                                     y = clampY(y + v.translation.height, geo.size.height)
                                 }
                         )
-                        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { host.openCard = "dashboard" } }
+                        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { host.openScreen = "dashboard" } }
                         .accessibilityAddTraits(.isButton)
-                        .accessibilityHint("Opens the dashboard. Drag to move it.")
+                        .accessibilityHint("Opens the Dashboard tab. Drag to move it.")
                 }
             }
         }
