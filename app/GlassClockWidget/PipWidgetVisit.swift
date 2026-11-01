@@ -39,8 +39,8 @@ struct PipInWidget: View {
         if PipWidgetHome.home == spot, let picture = PipWidgetHome.picture {
             Button(intent: PipHopIntent()) {
                 Image(uiImage: picture)
-                    .widgetAccentedRenderingMode(.fullColor)                   // his own colours in the Tinted look too
                     .resizable()
+                    .widgetAccentedRenderingMode(.fullColor)                   // his own colours in the Tinted look too
                     .scaledToFit()
                     .frame(width: 60, height: 60)
             }
