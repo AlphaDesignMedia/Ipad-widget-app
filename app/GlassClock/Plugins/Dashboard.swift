@@ -364,7 +364,10 @@ struct Dashboard: SandboxPlugin {
     private let mind = Mind()
 
     /// Fills the Home Screen widget's copy at launch, so it's ready before the dashboard is first opened.
-    func start(_ host: PipHost) throws { Dashboard.publish(host) }
+    func start(_ host: PipHost) throws {
+        Dashboard.takeHomeAnswers(host)      // answers given on the Home Screen widget, then the widget's copy
+        Dashboard.listenForHomeAnswers(host)
+    }
 
     // MARK: Views
 

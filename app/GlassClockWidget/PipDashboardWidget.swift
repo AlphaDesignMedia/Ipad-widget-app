@@ -4,6 +4,7 @@ import AppIntents
 
 // PIP DASHBOARD · Home Screen widget (Jules, 1 Nov). Aaron: "the dashboard with real widgets and really good" and
 // "lean into these widgets… my way of exploring new widgets and new widget apps".
+// Needs you answers straight from the Home Screen: Yes / Not yet on each question; the app takes them in when it opens.
 // Your dashboard on the real Home Screen, in all four sizes, in your clock's glass and colour. Hold it → Edit Widget →
 // Show: Overview (a bit of everything) or one part (Progress, Needs you, Up next, For Rob, Ideas), so several can sit
 // side by side like the Dashboard tab. Tap → the app opens on the Dashboard tab.
@@ -47,7 +48,7 @@ enum DashboardPart: String, AppEnum {
     func lines(_ s: DashboardSnapshot) -> [String] {
         switch self {
         case .overview, .progress: s.upNext
-        case .needs: s.needs
+        case .needs: s.needs.map(\.text)
         case .upnext: s.upNext
         case .forrob: s.forRob
         case .ideas: s.ideas
@@ -171,7 +172,7 @@ struct PipDashboardWidgetView: View {
             Head(icon: "location", title: "Progress", trailing: s.boardTime)
             Headline(text: s.headline, lines: 3)
             Divider().opacity(0.5)
-            PartSection(part: .needs, s: s, most: 3)
+            PartSection(part: .needs, s: s, most: 1)
             PartSection(part: .upnext, s: s, most: 3)
             Spacer(minLength: 0)
             Chips(s: s)
@@ -189,7 +190,7 @@ struct PipDashboardWidgetView: View {
                 Chips(s: s)
             }
             VStack(alignment: .leading, spacing: 12) {
-                PartSection(part: .needs, s: s, most: 4)
+                PartSection(part: .needs, s: s, most: 2)
                 PartSection(part: .forrob, s: s, most: 3)
                 PartSection(part: .ideas, s: s, most: 3)
                 Spacer(minLength: 0)
@@ -207,6 +208,27 @@ struct PipDashboardWidgetView: View {
                 Headline(text: s.headline, lines: family == .systemSmall ? 4 : 3)
                 Spacer(minLength: 0)
                 if family != .systemSmall, let next = s.upNext.first { NextRow(text: next) }
+            }
+        } else if p == .needs, let first = s.needs.first {
+            // Answer straight from the Home Screen: Yes / Not yet on each question (Aaron, 1 Nov).
+            let most = family == .systemSmall || family == .systemMedium ? 1 : family == .systemLarge ? 3 : 5
+            VStack(alignment: .leading, spacing: 10) {
+                Head(icon: p.icon, title: p.title, trailing: "\(s.needs.count)")
+                if family == .systemSmall { Spacer(minLength: 0) }
+                if most == 1 {
+                    AskRow(need: first, compact: family == .systemSmall)
+                } else {
+                    ForEach(Array(s.needs.prefix(most).enumerated()), id: \.offset) { i, need in
+                        if i > 0 { Divider().opacity(0.4) }
+                        AskRow(need: need)
+                    }
+                }
+                if family != .systemSmall {
+                    if s.needs.count > most {
+                        Text("+\(s.needs.count - most) more in the app").font(.system(size: 12)).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
             }
         } else if family == .systemSmall {
             VStack(alignment: .leading, spacing: 4) {
@@ -231,6 +253,60 @@ struct PipDashboardWidgetView: View {
                 }
                 Spacer(minLength: 0)
             }
+        }
+    }
+}
+
+/// Answers a question from the Home Screen. Runs in the widget: it keeps the answer for the app (which takes it in when
+/// it next opens) and takes the question off the widget straight away.
+struct AnswerFromHomeIntent: AppIntent {
+    static var title: LocalizedStringResource { "Answer a dashboard question" }
+    static var isDiscoverable: Bool { false }
+
+    @Parameter(title: "Question") var key: String
+    @Parameter(title: "Answer") var answer: String
+
+    init() {}
+    init(key: String, answer: String) {
+        self.key = key
+        self.answer = answer
+    }
+
+    func perform() async throws -> some IntentResult {
+        DashboardSnapshot.answerFromHome(key: key, answer: answer)
+        return .result()
+    }
+}
+
+/// One question with Yes and Not yet. "Let's talk" stays in the app (tap the widget).
+private struct AskRow: View {
+    let need: DashboardSnapshot.Need
+    var compact = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(need.text)
+                .font(.system(size: compact ? 13 : 14, weight: .semibold))
+                .lineLimit(compact ? 3 : 2)
+                .fixedSize(horizontal: false, vertical: true)
+            if !compact, let suggested = need.suggested {
+                Text("Suggested: \(suggested)").font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+            }
+            HStack(spacing: 6) {
+                Button(intent: AnswerFromHomeIntent(key: need.key, answer: "yes")) {
+                    Text("Yes").padding(.horizontal, compact ? 10 : 14).padding(.vertical, 5)
+                        .background(Capsule().fill(Color.primary.opacity(0.16)))
+                }
+                .accessibilityLabel(need.suggested.map { "Yes, \($0)" } ?? "Yes")
+                Button(intent: AnswerFromHomeIntent(key: need.key, answer: "notYet")) {
+                    Text("Not yet").padding(.horizontal, compact ? 10 : 14).padding(.vertical, 5)
+                        .background(Capsule().fill(Color.primary.opacity(0.06)))
+                }
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: compact ? 12 : 13, weight: .semibold))
+            .lineLimit(1)
+            .widgetAccentable()
         }
     }
 }
@@ -328,6 +404,11 @@ private struct PartSection: View {
             Head(icon: part.icon, title: part.title, trailing: lines.isEmpty ? nil : "\(lines.count)")
             if lines.isEmpty {
                 Text(part.empty).font(.system(size: 13.5)).foregroundStyle(.secondary)
+            } else if part == .needs {
+                ForEach(Array(s.needs.prefix(most).enumerated()), id: \.offset) { _, need in AskRow(need: need) }
+                if s.needs.count > most {
+                    Text("+\(s.needs.count - most) more").font(.system(size: 12)).foregroundStyle(.secondary)
+                }
             } else {
                 Bullets(lines: lines, most: most, mono: part == .forrob)
             }

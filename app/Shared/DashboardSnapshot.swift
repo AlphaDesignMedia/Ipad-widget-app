@@ -11,12 +11,19 @@ struct DashboardSnapshot: Codable, Equatable, Sendable {
     var boardAt: String?
     var headline: String?
     /// Questions not answered yet on this iPad.
-    var needs: [String] = []
+    var needs: [Need] = []
     var upNext: [String] = []
     /// Rob's jobs not done yet.
     var forRob: [String] = []
     var ideas: [String] = []
     var reminders: [String] = []
+
+    /// A question, with the key its answer is kept under in the app, so the widget can answer it.
+    struct Need: Codable, Equatable, Sendable {
+        var text: String
+        var key: String
+        var suggested: String?
+    }
 
     static let key = "dashboard.snapshot"
     /// The widget's kind, so the app can ask for just this widget to redraw.
@@ -35,6 +42,31 @@ struct DashboardSnapshot: Codable, Equatable, Sendable {
         guard self != Self.load(), let data = try? JSONEncoder().encode(self) else { return false }
         SharedStore.set(data, forKey: Self.key)
         return true
+    }
+
+    // MARK: Answering from the Home Screen
+
+    /// Answers given on the widget, waiting for the app: answer key → "yes" or "notYet". The app takes them in when it
+    /// opens (`Dashboard.takeHomeAnswers`), then empties this.
+    static let inboxKey = "dashboard.homeAnswers"
+
+    static func homeAnswers() -> [String: String] {
+        SharedStore.data(forKey: inboxKey).flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+    }
+
+    static func clearHomeAnswers() {
+        if let empty = try? JSONEncoder().encode([String: String]()) { SharedStore.set(empty, forKey: inboxKey) }
+    }
+
+    /// Called by the widget's Yes / Not yet: keeps the answer for the app, and takes the question off the widget now.
+    static func answerFromHome(key: String, answer: String) {
+        var inbox = homeAnswers()
+        inbox[key] = answer
+        if let data = try? JSONEncoder().encode(inbox) { SharedStore.set(data, forKey: inboxKey) }
+        if var copy = load() {
+            copy.needs.removeAll { $0.key == key }
+            copy.save()
+        }
     }
 
     /// The board's time as "7:20 am" today, otherwise "Sat 31 Oct".
@@ -57,7 +89,8 @@ struct DashboardSnapshot: Codable, Equatable, Sendable {
     static let sample = DashboardSnapshot(
         boardAt: nil,
         headline: "Blobby Pip is in the app, and the dashboard is on the iPad.",
-        needs: ["Blobby's wings: flutter or glide?", "Dashboard widgets on the Home Screen?"],
+        needs: [Need(text: "Blobby's wings: flutter or glide?", key: "sample.1", suggested: "Flutter, slowly"),
+                Need(text: "Dashboard widgets on the Home Screen?", key: "sample.2", suggested: "Yes, all four sizes")],
         upNext: ["Looks card screenshots", "Pip look hook", "Answer from the Home Screen"],
         forRob: ["take-plugins, then the Looks card"],
         ideas: ["Pip as the glass behind sliders", "A weather widget Pip sits on"],
