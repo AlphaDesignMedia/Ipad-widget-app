@@ -3,7 +3,7 @@ import SwiftUI
 // PIP LOOKS · Blobby (V2), Aaron 1 Nov 2026 ("maybe v2 is blobby pip"). Part of Pip Looks, in its own file so that
 // one stays short.
 // Aaron's drawings first, in his simple shapes: a head circle with ten trailing circles joined by tangent lines (his
-// baseline: tip 3.4 head-radii long, taper 1.9, curl -0.7, the back sloping down, Sheets A and B), two leaf wings from
+// final baseline, 1 Nov: tip 2.65 head-radii long, taper 1.2, curl +0.3, the back sloping down, Sheets A and B), two leaf wings from
 // the top of the head (his overlay: 62° and 44°), tall low eyes, a small smile.
 // Made of Apple's own Liquid Glass, so the system does the bending; body and wings sit in one glass container so they
 // melt together (his blobby neck). Cheap on purpose (Aaron: "lets not make him super expensive to run"): the shapes
@@ -17,7 +17,7 @@ import SwiftUI
 
 enum BlobbyPicks {
     static let circles = 10
-    static let length = 3.4, taper = 1.9, curl = -0.7, slope = 0.32
+    static let length = 2.65, taper = 1.2, curl = 0.3, slope = 0.32     // Aaron's final settings, 1 Nov
     /// The two leaves, as drawn over the side view: angle above the back line (degrees), length (head-radii).
     static let wings: [(deg: Double, len: Double)] = [(62, 2.8), (44, 3.3)]
     static let leafStops: [Double] = [0, 0.25, 0.5, 0.76, 1]
@@ -25,7 +25,7 @@ enum BlobbyPicks {
     /// Where the wings start, in head-radii, facing right (y down).
     static let crown = CGPoint(x: -0.12, y: -0.93)
     /// The emoji the Looks card offers (Pip's Emotes favourites plus a heart). Any emoji works.
-    static let emoji = ["❤️", "💙", "✨", "⭐", "😊", "😂", "💤"]
+    static let emoji = ["⭐", "❤️", "💙", "✨", "😊", "😂", "💤"]
 
     /// A face emoji becomes his face; anything else floats in the middle of his head.
     static func isFace(_ e: String) -> Bool {
@@ -90,7 +90,7 @@ struct BlobbyShapes {
         var path = Path(ellipseIn: CGRect(x: -r, y: -r, width: r * 2, height: r * 2))
         for i in 0..<n {
             let k = Double(i + 1) / Double(n)
-            let dir = turn(back, -BlobbyPicks.curl * 0.9 * k)                 // − curl turns the tip up
+            let dir = turn(back, -BlobbyPicks.curl * 0.9 * k)                 // + curl turns the tip down, − up
             let p = CGPoint(x: prev.x + dir.dx * gap, y: prev.y + dir.dy * gap)
             let shrink = pow(1 - Double(i + 1) / Double(n + 1), BlobbyPicks.taper)
             let rr: CGFloat = r * CGFloat(max(0.06, shrink))

@@ -80,7 +80,7 @@ struct PipLooks: SandboxPlugin {
         @State private var finger: CGPoint? = nil
         @State private var turn = DropTurn()
         @State private var blobbyTurn = BlobbyTurn()
-        @AppStorage("plug.looks.emoji") private var inside: String = "❤️"
+        @AppStorage("plug.looks.emoji") private var inside: String = "⭐"
 
         var body: some View {
             let look = Look(rawValue: chosen) ?? .classic

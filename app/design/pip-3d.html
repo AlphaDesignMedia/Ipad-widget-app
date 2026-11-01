@@ -98,14 +98,15 @@
 
 const $ = s => document.querySelector(s);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const BASE = { n: 10, len: 3.4, curl: -0.7, taper: 1.9, rise: .65, blend: .5, fade: .5, edge: .8, look: 3, wings: 1, smooth: .6 };
+// Aaron's final baseline, 1 Nov ("ready to ship in one final version"). Before: len 3.4, curl -0.7, taper 1.9, rise .65, blend .5, fade .5.
+const BASE = { n: 10, len: 2.65, curl: .3, taper: 1.2, rise: 1, blend: .2, fade: 1, edge: .8, look: 3, wings: 1, smooth: .6 };
 const SOFT = { blob: .5 };      // Aaron, 1 Nov: a bit blobby, strong silhouette (0 = exactly his baseline). Name idea: "Blobby Pip" (V2)
 // Measured from Sheet A "Your Pip" and Sheet B "Draw Pip flying": straight sides, body about 2.5 head-radii long.
 const DRAWN = { n: 8, len: 2.5, curl: -.2, taper: 1.0 };
 const STUDIO = { glow: .8, hsize: .25, hstr: .35, refl: .35, tint: .35, env: 0 };
 // The view Aaron liked best (1 Nov, "bottom right is looking niceee"): it opens on this.
 const PICK = { pose: 2, env: 1, face: 1 };
-const INSIDE = { emoji: '❤️', esize: .5, elight: .5, ewhere: 0, eclear: .85, etint: 1, eonly: false };
+const INSIDE = { emoji: '⭐', esize: .55, elight: .5, ewhere: 0, eclear: .85, etint: 1, eonly: false };
 const P = Object.assign({ yaw: 0, posture: 0, pose: 0, face: 0, panel: true, auto: !reduce }, BASE, SOFT, STUDIO, PICK, INSIDE);
 try { Object.assign(P, JSON.parse(localStorage.getItem('pip3d.v3') || '{}')); } catch {}
 const save = () => { try { localStorage.setItem('pip3d.v3', JSON.stringify(P)); } catch {} };
