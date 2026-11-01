@@ -39,10 +39,10 @@ struct PipInWidget: View {
         if PipWidgetHome.home == spot, let picture = PipWidgetHome.picture {
             Button(intent: PipHopIntent()) {
                 Image(uiImage: picture)
+                    .widgetAccentedRenderingMode(.fullColor)                   // his own colours in the Tinted look too
                     .resizable()
                     .scaledToFit()
                     .frame(width: 60, height: 60)
-                    .widgetAccentedRenderingMode(.fullColor)
             }
             .buttonStyle(.plain)
             .transition(.scale(scale: 0.3).combined(with: .opacity))       // he pops in (and out of the last one)
