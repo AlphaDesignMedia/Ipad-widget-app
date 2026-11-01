@@ -1,81 +1,52 @@
 import SwiftUI
-import UIKit
+import simd
 
 // PIP LOOKS · Blobby (V2), Aaron 1 Nov 2026 ("maybe v2 is blobby pip"). Part of Pip Looks, in its own file so that
 // one stays short.
-// Old-game style (Aaron, 1 Nov: "i liked the renders we made a lot more" · "think old games" · "he cant be a flat
-// plane"): he's rendered once from the 3D page (app/design/pip-3d.html, Aaron's final settings) into a flipbook,
-// blobby-sheet.png, by app/tools/pip-frames.js, and the app only flips pictures. The real glass look, nearly free to run.
-// The sheet's rows: side (his best silhouette: round head, two leaf wings, the trailing tail, an eye; mirrored for
-// left), front (looking at you; also how he turns round, like the old games' turnaround), frontBlank (looking at you
-// with no face: a face emoji becomes his face). Each row is one wing beat, then a blink.
-// Inside him, a real emoji (Apple's): it floats in the middle of his head with the glass's own shine over it; a face
-// emoji is his face, and he looks at you (Aaron, 1 Nov: "when hes an emoji he should look at you").
-// Made up by Jules (Aaron to judge): the turn through the front view, the resting flap speed, the glow, the sheen.
-// To remake the sheet after a change on the 3D page: node app/tools/pip-frames.js
+// Vectors in a pretend 3D space, like the old games (Aaron, 1 Nov: "drawing him in vectors and adding the effects over
+// the vectors … keeping the lighting as a mock effect"; "the glass effect is impossible on a 3D object", not on this
+// character). Each frame, Aaron's pipeline:
+//   1. his skeleton in 3D (Aaron's final settings): a head, ten trailing circles, two leaf wings;
+//   2. flattened into a soft black-and-white silhouette: body, front wing, back wing (BlobbyGlass.metal reads it);
+//   3. the glass shader: roundness, a rim of light (the inner glow), a highlight from the top left that never moves,
+//      a warm bounce, the tail fading out like a shadow; Apple's own glass under his body bends what's behind;
+//   4. a glass emoji inside him (less colour, bent by the ball), his face painted on top, sinking into the emoji.
+// He swings round on a spring, faces the way he's moving, his tail lags and wags, his flap takes effort when he
+// climbs (each down-stroke lifts him). Vectors, not pictures, so later he can morph (Aaron's skeuomorphism idea).
+// The web model, for tuning: app/design/pip-vector.html (public page "Pip · vector (2.5D)"). Keep the two in step.
+// Made up by Jules (Aaron to judge): the spring, the painted colours, the tilt when climbing or diving.
 
 // MARK: Data
 
 enum BlobbyPicks {
+    static let circles = 10
+    static let length = 2.65, curl = 0.3, taper = 1.2, slope = 0.32         // Aaron's final settings, 1 Nov
+    /// The two leaves, as drawn over the side view: side, angle above the back line (degrees), length (head-radii).
+    static let wings: [(side: Double, deg: Double, len: Double)] = [(1, 62, 2.8), (-1, 44, 3.3)]
+    static let leafStops: [Double] = [0, 0.25, 0.5, 0.76, 1]
+    static let leafWidths: [Double] = [0.07, 0.34, 0.4, 0.26, 0.03]
+    static let restTurn = 45.0, flyTurn = 70.0      // degrees round from facing you: at rest (three-quarter), flying
+    static let camera = 8.0                         // head-radii away: how strong the perspective is
+
     /// The emoji the Looks card offers (Pip's Emotes favourites plus a heart). Any emoji works.
     static let emoji = ["⭐", "❤️", "💙", "✨", "😊", "😂", "💤"]
 
-    /// A face emoji becomes his face; anything else floats in the middle of his head.
+    /// A face emoji: he turns to look at you while it's in.
     static func isFace(_ e: String) -> Bool {
         guard let v = e.unicodeScalars.first?.value else { return false }
         return v == 0x263A || (0x1F600...0x1F644).contains(v) || (0x1F910...0x1F92F).contains(v)
             || (0x1F970...0x1F97A).contains(v) || v == 0x1F9D0 || (0x1FAE0...0x1FAE8).contains(v)
     }
-}
 
-/// The flipbook: blobby-sheet.png, cut into frames once. Numbers from app/tools/pip-frames.js (its blobby-sheet.json).
-enum BlobbySheet {
-    enum Row: Int { case side = 0, front = 1, frontBlank = 2 }
-    static let frameW: CGFloat = 162, frameH: CGFloat = 173     // one frame, in sheet pixels
-    static let flaps = 12                                       // frames per wing beat; then the blink
-    static let beatSeconds = 0.6981                             // the 3D page's flying beat
-    static let headX: CGFloat = 106.5, headY: CGFloat = 125.5   // his head's centre in a frame (measured from the sheet)
-    static let headR: CGFloat = 40                              // his head's radius in the sheet
-
-    @MainActor private static var frames: [[CGImage]]? = nil
-
-    @MainActor static func frame(_ row: Row, _ i: Int) -> CGImage? {
-        if frames == nil {
-            guard let sheet = UIImage(named: "blobby-sheet")?.cgImage else { frames = []; return nil }
-            frames = (0..<3).map { r in
-                (0...flaps).compactMap { c in
-                    sheet.cropping(to: CGRect(x: CGFloat(c) * frameW, y: CGFloat(r) * frameH, width: frameW, height: frameH))
-                }
-            }
-        }
-        guard let rows = frames, row.rawValue < rows.count, i < rows[row.rawValue].count else { return nil }
-        return rows[row.rawValue][i]
-    }
-}
-
-// MARK: Logic
-
-/// Which way he faces (1 right, -1 left), easing through 0 as he turns round (through the front view): the way he's
-/// moving when he moves (Aaron, 1 Nov: "he needs to turn with the motion"), otherwise where he's looking.
-final class BlobbyTurn {
-    static let live = BlobbyTurn()          // the one the core's Pip uses
-    private var facing: Double = 1
-    private var last: Double = 0
-    private var lastPos: CGPoint? = nil
-    private var speedX: Double = 0          // sideways speed, pt/s, smoothed
-
-    func step(look: CGSize, pos: CGPoint? = nil, at t: Double, snap: Bool) -> Double {
-        let dt: Double = last == 0 ? 0 : min(0.1, max(0, t - last))
-        if let p = pos {
-            if let q = lastPos, dt > 0 { speedX += ((p.x - q.x) / dt - speedX) * min(1, dt * 8) }
-            lastPos = p
-        }
-        let moving: Double = abs(speedX) > 40 ? (speedX > 0 ? 1 : -1) : 0
-        let target: Double = moving != 0 ? moving
-            : look.width < -0.15 ? -1 : (look.width > 0.15 ? 1 : (facing >= 0 ? 1 : -1))
-        last = t
-        if snap { facing = target } else { facing += (target - facing) * min(1, dt * 5) }
-        return facing
+    /// The emoji moment: comes in (0.3 s, a little overshoot), stays 2.5 s, goes (0.6 s). nil `at`: it stays.
+    static func moment(at: Double?, time: Double, simpler: Bool) -> (vis: Double, pop: Double) {
+        guard let at else { return (1, 1) }
+        let since = time - at
+        if since < 0 { return (0, 1) }
+        if since < 0.3 { let v = since / 0.3; return (v, simpler ? 1 : 0.6 + 0.4 * sin(v * Double.pi / 2) * 1.08) }
+        if since < 2.8 { return (1, 1) }
+        if since < 3.4 { return (1 - (since - 2.8) / 0.6, 1) }
+        return (0, 1)
     }
 }
 
@@ -94,106 +65,300 @@ final class BlobbyTurn {
     }
 }
 
+// MARK: Logic (the skeleton in 3D, flattened each frame)
+
+typealias BV3 = SIMD3<Double>
+
+private func bNorm(_ v: BV3) -> BV3 { let l = simd_length(v); return l > 0 ? v / l : v }
+private func bTurn(_ v: BV3, _ ax: BV3, _ a: Double) -> BV3 {
+    let c = cos(a), s = sin(a)
+    return v * c + simd_cross(ax, v) * s + ax * simd_dot(v, ax) * (1 - c)
+}
+
+/// One frame of Pip, flattened: everything in points, relative to the centre of his head (y down).
+struct BlobbyFrame {
+    struct Circle { var at: CGPoint; var r: CGFloat }
+    struct Wing { var circles: [Circle]; var depth: Double; var back: Bool }
+    var tail: [Circle] = []
+    var wings: [Wing] = []
+    /// Where his eyes and mouth are on the ball (x, y in head-radii, y down; z > 0: on the side facing you).
+    var eyes: [BV3] = []
+    var mouth: BV3 = .zero
+    /// How far a wing beat lifts him this frame (points, up is negative).
+    var lift: CGFloat = 0
+}
+
+/// Pip's body in motion: which way he faces (a soft spring, so he swings round with some weight), his tail (lags
+/// behind as he moves) and his wing beat (effort). One per Pip on screen.
+final class BlobbyRig {
+    static let live = BlobbyRig()           // the one the core's Pip uses
+    private(set) var yaw = BlobbyPicks.restTurn
+    private var yawV = 0.0
+    private var tail: [BV3] = []
+    private var last: CGPoint? = nil
+    private var lastT = 0.0
+    private var vx = 0.0, vy = 0.0
+    private var phase = 0.0, effort = 0.0
+
+    /// pos: where his head is (points, any fixed space); r: head radius (points); target: -1 left, 1 right, 0 no
+    /// preference (he keeps his side); toYou: 0…1, how much he turns to look at you (a face emoji).
+    func step(pos: CGPoint, r: CGFloat, time t: Double, target: Double, toYou: Double, simpler: Bool) -> BlobbyFrame {
+        let dt: Double = lastT == 0 ? 1.0 / 60 : min(0.05, max(0, t - lastT))
+        lastT = t
+        if let q = last, dt > 0 {
+            vx += ((pos.x - q.x) / dt - vx) * min(1, dt * 10)
+            vy += ((pos.y - q.y) / dt - vy) * min(1, dt * 10)
+        }
+        last = pos
+        let rr = Double(max(r, 1))
+        // facing: towards the way he's moving, else the side asked for, else the side he's on
+        let moving: Double = abs(vx) > 40 ? (vx > 0 ? 1 : -1) : 0
+        let side: Double = moving != 0 ? moving : (target != 0 ? target : (yaw >= 0 ? 1 : -1))
+        let want = side * (moving != 0 ? BlobbyPicks.flyTurn : BlobbyPicks.restTurn) * (1 - toYou)
+        if simpler { yaw = want; yawV = 0 } else {
+            yawV += ((want - yaw) * 60 - yawV * 11) * dt
+            yaw += yawV * dt
+        }
+        // effort (Aaron: "weight and effort in his wing flap"): flying is work, climbing is hard work
+        let flying = min(1, (vx * vx + vy * vy).squareRoot() / 120)
+        let climbing = max(0, min(1, -vy / 260))
+        effort += (max(flying * 0.5, climbing) - effort) * min(1, dt * 4)
+        if !simpler { phase += (4.5 + 4.5 * flying) * (1 - 0.35 * climbing) * dt }
+        let amp: Double = simpler ? 0 : 0.2 + 0.3 * flying + 0.3 * climbing
+        var f = BlobbyFrame()
+        f.lift = simpler ? 0 : CGFloat(-sin(phase) * rr * (0.03 + 0.09 * effort))
+
+        let a = yaw * Double.pi / 180
+        let tilt = simpler ? 0 : max(-0.35, min(0.35, vy / 1400))       // nose up climbing, down diving
+        let face = bNorm(BV3(sin(a), -0.05 - tilt, cos(a)))
+        let sideV = bNorm(simd_cross(BV3(0, 1, 0), face)), up = bNorm(simd_cross(face, sideV))
+        let head = BV3(Double(pos.x) / rr, -Double(pos.y) / rr, 0)
+        let front = max(0, cos(a) - 0.5) * 2                              // 1 when he faces you
+
+        // the tail: held behind and below, curled, lagging (liquid weight); facing you it peeks out with a tiny wag
+        let n = BlobbyPicks.circles
+        if tail.count != n { tail = (0..<n).map { i in head + BV3(-Double(i + 1) * 0.26, -Double(i + 1) * 0.08, -Double(i + 1) * 0.1) } }
+        let back = bNorm(BV3(-face.x, -face.y - BlobbyPicks.slope, -face.z))
+        let gap = BlobbyPicks.length / Double(n)
+        let lag: Double = simpler ? 0 : pow(0.1, dt * 60)
+        var prev = head
+        for i in 0..<n {
+            let k = Double(i + 1) / Double(n)
+            let wag = simpler ? 0 : front * sin(t * 2.4 - Double(i) * 0.5) * 0.12 * k
+            let rest = bNorm(bTurn(back, sideV, -BlobbyPicks.curl * 0.9 * k) + sideV * wag)
+            let d = bNorm(bNorm(tail[i] - prev) * 0.15 + rest * 0.85)
+            let goal = prev + d * gap
+            tail[i] += (goal - tail[i]) * (1 - lag)
+            prev = tail[i]
+        }
+
+        // flatten: a simple camera, so further away is smaller
+        func flat(_ p: BV3) -> (CGPoint, Double) {
+            let s = BlobbyPicks.camera / (BlobbyPicks.camera - (p.z - head.z))
+            return (CGPoint(x: (p.x - head.x) * rr * s, y: -(p.y - head.y) * rr * s), s)
+        }
+        for i in 0..<n {
+            let (pt, s) = flat(tail[i])
+            let rad = max(0.06, pow(1 - Double(i + 1) / Double(n + 1), BlobbyPicks.taper))
+            f.tail.append(.init(at: pt, r: CGFloat(rad * rr * s)))
+        }
+
+        // the wings: two leaves from the crown, apart at the root and splayed so they never cross, flapping together
+        let backV = -face
+        let crown = head + up * 0.93 - face * 0.12
+        let sweep = min(0.35, abs(vx) / rr * 0.02)
+        let tall = 1 + 0.15 * max(0, cos(a))                              // a touch taller seen from the front
+        for w in BlobbyPicks.wings {
+            let root = crown + sideV * (w.side * 0.3)
+            let pitch = w.deg * Double.pi / 180 - sweep
+            let dir = bNorm(backV * cos(pitch) + up * sin(pitch) + sideV * (w.side * 0.42))
+            let nrm = bNorm(simd_cross(dir, backV))
+            let thin = max(0.6, abs(nrm.z))                                  // keeps some width from the front (Aaron)
+            var pts: [BV3] = [root]
+            for j in 1..<BlobbyPicks.leafStops.count {
+                let st = BlobbyPicks.leafStops[j]
+                let flutter = amp * (sin(phase - st * 0.9 + (w.side > 0 ? 0 : 0.3)) * 0.8 + 0.2)
+                var seg = bTurn(dir, nrm, 0.28 * st - 0.14)
+                seg = bNorm(bTurn(seg, backV, w.side * flutter))
+                pts.append(pts[j - 1] + seg * (w.len * tall * (st - BlobbyPicks.leafStops[j - 1])))
+            }
+            let circles: [BlobbyFrame.Circle] = pts.enumerated().map { j, p in
+                let (pt, s) = flat(p)
+                return .init(at: pt, r: CGFloat(max(0.6 / rr, BlobbyPicks.leafWidths[j] * thin) * rr * s))
+            }
+            f.wings.append(.init(circles: circles, depth: pts[3].z - head.z, back: false))
+        }
+        if f.wings.count == 2 { f.wings[f.wings[0].depth < f.wings[1].depth ? 0 : 1].back = true }
+
+        // the face, painted on the ball where it points
+        func onHead(_ s: Double, _ u: Double) -> BV3 { let v = bNorm(face + sideV * s + up * u); return BV3(v.x, -v.y, v.z) }
+        f.eyes = [onHead(-0.3, -0.32), onHead(0.3, -0.32)]
+        f.mouth = onHead(0, -0.62)
+        return f
+    }
+}
+
+// MARK: Shapes (circles joined by tangent lines, all wound the same way, so the overlaps fill as one)
+
+enum BlobbyPaths {
+    /// A circle as four curves, wound the same way as the joins below.
+    static func circle(_ p: inout Path, _ c: CGPoint, _ r: CGFloat) {
+        let k: CGFloat = 0.5523 * r
+        p.move(to: CGPoint(x: c.x + r, y: c.y))
+        p.addCurve(to: CGPoint(x: c.x, y: c.y + r), control1: CGPoint(x: c.x + r, y: c.y + k), control2: CGPoint(x: c.x + k, y: c.y + r))
+        p.addCurve(to: CGPoint(x: c.x - r, y: c.y), control1: CGPoint(x: c.x - k, y: c.y + r), control2: CGPoint(x: c.x - r, y: c.y + k))
+        p.addCurve(to: CGPoint(x: c.x, y: c.y - r), control1: CGPoint(x: c.x - r, y: c.y - k), control2: CGPoint(x: c.x - k, y: c.y - r))
+        p.addCurve(to: CGPoint(x: c.x + r, y: c.y), control1: CGPoint(x: c.x + k, y: c.y - r), control2: CGPoint(x: c.x + r, y: c.y - k))
+        p.closeSubpath()
+    }
+
+    /// Two circles joined by their outer tangent lines (Aaron's hull of circles).
+    static func hull(_ p: inout Path, _ a: CGPoint, _ ra: CGFloat, _ b: CGPoint, _ rb: CGFloat) {
+        circle(&p, a, ra)
+        circle(&p, b, rb)
+        let dx = b.x - a.x, dy = b.y - a.y
+        let d = (dx * dx + dy * dy).squareRoot()
+        guard d > abs(ra - rb) + 0.01 else { return }
+        let ux = dx / d, uy = dy / d, c = (ra - rb) / d, s = max(0, 1 - c * c).squareRoot()
+        let n1 = CGPoint(x: ux * c - uy * s, y: uy * c + ux * s), n2 = CGPoint(x: ux * c + uy * s, y: uy * c - ux * s)
+        var q = [CGPoint(x: a.x + n1.x * ra, y: a.y + n1.y * ra), CGPoint(x: b.x + n1.x * rb, y: b.y + n1.y * rb),
+                 CGPoint(x: b.x + n2.x * rb, y: b.y + n2.y * rb), CGPoint(x: a.x + n2.x * ra, y: a.y + n2.y * ra)]
+        var area: CGFloat = 0                                                // same winding as the circles
+        for i in 0..<4 { let u = q[i], v = q[(i + 1) % 4]; area += u.x * v.y - v.x * u.y }
+        if area < 0 { q.reverse() }
+        p.move(to: q[0]); p.addLine(to: q[1]); p.addLine(to: q[2]); p.addLine(to: q[3]); p.closeSubpath()
+    }
+
+    static func body(_ f: BlobbyFrame, r: CGFloat) -> Path {
+        var p = Path()
+        circle(&p, .zero, r)
+        var prev = BlobbyFrame.Circle(at: .zero, r: r)
+        for c in f.tail { hull(&p, prev.at, prev.r, c.at, c.r); prev = c }
+        return p
+    }
+
+    static func wing(_ w: BlobbyFrame.Wing) -> Path {
+        var p = Path()
+        for j in 1..<w.circles.count { hull(&p, w.circles[j - 1].at, w.circles[j - 1].r, w.circles[j].at, w.circles[j].r) }
+        return p
+    }
+}
+
+/// A stored path, centred in whatever frame it's given (for Apple's glass).
+struct BlobbyShape: Shape {
+    let path: Path
+    func path(in rect: CGRect) -> Path { path.offsetBy(dx: rect.midX, dy: rect.midY) }
+}
+
 // MARK: Views
 
-/// Pip in the Blobby look, centred on his head in a frame 8 × the head radius (room for the tail, wings and glow).
-/// Pure: same inputs, same picture.
+/// Pip in the Blobby look, centred on his head in a frame 8 × the head radius. Pure: same frame, same picture.
 struct PipBlobbyBody: View {
     var radius: CGFloat = 12
+    var frame: BlobbyFrame
     var time: Double = 0
     var face: PipFace = .awake
-    var look: CGSize = .zero
-    var facing: Double = 1
     var emoji: String? = nil
-    /// When the emoji popped in (same clock as `time`). nil: it stays. Otherwise it's a moment: it pops in, he looks
-    /// at you, and after a couple of seconds it melts back into his own face (Aaron, 1 Nov).
     var emojiAt: Double? = nil
     var simpler: Bool = false
-    var flapping: Bool = false
     var halo: Color = PipLook.glow
 
     var body: some View {
         let r = radius
         let box: CGFloat = r * 8
-        let m = moment
+        let mid = CGPoint(x: box / 2, y: box / 2)
+        let bodyPath = BlobbyPaths.body(frame, r: r)
+        let m = BlobbyPicks.moment(at: emojiAt, time: time, simpler: simpler)
         let shown: String? = m.vis > 0.01 ? emoji : nil
-        let faceEmoji: Bool = shown.map(BlobbyPicks.isFace) ?? false
-        // side view most of the time; the front view while turning round, and while a face emoji is on (he looks at
-        // you): his own face underneath, the faceless frame over it, so as the emoji goes his face comes back through
-        let row: BlobbySheet.Row = faceEmoji || abs(facing) < 0.55 ? .front : .side
-        let closed: Bool = face == .blink || face == .asleep || face == .sleepy
-        let (i, next, blend) = flapFrames
-        let shut: Bool = closed && !faceEmoji
-        let mirror: CGFloat = facing < 0 ? -1 : 1
+        let e = m.vis * m.vis * (3 - 2 * m.vis)                               // eased
+        let tip = frame.tail.last?.at ?? .zero
+        let k: CGFloat = max(1.5, r * 0.15)                                     // how far the shader looks for the slope
         ZStack {
-            // his glow, under everything
-            Circle().fill(halo.opacity(0.4)).frame(width: r * 2.6, height: r * 2.6).blur(radius: r * 0.5)
-            if let img = BlobbySheet.frame(row, shut ? BlobbySheet.flaps : i) {
-                sprite(img)
-                // smoothing: the next frame fades in over this one, so the flipbook flows instead of clunking
-                if !shut, blend > 0.02, let nxt = BlobbySheet.frame(row, next) { sprite(nxt).opacity(blend) }
-                if faceEmoji, let blank = BlobbySheet.frame(.frontBlank, i) { sprite(blank).opacity(m.vis) }
-                if let e = shown {
-                    emojiView(e, isFace: faceEmoji, vis: m.vis, pop: m.pop)
-                    // the glass's own shine back over the emoji, so it sits inside him, not on top
-                    sprite(img).blendMode(.screen).opacity(0.55)
-                        .mask(Circle().frame(width: r * 2, height: r * 2))
+            // the glow, on the room
+            Circle()
+                .fill(RadialGradient(colors: [halo.opacity(0.22), halo.opacity(0)], center: .center, startRadius: 0, endRadius: r * 2.3))
+                .frame(width: r * 4.6, height: r * 4.6)
+            // Apple's glass in his body's shape: what's behind him really bends
+            Color.clear.glassEffect(.clear, in: BlobbyShape(path: bodyPath))
+            // a glass emoji inside him: less colour, bent by the ball, arriving sharp from soft (Apple: materialise)
+            if let em = shown {
+                Text(em)
+                    .font(.system(size: r * 1.0))
+                    .scaleEffect(CGFloat((0.5 + 0.5 * e) * m.pop))
+                    .saturation(0.6)
+                    .opacity(min(1, m.vis * 1.5) * 0.85)
+                    .blur(radius: simpler ? 0 : CGFloat(1 - e) * r * 0.25)
+                    .offset(y: r * 0.08)
+                    .frame(width: box, height: box)
+                    .distortionEffect(ShaderLibrary.blobbyLens(.float2(mid), .float(r * 0.95), .float(0.25)),
+                                      maxSampleOffset: CGSize(width: r, height: r))
+                    .mask(Circle().frame(width: r * 1.92, height: r * 1.92))
+            }
+            // his silhouette, softened, through the glass shader
+            Canvas { ctx, size in
+                ctx.addFilter(.blur(radius: r * 0.12))
+                ctx.translateBy(x: size.width / 2, y: size.height / 2)
+                ctx.blendMode = .plusLighter
+                ctx.fill(bodyPath, with: .color(Color(red: 1, green: 0, blue: 0)))
+                for w in frame.wings {
+                    ctx.fill(BlobbyPaths.wing(w), with: .color(w.back ? Color(red: 0, green: 0, blue: 1) : Color(red: 0, green: 1, blue: 0)))
                 }
             }
+            .frame(width: box, height: box)
+            .layerEffect(ShaderLibrary.blobbyGlass(.float2(mid), .float(r),
+                                                   .float2(CGPoint(x: mid.x + tip.x, y: mid.y + tip.y)), .float(k)),
+                         maxSampleOffset: CGSize(width: k, height: k))
+            // his face on top, sinking into the emoji while one is in
+            Canvas { ctx, size in
+                ctx.translateBy(x: size.width / 2, y: size.height / 2)
+                paintFace(&ctx, sink: shown == nil ? 0 : e)
+            }
+            .frame(width: box, height: box)
         }
-        .scaleEffect(x: mirror, y: 1)
         .frame(width: box, height: box)
+        .offset(y: frame.lift)
         .accessibilityHidden(true)
     }
 
-    /// One frame, sized so his head is `radius`, placed so his head is at the centre.
-    private func sprite(_ img: CGImage) -> some View {
-        let s: CGFloat = radius / BlobbySheet.headR
-        return Image(decorative: img, scale: 1)
-            .resizable()
-            .interpolation(.medium)
-            .frame(width: BlobbySheet.frameW * s, height: BlobbySheet.frameH * s)
-            .offset(x: (BlobbySheet.frameW / 2 - BlobbySheet.headX) * s, y: (BlobbySheet.frameH / 2 - BlobbySheet.headY) * s)
-    }
-
-    /// The emoji moment: pops in (0.3 s, a little overshoot), stays 2.5 s, melts away (0.6 s). Reduce Motion: no pop.
-    private var moment: (vis: Double, pop: Double) {
-        guard let at = emojiAt else { return (1, 1) }
-        let since = time - at
-        if since < 0 { return (0, 1) }
-        if since < 0.3 { let v = since / 0.3; return (v, simpler ? 1 : 0.6 + 0.4 * sin(v * Double.pi / 2) * 1.08) }
-        if since < 2.8 { return (1, 1) }
-        if since < 3.4 { return (1 - (since - 2.8) / 0.6, 1) }
-        return (0, 1)
-    }
-
-    /// The wing beat: flying, the 3D page's quick beat; resting, a slow gentle one. Still with Reduce Motion.
-    /// Gives this frame, the next one and how far we are between them (for the fade).
-    private var flapFrames: (Int, Int, Double) {
-        if simpler { return (0, 0, 0) }
-        let period: Double = flapping ? BlobbySheet.beatSeconds : 1.6
-        let n = BlobbySheet.flaps
-        let at = (time / period).truncatingRemainder(dividingBy: 1) * Double(n)
-        let i = min(n - 1, max(0, Int(at)))
-        return (i, (i + 1) % n, at - Double(i))
-    }
-
-    /// Floats in the very middle of his head (Aaron, 1 Nov: "isn't perfectly central"), facing you, breathing softly;
-    /// a face emoji is his face, also centred, as he looks at you. Drawn mirrored back, so it never reads backwards.
-    private func emojiView(_ e: String, isFace: Bool, vis: Double, pop: Double) -> some View {
+    private func paintFace(_ ctx: inout GraphicsContext, sink e: Double) {
         let r = radius
-        let t: Double = simpler ? 0 : time
-        let drift: CGFloat = isFace ? 0.3 : 1
-        let dx = CGFloat(sin(t * 0.7) * 0.05) * r * drift
-        let dy = CGFloat(sin(t * 1.1 + 1) * 0.06) * r * drift
-        let spot = CGPoint.zero                                  // dead centre of his head (Aaron, 1 Nov)
-        // the breathing pulse, the pop in, and shrinking a little as it melts away
-        let pulse = CGFloat((1 + 0.04 * (0.5 + 0.5 * sin(t * 2.2))) * pop * (0.7 + 0.3 * vis))
-        return Text(e)
-            .font(.system(size: r * (isFace ? 1.15 : 0.95)))
-            .scaleEffect(x: (facing < 0 ? -1 : 1) * pulse, y: pulse)
-            .rotationEffect(.radians(simpler ? 0 : sin(t * 0.8) * 0.06))
-            .opacity((isFace ? 1 : 0.92) * vis)
-            .offset(x: spot.x + dx, y: spot.y + dy)
+        let alpha = 1 - e
+        guard alpha > 0.02 else { return }
+        let to = CGPoint(x: 0, y: r * 0.1)
+        func at(_ v: BV3) -> CGPoint {
+            let p = CGPoint(x: CGFloat(v.x) * r, y: CGFloat(v.y) * r)
+            return CGPoint(x: p.x + (to.x - p.x) * CGFloat(e), y: p.y + (to.y - p.y) * CGFloat(e))
+        }
+        let shrink = CGFloat(1 - e * 0.7)
+        let closed = face == .blink || face == .asleep || face == .sleepy
+        for v in frame.eyes where v.z > 0.05 {
+            ctx.drawLayer { l in
+                l.opacity = alpha * min(1, v.z * 4)
+                let p = at(v)
+                l.translateBy(x: p.x, y: p.y)
+                l.scaleBy(x: CGFloat(max(0.25, v.z)) * shrink, y: shrink)
+                let h: CGFloat = closed ? r * 0.04 : r * 0.155
+                l.fill(Path(ellipseIn: CGRect(x: -r * 0.1, y: -h, width: r * 0.2, height: h * 2)), with: .color(PipLook.eye))
+            }
+        }
+        let mo = frame.mouth
+        guard mo.z > 0.1 else { return }
+        ctx.drawLayer { l in
+            l.opacity = alpha * min(1, mo.z * 3)
+            let p = at(mo)
+            l.translateBy(x: p.x, y: p.y)
+            l.scaleBy(x: CGFloat(max(0.3, mo.z)) * shrink, y: shrink)
+            var path = Path()
+            switch face {
+            case .surprised, .dizzy:
+                path.addEllipse(in: CGRect(x: -r * 0.06, y: -r * 0.07, width: r * 0.12, height: r * 0.14))
+            case .asleep, .sleepy:
+                break
+            default:
+                path.move(to: CGPoint(x: -r * 0.12, y: 0))
+                path.addQuadCurve(to: CGPoint(x: r * 0.12, y: 0), control: CGPoint(x: 0, y: r * 0.1))
+            }
+            l.stroke(path, with: .color(PipLook.eye), style: StrokeStyle(lineWidth: max(0.8, r * 0.05), lineCap: .round))
+        }
     }
 }

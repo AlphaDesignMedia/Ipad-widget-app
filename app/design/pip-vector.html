@@ -95,10 +95,10 @@ function step(pos, R, t, dt, target, emote) {
 
   // wings: two leaves from the crown, flapping together (Aaron's overlay: 62° and 44°)
   const wings = PICK.wings.map(([sd, deg, len]) => {
-    const backV = sc(face, -1), crown = add(add(head, up, .93), face, -.12), root = add(crown, sideV, sd * .12);
+    const backV = sc(face, -1), crown = add(add(head, up, .93), face, -.12), root = add(crown, sideV, sd * .3);              // apart at the root, so they never cross
     const sweep = Math.min(.35, Math.abs(rig.vx) / R * .02);
     const pitch = deg * Math.PI / 180 - sweep;
-    const dir = norm(add(add(sc(backV, Math.cos(pitch)), up, Math.sin(pitch)), sideV, sd * .18));
+    const dir = norm(add(add(sc(backV, Math.cos(pitch)), up, Math.sin(pitch)), sideV, sd * .42));   // splayed outwards
     const nrm = norm(cross(dir, backV));
     const amp = rig.flap.amp;
     const pts = [[root, PICK.widths[0]]];
@@ -382,9 +382,10 @@ function drawPipGlass(pos, R, t, dt, target, emoji, vis) {
   const ix = I.getContext('2d'); ix.clearRect(0, 0, ip, ip);
   if (emoji && vis > 0) {
     const sz = R * 1.0 * (.5 + .5 * e) * k;
-    ix.globalAlpha = Math.min(1, vis * 1.5); ix.font = `${sz}px "Apple Color Emoji","Noto Color Emoji",sans-serif`;
+    ix.filter = 'saturate(60%)';                                          // a glass emoji: less colour (Aaron)
+    ix.globalAlpha = Math.min(1, vis * 1.5) * .85; ix.font = `${sz}px "Apple Color Emoji","Noto Color Emoji",sans-serif`;
     ix.textAlign = 'center'; ix.textBaseline = 'middle'; ix.fillText(emoji, ip / 2, ip / 2 + R * .08 * k + sz * .06);
-    ix.globalAlpha = 1;
+    ix.globalAlpha = 1; ix.filter = 'none';
   }
 
   // 3. the glass shader

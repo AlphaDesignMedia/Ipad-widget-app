@@ -55,11 +55,14 @@ struct PipLooks: SandboxPlugin {
     /// `size` is the orb's diameter, so the head is the same size as Classic's orb.
     /// He faces the way he's moving (dragged, flicked or flying), else where he's looking. His emotes show inside him.
     @MainActor static func blobbyView(_ ctx: PipStyleContext) -> AnyView {
-        let facing = BlobbyTurn.live.step(look: ctx.look, pos: ctx.pos, at: ctx.time, snap: ctx.simpler)
         let emote = BlobbyEmote.last
-        return AnyView(PipBlobbyBody(radius: ctx.size / 2, time: ctx.time, face: ctx.face, look: ctx.look, facing: facing,
-                                     emoji: emote?.emoji, emojiAt: emote?.at, simpler: ctx.simpler,
-                                     flapping: ctx.flapping || ctx.held, halo: ctx.halo))
+        let m = BlobbyPicks.moment(at: emote?.at ?? -1e9, time: ctx.time, simpler: ctx.simpler)
+        let toYou: Double = (emote.map { BlobbyPicks.isFace($0.emoji) } ?? false) ? m.vis : 0
+        let target: Double = ctx.look.width < -0.15 ? -1 : (ctx.look.width > 0.15 ? 1 : 0)
+        let frame = BlobbyRig.live.step(pos: ctx.pos, r: ctx.size / 2, time: ctx.time, target: target, toYou: toYou,
+                                        simpler: ctx.simpler)
+        return AnyView(PipBlobbyBody(radius: ctx.size / 2, frame: frame, time: ctx.time, face: ctx.face,
+                                     emoji: emote?.emoji, emojiAt: emote?.at ?? -1e9, simpler: ctx.simpler, halo: ctx.halo))
     }
 
     /// Pip's whole body in the Drop look, for the core to draw in place of `PipBody` (same centre, Pip's own space).
@@ -83,7 +86,7 @@ struct PipLooks: SandboxPlugin {
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @State private var finger: CGPoint? = nil
         @State private var turn = DropTurn()
-        @State private var blobbyTurn = BlobbyTurn()
+        @State private var blobbyRig = BlobbyRig()
         @AppStorage("plug.looks.emoji") private var inside: String = "⭐"
         @State private var emoteAt: Double = 0          // when the last emoji popped in (a moment, then his face again)
 
@@ -158,9 +161,14 @@ struct PipLooks: SandboxPlugin {
                         PipDropBody(picks: .aaron30Oct, pose: pose, time: t, face: blink ? .blink : .awake, radius: dropRadius,
                                     simpler: simpler, flapping: !simpler)
                             .position(x: dropAt.x, y: dropAt.y + bob)
-                        PipBlobbyBody(radius: 20, time: t, face: blink ? .blink : .awake, look: aimBlobby ?? .zero,
-                                      facing: blobbyTurn.step(look: aimBlobby ?? .zero, at: t, snap: simpler),
-                                      emoji: inside.isEmpty ? nil : inside, emojiAt: simpler ? nil : emoteAt, simpler: simpler, flapping: !simpler)
+                        let aimX: Double = (aimBlobby?.width ?? 0) < -0.15 ? -1 : ((aimBlobby?.width ?? 0) > 0.15 ? 1 : 0)
+                        let em: String? = inside.isEmpty ? nil : inside
+                        let mo = BlobbyPicks.moment(at: simpler ? nil : emoteAt, time: t, simpler: simpler)
+                        let toYou: Double = (em.map(BlobbyPicks.isFace) ?? false) ? mo.vis : 0
+                        PipBlobbyBody(radius: 20,
+                                      frame: blobbyRig.step(pos: blobbyAt, r: 20, time: t, target: aimX, toYou: toYou, simpler: simpler),
+                                      time: t, face: blink ? .blink : .awake,
+                                      emoji: em, emojiAt: simpler ? nil : emoteAt, simpler: simpler)
                             .position(x: blobbyAt.x, y: blobbyAt.y + bob)
                         label("Classic", on: look == .classic).position(x: classicAt.x, y: h - 14)
                         label("Drop", on: look == .drop).position(x: dropAt.x, y: h - 14)
