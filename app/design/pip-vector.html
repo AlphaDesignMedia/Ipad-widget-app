@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pip · vector (2.5D)</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: linear-gradient(#1d5f86, #123e66);
+    font: 14px/1.35 -apple-system, system-ui, sans-serif; color: #fff; user-select: none; -webkit-user-select: none; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+  .bar { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 12px;
+    min-height: 44px; padding: 0 14px; font: inherit; font-size: 18px; }
+  .note { position: absolute; left: 12px; top: 10px; opacity: .75; max-width: 520px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="note">Pip in vectors (2.5D): his circles live in 3D and are redrawn every frame, lit by painted-on light
+that never moves. Drag him. Tap an emoji.</div>
+<div class="bar" id="bar"></div>
+<script>
+// Vector Pip, 2.5D (Aaron, 1 Nov: "drawing him in vectors and adding the effects over the vectors … keeping the
+// lighting as a mock effect … feel like he's moving in space … simplify it like a video game").
+// Same skeleton as the 3D page (app/design/pip-3d.html, Aaron's final settings): a head with ten trailing circles
+// joined by tangent lines, two leaf wings from the crown. Each frame: the skeleton in 3D → projected → drawn as flat
+// shapes. Lighting is painted: a fixed light from the top left (it never flips), a rim, a soft inner glow.
+// This file is the model for the app's version (PipBlobbyLook.swift): keep the two in step.
+
+// ---------- picks (Aaron's final settings, 1 Nov)
+const PICK = { n: 10, len: 2.65, curl: .3, taper: 1.2, slope: .32, wings: [[1, 62, 2.8], [-1, 44, 3.3]],
+  stops: [0, .25, .5, .76, 1], widths: [.07, .34, .4, .26, .03], rest: 45, side: 70, cam: 8 };
+
+// ---------- 3D maths
+const v3 = (x = 0, y = 0, z = 0) => ({ x, y, z });
+const add = (a, b, k = 1) => v3(a.x + b.x * k, a.y + b.y * k, a.z + b.z * k);
+const sc = (a, k) => v3(a.x * k, a.y * k, a.z * k);
+const norm = v => { const l = Math.hypot(v.x, v.y, v.z) || 1; return v3(v.x / l, v.y / l, v.z / l); };
+const cross = (a, b) => v3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+const turnAbout = (v, ax, ang) => { const c = Math.cos(ang), s = Math.sin(ang), d = v.x * ax.x + v.y * ax.y + v.z * ax.z, x = cross(ax, v);
+  return v3(v.x * c + x.x * s + ax.x * d * (1 - c), v.y * c + x.y * s + ax.y * d * (1 - c), v.z * c + x.z * s + ax.z * d * (1 - c)); };
+
+// ---------- the rig: state that carries over between frames (turning, the tail's lag)
+const rig = { yaw: PICK.rest, yawV: 0, tail: null, last: null, speedX: 0, vx: 0, vy: 0 };
+
+/** One frame of Pip. pos: where his head is (px); R: head radius (px); target: which way he wants to face
+ *  (-1 left, 0 you, 1 right); emote: 0…1 how much an emoji face is on (he looks at you). Returns what to draw. */
+function step(pos, R, t, dt, target, emote) {
+  // facing: a springy turn (weight), towards the way he's moving, else his three-quarter rest
+  if (rig.last && dt > 0) {
+    const vx = (pos.x - rig.last.x) / dt, vy = (pos.y - rig.last.y) / dt;
+    rig.vx += (vx - rig.vx) * Math.min(1, dt * 10); rig.vy += (vy - rig.vy) * Math.min(1, dt * 10);
+  }
+  rig.last = { x: pos.x, y: pos.y };
+  const moving = Math.abs(rig.vx) > 40 ? Math.sign(rig.vx) : 0;
+  const side = moving || target || Math.sign(rig.yaw) || 1;
+  let want = side * (moving ? PICK.side : PICK.rest);
+  want = want * (1 - emote);                                            // an emoji face: he turns to you
+  const k = 60, damp = 11;                                              // a soft spring: he swings round, settles
+  rig.yawV += ((want - rig.yaw) * k - rig.yawV * damp) * dt;
+  rig.yaw += rig.yawV * dt;
+
+  const a = rig.yaw * Math.PI / 180;
+  const tilt = Math.max(-.35, Math.min(.35, rig.vy / 1400));            // nose up or down as he climbs or dives
+  const face = norm(v3(Math.sin(a), -.05 - tilt, Math.cos(a)));
+  const sideV = norm(cross(v3(0, 1, 0), face)), up = norm(cross(face, sideV));
+
+  // the tail: circles held behind and below the head, curled, and lagging behind his movement (liquid weight)
+  const head = v3(pos.x / R, -pos.y / R, 0);
+  if (!rig.tail) rig.tail = Array.from({ length: PICK.n }, (_, i) => add(head, v3(-(i + 1) * .26, -(i + 1) * .08, -(i + 1) * .1)));
+  const back = norm(v3(-face.x, -face.y - PICK.slope, -face.z));
+  const gap = PICK.len / PICK.n;
+  let prev = head;
+  for (let i = 0; i < PICK.n; i++) {
+    const c = rig.tail[i], rest = norm(turnAbout(back, sideV, -PICK.curl * .9 * (i + 1) / PICK.n));
+    let d = norm(v3(c.x - prev.x, c.y - prev.y, c.z - prev.z));
+    d = norm(add(sc(d, .15), rest, .85));
+    const goal = add(prev, d, gap), lag = Math.pow(.1, dt * 60);
+    c.x += (goal.x - c.x) * (1 - lag); c.y += (goal.y - c.y) * (1 - lag); c.z += (goal.z - c.z) * (1 - lag);
+    prev = c;
+  }
+  const radii = rig.tail.map((_, i) => Math.max(.06, Math.pow(1 - (i + 1) / (PICK.n + 1), PICK.taper)));
+
+  // wings: two leaves from the crown, flapping together (Aaron's overlay: 62° and 44°)
+  const wings = PICK.wings.map(([sd, deg, len]) => {
+    const backV = sc(face, -1), crown = add(add(head, up, .93), face, -.12), root = add(crown, sideV, sd * .12);
+    const sweep = Math.min(.35, Math.abs(rig.vx) / R * .02);
+    const pitch = deg * Math.PI / 180 - sweep;
+    const dir = norm(add(add(sc(backV, Math.cos(pitch)), up, Math.sin(pitch)), sideV, sd * .18));
+    const nrm = norm(cross(dir, backV));
+    const beat = Math.abs(rig.vx) > 40 ? 9 : 4.5, amp = Math.abs(rig.vx) > 40 ? .55 : .2;
+    const pts = [[root, PICK.widths[0]]];
+    for (let j = 1; j < 5; j++) {
+      const st = PICK.stops[j];
+      const flutter = amp * (Math.sin(t * beat - st * .9 + (sd > 0 ? 0 : .3)) * .8 + .2);
+      let seg = turnAbout(dir, nrm, .28 * st - .14);
+      seg = norm(turnAbout(seg, backV, sd * flutter));
+      pts.push([add(pts[j - 1][0], seg, len * (st - PICK.stops[j - 1])), PICK.widths[j]]);
+    }
+    return { pts, nrm };
+  });
+  return { head, face, sideV, up, radii, wings };
+}
+
+// ---------- projection: a simple camera, PICK.cam head-radii away
+function proj(p, origin, R) {
+  const s = PICK.cam / (PICK.cam - (p.z - origin.z));
+  return { x: origin.x * R + (p.x - origin.x) * R * s, y: -(origin.y * R + (p.y - origin.y) * R * s), s };
+}
+
+// ---------- 2D shapes: circles joined by tangent lines (Aaron's hull of circles), all wound the same way
+function hull(ctx, a, ra, b, rb) {
+  const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+  ctx.moveTo(a.x + ra, a.y); ctx.arc(a.x, a.y, ra, 0, Math.PI * 2);
+  ctx.moveTo(b.x + rb, b.y); ctx.arc(b.x, b.y, rb, 0, Math.PI * 2);
+  if (d <= Math.abs(ra - rb) + .01) return;
+  const ux = dx / d, uy = dy / d, c = (ra - rb) / d, s = Math.sqrt(Math.max(0, 1 - c * c));
+  const n1 = [ux * c - uy * s, uy * c + ux * s], n2 = [ux * c + uy * s, uy * c - ux * s];
+  ctx.moveTo(a.x + n2[0] * ra, a.y + n2[1] * ra); ctx.lineTo(b.x + n2[0] * rb, b.y + n2[1] * rb);
+  ctx.lineTo(b.x + n1[0] * rb, b.y + n1[1] * rb); ctx.lineTo(a.x + n1[0] * ra, a.y + n1[1] * ra); ctx.closePath();
+}
+
+// ---------- drawing (painted light: from the top left, always)
+const GLASS = { core: 'rgba(222,220,240,.78)', mid: 'rgba(190,186,216,.74)', edge: 'rgba(150,178,208,.82)',
+  rim: 'rgba(205,238,255,.7)', wing: 'rgba(168,214,232,.34)', wingEdge: 'rgba(230,248,255,.55)', eye: '#1b1d30', glow: '255,214,170' };
+
+function drawPip(ctx, pos, R, t, dt, target, emoji, vis) {
+  const isFace = /^[\u{1F600}-\u{1F64F}\u{1F910}-\u{1F92F}\u{1F970}-\u{1F97A}\u263A]/u.test(emoji || '');
+  const emote = isFace ? vis : 0;                                       // a face emoji: he looks at you
+  const f = step(pos, R, t, dt, target, emote);
+  const O = f.head;
+  const H = proj(O, O, R);
+  const tail = f.tail = rig.tail.map((p, i) => ({ ...proj(p, O, R), r: f.radii[i] }));
+  const zOf = p => p.z - O.z;
+
+  // the glow, on the room
+  const g = ctx.createRadialGradient(H.x, H.y, 0, H.x, H.y, R * 2.3);
+  g.addColorStop(0, `rgba(${GLASS.glow},.32)`); g.addColorStop(1, `rgba(${GLASS.glow},0)`);
+  ctx.fillStyle = g; ctx.fillRect(H.x - R * 3, H.y - R * 3, R * 6, R * 6);
+
+  const wingPaths = f.wings.map(w => {
+    const ps = w.pts.map(([p, r]) => ({ ...proj(p, O, R), r, z: zOf(p) }));
+    const thin = Math.max(.25, Math.abs(w.nrm.z));                      // edge-on leaves look thin
+    return { ps, thin, z: ps[3].z };
+  });
+  // each wing is its own silhouette (they flap on their own); the one further back is more see-through (Aaron)
+  const backZ = Math.min(...wingPaths.map(w => w.z));
+  const drawWing = w => {
+    ctx.beginPath();
+    for (let j = 1; j < w.ps.length; j++) {
+      const a = w.ps[j - 1], b = w.ps[j];
+      hull(ctx, a, Math.max(.4, a.r * R * a.s * w.thin), b, Math.max(.4, b.r * R * b.s * w.thin));
+    }
+    const root = w.ps[0], tip = w.ps[w.ps.length - 1];
+    const G = ctx.createLinearGradient(root.x, root.y, tip.x, tip.y);
+    G.addColorStop(0, 'rgba(200,232,245,.5)'); G.addColorStop(.6, 'rgba(168,214,232,.34)'); G.addColorStop(1, 'rgba(225,245,255,.5)');
+    ctx.save(); ctx.globalAlpha = w.z === backZ ? .55 : 1; ctx.fillStyle = G; ctx.fill('nonzero'); ctx.restore();
+  };
+  // depth order: wings behind the head first
+  wingPaths.filter(w => w.z < 0).forEach(drawWing);
+
+  // the body: one shape (head + tail), filled once, so nothing doubles up
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(H.x + R, H.y); ctx.arc(H.x, H.y, R, 0, Math.PI * 2);
+  let prev = { x: H.x, y: H.y, r: R };
+  for (const p of tail) { const r = p.r * R * p.s; hull(ctx, prev, prev.r, p, r); prev = { x: p.x, y: p.y, r }; }
+  ctx.clip('nonzero');
+  // layer: glass tint lit from the top left, fading to nothing at the tail's tip
+  const L = ctx.createRadialGradient(H.x - R * .35, H.y - R * .4, R * .1, H.x, H.y, R * 1.05);
+  L.addColorStop(0, GLASS.core); L.addColorStop(.6, GLASS.mid); L.addColorStop(1, GLASS.edge);
+  ctx.fillStyle = L; ctx.fillRect(H.x - R * 6, H.y - R * 6, R * 12, R * 12);
+  const tip = tail[tail.length - 1];
+  const F = ctx.createLinearGradient(H.x, H.y, tip.x, tip.y);
+  F.addColorStop(0, 'rgba(0,0,0,0)'); F.addColorStop(.35, 'rgba(0,0,0,0)'); F.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = F; ctx.fillRect(H.x - R * 6, H.y - R * 6, R * 12, R * 12);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+
+  // the head's glass: rim light round the edge, a warm bounce at the bottom, the highlight (top left, fixed)
+  const rim = ctx.createRadialGradient(H.x, H.y, R * .72, H.x, H.y, R);
+  rim.addColorStop(0, 'rgba(205,238,255,0)'); rim.addColorStop(1, GLASS.rim);
+  ctx.beginPath(); ctx.arc(H.x, H.y, R, 0, Math.PI * 2); ctx.fillStyle = rim; ctx.fill();
+  const bounce = ctx.createRadialGradient(H.x + R * .2, H.y + R * .9, 0, H.x + R * .2, H.y + R * .9, R * .8);
+  bounce.addColorStop(0, 'rgba(255,236,190,.35)'); bounce.addColorStop(1, 'rgba(255,236,190,0)');
+  ctx.save(); ctx.beginPath(); ctx.arc(H.x, H.y, R, 0, Math.PI * 2); ctx.clip(); ctx.fillStyle = bounce;
+  ctx.fillRect(H.x - R, H.y - R, R * 2, R * 2); ctx.restore();
+
+  // the emoji, inside the ball (or as his face), then the glass's shine over it
+  if (emoji && vis > 0) {
+    ctx.save(); ctx.beginPath(); ctx.arc(H.x, H.y, R * .96, 0, Math.PI * 2); ctx.clip();
+    ctx.globalAlpha = vis; ctx.font = `${R * (isFace ? 1.15 : .95)}px "Apple Color Emoji","Noto Color Emoji"`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(emoji, H.x, H.y + R * .06);
+    ctx.restore();
+  }
+  const hl = ctx.createRadialGradient(H.x - R * .4, H.y - R * .45, 0, H.x - R * .4, H.y - R * .45, R * .28);
+  hl.addColorStop(0, 'rgba(255,255,255,.95)'); hl.addColorStop(.35, 'rgba(255,255,255,.5)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hl; ctx.fillRect(H.x - R, H.y - R, R * 2, R * 2);
+
+  // face: tall eyes and a small smile, painted onto the sphere where his face points (hidden round the back)
+  const faceOn = 1 - emote;
+  if (faceOn > .02) {
+    const onHead = (s, u) => norm(add(add(f.face, f.sideV, s), f.up, u));
+    for (const s of [-.3, .3]) {
+      const n = onHead(s, -.32); if (n.z < .05) continue;
+      const p = proj(add(O, n), O, R);
+      ctx.save(); ctx.globalAlpha = faceOn * Math.min(1, n.z * 4); ctx.translate(p.x, p.y);
+      ctx.scale(Math.max(.25, n.z), 1); ctx.beginPath(); ctx.ellipse(0, 0, R * .1, R * .155, 0, 0, Math.PI * 2);
+      ctx.fillStyle = GLASS.eye; ctx.fill(); ctx.restore();
+    }
+    const m = onHead(0, -.62);
+    if (m.z > .1) {
+      const p = proj(add(O, m), O, R);
+      ctx.save(); ctx.globalAlpha = faceOn * Math.min(1, m.z * 3); ctx.translate(p.x, p.y); ctx.scale(Math.max(.3, m.z), 1);
+      ctx.beginPath(); ctx.moveTo(-R * .12, 0); ctx.quadraticCurveTo(0, R * .1, R * .12, 0);
+      ctx.lineWidth = R * .05; ctx.lineCap = 'round'; ctx.strokeStyle = GLASS.eye; ctx.stroke(); ctx.restore();
+    }
+  }
+  wingPaths.filter(w => w.z >= 0).forEach(drawWing);
+}
+
+// ---------- the page
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let W, Hh, dpr; function size() { dpr = devicePixelRatio || 1; W = innerWidth; Hh = innerHeight; cv.width = W * dpr; cv.height = Hh * dpr; }
+addEventListener('resize', size); size();
+const P = { x: innerWidth / 2, y: innerHeight / 2 }, R = 40;
+let drag = null, emoteAt = -1e9, emoji = '', last = 0, auto = true;
+cv.addEventListener('pointerdown', e => { drag = { dx: P.x - e.clientX, dy: P.y - e.clientY }; auto = false; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (drag) { P.x = e.clientX + drag.dx; P.y = e.clientY + drag.dy; } });
+cv.addEventListener('pointerup', () => { drag = null; });
+for (const e of ['⭐', '❤️', '😊', '😂', '✨']) {
+  const b = document.createElement('button'); b.textContent = e; b.onclick = () => { emoji = e; emoteAt = performance.now() / 1000; };
+  document.getElementById('bar').appendChild(b);
+}
+const fly = document.createElement('button'); fly.textContent = '▶︎ Fly'; fly.style.fontSize = '15px';
+fly.onclick = () => { auto = !auto; }; document.getElementById('bar').appendChild(fly);
+
+window.__frame = (t) => {                     // also used by the headless check (fixed times)
+  const dt = last ? Math.min(.05, t - last) : 1 / 60; last = t;
+  if (auto) { P.x = W / 2 + Math.sin(t * .5) * W * .28; P.y = Hh / 2 + Math.sin(t * 1.1) * Hh * .12; }
+  const since = t - emoteAt;
+  const emote = since < 0 ? 0 : since < .3 ? since / .3 : since < 2.8 ? 1 : Math.max(0, 1 - (since - 2.8) / .6);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Hh);
+  ctx.save(); ctx.translate(P.x, P.y + Math.sin(t * 1.6) * 3); ctx.translate(-P.x, -P.y);
+  drawPip(ctx, P, R, t, dt, 0, emoji, emote);
+  ctx.restore();
+};
+window.__set = (o) => Object.assign(window, o);
+(function loop(now) { if (!window.__manual) window.__frame(now / 1000); requestAnimationFrame(loop); })(0);
+</script>
+</body>
+</html>
