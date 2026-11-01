@@ -228,13 +228,19 @@ struct Dashboard: SandboxPlugin {
 
     /// THE LIVE FEED (Aaron, 1 Nov: "it needs to plug into the live one, not just static").
     /// Read-only: it downloads two small files and never sends anything. Off switch in the card.
-    ///   board.json   the whole board (a local agent writes it whenever the live dashboard changes)
+    ///   board.json   the whole board, from a secret gist whose address lives only on the Mac
+    ///                (Private/board-feed.txt, ignored by git; Rob, 1 Nov). No file = no board.json, headline only.
     ///   status.json  the headline that already feeds the iPad widget
     /// Last good copy is kept, so offline still shows the newest board seen. Checks at most once a minute,
     /// and only when the dashboard is open.
     @MainActor @Observable final class Feed {
         static let shared = Feed()
-        static let base = "https://gist.githubusercontent.com/AlphaDesignMedia/1f2abb87c59f63844a9f7523f37da9f4/raw/"
+        nonisolated static let base = "https://gist.githubusercontent.com/AlphaDesignMedia/1f2abb87c59f63844a9f7523f37da9f4/raw/"
+        /// The private board's address, packed in from the Mac only. Never written into the repo, notes or logs.
+        nonisolated static let boardBase: String? = Bundle.main.url(forResource: "board-feed", withExtension: "txt")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
         private static let cacheKey = "plug.dashboard.liveBoard"
         private static let switchKey = "plug.dashboard.liveOn"
 
@@ -247,7 +253,7 @@ struct Dashboard: SandboxPlugin {
         var on: Bool {
             get { access(keyPath: \.on); return UserDefaults.standard.object(forKey: Self.switchKey) as? Bool ?? true }
             set { withMutation(keyPath: \.on) { UserDefaults.standard.set(newValue, forKey: Self.switchKey) }
-                  if newValue { refresh(force: true) } }
+                  if newValue { refresh(force: true) } else { state = .starting } }
         }
 
         init() {
@@ -262,6 +268,7 @@ struct Dashboard: SandboxPlugin {
 
         var freshness: String {
             let when = Dashboard.date(data.syncedAt) ?? "an unknown date"
+            guard on else { return Dashboard.feed.packed ? "Updated \(when) · live feed off" : "Snapshot, \(when) · live feed off" }
             switch state {
             case .live(let at): return "Live · checked \(Self.clock(at)) · board from \(when)"
             case .checking: return "Checking the live board… showing \(when)"
@@ -280,8 +287,8 @@ struct Dashboard: SandboxPlugin {
             lastTry = Date()
             state = .checking
             Task {
-                async let board = Self.fetch("board.json")
-                async let head = Self.fetch("status.json")
+                async let board = Self.fetch(Self.boardBase, "board.json")
+                async let head = Self.fetch(Self.base, "status.json")
                 let (b, h) = await (board, head)
                 var next = data
                 if let b, let full = try? JSONDecoder().decode(DashboardData.self, from: b) {
@@ -293,8 +300,8 @@ struct Dashboard: SandboxPlugin {
             }
         }
 
-        nonisolated private static func fetch(_ name: String) async -> Data? {
-            guard let url = URL(string: base + name + "?t=\(Int(Date().timeIntervalSince1970))") else { return nil }
+        nonisolated private static func fetch(_ base: String?, _ name: String) async -> Data? {
+            guard let base, base.hasPrefix("https://"), let url = URL(string: base + name + "?t=\(Int(Date().timeIntervalSince1970))") else { return nil }
             var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 6)
             req.httpMethod = "GET"
             guard let (body, resp) = try? await URLSession.shared.data(for: req),
@@ -501,4 +508,8 @@ struct DashboardData: Codable, Sendable {
         var ipadBuild: String?
         var updatedAt: String?
     }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
