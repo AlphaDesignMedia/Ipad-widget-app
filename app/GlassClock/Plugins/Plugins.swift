@@ -32,6 +32,7 @@ enum Plugins {
         IdeaInbox(),
         BusyPip(),
         DashboardQueue(),
+        MoodBoard(),        // Jules 1 Nov: pin boards of pictures and notes, a group in the Dashboard tab
         TidyPip(),
         TeaBreak(),
         PipsFeelings(),

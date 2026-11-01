@@ -137,5 +137,6 @@ struct GlassClockWidgetBundle: WidgetBundle {
     var body: some Widget {
         GlassClockWidget()
         PipDashboardWidget()      // the dashboard on the Home Screen (PipDashboardWidget.swift, Jules 1 Nov)
+        PipPicturesWidget()       // newest mood board or latest Snap (PipPicturesWidget.swift, Jules 1 Nov)
     }
 }

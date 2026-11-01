@@ -39,7 +39,7 @@ extension Dashboard {
 
     /// The dashboard's groups, like Panels' settings groups, in Status · Actions · Direction order.
     enum DashGroup: String, CaseIterable, Identifiable {
-        case glance, builds, stable, busypip, needs, shots, forrob, dashqueue, nextaction, upnext, ideas, reminders, principles
+        case glance, builds, stable, busypip, needs, shots, moods, forrob, dashqueue, nextaction, upnext, ideas, reminders, principles
         var id: Self { self }
 
         var title: String {
@@ -50,6 +50,7 @@ extension Dashboard {
             case .busypip: "Busy Pip"
             case .needs: "Needs you"
             case .shots: "Shot list"
+            case .moods: "Mood boards"
             case .forrob: "For Rob"
             case .dashqueue: "Dashboard queue"
             case .nextaction: "Next action"
@@ -68,6 +69,7 @@ extension Dashboard {
             case .busypip: "gauge.with.dots.needle.33percent"
             case .needs: "questionmark.bubble"
             case .shots: "camera.viewfinder"
+            case .moods: "photo.on.rectangle.angled"
             case .forrob: "terminal"
             case .dashqueue: "tray.full"
             case .nextaction: "arrow.right.circle"
@@ -85,6 +87,7 @@ extension Dashboard {
             case .busypip: "busypip"
             case .dashqueue: "dashqueue"
             case .nextaction: "nextaction"
+            case .moods: "moodboard"
             default: nil
             }
         }
@@ -302,7 +305,7 @@ extension Dashboard {
             case .ideas: IdeasPanel(ideas: data.ideas ?? [])
             case .reminders: RemindersPanel(reminders: data.reminders ?? [])
             case .principles: PrinciplesPanel(principles: data.principles ?? [])
-            case .stable, .busypip, .dashqueue, .nextaction:
+            case .stable, .busypip, .dashqueue, .nextaction, .moods:
                 if let id = g.plugin, let p = addOn(id) {
                     SettingsCard(title: g.title, icon: g.icon) { p.anyAddOn(host) }
                 }

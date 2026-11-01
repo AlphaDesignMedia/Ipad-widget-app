@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import WidgetKit
 
 // DASHBOARD MARK UP · part of the Dashboard plugin (Jules, 1 Nov). Aaron: "all the stuff we've done for drawing in the
 // app, we can put that in the dashboard to send it off", step 1 of the plan in nat/dashboard-studio-plan.md.
@@ -212,6 +213,9 @@ extension Dashboard {
         /// The Shot list fills in the note and who asked.
         var startNote = ""
         var sendTo: SendTo? = nil
+        /// Offers "Pin to mood board" (not when the picture is a mood board already).
+        var pinnable = true
+        @State private var pinned = false
         @State private var note = ""
         @AppStorage("plug.dashboard.snapTo") private var to = SendTo.master.rawValue
         @State private var copied: String?
@@ -254,6 +258,18 @@ extension Dashboard {
                             } label: { Label("Copy note", systemImage: "doc.on.doc").frame(maxWidth: .infinity) }
                             .buttonStyle(PluginCardButton())
                         }
+                        if pinnable, PipHost.shared.isOn("moodboard") {
+                            Button {
+                                MoodBoard.Store.shared.addPicture(snap.image)
+                                pinned = true
+                            } label: {
+                                Label(pinned ? "Pinned to \(MoodBoard.Store.shared.current?.name ?? "the board")" : "Pin to mood board",
+                                      systemImage: pinned ? "checkmark" : "pin")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(PluginCardButton())
+                            .disabled(pinned)
+                        }
                         if let copied {
                             Text(copied).font(.footnote).foregroundStyle(.secondary)
                         }
@@ -271,6 +287,11 @@ extension Dashboard {
             }
             .presentationDetents([.large])
             .onAppear {
+                // The Pip Pictures widget's "Latest snap" (mood boards keep their own picture).
+                if pinnable, let jpeg = MoodBoard.shrink(snap.image, to: 900).jpegData(compressionQuality: 0.75) {
+                    PictureShelf.save(jpeg, kind: .snap, title: startNote.isEmpty ? "Snap" : startNote)
+                    WidgetCenter.shared.reloadTimelines(ofKind: PictureShelf.widgetKind)
+                }
                 if note.isEmpty { note = startNote }
                 if let sendTo { to = sendTo.rawValue }
             }
