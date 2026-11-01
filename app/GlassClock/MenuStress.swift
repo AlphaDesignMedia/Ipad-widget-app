@@ -37,6 +37,7 @@ import os
         if let phase = UserDefaults.standard.string(forKey: "checkKL") { Task { await KLCheck.run(phase) } }
         if let phase = UserDefaults.standard.string(forKey: "checkM") { Task { await MCheck.run(phase) } }
         if let phase = UserDefaults.standard.string(forKey: "checkO") { Task { await OCheck.run(phase) } }
+        if let phase = UserDefaults.standard.string(forKey: "checkP") { Task { await PCheck.run(phase) } }
         guard UserDefaults.standard.bool(forKey: "stressMenus") else { return }
         Task { await run() }
     }
@@ -392,19 +393,20 @@ import os
             withAnimation(.easeOut(duration: 0.2)) { host.openCard = "dashboard" }
             await pause(1.5)
             watch.reset()
-            note("Open as Panels: \(activate { $0 == "Open as Panels" })")
+            note("Open the dashboard: \(activate { $0 == "Open the dashboard" })")
             await pause(2.2)
             note("  full screen shown: \(presented() != nil) · open: \(meter())")
-            for s in Dashboard.PanelSection.allCases {
+            // 1 Nov: the sidebar sections became fold-up widgets (sheet P). Fold and unfold each once, so it ends as it began.
+            for title in ["At a glance", "Builds", "Needs you", "Live feed", "Up next", "Ideas", "Reminders", "How we work"] {
                 watch.reset()
-                let r = activate { $0 == s.title || $0.hasPrefix("\(s.title), ") }
-                await pause(1.3)
-                note("  \(s.title): \(r) · header shown: \(find { $0 == s.title && $1.contains(.header) } ? "yes" : "no") · \(meter())")
+                let r1 = activate { $0 == title || $0.hasPrefix("\(title), ") }
+                await pause(0.8)
+                let r2 = activate { $0 == title || $0.hasPrefix("\(title), ") }
+                await pause(0.8)
+                note("  \(title) fold + unfold: \(r1)/\(r2) · \(meter())")
             }
             if turn == "first" {
-                // Needs you: answer one, the count drops, Copy lights up; then take the answer back.
-                _ = activate { $0.hasPrefix("Needs you") }
-                await pause(1)
+                // Needs you (starts open): answer one, the count drops, Copy lights up; then take the answer back.
                 let before = label { $0.hasPrefix("Needs you") } ?? "?"
                 let first = Dashboard.Answer.allCases[0].label
                 let tapped = activate { $0.hasPrefix("\(first): ") }
@@ -431,7 +433,7 @@ import os
         let bar = host.plugins.filter { $0.hasCard && host.isOn($0.info.id) }.map(\.info.id)
         host.openCard = "dashboard"
         await pause(1.2)
-        note("Dashboard off: in the bar: \(bar.contains("dashboard")) · card opens anyway: \(find { l, _ in l == "Open as Panels" }) · app still running: yes")
+        note("Dashboard off: in the bar: \(bar.contains("dashboard")) · card opens anyway: \(find { l, _ in l == "Open the dashboard" }) · app still running: yes")
         host.openCard = nil
         host.setOn("dashboard", true)
         await pause(1)
@@ -720,4 +722,100 @@ import os
         note("DONE")
     }
 }
+/// `-checkP grid`: job sheet P (Rob, 1 Nov 2026). The one dashboard: columns in landscape and portrait, cards follow the
+/// clock colour, fold / unfold, live feed off → footer says off, headline from the private board, 2-vs-5 need you.
+/// Lines go to Documents/Diagnostics/p-grid.txt, pictures to m-p-<name>.png. Never logs the private board's address.
+@MainActor enum PCheck {
+    static func run(_ phase: String) async {
+        let folder = URL.documentsDirectory.appending(path: "Diagnostics", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: "p-\(phase).txt")
+        var out: [String] = []
+        func note(_ s: String) { out.append(s); try? out.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8) }
+        func pause(_ s: Double) async { try? await Task.sleep(for: .seconds(s)) }
+        let feed = Dashboard.Feed.shared
+        let host = PipHost.shared
+        func footer() -> String {
+            KLCheck.label { ["Live ·", "Checking", "Couldn't reach", "Updated", "Snapshot", "live feed off"].contains(where: $0.contains) } ?? "no footer found"
+        }
+        /// The three column titles and where they sit: 3 different x = 3 columns, same x = 1 column.
+        func columns() -> String {
+            let heads = KLCheck.elements().filter { ["STATUS", "ACTIONS", "DIRECTION"].contains($0.1) }
+            let xs = Set(heads.map { Int(($0.0 as? UIView)?.accessibilityFrame.minX ?? $0.0.accessibilityFrame.minX) })
+            let width = Int(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.screen.bounds.width ?? 0)
+            return "\(xs.count) column\(xs.count == 1 ? "" : "s") (\(heads.count) titles found, screen \(width) pt wide)"
+        }
+        func widget(_ title: String) -> (NSObject, String)? {
+            KLCheck.elements().first { $0.1 == title || $0.1.hasPrefix(title + ", ") }.map { ($0.0, $0.0.accessibilityValue ?? "?") }
+        }
+        func rotate(_ o: UIInterfaceOrientationMask) async -> String {
+            guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else { return "no scene" }
+            var err = "ok"
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: o)) { e in err = "FAIL \(e.localizedDescription)" }
+            await pause(2.5)
+            return err
+        }
+
+        await pause(6)
+        if host.paused { host.setPaused(false) }
+        if !feed.on { feed.on = true }
+        note("start · private board file packed in: \(Dashboard.Feed.boardBase != nil ? "yes" : "NO") (address not logged)")
+        feed.refresh(force: true); await pause(7)
+        let d = feed.data
+        note("feed · source: \(d.source ?? "?") · board from: \(d.syncedAt ?? "?")")
+        note("  headline: \(d.status?.headline?.prefix(90) ?? "none")")
+        let asks = d.needsYou ?? []
+        let waiting = asks.filter { Dashboard.answer($0.q, host) == nil }.count
+        note("  need you: live board \(d.live?.needYou.map(String.init) ?? "–") · board.json questions \(asks.count) · unanswered on this iPad \(waiting)")
+
+        host.openCard = "dashboard"; await pause(4)
+        note("side card · footer: \(footer())")
+        MCheck.snap("p-side")
+        note("open the dashboard: \(KLCheck.activate { $0 == "Open the dashboard" })"); await pause(3)
+        note("  full screen up: \(KLCheck.presented() != nil)")
+        note("  footer: \(footer())")
+        note("landscape: \(await rotate(.landscapeRight)) · \(columns())")
+        MCheck.snap("p-landscape")
+        note("portrait: \(await rotate(.portrait)) · \(columns())")
+        MCheck.snap("p-portrait")
+        note("back to landscape: \(await rotate(.landscapeRight)) · \(columns())")
+
+        // Fold / unfold, on Builds (starts folded).
+        if let (_, v) = widget("Builds") {
+            note("fold · Builds starts: \(v)")
+            note("  tap: \(KLCheck.activate { $0 == "Builds" || $0.hasPrefix("Builds, ") })"); await pause(1)
+            note("  now: \(widget("Builds")?.1 ?? "gone") · content shown: \(KLCheck.find { l, _ in l.contains("Build") && !l.hasPrefix("Builds") })")
+            note("  tap again: \(KLCheck.activate { $0 == "Builds" || $0.hasPrefix("Builds, ") })"); await pause(1)
+            note("  now: \(widget("Builds")?.1 ?? "gone")")
+        } else { note("fold · FAIL no Builds widget") }
+
+        // Live feed off → footer.
+        let wasOpen = widget("Live feed")?.1 == "open"
+        if !wasOpen { _ = KLCheck.activate { $0.hasPrefix("Live feed") }; await pause(1) }
+        note("live feed off: \(KLCheck.activate { $0.hasPrefix("Follow the live dashboard") })"); await pause(1.5)
+        note("  switch: \(feed.on) · widget: \(widget("Live feed")?.0.accessibilityLabel ?? "?") · footer: \(footer())")
+        MCheck.snap("p-off")
+        note("live feed on: \(KLCheck.activate { $0.hasPrefix("Follow the live dashboard") })"); await pause(6)
+        note("  switch: \(feed.on) · footer: \(footer())")
+        if !feed.on { feed.on = true }
+        if !wasOpen { _ = KLCheck.activate { $0.hasPrefix("Live feed") }; await pause(1) }
+
+        // Clock colour → cards follow on the next open.
+        let saved = ClockStyle.load()
+        var red = saved; red.color = .red; red.save()
+        note("clock colour: \(saved.color.rawValue) → red; close and reopen")
+        _ = KLCheck.activate { $0 == "Close the dashboard" }; await pause(2)
+        _ = KLCheck.activate { $0 == "Open the dashboard" }; await pause(3)
+        MCheck.snap("p-red")
+        saved.save()
+        note("  pictured (m-p-red.png); colour put back to \(ClockStyle.load().color.rawValue)")
+        _ = KLCheck.activate { $0 == "Close the dashboard" }; await pause(2)
+        _ = KLCheck.activate { $0 == "Open the dashboard" }; await pause(3)
+        MCheck.snap("p-back")
+        _ = KLCheck.activate { $0 == "Close the dashboard" }; await pause(2)
+        host.openCard = nil
+        note("DONE")
+    }
+}
+
 #endif
