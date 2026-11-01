@@ -226,6 +226,8 @@ enum StressTest {
     private var last: CFTimeInterval = 0
     private(set) var frames = 0, late = 0
     private(set) var worst: CFTimeInterval = 0
+    private var gaps: [String] = []
+    private var first: CFTimeInterval = CACurrentMediaTime()
 
     func start() {
         link = CADisplayLink(target: self, selector: #selector(tick))
@@ -234,7 +236,17 @@ enum StressTest {
 
     func stop() -> String {
         link?.invalidate()
-        return "frames \(frames), late \(late), worst \(Int(worst * 1000)) ms"
+        return "frames \(frames), late \(late), worst \(Int(worst * 1000)) ms, memory \(Self.footprintMB) MB, long gaps at \(gaps)"
+    }
+
+    /// How much memory the app is using, as iPadOS counts it.
+    static var footprintMB: Int {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
+        }
+        return result == KERN_SUCCESS ? Int(info.phys_footprint / 1_048_576) : -1
     }
 
     @objc private func tick(_ link: CADisplayLink) {
@@ -243,6 +255,7 @@ enum StressTest {
         let gap = link.timestamp - last, expected = link.targetTimestamp - link.timestamp
         frames += 1
         worst = max(worst, gap)
+        if gap > 0.2 { gaps.append("\(String(format: "%.1f", link.timestamp - first))s:\(Int(gap * 1000))ms") }
         if gap > max(expected, 1.0 / 120) * 1.5 { late += 1 }
     }
 }

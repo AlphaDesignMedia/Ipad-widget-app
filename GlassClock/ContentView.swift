@@ -472,8 +472,9 @@ struct ContentView: View {
                         } else if StressTest.drag {
                             liveEdit.style?.fontWeight = 0.3 + Double(tap % 30) / 60
                         } else {
-                            let mood = MoodRow.moods[tap % MoodRow.moods.count]
-                            applyMood(mood.style, on: mood.scene)
+                            let pair = ProcessInfo.processInfo.environment["GLASSCLOCK_MOOD_PAIR"]?.split(separator: ",").compactMap { Int($0) }
+                            let mood = MoodRow.moods[pair.map { $0[tap % $0.count] } ?? tap % MoodRow.moods.count]
+                            applyMood(mood.style, on: ProcessInfo.processInfo.environment["GLASSCLOCK_SAME_SCENE"] != nil ? backdrop : mood.scene)
                         }
                         try? await Task.sleep(for: .milliseconds(StressTest.drag ? 16 : 700))
                     }
