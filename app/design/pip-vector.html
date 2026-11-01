@@ -302,13 +302,13 @@ vec4 glassAt(vec3 n, float a, vec2 off, bool body){
   float fr = pow(1. - n.z, 2.2);
   col += vec3(.8, .93, 1.) * fr * .6;                               // rim light
   vec3 L = normalize(vec3(-.55, .6, .6));
-  col += pow(max(dot(reflect(-L, n), vec3(0., 0., 1.)), 0.), 50.) * .95;   // highlight, top left, always
+  col += pow(max(dot(reflect(-L, n), vec3(0., 0., 1.)), 0.), 22.) * .75;   // highlight, top left, always (soft, Aaron)
   col += vec3(1., .93, .75) * max(-n.y, 0.) * fr * .45;             // warm bounce underneath
   return vec4(col * a, a);
 }
 void main(){
   vec3 s = texture2D(tS, v).rgb;
-  float body = smoothstep(.42, .58, s.r), fw = smoothstep(.3, .55, s.g), bw = smoothstep(.3, .55, s.b);
+  float body = smoothstep(.36, .6, s.r), fw = smoothstep(.22, .5, s.g), bw = smoothstep(.22, .5, s.b);
   vec3 n = slope(tB, pxB, v, vec3(1., 0., 0.));
   vec2 d = (v - head) / R; float dd = dot(d, d);
   if (dd < 1.) n = normalize(mix(n, vec3(d, sqrt(1. - dd)), smoothstep(1., .75, sqrt(dd))));   // his head is a ball
@@ -340,9 +340,9 @@ void main(){
   return { c, gl, top, U, T, mk, M: mk(), chain: [mk(), mk(), mk(), mk(), mk()], I: mk() };
 })();
 
-function drawPipGlass(pos, R, t, dt, target, emoji, vis) {
+function drawPipGlass(pos, R, t, dt, target, emoji, vis, toYou = 0) {
   const isFace = /^[\u{1F600}-\u{1F64F}\u{1F910}-\u{1F92F}\u{1F970}-\u{1F97A}☺]/u.test(emoji || '');
-  const f = step(pos, R, t, dt, target, isFace ? vis : 0);
+  const f = step(pos, R, t, dt, target, Math.max(toYou, isFace ? vis : 0));
   const O = f.head, H = proj(O, O, R);
   const tail = rig.tail.map((p, i) => ({ ...proj(p, O, R), r: f.radii[i] }));
   const B = Math.ceil(R * 8), k = dpr, px = Math.round(B * k), x0 = H.x - B / 2, y0 = H.y - B / 2;
@@ -366,7 +366,8 @@ function drawPipGlass(pos, R, t, dt, target, emoji, vis) {
     m.beginPath();
     for (let j = 1; j < w.ps.length; j++) {
       const a = L(w.ps[j - 1]), b = L(w.ps[j]);
-      hull(m, a, Math.max(.6, w.ps[j - 1].r * R * w.ps[j - 1].s * w.thin * k), b, Math.max(.6, w.ps[j].r * R * w.ps[j].s * w.thin * k));
+      const fat = w.z === backZ ? 1 : 1.35;                            // the near wing a little wider (Aaron)
+      hull(m, a, Math.max(.6, w.ps[j - 1].r * R * w.ps[j - 1].s * w.thin * k * fat), b, Math.max(.6, w.ps[j].r * R * w.ps[j].s * w.thin * k * fat));
     }
     m.fillStyle = w.z === backZ ? '#00f' : '#0f0'; m.fill('nonzero');
   }
@@ -374,7 +375,7 @@ function drawPipGlass(pos, R, t, dt, target, emoji, vis) {
   let src = M;
   GL.chain.forEach((c, i) => { const s2 = Math.max(4, Math.round(src.width / 2)); if (c.width !== s2) c.width = c.height = s2;
     const x = c.getContext('2d'); x.clearRect(0, 0, s2, s2); x.drawImage(src, 0, 0, s2, s2); src = c; });
-  const small = GL.chain[2], big = GL.chain[4];                       // ÷8 for the shape, ÷32 for the roundness
+  const small = GL.chain[3], big = GL.chain[4];                       // ÷16 for the shape (smooth joins), ÷32 for roundness
 
   // the emoji inside: fills his face, grows from the middle (no sliding up)
   const e = vis * vis * (3 - 2 * vis);
@@ -400,23 +401,26 @@ function drawPipGlass(pos, R, t, dt, target, emoji, vis) {
   gl.uniform2f(GL.U('scr'), y0 / Hh, (y0 + B) / Hh); gl.uniform1f(GL.U('R'), R / B);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-  // 4. his face on top: it sinks into the emoji while one is in
+  // 4. his face on top (placeholder eyes until Aaron draws them). A face emoji takes his face (it sinks into it);
+  // any other emoji floats in his body and he keeps his eyes. No mouth unless he's emoting himself (Aaron).
   const tc = GL.top; if (tc.width !== W * dpr) { tc.width = W * dpr; tc.height = Hh * dpr; }
   const fx = tc.getContext('2d'); fx.setTransform(dpr, 0, 0, dpr, 0, 0); fx.clearRect(0, 0, W, Hh);
-  const faceOn = emoji ? 1 - e : 1;
+  const faceOn = isFace ? 1 - e : 1;
   if (faceOn > .02) {
+    const eyeLook = window.__eyeLook || { x: 0, y: 0 };
     const onHead = (s2, u) => norm(add(add(f.face, f.sideV, s2), f.up, u));
     const mid = { x: H.x, y: H.y + R * .1 };
-    const sink = p => ({ x: p.x + (mid.x - p.x) * e, y: p.y + (mid.y - p.y) * e });
+    const ee = isFace ? e : 0;
+    const sink = p => ({ x: p.x + (mid.x - p.x) * ee + eyeLook.x * R * .07, y: p.y + (mid.y - p.y) * ee + eyeLook.y * R * .05 });
     for (const s2 of [-.3, .3]) {
       const n = onHead(s2, -.32); if (n.z < .05) continue;
-      const p = sink(proj(add(O, n), O, R)), kk = 1 - e * .7;
+      const p = sink(proj(add(O, n), O, R)), kk = 1 - ee * .7;
       fx.save(); fx.globalAlpha = faceOn * Math.min(1, n.z * 4); fx.translate(p.x, p.y); fx.scale(Math.max(.25, n.z) * kk, kk);
       fx.beginPath(); fx.ellipse(0, 0, R * .1, R * .155, 0, 0, Math.PI * 2); fx.fillStyle = GLASS.eye; fx.fill(); fx.restore();
     }
     const mo = onHead(0, -.62);
-    if (mo.z > .1) {
-      const p = sink(proj(add(O, mo), O, R)), kk = 1 - e * .7;
+    if (window.__happy && mo.z > .1) {
+      const p = sink(proj(add(O, mo), O, R)), kk = 1 - ee * .7;
       fx.save(); fx.globalAlpha = faceOn * Math.min(1, mo.z * 3); fx.translate(p.x, p.y); fx.scale(Math.max(.3, mo.z) * kk, kk);
       fx.beginPath(); fx.moveTo(-R * .12, 0); fx.quadraticCurveTo(0, R * .1, R * .12, 0);
       fx.lineWidth = R * .05; fx.lineCap = 'round'; fx.strokeStyle = GLASS.eye; fx.stroke(); fx.restore();
@@ -438,6 +442,9 @@ let drag = null, emoteAt = -1e9, emoji = '', last = 0, auto = true;
 cv.addEventListener('pointerdown', e => { drag = { dx: P.x - e.clientX, dy: P.y - e.clientY }; auto = false; cv.setPointerCapture(e.pointerId); });
 cv.addEventListener('pointermove', e => { if (drag) { P.x = e.clientX + drag.dx; P.y = e.clientY + drag.dy; } });
 cv.addEventListener('pointerup', () => { drag = null; });
+// curious (Aaron): he looks at what you're doing (your pointer), and glances around when nothing's happening
+const look = { x: 0, y: 0, at: -1e9, glance: 0, until: 0 };
+addEventListener('pointermove', e => { look.x = e.clientX; look.y = e.clientY; look.at = performance.now() / 1000; });
 for (const e of ['⭐', '❤️', '😊', '😂', '✨']) {
   const b = document.createElement('button'); b.textContent = e; b.onclick = () => { emoji = e; emoteAt = performance.now() / 1000; };
   document.getElementById('bar').appendChild(b);
@@ -452,7 +459,16 @@ window.__frame = (t) => {                     // also used by the headless check
   const emote = since < 0 ? 0 : since < .3 ? since / .3 : since < 2.8 ? 1 : Math.max(0, 1 - (since - 2.8) / .6);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Hh);
   ctx.save();
-  if (window.FLAT) drawPip(ctx, P, R, t, dt, 0, emoji, emote); else drawPipGlass(P, R, t, dt, 0, emoji, emote);
+  let target = 0, eye = { x: 0, y: 0 }, toYou = 0;
+  if (!drag && t - look.at < 2.5) {                                   // watching you
+    const dx = look.x - P.x, dy = look.y - P.y, d = Math.hypot(dx, dy) || 1;
+    target = Math.abs(dx) > R ? Math.sign(dx) : 0; eye = { x: dx / d, y: dy / d };
+  } else if (!drag) {                                                 // nothing happening: little glances
+    if (t > look.until) { look.until = t + 1.2 + Math.random() * 2.5; look.glance = [-1, 0, 1, 2][Math.floor(Math.random() * 4)]; }
+    if (look.glance === 2) toYou = .7; else { target = look.glance; eye = { x: look.glance * .8, y: Math.sin(t * .7) * .3 }; }
+  }
+  window.__eyeLook = eye;
+  if (window.FLAT) drawPip(ctx, P, R, t, dt, target, emoji, emote); else drawPipGlass(P, R, t, dt, target, emoji, emote, toYou);
   ctx.restore();
 };
 window.__set = (o) => Object.assign(window, o);

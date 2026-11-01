@@ -19,7 +19,7 @@ static half4 glassAt(float3 n, float a, bool body) {
     float tint = (body ? 0.16 : 0.22) + 0.3 * (1.0 - n.z);                    // clear in the middle, thicker at the edge
     float3 rim = float3(0.8, 0.93, 1.0) * fr * 0.6;                           // rim light (the inner glow)
     float3 L = normalize(float3(-0.55, -0.6, 0.6));                           // light from the top left (y down)
-    float spec = pow(max(dot(reflect(-L, n), float3(0, 0, 1)), 0.0), 50.0) * 0.95;
+    float spec = pow(max(dot(reflect(-L, n), float3(0, 0, 1)), 0.0), 22.0) * 0.75;   // soft (Aaron)
     float3 warm = float3(1.0, 0.93, 0.75) * max(n.y, 0.0) * fr * 0.45;       // warm bounce underneath
     float3 light = rim + warm + spec;
     float alpha = clamp(tint + max(max(light.r, light.g), light.b) * 0.8, 0.0, 1.0);
@@ -29,9 +29,9 @@ static half4 glassAt(float3 n, float a, bool body) {
 
 [[ stitchable ]] half4 blobbyGlass(float2 p, SwiftUI::Layer layer, float2 head, float r, float2 tip, float k) {
     half4 s = layer.sample(p);
-    float body = smoothstep(0.42, 0.58, float(s.r));
-    float fw = smoothstep(0.30, 0.55, float(s.g));
-    float bw = smoothstep(0.30, 0.55, float(s.b));
+    float body = smoothstep(0.36, 0.60, float(s.r));
+    float fw = smoothstep(0.22, 0.50, float(s.g));
+    float bw = smoothstep(0.22, 0.50, float(s.b));
     if (body + fw + bw < 0.001) return half4(0);
     float3 n = slopeAt(layer, p, k, float3(1, 0, 0));
     float2 d = (p - head) / r;

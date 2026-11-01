@@ -254,9 +254,10 @@ enum BlobbyPaths {
         return p
     }
 
-    static func wing(_ w: BlobbyFrame.Wing) -> Path {
+    /// fat: the near wing is a little wider (Aaron).
+    static func wing(_ w: BlobbyFrame.Wing, fat: CGFloat = 1) -> Path {
         var p = Path()
-        for j in 1..<w.circles.count { hull(&p, w.circles[j - 1].at, w.circles[j - 1].r, w.circles[j].at, w.circles[j].r) }
+        for j in 1..<w.circles.count { hull(&p, w.circles[j - 1].at, w.circles[j - 1].r * fat, w.circles[j].at, w.circles[j].r * fat) }
         return p
     }
 }
@@ -275,6 +276,8 @@ struct PipBlobbyBody: View {
     var frame: BlobbyFrame
     var time: Double = 0
     var face: PipFace = .awake
+    /// Where he's looking (-1…1 each way): his eyes follow it (curious: he watches what you do, and new things).
+    var look: CGSize = .zero
     var emoji: String? = nil
     var emojiAt: Double? = nil
     var simpler: Bool = false
@@ -313,12 +316,12 @@ struct PipBlobbyBody: View {
             }
             // his silhouette, softened, through the glass shader
             Canvas { ctx, size in
-                ctx.addFilter(.blur(radius: r * 0.12))
+                ctx.addFilter(.blur(radius: r * 0.18))                       // soft joins (Aaron: smoother)
                 ctx.translateBy(x: size.width / 2, y: size.height / 2)
                 ctx.blendMode = .plusLighter
                 ctx.fill(bodyPath, with: .color(Color(red: 1, green: 0, blue: 0)))
                 for w in frame.wings {
-                    ctx.fill(BlobbyPaths.wing(w), with: .color(w.back ? Color(red: 0, green: 0, blue: 1) : Color(red: 0, green: 1, blue: 0)))
+                    ctx.fill(BlobbyPaths.wing(w, fat: w.back ? 1 : 1.35), with: .color(w.back ? Color(red: 0, green: 0, blue: 1) : Color(red: 0, green: 1, blue: 0)))
                 }
             }
             .frame(width: box, height: box)
@@ -328,7 +331,8 @@ struct PipBlobbyBody: View {
             // his face on top, sinking into the emoji while one is in
             Canvas { ctx, size in
                 ctx.translateBy(x: size.width / 2, y: size.height / 2)
-                paintFace(&ctx, sink: shown == nil ? 0 : e)
+                // a face emoji takes his face; any other emoji floats in his body and he keeps his eyes (Aaron)
+                paintFace(&ctx, sink: (shown.map(BlobbyPicks.isFace) ?? false) ? e : 0)
             }
             .frame(width: box, height: box)
         }
@@ -337,13 +341,15 @@ struct PipBlobbyBody: View {
         .accessibilityHidden(true)
     }
 
+    /// Placeholder eyes (Aaron will draw his own; this is the one place they're painted). No mouth unless he's emoting.
     private func paintFace(_ ctx: inout GraphicsContext, sink e: Double) {
         let r = radius
         let alpha = 1 - e
         guard alpha > 0.02 else { return }
         let to = CGPoint(x: 0, y: r * 0.1)
+        let glance = CGPoint(x: look.width * r * 0.07, y: look.height * r * 0.05)
         func at(_ v: BV3) -> CGPoint {
-            let p = CGPoint(x: CGFloat(v.x) * r, y: CGFloat(v.y) * r)
+            let p = CGPoint(x: CGFloat(v.x) * r + glance.x, y: CGFloat(v.y) * r + glance.y)
             return CGPoint(x: p.x + (to.x - p.x) * CGFloat(e), y: p.y + (to.y - p.y) * CGFloat(e))
         }
         let shrink = CGFloat(1 - e * 0.7)
@@ -369,11 +375,11 @@ struct PipBlobbyBody: View {
             switch face {
             case .surprised, .dizzy:
                 path.addEllipse(in: CGRect(x: -r * 0.06, y: -r * 0.07, width: r * 0.12, height: r * 0.14))
-            case .asleep, .sleepy:
-                break
-            default:
+            case .happy:
                 path.move(to: CGPoint(x: -r * 0.12, y: 0))
                 path.addQuadCurve(to: CGPoint(x: r * 0.12, y: 0), control: CGPoint(x: 0, y: r * 0.1))
+            default:
+                break                                                    // no mouth unless he's emoting (Aaron)
             }
             l.stroke(path, with: .color(PipLook.eye), style: StrokeStyle(lineWidth: max(0.8, r * 0.05), lineCap: .round))
         }

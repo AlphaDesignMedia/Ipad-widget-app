@@ -61,7 +61,7 @@ struct PipLooks: SandboxPlugin {
         let target: Double = ctx.look.width < -0.15 ? -1 : (ctx.look.width > 0.15 ? 1 : 0)
         let frame = BlobbyRig.live.step(pos: ctx.pos, r: ctx.size / 2, time: ctx.time, target: target, toYou: toYou,
                                         simpler: ctx.simpler)
-        return AnyView(PipBlobbyBody(radius: ctx.size / 2, frame: frame, time: ctx.time, face: ctx.face,
+        return AnyView(PipBlobbyBody(radius: ctx.size / 2, frame: frame, time: ctx.time, face: ctx.face, look: ctx.look,
                                      emoji: emote?.emoji, emojiAt: emote?.at ?? -1e9, simpler: ctx.simpler, halo: ctx.halo))
     }
 
@@ -167,7 +167,7 @@ struct PipLooks: SandboxPlugin {
                         let toYou: Double = (em.map(BlobbyPicks.isFace) ?? false) ? mo.vis : 0
                         PipBlobbyBody(radius: 20,
                                       frame: blobbyRig.step(pos: blobbyAt, r: 20, time: t, target: aimX, toYou: toYou, simpler: simpler),
-                                      time: t, face: blink ? .blink : .awake,
+                                      time: t, face: blink ? .blink : .awake, look: aimBlobby ?? .zero,
                                       emoji: em, emojiAt: simpler ? nil : emoteAt, simpler: simpler)
                             .position(x: blobbyAt.x, y: blobbyAt.y + bob)
                         label("Classic", on: look == .classic).position(x: classicAt.x, y: h - 14)
