@@ -38,6 +38,7 @@ import os
         if let phase = UserDefaults.standard.string(forKey: "checkM") { Task { await MCheck.run(phase) } }
         if let phase = UserDefaults.standard.string(forKey: "checkO") { Task { await OCheck.run(phase) } }
         if let phase = UserDefaults.standard.string(forKey: "checkP") { Task { await PCheck.run(phase) } }
+        if let phase = UserDefaults.standard.string(forKey: "checkQ") { Task { await QCheck.run(phase) } }
         guard UserDefaults.standard.bool(forKey: "stressMenus") else { return }
         Task { await run() }
     }
@@ -814,6 +815,204 @@ import os
         MCheck.snap("p-back")
         _ = KLCheck.activate { $0 == "Close the dashboard" }; await pause(2)
         host.openCard = nil
+        note("DONE")
+    }
+}
+
+/// `-checkQ tab`: job sheet Q (Rob, 1 Nov 2026). Dashboard as a tab: the top switch, Classic and Panels as before,
+/// both ways in, off / Pause all / Safe mode fall back, the bottom widgets clear of the plugin bar, tab-switch frames.
+/// Lines go to Documents/Diagnostics/q-tab.txt, pictures to m-q-<name>.png.
+@MainActor enum QCheck {
+    static func run(_ phase: String) async {
+        let folder = URL.documentsDirectory.appending(path: "Diagnostics", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: "q-\(phase).txt")
+        var out: [String] = []
+        func note(_ s: String) { out.append(s); try? out.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8) }
+        func pause(_ s: Double) async { try? await Task.sleep(for: .seconds(s)) }
+        let host = PipHost.shared
+        let watch = FrameWatch()
+        func meter() -> String { "\(watch.hitches) late · worst \(watch.worstMs) ms" }
+        let tabs = ["Classic", "Panels", "Dashboard"]
+        func topBar() -> String {
+            let found = KLCheck.elements().filter { tabs.contains($0.1) && $0.0.accessibilityFrame.minY < 120 }.map(\.1)
+            return found.isEmpty ? "none found" : Array(Set(found)).sorted().joined(separator: " · ")
+        }
+        func pick(_ t: String) -> String { KLCheck.activate { $0 == t } }
+        func screen() -> String { host.activeScreen?.info.id ?? "none" }
+        /// Buttons along the top bar, to compare Classic/Panels before and after.
+        func toolbar() -> [String] {
+            KLCheck.elements().filter { $0.2.contains(.button) && $0.0.accessibilityFrame.minY < 100 && !tabs.contains($0.1) }
+                .map(\.1).sorted()
+        }
+        let groupTitles = ["At a glance", "Builds", "Stable & Sandbox", "Busy Pip", "Needs you", "For Rob", "Dashboard queue",
+                           "Next action", "Up next", "Ideas", "Reminders", "How we work"]
+        func isGroup(_ l: String) -> Bool { groupTitles.contains { l == $0 || l.hasPrefix($0 + ", ") } }
+        /// The group rows found (the pill), and which one wears the bead.
+        func groups() -> (found: [String], chosen: String) {
+            let rows = KLCheck.elements().filter { isGroup($0.1) && !$0.1.contains(" widget") && $0.2.contains(.button) }
+            let chosen = rows.first { $0.2.contains(.selected) }?.1 ?? "none"
+            return (rows.map(\.1), chosen)
+        }
+        func views(_ v: UIView) -> [UIView] { [v] + v.subviews.flatMap(views) }
+        /// The settings-style column: the tallest scroller on screen.
+        func column() -> UIScrollView? {
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows).flatMap { views($0) }
+                .compactMap { $0 as? UIScrollView }.filter { $0.contentSize.height > $0.bounds.height + 50 }
+                .max { $0.contentSize.height < $1.contentSize.height }
+        }
+        /// The Home Screen widgets on the stage: name, size and where they sit.
+        func widgets() -> [(obj: NSObject, label: String, frame: CGRect)] {
+            KLCheck.elements().filter { $0.1.contains(" widget") && ($0.0.accessibilityHint ?? "").hasPrefix("Shows the full card") }
+                .map { ($0.0, $0.1, $0.0.accessibilityFrame) }
+        }
+        func describe(_ w: [(obj: NSObject, label: String, frame: CGRect)]) -> String {
+            w.map { "\($0.label.components(separatedBy: ":").first ?? $0.label) @\(Int($0.frame.minX)),\(Int($0.frame.minY)) \(Int($0.frame.width))×\(Int($0.frame.height))" }
+                .joined(separator: " | ")
+        }
+        /// Runs a widget's "Make it …" action, as VoiceOver would.
+        func resize(_ name: String, to size: String) -> String {
+            guard let w = widgets().first(where: { $0.label.hasPrefix(name + ", ") }) else { return "FAIL no \(name) widget" }
+            guard let a = (w.obj.accessibilityCustomActions ?? []).first(where: { $0.name == "Make it \(size)" }) else {
+                return "no “Make it \(size)” (actions: \((w.obj.accessibilityCustomActions ?? []).map(\.name).joined(separator: ", ")))"
+            }
+            return (a.actionHandler?(a) ?? false) ? "ok" : "handler said no"
+        }
+        await pause(6)
+        if host.paused { host.setPaused(false) }
+        if phase == "size" {
+            host.openScreen = "dashboard"; await pause(3)
+            note("after relaunch · sizes saved: \(UserDefaults.standard.string(forKey: Dashboard.sizesKey) ?? "none")")
+            note("  widgets: \(describe(widgets()))")
+            let orig = UserDefaults.standard.string(forKey: "rob.q.sizesBefore") ?? ""
+            if orig.isEmpty { UserDefaults.standard.removeObject(forKey: Dashboard.sizesKey) } else { UserDefaults.standard.set(orig, forKey: Dashboard.sizesKey) }
+            UserDefaults.standard.removeObject(forKey: "rob.q.sizesBefore")
+            note("  sizes put back"); host.openScreen = nil
+            note("DONE"); return
+        }
+        if !host.chosen("dashboard") { host.setOn("dashboard", true) }
+        await pause(1)
+        let startTab = UserDefaults.standard.string(forKey: "interfaceStyle") ?? "?"
+        note("start · interface \(startTab) · top bar: \(topBar())")
+        _ = pick("Panels"); await pause(2)
+        let panelsBar = toolbar(); MCheck.snap("q-panels-before")
+        _ = pick("Classic"); await pause(2)
+        let classicBar = toolbar(); MCheck.snap("q-classic-before")
+        note("toolbar · Classic: \(classicBar.joined(separator: ", "))")
+        note("toolbar · Panels: \(panelsBar.joined(separator: ", "))")
+
+        watch.reset(); note("tap Dashboard: \(pick("Dashboard"))"); await pause(2.5)
+        let width = Int(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.screen.bounds.width ?? 0)
+        let g = groups()
+        note("  screen: \(screen()) · \(meter()) · screen \(width) pt wide")
+        note("  groups (\(g.found.count)): \(g.found.joined(separator: " · ")) · bead on: \(g.chosen)")
+        note("  names shown: \(g.found.contains { !$0.isEmpty }) · stage widget: \(KLCheck.elements().contains { $0.0.accessibilityHint == "Shows what needs you" || $0.0.accessibilityHint == "Shows the glance" })")
+        note("  footer: \(KLCheck.label { $0.contains("Live ·") || $0.contains("last checked") || $0.contains("Checking") } ?? "none")")
+        note("  For Rob: \(KLCheck.label { $0.hasPrefix("To do, ") || $0.hasPrefix("Done, ") }?.prefix(70) ?? "not shown")")
+        MCheck.snap("q-tab")
+        // Home Screen widgets (ff78d22).
+        let w0 = widgets()
+        note("home · \(w0.count) widgets: \(describe(w0))")
+        let xs = Set(w0.map { Int($0.frame.minX) }).sorted(), ws = Set(w0.map { Int($0.frame.width) }).sorted()
+        note("  columns at x \(xs) · widths \(ws) (Small:Medium should be about 170:378.5)")
+        for name in ["Needs you", "Up next", "Ideas"] {
+            let hit = w0.first { $0.label.hasPrefix(name + ", ") }
+            note("tap widget \(name): \(hit.map { $0.obj.accessibilityActivate() ? "ok" : "wouldn't tap" } ?? "not found")"); await pause(1.3)
+            note("  bead on: \(groups().chosen)")
+        }
+        let before = UserDefaults.standard.string(forKey: Dashboard.sizesKey) ?? ""
+        UserDefaults.standard.set(before, forKey: "rob.q.sizesBefore")
+        let upSize = w0.first { $0.label.hasPrefix("Up next, ") }?.label.components(separatedBy: ", ").dropFirst().first ?? "?"
+        let to = upSize.hasPrefix("Small") ? "Large" : "Small"
+        watch.reset(); note("resize Up next (\(upSize)) → \(to): \(resize("Up next", to: to))"); await pause(1.5)
+        note("  \(meter()) · now: \(describe(widgets()))")
+        MCheck.snap("q-resized")
+        // Needs you: answer one in the column → the widget's count drops; then take it back.
+        let needs = { widgets().first { $0.label.hasPrefix("Needs you, ") }?.label.components(separatedBy: ". ").first ?? "?" }
+        let n0 = needs()
+        let first = Dashboard.Answer.allCases[0].label
+        _ = KLCheck.activate { $0 == "Needs you" || ($0.hasPrefix("Needs you, ") && !$0.contains(" widget")) }; await pause(1.2)
+        let tapped = KLCheck.activate { $0.hasPrefix("\(first): ") }; await pause(1)
+        note("answer “\(first)”: \(tapped) · widget \(n0) → \(needs())")
+        _ = KLCheck.activate { $0.hasPrefix("\(first): ") }; await pause(0.8)
+        note("  taken back · widget \(needs())")
+
+        // Tap a group → the column glides to it.
+        let y0 = column()?.contentOffset.y ?? -1
+        watch.reset(); note("tap group Up next: \(KLCheck.activate { $0 == "Up next" || $0.hasPrefix("Up next, ") })"); await pause(1.5)
+        note("  column moved \(Int(y0)) → \(Int(column()?.contentOffset.y ?? -1)) · bead on: \(groups().chosen) · \(meter())")
+        MCheck.snap("q-upnext")
+        // Scroll → the bead follows.
+        if let c = column() {
+            c.setContentOffset(CGPoint(x: 0, y: max(0, c.contentSize.height - c.bounds.height)), animated: false); await pause(1.2)
+            note("scroll column to the end · bead on: \(groups().chosen)")
+            c.setContentOffset(.zero, animated: false); await pause(1.2)
+            note("scroll column to the top · bead on: \(groups().chosen)")
+        } else { note("scroll · FAIL no column scroller") }
+        // Tap the stage widget → Needs you.
+        let w = KLCheck.elements().first { $0.0.accessibilityHint == "Shows what needs you" || $0.0.accessibilityHint == "Shows the glance" }
+        note("tap the widget: \(w.map { $0.0.accessibilityActivate() ? "ok" : "wouldn't tap" } ?? "not found")"); await pause(1.5)
+        note("  bead on: \(groups().chosen)")
+        // Reduce Transparency (the app's own switch) and the glass amount: pictures to compare.
+        let glass = UserDefaults.standard.object(forKey: "glassAmount")
+        UserDefaults.standard.set(true, forKey: "reduceGlass"); await pause(1.2); MCheck.snap("q-reduceglass")
+        UserDefaults.standard.set(false, forKey: "reduceGlass")
+        for amount in [0.0, 1.0] {
+            UserDefaults.standard.set(amount, forKey: "glassAmount"); await pause(1.2); MCheck.snap("q-glass-\(Int(amount))")
+        }
+        if let glass { UserDefaults.standard.set(glass, forKey: "glassAmount") } else { UserDefaults.standard.removeObject(forKey: "glassAmount") }
+        note("glass: pictured reduce-glass on, glass amount 0 and 1; put back")
+
+        watch.reset(); _ = pick("Panels"); await pause(2)
+        note("back to Panels: screen \(screen()) · \(meter()) · toolbar same: \(toolbar() == panelsBar)")
+        MCheck.snap("q-panels-after")
+        watch.reset(); _ = pick("Classic"); await pause(2)
+        note("back to Classic: screen \(screen()) · \(meter()) · toolbar same: \(toolbar() == classicBar)")
+        MCheck.snap("q-classic-after")
+
+        // Ways in.
+        host.openCard = "dashboard"; await pause(2)
+        note("way in 1 · card → Open the dashboard: \(KLCheck.activate { $0 == "Open the dashboard" })"); await pause(2)
+        note("  screen: \(screen()) · card still open: \(host.openCard ?? "no")")
+        host.openScreen = nil; host.openCard = nil; await pause(1.5)
+        let tile = KLCheck.elements().first { $0.1.hasPrefix("Progress dashboard") }
+        note("way in 2 · canvas tile found: \(tile != nil) · tap: \(tile.map { $0.0.accessibilityActivate() ? "ok" : "wouldn't tap" } ?? "–")"); await pause(2)
+        note("  screen: \(screen())")
+
+        // Canvas tile: put away, then back (eec7060).
+        host.openScreen = nil; _ = pick("Classic"); await pause(2)
+        if let t = KLCheck.elements().first(where: { $0.1.hasPrefix("Progress dashboard") }) {
+            let a = (t.0.accessibilityCustomActions ?? []).first { $0.name == "Put away" }
+            note("tile · Put away: \(a.map { ($0.actionHandler?($0) ?? false) ? "ok" : "said no" } ?? "no action") ")
+            await pause(1.2)
+            note("  tile gone: \(!KLCheck.find { l, _ in l.hasPrefix("Progress dashboard") }) · saved: \(UserDefaults.standard.bool(forKey: "plug.dashboard.tileShown"))")
+            MCheck.snap("q-tile-away")
+            UserDefaults.standard.set(true, forKey: "plug.dashboard.tileShown"); await pause(1.2)
+            note("  back with On the canvas: \(KLCheck.find { l, _ in l.hasPrefix("Progress dashboard") })")
+        } else { note("tile · not on the canvas (On the canvas off?)") }
+
+        // Fall backs.
+        host.openScreen = "dashboard"; await pause(1.5)
+        host.setOn("dashboard", false); await pause(2)
+        note("Dashboard off: screen \(screen()) · top bar: \(topBar())")
+        MCheck.snap("q-off")
+        host.setOn("dashboard", true); await pause(1.5)
+        host.openScreen = "dashboard"; await pause(1.5)
+        host.setPaused(true); await pause(2)
+        note("Pause all: screen \(screen()) · top bar: \(topBar())")
+        host.setPaused(false); await pause(1.5)
+        note("resume: screen \(screen()) (openScreen kept: \(host.openScreen ?? "nil")) · top bar: \(topBar())")
+        host.openScreen = nil; await pause(1)
+
+        // Tab-switch stress: 3 rounds of Classic → Dashboard → Panels → Dashboard.
+        for r in 1...3 {
+            var row: [String] = []
+            for t in ["Dashboard", "Panels", "Dashboard", "Classic"] {
+                watch.reset(); _ = pick(t); await pause(1.6); row.append("\(t) \(meter())")
+            }
+            note("switch round \(r): " + row.joined(separator: " | "))
+        }
+        _ = pick(startTab == "classic" ? "Classic" : "Panels")
         note("DONE")
     }
 }
