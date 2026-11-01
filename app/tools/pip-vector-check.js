@@ -1,7 +1,7 @@
 // Headless check of the vector Pip page: a little flight script, eight stills → /tmp/vtest.png. node app/tools/pip-vector-check.js
 const { chromium } = require('playwright');
 (async () => {
-  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 420, height: 320 }, deviceScaleFactor: 2 });
+  const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] }); const p = await b.newPage({ viewport: { width: 420, height: 320 }, deviceScaleFactor: 2 });
   p.on('pageerror', e => console.log('ERR', e.message));
   await p.goto('file://' + require('path').join(__dirname, '..', 'design', 'pip-vector.html'));
   await p.evaluate(() => { window.__manual = true; auto = false; document.querySelector('.note').remove(); document.querySelector('.bar').remove(); });
@@ -16,7 +16,7 @@ const { chromium } = require('playwright');
       P.y = 160; window.__frame(t);
       return keep[i] || null;
     }, [i, t, keep]);
-    if (label) out.push([label, await p.evaluate(() => document.getElementById('c').toDataURL())]);
+    if (label) out.push([label, 'data:image/png;base64,' + (await p.screenshot()).toString('base64')]);
   }
   await p.setContent(`<body style="margin:0;background:linear-gradient(#1d5f86,#123e66);display:grid;grid-template-columns:repeat(4,420px);color:#fff;font:16px sans-serif">${out.map(([l, u]) => `<div style="position:relative;width:420px;height:320px"><img src="${u}" style="width:420px;height:320px"><div style="position:absolute;bottom:8px;width:100%;text-align:center">${l}</div></div>`).join('')}</body>`);
   await p.setViewportSize({ width: 1680, height: 640 }); await p.screenshot({ path: '/tmp/vtest.png' });

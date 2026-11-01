@@ -48,3 +48,18 @@ Label pastes: 🖥 Terminal (for Rob) · 📠 FAX FOR CHAPPIE · FOR DASHBOARD.
 - Dashboard: real iPad widgets (WidgetKit) later; the outbox (A/B pending); the levels board. Private, never in the public app.
 - The private board gist address must never go into the repo, notes or logs.
 - Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (no model IDs elsewhere).
+
+## Vector Pip (1 Nov, late morning): the direction now
+- Aaron: vectors, not pictures (so Pip can morph and skeuomorph later); "as clean and effortless as possible vector";
+  smooth movement that ports to the app and improves over time. **Focus on the visual** for now.
+- Model page: `app/design/pip-vector.html` (public "Pip · vector (2.5D)", slug 32d8b1a3-4d8e-442f-8eb3-c2ad2754447d).
+  Aaron's pipeline: skeleton in 3D → flat silhouette (body red, front wing green, back wing blue) → softened → glass
+  shader (roundness, bends what's behind and the emoji, rim, top-left highlight, warm bounce) → face on top.
+  He likes: the subtle inner glow ("what sells it"), the wings, the tail reading as his shadow, the glass emoji.
+- Emoji: fills his face, grows from the middle; his face sinks into it and comes back.
+- Effort in the flap (weight): bigger, slower beats climbing; each down-stroke lifts him.
+- The app still has the flipbook (c480115 … 3da99ce) behind the look hook (08cc85c). Port the vector page next, when
+  Aaron says: SwiftUI Canvas silhouette + blur/alphaThreshold, a Metal layerEffect for the glass, Apple glass under it.
+- Later (Aaron, parked): weight and rest *in the app*: he rests on or in panels, on walls, peeks; his little glass chair.
+- Lookalikes (researched 1 Nov): Rayman's Lums (glowing ball + insect wings) are close to *Classic* Pip; Blobby stands
+  apart (glass, tail, leaf wings from the crown, emoji inside). Keep the glow pale and cool, not yellow.

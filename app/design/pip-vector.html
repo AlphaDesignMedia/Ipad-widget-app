@@ -41,7 +41,7 @@ const turnAbout = (v, ax, ang) => { const c = Math.cos(ang), s = Math.sin(ang), 
   return v3(v.x * c + x.x * s + ax.x * d * (1 - c), v.y * c + x.y * s + ax.y * d * (1 - c), v.z * c + x.z * s + ax.z * d * (1 - c)); };
 
 // ---------- the rig: state that carries over between frames (turning, the tail's lag)
-const rig = { yaw: PICK.rest, yawV: 0, tail: null, last: null, speedX: 0, vx: 0, vy: 0 };
+const rig = { yaw: PICK.rest, yawV: 0, tail: null, last: null, speedX: 0, vx: 0, vy: 0, phase: 0, effort: 0 };
 
 /** One frame of Pip. pos: where his head is (px); R: head radius (px); target: which way he wants to face
  *  (-1 left, 0 you, 1 right); emote: 0…1 how much an emoji face is on (he looks at you). Returns what to draw. */
@@ -66,7 +66,16 @@ function step(pos, R, t, dt, target, emote) {
   const sideV = norm(cross(v3(0, 1, 0), face)), up = norm(cross(face, sideV));
 
   // the tail: circles held behind and below the head, curled, and lagging behind his movement (liquid weight)
-  const head = v3(pos.x / R, -pos.y / R, 0);
+  // effort (Aaron: "mimic weight and effort in his wing flap"): flying is work, climbing is hard work. The beat
+  // gets bigger and slower as he climbs; each down-stroke lifts him a little and he sinks between beats.
+  const flying = Math.min(1, Math.hypot(rig.vx, rig.vy) / 120);
+  const climbing = Math.max(0, Math.min(1, -rig.vy / 260));
+  rig.effort += (Math.max(flying * .5, climbing) - rig.effort) * Math.min(1, dt * 4);
+  const beat = (4.5 + 4.5 * flying) * (1 - .35 * climbing);
+  rig.phase += beat * dt;
+  const lift = -Math.sin(rig.phase) * R * (.03 + .09 * rig.effort);
+  rig.flap = { amp: .2 + .3 * flying + .3 * climbing };
+  const head = v3(pos.x / R, -(pos.y + lift) / R, 0);
   if (!rig.tail) rig.tail = Array.from({ length: PICK.n }, (_, i) => add(head, v3(-(i + 1) * .26, -(i + 1) * .08, -(i + 1) * .1)));
   const back = norm(v3(-face.x, -face.y - PICK.slope, -face.z));
   const gap = PICK.len / PICK.n;
@@ -88,14 +97,15 @@ function step(pos, R, t, dt, target, emote) {
     const pitch = deg * Math.PI / 180 - sweep;
     const dir = norm(add(add(sc(backV, Math.cos(pitch)), up, Math.sin(pitch)), sideV, sd * .18));
     const nrm = norm(cross(dir, backV));
-    const beat = Math.abs(rig.vx) > 40 ? 9 : 4.5, amp = Math.abs(rig.vx) > 40 ? .55 : .2;
+    const amp = rig.flap.amp;
     const pts = [[root, PICK.widths[0]]];
     for (let j = 1; j < 5; j++) {
       const st = PICK.stops[j];
-      const flutter = amp * (Math.sin(t * beat - st * .9 + (sd > 0 ? 0 : .3)) * .8 + .2);
+      const flutter = amp * (Math.sin(rig.phase - st * .9 + (sd > 0 ? 0 : .3)) * .8 + .2);
       let seg = turnAbout(dir, nrm, .28 * st - .14);
       seg = norm(turnAbout(seg, backV, sd * flutter));
-      pts.push([add(pts[j - 1][0], seg, len * (st - PICK.stops[j - 1])), PICK.widths[j]]);
+      const tall = 1 + .15 * Math.max(0, Math.cos(rig.yaw * Math.PI / 180));          // a touch taller seen from the front
+      pts.push([add(pts[j - 1][0], seg, len * tall * (st - PICK.stops[j - 1])), PICK.widths[j]]);
     }
     return { pts, nrm };
   });
@@ -140,7 +150,7 @@ function drawPip(ctx, pos, R, t, dt, target, emoji, vis) {
 
   const wingPaths = f.wings.map(w => {
     const ps = w.pts.map(([p, r]) => ({ ...proj(p, O, R), r, z: zOf(p) }));
-    const thin = Math.max(.25, Math.abs(w.nrm.z));                      // edge-on leaves look thin
+    const thin = Math.max(.6, Math.abs(w.nrm.z));                       // keep some width from the front (Aaron)
     return { ps, thin, z: ps[3].z };
   });
   // each wing is its own silhouette (they flap on their own); the one further back is more see-through (Aaron)
@@ -256,11 +266,169 @@ function glassEmoji(ch) {
   return glassCache[ch] = out;
 }
 
+// ---------- the glass version (Aaron, 1 Nov): silhouette → glass shader → face on top
+// 1. A black-and-white silhouette (red: body, green: front wing, blue: back wing), drawn flat each frame.
+// 2. Softened (shrunk and grown back), so head and tail flow into each other like soft clay, no corners.
+// 3. A glass shader reads it: works out how round he is at each point, bends what's behind (the emoji too, so it's
+//    a glass emoji), adds a rim of light, a highlight from the top left (never moves) and a warm bounce underneath.
+// 4. His face painted on top (it sinks into the emoji when one comes).
+const GL = (() => {
+  const c = document.createElement('canvas'); c.id = 'g';
+  c.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none';
+  document.body.insertBefore(c, document.querySelector('.note'));
+  const top = document.createElement('canvas'); top.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none';
+  document.body.insertBefore(top, document.querySelector('.note'));
+  const gl = c.getContext('webgl', { premultipliedAlpha: true, alpha: true });
+  const vs = 'attribute vec2 a; varying vec2 v; void main(){ v = a * .5 + .5; gl_Position = vec4(a, 0., 1.); }';
+  const fs = `precision mediump float;
+varying vec2 v;
+uniform sampler2D tS, tB, tI;
+uniform vec2 head, tip, pxS, pxB, scr;
+uniform float R;
+vec3 bg(float sy){ return mix(vec3(.114,.373,.525), vec3(.071,.243,.4), clamp(sy, 0., 1.)); }
+vec3 slope(sampler2D t, vec2 px, vec2 uv, vec3 ch){
+  float hx = dot(texture2D(t, uv + vec2(px.x, 0.)).rgb - texture2D(t, uv - vec2(px.x, 0.)).rgb, ch);
+  float hy = dot(texture2D(t, uv + vec2(0., px.y)).rgb - texture2D(t, uv - vec2(0., px.y)).rgb, ch);
+  return normalize(vec3(-hx * 2.5, -hy * 2.5, 1.));
+}
+vec4 glassAt(vec3 n, float a, vec2 off, bool body){
+  float sy = mix(scr.x, scr.y, 1. - (v.y + off.y));
+  vec3 col = bg(sy);                                                // what's behind him, bent
+  if (body) { vec4 em = texture2D(tI, v + off * .6); col = col * (1. - em.a) + em.rgb; }   // the emoji, bent too
+  col = mix(col, vec3(.87, .86, .95), (body ? .2 : .3) + .25 * (1. - n.z));                 // his glass colour
+  float fr = pow(1. - n.z, 2.2);
+  col += vec3(.8, .93, 1.) * fr * .6;                               // rim light
+  vec3 L = normalize(vec3(-.55, .6, .6));
+  col += pow(max(dot(reflect(-L, n), vec3(0., 0., 1.)), 0.), 50.) * .95;   // highlight, top left, always
+  col += vec3(1., .93, .75) * max(-n.y, 0.) * fr * .45;             // warm bounce underneath
+  return vec4(col * a, a);
+}
+void main(){
+  vec3 s = texture2D(tS, v).rgb;
+  float body = smoothstep(.42, .58, s.r), fw = smoothstep(.3, .55, s.g), bw = smoothstep(.3, .55, s.b);
+  vec3 n = slope(tB, pxB, v, vec3(1., 0., 0.));
+  vec2 d = (v - head) / R; float dd = dot(d, d);
+  if (dd < 1.) n = normalize(mix(n, vec3(d, sqrt(1. - dd)), smoothstep(1., .75, sqrt(dd))));   // his head is a ball
+  vec2 ht = tip - head;
+  float along = dot(v - head, ht) / max(dot(ht, ht), 1e-4);
+  float fade = 1. - smoothstep(.3, 1., along);                      // the tail fades (his shadow)
+  vec4 outc = vec4(0.);
+  if (bw > .001) { vec4 w = glassAt(slope(tS, pxS, v, vec3(0., 0., 1.)), bw * .45, vec2(0.), false); outc = w; }
+  if (body > .001) { vec4 b = glassAt(n, body * fade, -n.xy * .045, true); outc = b + outc * (1. - b.a); }
+  if (fw > .001) { vec4 w = glassAt(slope(tS, pxS, v, vec3(0., 1., 0.)), fw * .7, vec2(0.), false); outc = w + outc * (1. - w.a); }
+  gl_FragColor = outc;
+}`;
+  const sh = (t, src) => { const o = gl.createShader(t); gl.shaderSource(o, src); gl.compileShader(o);
+    if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(pr); gl.useProgram(pr);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const al = gl.getAttribLocation(pr, 'a'); gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
+  const U = n => gl.getUniformLocation(pr, n);
+  const tex = (unit, name) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.uniform1i(U(name), unit); return t; };
+  const T = [tex(0, 'tS'), tex(1, 'tB'), tex(2, 'tI')];
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  const mk = () => document.createElement('canvas');
+  return { c, gl, top, U, T, mk, M: mk(), chain: [mk(), mk(), mk(), mk(), mk()], I: mk() };
+})();
+
+function drawPipGlass(pos, R, t, dt, target, emoji, vis) {
+  const isFace = /^[\u{1F600}-\u{1F64F}\u{1F910}-\u{1F92F}\u{1F970}-\u{1F97A}☺]/u.test(emoji || '');
+  const f = step(pos, R, t, dt, target, isFace ? vis : 0);
+  const O = f.head, H = proj(O, O, R);
+  const tail = rig.tail.map((p, i) => ({ ...proj(p, O, R), r: f.radii[i] }));
+  const B = Math.ceil(R * 8), k = dpr, px = Math.round(B * k), x0 = H.x - B / 2, y0 = H.y - B / 2;
+  const L = p => ({ x: (p.x - x0) * k, y: (p.y - y0) * k });          // into the box, in pixels
+
+  // 1. the silhouette: body red, front wing green, back wing blue
+  const M = GL.M; if (M.width !== px) { M.width = M.height = px; }
+  const m = M.getContext('2d'); m.globalCompositeOperation = 'source-over'; m.clearRect(0, 0, px, px);
+  m.globalCompositeOperation = 'lighter';
+  const hp = L(H);
+  m.beginPath(); m.moveTo(hp.x + R * k, hp.y); m.arc(hp.x, hp.y, R * k, 0, Math.PI * 2);
+  let prev = { ...hp, r: R * k };
+  for (const p of tail) { const q = L(p), r = p.r * R * p.s * k; hull(m, prev, prev.r, q, r); prev = { ...q, r }; }
+  m.fillStyle = '#f00'; m.fill('nonzero');
+  const wings = f.wings.map(w => {
+    const ps = w.pts.map(([p, r]) => ({ ...proj(p, O, R), r, z: p.z - O.z }));
+    return { ps, thin: Math.max(.6, Math.abs(w.nrm.z)), z: ps[3].z };
+  });
+  const backZ = Math.min(...wings.map(w => w.z));
+  for (const w of wings) {
+    m.beginPath();
+    for (let j = 1; j < w.ps.length; j++) {
+      const a = L(w.ps[j - 1]), b = L(w.ps[j]);
+      hull(m, a, Math.max(.6, w.ps[j - 1].r * R * w.ps[j - 1].s * w.thin * k), b, Math.max(.6, w.ps[j].r * R * w.ps[j].s * w.thin * k));
+    }
+    m.fillStyle = w.z === backZ ? '#00f' : '#0f0'; m.fill('nonzero');
+  }
+  // 2. softened: shrink by halves (each half averages), the GPU grows them back smoothly
+  let src = M;
+  GL.chain.forEach((c, i) => { const s2 = Math.max(4, Math.round(src.width / 2)); if (c.width !== s2) c.width = c.height = s2;
+    const x = c.getContext('2d'); x.clearRect(0, 0, s2, s2); x.drawImage(src, 0, 0, s2, s2); src = c; });
+  const small = GL.chain[2], big = GL.chain[4];                       // ÷8 for the shape, ÷32 for the roundness
+
+  // the emoji inside: fills his face, grows from the middle (no sliding up)
+  const e = vis * vis * (3 - 2 * vis);
+  const I = GL.I, ip = px; if (I.width !== ip) I.width = I.height = ip;
+  const ix = I.getContext('2d'); ix.clearRect(0, 0, ip, ip);
+  if (emoji && vis > 0) {
+    const sz = R * 1.3 * (.5 + .5 * e) * k;
+    ix.globalAlpha = Math.min(1, vis * 1.5); ix.font = `${sz}px "Apple Color Emoji","Noto Color Emoji",sans-serif`;
+    ix.textAlign = 'center'; ix.textBaseline = 'middle'; ix.fillText(emoji, ip / 2, ip / 2 + R * .08 * k + sz * .06);
+    ix.globalAlpha = 1;
+  }
+
+  // 3. the glass shader
+  const gl = GL.gl, c = GL.c;
+  if (c.width !== px) { c.width = c.height = px; c.style.width = c.style.height = B + 'px'; gl.viewport(0, 0, px, px); }
+  c.style.transform = `translate(${x0}px, ${y0}px)`;
+  [[0, small], [1, big], [2, I]].forEach(([u, img]) => { gl.activeTexture(gl.TEXTURE0 + u); gl.bindTexture(gl.TEXTURE_2D, GL.T[u]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); });
+  const uv = p => [(p.x - x0) / B, 1 - (p.y - y0) / B];
+  gl.uniform2fv(GL.U('head'), uv(H)); gl.uniform2fv(GL.U('tip'), uv(tail[tail.length - 1]));
+  gl.uniform2f(GL.U('pxS'), 1.5 / small.width, 1.5 / small.height); gl.uniform2f(GL.U('pxB'), 1 / big.width, 1 / big.height);
+  gl.uniform2f(GL.U('scr'), y0 / Hh, (y0 + B) / Hh); gl.uniform1f(GL.U('R'), R / B);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // 4. his face on top: it sinks into the emoji while one is in
+  const tc = GL.top; if (tc.width !== W * dpr) { tc.width = W * dpr; tc.height = Hh * dpr; }
+  const fx = tc.getContext('2d'); fx.setTransform(dpr, 0, 0, dpr, 0, 0); fx.clearRect(0, 0, W, Hh);
+  const faceOn = emoji ? 1 - e : 1;
+  if (faceOn > .02) {
+    const onHead = (s2, u) => norm(add(add(f.face, f.sideV, s2), f.up, u));
+    const mid = { x: H.x, y: H.y + R * .1 };
+    const sink = p => ({ x: p.x + (mid.x - p.x) * e, y: p.y + (mid.y - p.y) * e });
+    for (const s2 of [-.3, .3]) {
+      const n = onHead(s2, -.32); if (n.z < .05) continue;
+      const p = sink(proj(add(O, n), O, R)), kk = 1 - e * .7;
+      fx.save(); fx.globalAlpha = faceOn * Math.min(1, n.z * 4); fx.translate(p.x, p.y); fx.scale(Math.max(.25, n.z) * kk, kk);
+      fx.beginPath(); fx.ellipse(0, 0, R * .1, R * .155, 0, 0, Math.PI * 2); fx.fillStyle = GLASS.eye; fx.fill(); fx.restore();
+    }
+    const mo = onHead(0, -.62);
+    if (mo.z > .1) {
+      const p = sink(proj(add(O, mo), O, R)), kk = 1 - e * .7;
+      fx.save(); fx.globalAlpha = faceOn * Math.min(1, mo.z * 3); fx.translate(p.x, p.y); fx.scale(Math.max(.3, mo.z) * kk, kk);
+      fx.beginPath(); fx.moveTo(-R * .12, 0); fx.quadraticCurveTo(0, R * .1, R * .12, 0);
+      fx.lineWidth = R * .05; fx.lineCap = 'round'; fx.strokeStyle = GLASS.eye; fx.stroke(); fx.restore();
+    }
+  }
+  // the glow, on the room (under him)
+  const g = ctx.createRadialGradient(H.x, H.y, 0, H.x, H.y, R * 2.3);
+  g.addColorStop(0, `rgba(${GLASS.glow},.22)`); g.addColorStop(1, `rgba(${GLASS.glow},0)`);
+  ctx.fillStyle = g; ctx.fillRect(H.x - R * 3, H.y - R * 3, R * 6, R * 6);
+}
+
 // ---------- the page
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let W, Hh, dpr; function size() { dpr = devicePixelRatio || 1; W = innerWidth; Hh = innerHeight; cv.width = W * dpr; cv.height = Hh * dpr; }
 addEventListener('resize', size); size();
 const P = { x: innerWidth / 2, y: innerHeight / 2 }, R = 40;
+window.FLAT = location.hash === '#flat';
 let drag = null, emoteAt = -1e9, emoji = '', last = 0, auto = true;
 cv.addEventListener('pointerdown', e => { drag = { dx: P.x - e.clientX, dy: P.y - e.clientY }; auto = false; cv.setPointerCapture(e.pointerId); });
 cv.addEventListener('pointermove', e => { if (drag) { P.x = e.clientX + drag.dx; P.y = e.clientY + drag.dy; } });
@@ -278,8 +446,8 @@ window.__frame = (t) => {                     // also used by the headless check
   const since = t - emoteAt;
   const emote = since < 0 ? 0 : since < .3 ? since / .3 : since < 2.8 ? 1 : Math.max(0, 1 - (since - 2.8) / .6);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Hh);
-  ctx.save(); ctx.translate(P.x, P.y + Math.sin(t * 1.6) * 3); ctx.translate(-P.x, -P.y);
-  drawPip(ctx, P, R, t, dt, 0, emoji, emote);
+  ctx.save();
+  if (window.FLAT) drawPip(ctx, P, R, t, dt, 0, emoji, emote); else drawPipGlass(P, R, t, dt, 0, emoji, emote);
   ctx.restore();
 };
 window.__set = (o) => Object.assign(window, o);
