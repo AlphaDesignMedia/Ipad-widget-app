@@ -79,14 +79,19 @@ struct MoodRow: View, Equatable {
         BackdropFill(backdrop: scene, homeScreen: homeScreen, tone: tone)
             .frame(width: 104, height: 104)
             .overlay {
-                ClockFace(date: Self.shownTime, style: mood, simulatedAccent: homeScreen.accent,
-                          simulatesClear: !homeScreen.showsKeptColours)
-                    .padding(14)
-                    .frame(width: 150, height: 150)
-                    .modifier(ClockCard(style: mood, shape: .rect(cornerRadius: 26), homeScreen: homeScreen))
-                    .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
-                    .scaleEffect(0.5)
-                    .frame(width: 75, height: 75)
+                // Its own glass group, above its own backdrop: inside the card's group (see
+                // `SettingsCard`) the little widget's glass showed the app's backdrop rather than
+                // this picture's.
+                GlassEffectContainer {
+                    ClockFace(date: Self.shownTime, style: mood, simulatedAccent: homeScreen.accent,
+                              simulatesClear: !homeScreen.showsKeptColours)
+                        .padding(14)
+                        .frame(width: 150, height: 150)
+                        .modifier(ClockCard(style: mood, shape: .rect(cornerRadius: 26), homeScreen: homeScreen))
+                        .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
+                        .scaleEffect(0.5)
+                        .frame(width: 75, height: 75)
+                }
             }
             .clipShape(.rect(cornerRadius: 16, style: .continuous))
             .allowsHitTesting(false)
