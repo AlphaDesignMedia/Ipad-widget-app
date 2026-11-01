@@ -5,14 +5,14 @@ const { chromium } = require('playwright');
   p.on('pageerror', e => console.log('ERR', e.message));
   await p.goto('file://' + require('path').join(__dirname, '..', 'design', 'pip-vector.html'));
   await p.evaluate(() => { window.__manual = true; auto = false; document.querySelector('.note').remove(); document.querySelector('.bar').remove(); });
-  const keep = { 150: 'flying right', 206: 'turning', 330: 'rest (left)', 405: '😊 coming in', 430: '😊 face', 573: '⭐ coming in', 600: '⭐ inside', 685: '⭐ going' };
+  const keep = { 150: 'flying right', 206: 'turning', 330: 'rest (left)', 405: '😂 coming in', 430: '😂 face', 573: '⭐ coming in', 600: '⭐ inside', 685: '⭐ going' };
   const out = [];
   for (let i = 0; i <= 690; i++) {
     const t = 10 + i / 60;
     const label = await p.evaluate(([i, t, keep]) => {
       // a little script: rest, fly right, turn, fly left, rest, emoji
       if (i < 90) { P.x = 210; } else if (i < 190) { P.x = 210 + (i - 90) * 0.9; } else if (i < 300) { P.x = 300 - (i - 190) * 1.6; }
-      if (i === 400) { emoji = '😊'; emoteAt = t; } if (i === 520) { emoji = '⭐'; emoteAt = t; }
+      if (i === 400) { emoji = '😂'; emoteAt = t; } if (i === 520) { emoji = '⭐'; emoteAt = t; }
       P.y = 160; window.__frame(t);
       return keep[i] || null;
     }, [i, t, keep]);

@@ -303,16 +303,17 @@ struct PipBlobbyBody: View {
             // a glass emoji inside him: less colour, bent by the ball, arriving sharp from soft (Apple: materialise)
             if let em = shown {
                 Text(em)
-                    .font(.system(size: r * 1.0))
+                    .font(.system(size: r * 0.82))                       // whole inside him, never cut off (Aaron)
                     .scaleEffect(CGFloat((0.5 + 0.5 * e) * m.pop))
                     .saturation(0.6)
                     .opacity(min(1, m.vis * 1.5) * 0.85)
                     .blur(radius: simpler ? 0 : CGFloat(1 - e) * r * 0.25)
                     .offset(y: r * 0.08)
                     .frame(width: box, height: box)
-                    .distortionEffect(ShaderLibrary.blobbyLens(.float2(mid), .float(r * 0.95), .float(0.25)),
+                    .distortionEffect(ShaderLibrary.blobbyLens(.float2(mid), .float(r * 0.95), .float(0.15)),
                                       maxSampleOffset: CGSize(width: r, height: r))
-                    .mask(Circle().frame(width: r * 1.92, height: r * 1.92))
+                    .mask(Circle().fill(RadialGradient(colors: [.black, .black, .clear], center: .center, startRadius: 0, endRadius: r))
+                        .frame(width: r * 2, height: r * 2))
             }
             // his silhouette, softened, through the glass shader
             Canvas { ctx, size in
@@ -347,7 +348,7 @@ struct PipBlobbyBody: View {
         let alpha = 1 - e
         guard alpha > 0.02 else { return }
         let to = CGPoint(x: 0, y: r * 0.1)
-        let glance = CGPoint(x: look.width * r * 0.07, y: look.height * r * 0.05)
+        let glance = CGPoint(x: look.width * r * 0.13, y: look.height * r * 0.09)   // he looks around (Aaron: more)
         func at(_ v: BV3) -> CGPoint {
             let p = CGPoint(x: CGFloat(v.x) * r + glance.x, y: CGFloat(v.y) * r + glance.y)
             return CGPoint(x: p.x + (to.x - p.x) * CGFloat(e), y: p.y + (to.y - p.y) * CGFloat(e))
@@ -359,9 +360,26 @@ struct PipBlobbyBody: View {
                 l.opacity = alpha * min(1, v.z * 4)
                 let p = at(v)
                 l.translateBy(x: p.x, y: p.y)
-                l.scaleBy(x: CGFloat(max(0.25, v.z)) * shrink, y: shrink)
+                // wraps round the ball: squashed towards his edge
+                let ang = Angle(radians: atan2(Double(p.y), Double(p.x)))
+                l.rotate(by: ang)
+                l.scaleBy(x: CGFloat(max(0.3, v.z)) * shrink, y: shrink)
+                l.rotate(by: -ang)
+                let w: CGFloat = r * 0.1
                 let h: CGFloat = closed ? r * 0.04 : r * 0.155
-                l.fill(Path(ellipseIn: CGRect(x: -r * 0.1, y: -h, width: r * 0.2, height: h * 2)), with: .color(PipLook.eye))
+                let eye = Path(ellipseIn: CGRect(x: -w, y: -h, width: w * 2, height: h * 2))
+                // pressed into the glass: a dark hollow, its lower rim lit, a tiny catchlight
+                l.fill(eye, with: .radialGradient(Gradient(colors: [Color(red: 0.05, green: 0.05, blue: 0.11),
+                                                                    Color(red: 0.17, green: 0.18, blue: 0.29)]),
+                                                  center: CGPoint(x: -w * 0.2, y: -h * 0.3), startRadius: 0, endRadius: h * 1.1))
+                guard !closed else { return }
+                l.drawLayer { rim in
+                    rim.clip(to: eye)
+                    rim.stroke(Path(ellipseIn: CGRect(x: w * 0.25 - w * 1.05, y: h * 0.35 - h, width: w * 2.1, height: h * 2)),
+                               with: .color(Color(red: 0.8, green: 0.92, blue: 1).opacity(0.45)), lineWidth: w * 0.55)
+                }
+                l.fill(Path(ellipseIn: CGRect(x: -w * 0.3 - w * 0.26, y: -h * 0.45 - h * 0.17, width: w * 0.52, height: h * 0.34)),
+                       with: .color(.white.opacity(0.85)))
             }
         }
         let mo = frame.mouth

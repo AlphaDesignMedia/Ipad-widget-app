@@ -297,7 +297,7 @@ vec3 slope(sampler2D t, vec2 px, vec2 uv, vec3 ch){
 vec4 glassAt(vec3 n, float a, vec2 off, bool body){
   float sy = mix(scr.x, scr.y, 1. - (v.y + off.y));
   vec3 col = bg(sy);                                                // what's behind him, bent
-  if (body) { vec4 em = texture2D(tI, v + off * 1.3); col = col * (1. - em.a) + em.rgb; }   // the emoji, bent too
+  if (body) { vec4 em = texture2D(tI, v + off * .7); col = col * (1. - em.a) + em.rgb; }   // the emoji, bent too
   col = mix(col, vec3(.87, .86, .95), (body ? .2 : .3) + .25 * (1. - n.z));                 // his glass colour
   float fr = pow(1. - n.z, 2.2);
   col += vec3(.8, .93, 1.) * fr * .6;                               // rim light
@@ -339,6 +339,25 @@ void main(){
   const mk = () => document.createElement('canvas');
   return { c, gl, top, U, T, mk, M: mk(), chain: [mk(), mk(), mk(), mk(), mk()], I: mk() };
 })();
+
+// A placeholder eye (Aaron will draw his own), pressed into the glass: it wraps round the ball (squashed towards the
+// edge), a dark hollow, its lower rim lit where the light from the top left catches it, a tiny catchlight.
+function drawEye(fx, p, H, R, nz, kk, alpha) {
+  const ang = Math.atan2(p.y - H.y, p.x - H.x), squash = Math.max(.3, nz) * kk;
+  const w = R * .1, h = R * .155;
+  fx.save(); fx.globalAlpha = alpha; fx.translate(p.x, p.y);
+  fx.rotate(ang); fx.scale(squash, kk); fx.rotate(-ang);              // wraps round the ball
+  fx.beginPath(); fx.ellipse(0, 0, w, h, 0, 0, Math.PI * 2);
+  const g = fx.createRadialGradient(-w * .2, -h * .3, 0, 0, 0, h * 1.1);
+  g.addColorStop(0, '#0c0d1c'); g.addColorStop(1, '#2a2d4a'); fx.fillStyle = g; fx.fill();
+  fx.save(); fx.clip();
+  fx.beginPath(); fx.ellipse(w * .25, h * .35, w * 1.05, h * 1.0, 0, 0, Math.PI * 2);        // the lit lower rim
+  fx.lineWidth = w * .55; fx.strokeStyle = 'rgba(205,235,255,.45)'; fx.stroke();
+  fx.restore();
+  fx.beginPath(); fx.ellipse(-w * .3, -h * .45, w * .26, h * .17, 0, 0, Math.PI * 2);        // catchlight
+  fx.fillStyle = 'rgba(255,255,255,.85)'; fx.fill();
+  fx.restore();
+}
 
 function drawPipGlass(pos, R, t, dt, target, emoji, vis, toYou = 0) {
   const isFace = /^[\u{1F600}-\u{1F64F}\u{1F910}-\u{1F92F}\u{1F970}-\u{1F97A}☺]/u.test(emoji || '');
@@ -382,7 +401,7 @@ function drawPipGlass(pos, R, t, dt, target, emoji, vis, toYou = 0) {
   const I = GL.I, ip = px; if (I.width !== ip) I.width = I.height = ip;
   const ix = I.getContext('2d'); ix.clearRect(0, 0, ip, ip);
   if (emoji && vis > 0) {
-    const sz = R * 1.0 * (.5 + .5 * e) * k;
+    const sz = R * .82 * (.5 + .5 * e) * k;                               // whole inside him, never cut off (Aaron)
     ix.filter = 'saturate(60%)';                                          // a glass emoji: less colour (Aaron)
     ix.globalAlpha = Math.min(1, vis * 1.5) * .85; ix.font = `${sz}px "Apple Color Emoji","Noto Color Emoji",sans-serif`;
     ix.textAlign = 'center'; ix.textBaseline = 'middle'; ix.fillText(emoji, ip / 2, ip / 2 + R * .08 * k + sz * .06);
@@ -411,12 +430,11 @@ function drawPipGlass(pos, R, t, dt, target, emoji, vis, toYou = 0) {
     const onHead = (s2, u) => norm(add(add(f.face, f.sideV, s2), f.up, u));
     const mid = { x: H.x, y: H.y + R * .1 };
     const ee = isFace ? e : 0;
-    const sink = p => ({ x: p.x + (mid.x - p.x) * ee + eyeLook.x * R * .07, y: p.y + (mid.y - p.y) * ee + eyeLook.y * R * .05 });
+    const sink = p => ({ x: p.x + (mid.x - p.x) * ee + eyeLook.x * R * .13, y: p.y + (mid.y - p.y) * ee + eyeLook.y * R * .09 });
     for (const s2 of [-.3, .3]) {
       const n = onHead(s2, -.32); if (n.z < .05) continue;
       const p = sink(proj(add(O, n), O, R)), kk = 1 - ee * .7;
-      fx.save(); fx.globalAlpha = faceOn * Math.min(1, n.z * 4); fx.translate(p.x, p.y); fx.scale(Math.max(.25, n.z) * kk, kk);
-      fx.beginPath(); fx.ellipse(0, 0, R * .1, R * .155, 0, 0, Math.PI * 2); fx.fillStyle = GLASS.eye; fx.fill(); fx.restore();
+      drawEye(fx, p, H, R, n.z, kk, faceOn * Math.min(1, n.z * 4));
     }
     const mo = onHead(0, -.62);
     if (window.__happy && mo.z > .1) {
@@ -465,7 +483,7 @@ window.__frame = (t) => {                     // also used by the headless check
     target = Math.abs(dx) > R ? Math.sign(dx) : 0; eye = { x: dx / d, y: dy / d };
   } else if (!drag) {                                                 // nothing happening: little glances
     if (t > look.until) { look.until = t + 1.2 + Math.random() * 2.5; look.glance = [-1, 0, 1, 2][Math.floor(Math.random() * 4)]; }
-    if (look.glance === 2) toYou = .7; else { target = look.glance; eye = { x: look.glance * .8, y: Math.sin(t * .7) * .3 }; }
+    if (look.glance === 2) toYou = .7; else { target = look.glance; eye = { x: look.glance, y: Math.sin(t * .9) * .5 }; }
   }
   window.__eyeLook = eye;
   if (window.FLAT) drawPip(ctx, P, R, t, dt, target, emoji, emote); else drawPipGlass(P, R, t, dt, target, emoji, emote, toYou);
