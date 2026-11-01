@@ -28,16 +28,23 @@
 <div id="nogl">This page needs WebGL, which this browser has switched off.</div>
 <div id="hint">Drag anywhere: Pip follows. Still, it's a blob from the front. Moving, it trails like a flame.</div>
 <div id="panel">
-  <h1>Pip in 3D</h1>
-  <p>Aaron's V2 direction: a teardrop made of circles trailing from the centre and blending together, flame-like when moving. Here they're real 3D balls, melted into one shape and lit. A toy to judge the shape, not the final look.</p>
+  <h1>Pip in 3D <span style="font-size:11px;font-weight:700;color:#b5480b;background:#ffe9d6;border-radius:8px;padding:2px 7px;vertical-align:middle">EXPERIMENT</span></h1>
+  <p>From Aaron's drawings (Sheets A and B). V2 direction: a teardrop made of circles trailing from the centre, each one joined to the next by straight tangent lines (like the drawings), so the sides run straight to the tip and bend into a flame when Pip moves. Real 3D, lit. A toy to judge the shape.</p>
+  <p style="font-size:11.5px;color:#8a5a2b;background:#fff6ea;border-radius:10px;padding:8px 10px">Not Pip's approved design. From Aaron's drawings: the teardrop, straight sides, tall oval eyes, the lean, the paddle wing shape (Sheet B "maybe"). <b>Made up by Jules, needs Aaron's drawing:</b> where the wings join and their angles, the flap, how far it leans, the curl amount, the glass recipe.</p>
   <div class="lbl">Look</div>
-  <div class="seg" id="look"><button data-v="0" class="on">Pearl</button><button data-v="1">Fairy blue</button><button data-v="2">Silhouette</button></div>
-  <div class="lbl">Wings (not decided)</div>
-  <div class="seg" id="wings"><button data-v="0" class="on">None</button><button data-v="1">Comet</button><button data-v="2">Fan</button></div>
+  <div class="seg" id="look"><button data-v="3" class="on">Liquid glass</button><button data-v="0">Pearl</button><button data-v="1">Fairy blue</button><button data-v="2">Silhouette</button></div>
+  <div class="lbl">Behind</div>
+  <div class="seg" id="backdrop"><button data-v="1" class="on">Warm (the app)</button><button data-v="2">Dots</button><button data-v="0">Night</button></div>
+  <div class="lbl">Wings: paddles, from Sheet B</div>
+  <div class="seg" id="wings"><button data-v="0" class="on">None</button><button data-v="1">One pair</button><button data-v="2">Two pairs (the fairy)</button></div>
   <div class="row"><span>Trailing circles</span><span id="nv"></span></div><input type="range" id="n" min="3" max="10" step="1" value="6">
-  <div class="row"><span>Taper</span><span id="tv"></span></div><input type="range" id="taper" min="0.6" max="2.4" step="0.05" value="1.0">
-  <div class="row"><span>Rise (flame goes up)</span><span id="rv"></span></div><input type="range" id="rise" min="0" max="1" step="0.05" value="0.55">
+  <div class="row"><span>Tip length</span><span id="lv"></span></div><input type="range" id="len" min="1.2" max="3.4" step="0.05" value="2.2">
+  <div class="row"><span>Curl</span><span id="cv2"></span></div><input type="range" id="curl" min="-1" max="1" step="0.05" value="0.25">
+  <div class="row"><span>Taper (1 = straight sides)</span><span id="tv"></span></div><input type="range" id="taper" min="0.6" max="2.4" step="0.05" value="1.0">
+  <div class="row"><span>Lean when moving</span><span id="rv"></span></div><input type="range" id="rise" min="0" max="1" step="0.05" value="0.55">
   <div class="row"><span>Blend (how much they melt)</span><span id="bv"></span></div><input type="range" id="blend" min="0.05" max="1.2" step="0.05" value="0.55">
+  <div class="row"><span>Fade to the tip</span><span id="fv"></span></div><input type="range" id="fade" min="0" max="1" step="0.05" value="0.25">
+  <div class="row"><span>Soft edges</span><span id="ev"></span></div><input type="range" id="edge" min="0" max="0.8" step="0.05" value="0">
   <div class="row"><span>Turn to see it in 3D</span><span id="yv"></span></div><input type="range" id="yaw" min="-180" max="180" step="1" value="0">
   <label class="chk"><input type="checkbox" id="auto" checked> Drift on its own</label>
   <div class="seg" style="margin-top:12px"><button class="btn" id="copy">Copy settings</button></div>
@@ -53,7 +60,7 @@
 
 const $ = s => document.querySelector(s);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const P = { n: 6, taper: 1.0, rise: .55, blend: .55, yaw: 0, look: 0, wings: 0, auto: !reduce };
+const P = { n: 6, len: 2.2, curl: .25, taper: 1.0, rise: .55, blend: .55, fade: .25, edge: 0, yaw: 0, look: 3, backdrop: 1, wings: 0, auto: !reduce };
 const MAXB = 24, R0 = 1, S = 3.2, CAM = 8;
 
 // ---------- WebGL
@@ -62,16 +69,37 @@ if (!gl) { $('#nogl').style.display = 'flex'; throw new Error('no webgl'); }
 const vs = `attribute vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
 const fs = `
 precision highp float;
-uniform vec2 res; uniform vec4 b[${MAXB}]; uniform int nb; uniform int nbody; uniform float k;
+uniform vec2 res; uniform vec4 b[${MAXB}]; uniform float tipf[${MAXB}]; uniform int nb; uniform int nbody; uniform float k;
+uniform float fade; uniform float edge; uniform int backdrop;
 uniform vec4 bound; uniform int look; uniform vec3 eyeA; uniform vec3 eyeB; uniform float eyeR; uniform float blink;
-uniform vec3 up; uniform float tanHalf;
+uniform float tanHalf;
+uniform vec4 wa[4]; uniform vec4 wb[4]; uniform vec3 wn[4]; uniform int nw; uniform float wsq;
 float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
+// Two circles joined by their tangent lines, in 3D (Inigo Quilez's round cone): Aaron's hull-of-circles construction.
+float roundCone(vec3 p, vec3 a, vec3 b, float r1, float r2){
+  vec3 ba = b - a; float l2 = dot(ba, ba); float rr = r1 - r2; float a2 = l2 - rr * rr; float il2 = 1. / l2;
+  vec3 pa = p - a; float y = dot(pa, ba); float z = y - l2;
+  vec3 xv = pa * l2 - ba * y; float x2 = dot(xv, xv); float y2 = y * y * l2; float z2 = z * z * l2;
+  float kk = sign(rr) * rr * rr * x2;
+  if (sign(z) * a2 * z2 > kk) return sqrt(x2 + z2) * il2 - r2;
+  if (sign(y) * a2 * y2 < kk) return sqrt(x2 + y2) * il2 - r1;
+  return (sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
+}
+// A paddle wing (Sheet B, "maybe"): a small circle at the root hulled to a bigger one at the end, pressed thin.
+float wing(vec3 p, vec3 a, vec3 e, float r1, float r2, vec3 nrm){
+  vec3 q = p - a; float s = dot(q, nrm); q += nrm * (s / wsq - s);
+  return roundCone(a + q, a, e, r1, r2) * wsq;
+}
 float map(vec3 p){
-  float d = 1e5;
-  for (int i = 0; i < ${MAXB}; i++) {
-    if (i >= nb) break;
-    float kk = i < nbody ? k : k * .7;
-    d = smin(d, length(p - b[i].xyz) - b[i].w, kk);
+  // The body: each circle hulled to the next, so the sides run straight to the tip.
+  float d = length(p - b[0].xyz) - b[0].w;
+  for (int i = 1; i < ${MAXB}; i++) {
+    if (i >= nbody) break;
+    d = smin(d, roundCone(p, b[i - 1].xyz, b[i].xyz, b[i - 1].w, b[i].w), k * .5);
+  }
+  for (int i = 0; i < 4; i++) {
+    if (i >= nw) break;
+    d = smin(d, wing(p, wa[i].xyz, wb[i].xyz, wa[i].w, wb[i].w, wn[i]), .12);
   }
   return d;
 }
@@ -79,16 +107,38 @@ vec3 normal(vec3 p){
   const vec2 e = vec2(.0015, -.0015);
   return normalize(e.xyy * map(p + e.xyy) + e.yyx * map(p + e.yyx) + e.yxy * map(p + e.yxy) + e.xxx * map(p + e.xxx));
 }
-bool eye(vec3 p, vec3 c){ vec3 q = p - c; q.y /= max(blink, .12); return length(q) < eyeR; }
+// How far along a trail this point is: 0 on the head, 1 at a tip (weighted by the nearest balls).
+float tipness(vec3 p){
+  float w = 0., s = 0.;
+  for (int i = 0; i < ${MAXB}; i++) {
+    if (i >= nb) break;
+    float d = max(length(p - b[i].xyz) - b[i].w, 0.);
+    float wi = exp(-d * 9.);
+    w += wi; s += wi * tipf[i];
+  }
+  return s / max(w, 1e-4);
+}
+// Tall oval eyes, like the drawings.
+bool eye(vec3 p, vec3 c){ vec3 q = p - c; q.y /= 1.55 * max(blink, .1); return length(q) < eyeR; }
+// What's behind Pip: a backdrop on a far plane, so glass can bend it.
+vec3 scene(vec3 ro, vec3 rd){
+  float t = (-7. - ro.z) / min(rd.z, -.05); vec2 q = (ro + rd * t).xy;
+  if (backdrop == 0) return mix(vec3(.10, .12, .24), vec3(.03, .04, .09), clamp(.5 - q.y / 16., 0., 1.));
+  vec3 c = mix(vec3(.99, .80, .60), vec3(.60, .40, .50), clamp(.5 - q.y / 14., 0., 1.));
+  c += vec3(.30, .22, .55) * exp(-dot(q - vec2(-7., 4.), q - vec2(-7., 4.)) * .03);
+  c += vec3(.15, .45, .50) * exp(-dot(q - vec2(8., -5.), q - vec2(8., -5.)) * .025);
+  c += vec3(.55, .25, .15) * exp(-dot(q - vec2(2., 7.), q - vec2(2., 7.)) * .04);
+  vec2 g = fract(q * 1.1) - .5;
+  float dots = smoothstep(.11, .07, length(g));
+  return mix(c, c * .8 + .14, dots * (backdrop == 2 ? .85 : .4));
+}
 void main(){
   vec2 uv = (gl_FragCoord.xy * 2. - res) / res.y;
   vec3 ro = vec3(0., 0., ${CAM.toFixed(1)});
   vec3 rd = normalize(vec3(uv * tanHalf, -1.));
-  bool ink = look == 2;
-  vec3 bg = ink ? mix(vec3(.93, .94, .97), vec3(.86, .88, .93), gl_FragCoord.y / res.y)
-                : mix(vec3(.03, .04, .09), vec3(.10, .12, .24), gl_FragCoord.y / res.y);
-  vec3 tint = look == 1 ? vec3(.45, .72, 1.) : vec3(.82, .86, 1.);
-  // Skip pixels that can't touch Pip (or the glow round them).
+  bool ink = look == 2, glass = look == 3;
+  vec3 bg = ink ? mix(vec3(.93, .94, .97), vec3(.86, .88, .93), gl_FragCoord.y / res.y) : scene(ro, rd);
+  vec3 tint = look == 1 ? vec3(.45, .72, 1.) : glass ? vec3(.9, .95, 1.) : vec3(.82, .86, 1.);
   vec3 oc = ro - bound.xyz; float bb = dot(oc, rd), cc = dot(oc, oc) - bound.w * bound.w, h = bb * bb - cc;
   if (h < 0.) { gl_FragColor = vec4(bg, 1.); return; }
   h = sqrt(h);
@@ -100,23 +150,44 @@ void main(){
     t += d; if (t > tEnd) break;
   }
   vec3 col = bg;
-  if (!ink) col += tint * exp(-md * 2.6) * .32;            // the glow
+  if (!ink) col += tint * exp(-md * 2.6) * (glass ? .10 : backdrop == 0 ? .32 : .16);   // the glow
   if (hit) {
     vec3 p = ro + rd * t;
+    vec3 n = normal(p);
+    // Soft tip: the trail fades out towards its end, like a flame. Soft edges: feathered where it turns away.
+    // Silhouette stays hard: it's for judging the shape.
+    float tf = tipness(p);
+    float a = ink ? 1. : 1. - smoothstep(1. - fade, 1.001, tf) * step(.001, fade);
+    if (!ink && edge > .001) a *= smoothstep(0., edge, max(dot(n, -rd), 0.));
+    vec3 behind = col;
+    vec3 L = normalize(vec3(-.5, .8, .65)), L2 = normalize(vec3(.6, -.55, .55));
+    float cosi = max(dot(n, -rd), 0.);
+    float dif = max(dot(n, L), 0.);
+    float rim = pow(1. - cosi, 3.);
+    float spec = pow(max(dot(reflect(rd, n), L), 0.), 60.);
+    float spec2 = pow(max(dot(reflect(rd, n), L2), 0.), 30.);
     if (ink) { col = vec3(.11, .11, .17); }
-    else {
-      vec3 n = normal(p);
-      vec3 L = normalize(vec3(-.5, .8, .65));
-      float dif = max(dot(n, L), 0.);
-      float rim = pow(1. - max(dot(n, -rd), 0.), 3.);
-      float spec = pow(max(dot(reflect(rd, n), L), 0.), 48.);
+    else if (glass) {
+      // Liquid glass: bend what's behind (a little more for red than blue), reflect the sky at the edges.
+      float F = .04 + .96 * pow(1. - cosi, 5.);
+      vec3 rdi = refract(rd, n, 1. / 1.45);
+      vec3 pin = p - n * .01; float ti = .02;
+      for (int j = 0; j < 40; j++) { float d = -map(pin + rdi * ti); if (d < .002) break; ti += max(d, .01); if (ti > 8.) break; }
+      vec3 pe = pin + rdi * ti, ne = -normal(pe);
+      vec3 rdo = refract(rdi, ne, 1.45); if (dot(rdo, rdo) < .01) rdo = reflect(rdi, ne);
+      vec3 refr = vec3(scene(pe, normalize(rdo + rdi * .03)).r, scene(pe, rdo).g, scene(pe, normalize(rdo - rdi * .03)).b);
+      refr *= exp(-ti * vec3(.10, .05, .02));                  // a whisper of blue where it's thick
+      vec3 refl = mix(vec3(1.), vec3(.75, .8, .95), clamp(-reflect(rd, n).y * .5 + .5, 0., 1.));
+      col = mix(refr, refl, F) + spec * 1.3 + spec2 * .35 + vec3(1.) * pow(1. - cosi, 7.) * .35;
+      if (eye(p, eyeA) || eye(p, eyeB)) col = vec3(.05, .06, .12) + spec * .8;
+    } else {
       vec3 base = look == 1 ? mix(vec3(.25, .5, .95), vec3(.6, .85, 1.), n.y * .5 + .5)
                             : mix(vec3(.80, .82, .95), vec3(1., .96, .99), n.y * .5 + .5) + vec3(.06, -.02, .06) * n.x;
       col = base * (.38 + .68 * dif) + rim * tint * .9 + spec * .85;
-      if (eye(p, eyeA) || eye(p, eyeB)) {
-        col = vec3(.06, .08, .16) + spec * .6;
-      }
+      if (eye(p, eyeA) || eye(p, eyeB)) col = vec3(.06, .08, .16) + spec * .6;
     }
+    if (!ink) col += tint * (1. - a) * .35;                    // the fading tip glows a little
+    col = mix(behind, col, a);
   }
   gl_FragColor = vec4(col, 1.);
 }`;
@@ -127,20 +198,26 @@ gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRA
 const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aLoc = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(aLoc); gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
-const U = {}; ['res', 'b', 'nb', 'nbody', 'k', 'bound', 'look', 'eyeA', 'eyeB', 'eyeR', 'blink', 'tanHalf'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+const U = {}; ['wa', 'wb', 'wn', 'nw', 'wsq', 'res', 'b', 'tipf', 'fade', 'edge', 'backdrop', 'nb', 'nbody', 'k', 'bound', 'look', 'eyeA', 'eyeB', 'eyeR', 'blink', 'tanHalf'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
 
 // ---------- the chain (data, then logic)
 const v3 = (x = 0, y = 0, z = 0) => ({ x, y, z });
 const head = v3(), vel = v3();
 let target = v3();
 const tail = Array.from({ length: 10 }, (_, i) => v3(0, (i + 1) * .4, -(i + 1) * .2));
-const wingL = Array.from({ length: 5 }, () => v3()), wingR = Array.from({ length: 5 }, () => v3());
+const norm = v => { const l = Math.hypot(v.x, v.y, v.z) || 1; return v3(v.x / l, v.y / l, v.z / l); };
+const cross = (a, c) => v3(a.y * c.z - a.z * c.y, a.z * c.x - a.x * c.z, a.x * c.y - a.y * c.x);
+const add = (a, c, k = 1) => v3(a.x + c.x * k, a.y + c.y * k, a.z + c.z * k);
+/** v turned by angle round axis (unit). */
+const turnAbout = (v, ax, ang) => { const c = Math.cos(ang), s = Math.sin(ang), d = v.x * ax.x + v.y * ax.y + v.z * ax.z, x = cross(ax, v);
+  return v3(v.x * c + x.x * s + ax.x * d * (1 - c), v.y * c + x.y * s + ax.y * d * (1 - c), v.z * c + x.z * s + ax.z * d * (1 - c)); };
 
 /** Each ball eases towards a spot one gap behind the one before, pulled towards a resting direction (`rest`) by `pull`. */
-function follow(chain, root, gap, lag, rest, pull) {
+function follow(chain, root, gap, lag, restOf, pull) {
   let prev = root;
-  const rl = Math.hypot(rest.x, rest.y, rest.z) || 1;
-  for (const c of chain) {
+  for (let i = 0; i < chain.length; i++) {
+    const c = chain[i], rest = typeof restOf === 'function' ? restOf(i) : restOf;
+    const rl = Math.hypot(rest.x, rest.y, rest.z) || 1;
     let dx = c.x - prev.x, dy = c.y - prev.y, dz = c.z - prev.z;
     const d = Math.hypot(dx, dy, dz) || 1;
     dx = dx / d * (1 - pull) + rest.x / rl * pull; dy = dy / d * (1 - pull) + rest.y / rl * pull; dz = dz / d * (1 - pull) + rest.z / rl * pull;
@@ -151,7 +228,8 @@ function follow(chain, root, gap, lag, rest, pull) {
     prev = c;
   }
 }
-const radii = (n, r0, taper, end = .08) => Array.from({ length: n }, (_, i) => r0 * Math.max(end, Math.pow(1 - (i + 1) / (n + 1), taper)));
+// Even steps from the head's size down to the tip, so the sides run straight (taper 1) or curve (other values).
+const radii = (n, r0, taper, end = .06) => Array.from({ length: n }, (_, i) => r0 * Math.max(end, Math.pow(1 - (i + 1) / (n + 1), taper)));
 
 // ---------- loop
 let W = 1, H = 1, dragging = false, held = false, t0 = performance.now();
@@ -178,33 +256,59 @@ function tick(now) {
   vel.x += ((head.x - px) * 60 - vel.x) * .1; vel.y += ((head.y - py) * 60 - vel.y) * .1;
   const bob = reduce ? 0 : Math.sin(t * 1.6) * .06;
 
-  // The tail rests up and away from you (a flame from the side, a blob from the front).
-  follow(tail, head, R0 * .42, .22, v3(0, 1, -.55), P.rise * .35 + .02);
+  // The tail rests pointing up, as in the drawings, curling a little more with each circle (the tiny check's lean).
+  // Moving, the whole teardrop leans away from where it's going and stays a teardrop (Sheet A: "stretch, squash,
+  // lean or tip over"). No thin trailing tail: the circles are held stiffly in line.
+  const lean = v3(Math.max(-.9, Math.min(.9, -vel.x * .12 * P.rise)), 0, 0);
+  const restOf = i => { const a = P.curl * 1.3 * (i + 1) / P.n; return v3(Math.sin(a) + lean.x, Math.cos(a) - Math.abs(lean.x) * .3, -.12); };
+  follow(tail, head, R0 * P.len / P.n, .1, restOf, .85);
   const balls = [[head, R0]];
-  const tr = radii(P.n, R0 * .92, P.taper);
-  for (let i = 0; i < P.n; i++) balls.push([tail[i], tr[i]]);
+  const tr = radii(P.n, R0, P.taper);
+  for (let i = 0; i < P.n; i++) balls.push([tail[i], tr[i], (i + 1) / P.n]);
   const nbody = balls.length;
+
+  // Paddle wings (Sheet B's "maybe"): from the shoulders, where the round base meets the straight sides.
+  // Upper pair out and up; the fairy's lower pair smaller, out and a little down. They flap round the spine and
+  // sweep back as Pip moves.
+  const wings = [];
   if (P.wings) {
-    const flap = reduce ? 0 : Math.sin(t * 7) * .7;
-    for (const [side, chain] of [[-1, wingL], [1, wingR]]) {
-      const root = v3(head.x + side * .55, head.y + .35, head.z - .45);
-      const rest = P.wings === 1 ? v3(side * .45, .55, -1)                                        // comet: back and up
-                                 : v3(side * Math.cos(flap) * .95, .45 + Math.sin(flap) * .5, -.25); // fan: out to the side
-      follow(chain, root, R0 * .24, .18, rest, .55);
-      const wr = radii(5, R0 * .36, .9, .2);
-      chain.forEach((c, i) => balls.push([c, wr[i]]));
+    const spine = norm(v3(tail[0].x - head.x, tail[0].y - head.y, tail[0].z - head.z));
+    const sideV = norm(cross(spine, v3(0, 0, 1)));
+    const flapA = reduce ? 0 : Math.sin(t * 8) * .55;
+    const pairs = P.wings === 2 ? [[38, 1.95, .44, 0], [-22, 1.3, .3, .9]] : [[34, 2.1, .46, 0]];
+    for (const [deg, L, r2, lagPhase] of pairs) for (const sd of [-1, 1]) {
+      const sideHere = v3(-sideV.x * sd, -sideV.y * sd, -sideV.z * sd);
+      const root = add(add(add(head, spine, R0 * .42), sideHere, R0 * .66), v3(0, 0, -1), R0 * .25);
+      const a = deg * Math.PI / 180;
+      let dir = norm(add(v3(sideHere.x * Math.cos(a), sideHere.y * Math.cos(a), sideHere.z * Math.cos(a)), spine, Math.sin(a)));
+      dir = norm(add(dir, v3(-vel.x, -vel.y, 0), .05));                       // swept back by the movement
+      const flap = reduce ? 0 : Math.sin(t * 8 - lagPhase) * .55;
+      dir = norm(turnAbout(dir, spine, flap * sd));
+      dir = norm(add(dir, v3(0, 0, -1), .25));
+      let nrm = norm(add(v3(0, 0, 1), dir, -dir.z));                          // flat to you, so you see its face
+      nrm = norm(turnAbout(nrm, dir, flap * .6 * sd));
+      wings.push([root, add(root, dir, R0 * L), R0 * .07, R0 * r2, nrm]);
     }
   }
 
   // Turn the whole Pip round its head, to see it from any side.
   const a = P.yaw * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
   const turn = p => { const dx = p.x - head.x, dz = p.z - head.z; return v3(head.x + dx * ca + dz * sa, p.y + bob, head.z - dx * sa + dz * ca); };
-  const data = new Float32Array(MAXB * 4);
+  const data = new Float32Array(MAXB * 4), tips = new Float32Array(MAXB);
+  balls.slice(0, MAXB).forEach((ball, i) => { tips[i] = ball[2] ?? 0; });
   let minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9, minz = 1e9, maxz = -1e9;
   balls.slice(0, MAXB).forEach(([p, r], i) => {
     const q = turn(p); data.set([q.x, q.y, q.z, r], i * 4);
     minx = Math.min(minx, q.x - r); maxx = Math.max(maxx, q.x + r); miny = Math.min(miny, q.y - r); maxy = Math.max(maxy, q.y + r);
     minz = Math.min(minz, q.z - r); maxz = Math.max(maxz, q.z + r);
+  });
+  const wa = new Float32Array(16), wb = new Float32Array(16), wnv = new Float32Array(12);
+  const turnV = v => v3(v.x * ca + v.z * sa, v.y, -v.x * sa + v.z * ca);
+  wings.forEach(([ra, rb, r1, r2, nrm], i) => {
+    const qa = turn(ra), qb = turn(rb), qn = turnV(nrm);
+    wa.set([qa.x, qa.y, qa.z, r1], i * 4); wb.set([qb.x, qb.y, qb.z, r2], i * 4); wnv.set([qn.x, qn.y, qn.z], i * 3);
+    minx = Math.min(minx, qb.x - r2); maxx = Math.max(maxx, qb.x + r2); miny = Math.min(miny, qb.y - r2); maxy = Math.max(maxy, qb.y + r2);
+    minz = Math.min(minz, qb.z - r2); maxz = Math.max(maxz, qb.z + r2);
   });
   const bc = v3((minx + maxx) / 2, (miny + maxy) / 2, (minz + maxz) / 2);
   const br = Math.hypot(maxx - minx, maxy - miny, maxz - minz) / 2 + 1.4;   // room for the glow
@@ -213,16 +317,17 @@ function tick(now) {
   const f = v3(Math.max(-.45, Math.min(.45, vel.x * .12)), Math.max(-.3, Math.min(.3, vel.y * .08)) + .12, 1);
   const fl = Math.hypot(f.x, f.y, f.z); f.x /= fl; f.y /= fl; f.z /= fl;
   const side = v3(f.z, 0, -f.x), sl = Math.hypot(side.x, side.z) || 1; side.x /= sl; side.z /= sl;
-  const eyeAt = s => { let e = v3(f.x + side.x * s * .42, f.y + .1, f.z + side.z * s * .42); const l = Math.hypot(e.x, e.y, e.z);
+  const eyeAt = s => { let e = v3(f.x + side.x * s * .3, f.y - .16, f.z + side.z * s * .3); const l = Math.hypot(e.x, e.y, e.z);
     return turn(v3(head.x + e.x / l * R0, head.y + e.y / l * R0, head.z + e.z / l * R0)); };
   const blinkK = (!reduce && (t % 4.3) < .12) ? .12 : 1;
 
   gl.uniform2f(U.res, cv.width, cv.height);
-  gl.uniform4fv(U.b, data); gl.uniform1i(U.nb, Math.min(MAXB, balls.length)); gl.uniform1i(U.nbody, nbody);
+  gl.uniform4fv(U.wa, wa); gl.uniform4fv(U.wb, wb); gl.uniform3fv(U.wn, wnv); gl.uniform1i(U.nw, wings.length); gl.uniform1f(U.wsq, .28);
+  gl.uniform4fv(U.b, data); gl.uniform1fv(U.tipf, tips); gl.uniform1f(U.fade, P.fade); gl.uniform1f(U.edge, P.edge); gl.uniform1i(U.backdrop, P.backdrop); gl.uniform1i(U.nb, Math.min(MAXB, balls.length)); gl.uniform1i(U.nbody, nbody);
   gl.uniform1f(U.k, P.blend); gl.uniform4f(U.bound, bc.x, bc.y, bc.z, br); gl.uniform1i(U.look, P.look);
   const ea = eyeAt(-1), eb = eyeAt(1);
   gl.uniform3f(U.eyeA, ea.x, ea.y, ea.z); gl.uniform3f(U.eyeB, eb.x, eb.y, eb.z);
-  gl.uniform1f(U.eyeR, R0 * .17); gl.uniform1f(U.blink, blinkK); gl.uniform1f(U.tanHalf, S / CAM);
+  gl.uniform1f(U.eyeR, R0 * .1); gl.uniform1f(U.blink, blinkK); gl.uniform1f(U.tanHalf, S / CAM);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   requestAnimationFrame(tick);
 }
@@ -240,17 +345,17 @@ function seg(id, key) {
   el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
     P[key] = +b.dataset.v; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
 }
-seg('look', 'look'); seg('wings', 'wings');
+seg('look', 'look'); seg('wings', 'wings'); seg('backdrop', 'backdrop');
 function bind(id, key, out, fmt = v => v) {
   const el = $('#' + id), o = $('#' + out);
   const set = () => { P[key] = +el.value; o.textContent = fmt(+el.value); };
   el.addEventListener('input', set); set();
 }
-bind('n', 'n', 'nv'); bind('taper', 'taper', 'tv'); bind('rise', 'rise', 'rv', v => Math.round(v * 100) + '%');
-bind('blend', 'blend', 'bv'); bind('yaw', 'yaw', 'yv', v => v + '°');
+bind('n', 'n', 'nv'); bind('len', 'len', 'lv'); bind('curl', 'curl', 'cv2'); bind('taper', 'taper', 'tv'); bind('rise', 'rise', 'rv', v => Math.round(v * 100) + '%');
+bind('blend', 'blend', 'bv'); bind('fade', 'fade', 'fv', v => Math.round(v * 100) + '%'); bind('edge', 'edge', 'ev', v => Math.round(v * 100) + '%'); bind('yaw', 'yaw', 'yv', v => v + '°');
 $('#auto').checked = P.auto; $('#auto').addEventListener('change', e => { P.auto = e.target.checked; held = false; });
 $('#copy').addEventListener('click', async () => {
-  const text = 'Pip 3D settings (Aaron): ' + JSON.stringify({ n: P.n, taper: P.taper, rise: P.rise, blend: P.blend, look: ['pearl', 'fairy blue', 'silhouette'][P.look], wings: ['none', 'comet', 'fan'][P.wings] });
+  const text = 'Pip 3D settings (Aaron): ' + JSON.stringify({ n: P.n, len: P.len, curl: P.curl, taper: P.taper, rise: P.rise, blend: P.blend, fade: P.fade, edge: P.edge, look: ['pearl', 'fairy blue', 'silhouette', 'liquid glass'][P.look], wings: ['none', 'one pair', 'two pairs'][P.wings] });
   try { await navigator.clipboard.writeText(text); $('#copy').textContent = 'Copied'; }
   catch { $('#copied').textContent = text; $('#copied').style.display = 'block'; }
   setTimeout(() => { $('#copy').textContent = 'Copy settings'; }, 1600);

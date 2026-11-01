@@ -93,6 +93,9 @@ Pip Sandbox is Aaron's **dream** playground for Glass Clock. It never ships.
 - Keep the grab-and-flick interaction.
 
 ## Pip
+- **Aaron's own drawings are the source of truth** for Pip's look (`nat/pip-design-decisions.md`). AI images are ideas
+  only. Unsure? Ask him for a drawing; flag anything you invent; keep experiments apart from approved decisions;
+  never a phallic or sperm-like silhouette (Aaron, 1 Nov 2026).
 - Pip is a personal, non-AI companion inspired by old low-memory games.
 - Its job is walking people through the app, scaling up or down to the user and the area of the app they're in.
 - It's customisable, with retro era skins over the glass style.
