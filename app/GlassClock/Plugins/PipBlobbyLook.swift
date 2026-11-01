@@ -137,6 +137,11 @@ struct BlobbyFrame {
     var mouth: BV3 = .zero
     /// How far a wing beat lifts him this frame (points, up is negative).
     var lift: CGFloat = 0
+    /// How high he's flying, 0 resting … 1 working hard: his light pool spreads further and softer.
+    var height: Double = 0
+    /// Stretch along the way he's moving when he's fast (Apple: motion blur / stretch encodes speed), and its angle.
+    var stretch: CGFloat = 0
+    var stretchAngle: Double = 0
 }
 
 /// Pip's body in motion: which way he faces (a soft spring, so he swings round with some weight), his tail (lags
@@ -188,6 +193,12 @@ final class BlobbyRig {
         var f = BlobbyFrame()
         let liftAmount: Double = rr * (0.03 + 0.09 * effort) * tune.effort
         f.lift = simpler ? 0 : CGFloat(-sin(phase) * liftAmount)
+        f.height = min(1, effort * 1.4)
+        if !simpler {
+            let fast: Double = speed2.squareRoot()
+            f.stretch = CGFloat(min(0.22, max(0, fast - 300) / 4000))
+            f.stretchAngle = atan2(vy, vx)
+        }
 
         let a = yaw * Double.pi / 180
         let tilt = simpler ? 0 : max(-0.35, min(0.35, vy / 1400))       // nose up climbing, down diving
@@ -241,9 +252,12 @@ final class BlobbyRig {
         let tall = 1 + 0.15 * max(0, cos(a))                              // a touch taller seen from the front
         for w in BlobbyPicks.wings {
             let root = crown + sideV * (w.side * 0.3)
-            let pitch = w.deg * Double.pi / 180 - sweep
+            // from the front both leaves even out (no lopsided perspective) and perk up a little (Aaron)
+            let deg: Double = w.deg + (53 - w.deg) * front + 10 * front
+            let pitch = deg * Double.pi / 180 - sweep
             let lean: BV3 = backV * cos(pitch) + up * sin(pitch)
-            let dir = bNorm(lean + sideV * (w.side * 0.42))
+            let spread: Double = 0.42 + 0.2 * front
+            let dir = bNorm(lean + sideV * (w.side * spread))
             let nrm = bNorm(simd_cross(dir, backV))
             let thin = max(0.6, abs(nrm.z))                                  // keeps some width from the front (Aaron)
             var pts: [BV3] = [root]
@@ -253,7 +267,8 @@ final class BlobbyRig {
                 let flutter: Double = amp * (sin(phase - st * 0.9 + lagBehind) * 0.8 + 0.2)
                 var seg = bTurn(dir, nrm, 0.28 * st - 0.14)
                 seg = bNorm(bTurn(seg, backV, w.side * flutter))
-                let stepLen: Double = w.len * tune.wings * tall * (st - BlobbyPicks.leafStops[j - 1])
+                let len: Double = w.len + (3.05 - w.len) * front
+                let stepLen: Double = len * tune.wings * tall * (st - BlobbyPicks.leafStops[j - 1])
                 pts.append(pts[j - 1] + seg * stepLen)
             }
             let circles: [BlobbyFrame.Circle] = pts.enumerated().map { j, p in
@@ -350,25 +365,30 @@ struct PipBlobbyBody: View {
         let m = BlobbyPicks.moment(at: emojiAt, time: time, simpler: simpler)
         let shown: String? = m.vis > 0.01 ? emoji : nil
         let e = m.vis * m.vis * (3 - 2 * m.vis)                               // eased
+        let leaving: Bool = (emojiAt.map { time - $0 > 2.8 }) ?? false
         ZStack {
             // the glow, on the room
             Circle()
                 .fill(RadialGradient(colors: [halo.opacity(tune.halo), halo.opacity(0)], center: .center, startRadius: 0, endRadius: r * 2.3))
                 .frame(width: r * 4.6, height: r * 4.6)
-            // a soft shadow under him, so he reads on the light app too (Rob: "a white blob on the light app")
+            // he glows, so he casts light, not shadow (Aaron): a pool of his light below him, further away and softer the
+            // higher he flies (depth)
             Ellipse()
-                .fill(RadialGradient(colors: [Color(red: 0.1, green: 0.15, blue: 0.3).opacity(0.22 * tune.edge), .clear],
-                                     center: .center, startRadius: 0, endRadius: r * 1.3))
-                .frame(width: r * 2.6, height: r * 1.1)
-                .offset(y: r * 1.15)
+                .fill(RadialGradient(colors: [halo.opacity(0.32 * tune.halo / 0.22 * (1 - 0.55 * frame.height)), .clear],
+                                     center: .center, startRadius: 0, endRadius: r * (1.4 + 0.9 * frame.height)))
+                .frame(width: r * (2.8 + 1.8 * frame.height), height: r * (1.0 + 0.5 * frame.height))
+                .offset(y: r * (1.2 + 1.3 * frame.height) - frame.lift)
+                .blendMode(.plusLighter)
             // a glass emoji inside him: less colour, bent by the ball, arriving sharp from soft (Apple: materialise)
             if let em = shown {
                 Text(em)
                     .font(.system(size: r * CGFloat(tune.emojiSize)))     // whole inside him, never cut off (Aaron)
                     .scaleEffect(CGFloat((0.5 + 0.5 * e) * m.pop))
-                    .saturation(tune.emojiColour)
+                    // leaving, it turns to glass: the colour drains, it brightens and softens, then melts into him (Aaron)
+                    .saturation(leaving ? tune.emojiColour * m.vis : tune.emojiColour)
+                    .brightness(leaving ? 0.3 * (1 - m.vis) : 0)
                     .opacity(min(1, m.vis * 1.5) * 0.85)
-                    .blur(radius: simpler ? 0 : CGFloat(1 - e) * r * 0.25)
+                    .blur(radius: simpler ? 0 : CGFloat(1 - e) * r * (leaving ? 0.35 : 0.25))
                     .offset(y: r * 0.08)
                     .frame(width: box, height: box)
                     .distortionEffect(ShaderLibrary.blobbyLens(.float2(mid), .float(r * 0.95), .float(tune.emojiBend)),
@@ -389,6 +409,9 @@ struct PipBlobbyBody: View {
             .frame(width: box, height: box)
         }
         .frame(width: box, height: box)
+        .rotationEffect(.radians(-frame.stretchAngle))
+        .scaleEffect(x: 1 + frame.stretch, y: 1 - frame.stretch * 0.45)
+        .rotationEffect(.radians(frame.stretchAngle))
         .offset(y: frame.lift)
         .accessibilityHidden(true)
     }
@@ -453,7 +476,7 @@ extension PipBlobbyBody {
             return CGPoint(x: p.x + (to.x - p.x) * CGFloat(e), y: p.y + (to.y - p.y) * CGFloat(e))
         }
         let shrink = CGFloat(1 - e * 0.7)
-        let closed = face == .blink || face == .asleep || face == .sleepy
+        let closed = face == .blink || face == .asleep
         for v in frame.eyes where v.z > 0.05 {
             ctx.drawLayer { l in
                 l.opacity = alpha * min(1, v.z * 4)
@@ -464,8 +487,18 @@ extension PipBlobbyBody {
                 l.rotate(by: ang)
                 l.scaleBy(x: CGFloat(max(0.3, v.z)) * shrink, y: shrink)
                 l.rotate(by: -ang)
-                let w: CGFloat = r * 0.1
-                let h: CGFloat = closed ? r * 0.04 : r * 0.155
+                // a little bigger (Aaron: "too small when he's big"), and emotive: placeholders until Aaron draws them
+                let big: CGFloat = face == .surprised || face == .dizzy ? 1.3 : 1
+                let w: CGFloat = r * 0.12 * big
+                let h: CGFloat = closed ? r * 0.04 : (face == .sleepy ? r * 0.08 : r * 0.19 * (face == .surprised ? 1.05 : 1))
+                if face == .happy {                                            // happy: upturned arcs, like a smile
+                    var arc = Path()
+                    arc.move(to: CGPoint(x: -w, y: h * 0.25))
+                    arc.addQuadCurve(to: CGPoint(x: w, y: h * 0.25), control: CGPoint(x: 0, y: -h * 0.75))
+                    l.stroke(arc, with: .color(Color(red: 0.08, green: 0.08, blue: 0.16)),
+                             style: StrokeStyle(lineWidth: max(1, w * 0.55), lineCap: .round))
+                    return
+                }
                 let eye = Path(ellipseIn: CGRect(x: -w, y: -h, width: w * 2, height: h * 2))
                 // pressed into the glass: a dark hollow, its lower rim lit, a tiny catchlight
                 l.fill(eye, with: .radialGradient(Gradient(colors: [Color(red: 0.05, green: 0.05, blue: 0.11),

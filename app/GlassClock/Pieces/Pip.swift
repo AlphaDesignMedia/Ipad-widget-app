@@ -452,6 +452,19 @@ private struct PerFrame<C: View>: View {
     var body: some View { content() }
 }
 
+/// The little point on Pip's speech bubble, pointing up (rotated to point down).
+struct BubbleTail: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.maxY), control: CGPoint(x: rect.midX + rect.width * 0.1, y: rect.midY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.minY), control: CGPoint(x: rect.midX - rect.width * 0.1, y: rect.midY))
+        p.closeSubpath()
+        return p
+    }
+}
+
 /// Pip over the whole app. Only Pip itself takes touches; everything else passes through.
 struct PipLayer: View {
     @AppStorage("pipOn") private var pipOn = true
@@ -538,19 +551,34 @@ struct PipLayer: View {
             .accessibilityHidden(true)
     }
 
+    /// Pip's speech bubble: under Pip, with a little tail up to Pip, so it never covers Pip's wings; above (tail down)
+    /// when there's no room below (Aaron, 1 Nov: "the speech bubble should go underneath him … with a tail to his face").
     private func bubble(_ line: String, size: CGSize) -> some View {
-        let above = pip.pos.y > 68 + 12 * pip.scale
+        let r: CGFloat = 12 * pip.scale
+        let gap: CGFloat = r * 1.6 + 12
+        let below = pip.pos.y + gap + 90 < size.height
+        let dir: CGFloat = below ? 1 : -1
         let x = min(max(pip.pos.x, 125), size.width - 125)
-        return Text(line)
-            .font(.system(size: 14, weight: .medium))
-            .lineSpacing(2)
-            .padding(.vertical, 9).padding(.horizontal, 13)
-            .glassEffect(.regular.tint(PipLook.accent.opacity(0.1)), in: .rect(cornerRadius: 15))
-            .frame(maxWidth: 230)
-            .position(x: x, y: pip.pos.y + pip.hop + (above ? -1 : 1) * (26 + 12 * pip.scale))
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-            .transition(.opacity)
+        let edge = pip.pos.y + pip.hop + dir * gap                              // the bubble's edge nearest Pip
+        let tailX = min(max(pip.pos.x, x - 95), x + 95)
+        return ZStack {
+            Text(line)
+                .font(.system(size: 14, weight: .medium))
+                .lineSpacing(2)
+                .padding(.vertical, 9).padding(.horizontal, 13)
+                .glassEffect(.regular.tint(PipLook.accent.opacity(0.1)), in: .rect(cornerRadius: 15))
+                .frame(maxWidth: 230)
+                .frame(width: 230, height: 160, alignment: below ? .top : .bottom)
+                .position(x: x, y: edge + dir * 80)
+            BubbleTail()
+                .fill(.regularMaterial)
+                .frame(width: 16, height: 9)
+                .rotationEffect(.degrees(below ? 0 : 180))
+                .position(x: tailX, y: edge - dir * 4)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .transition(.opacity)
     }
 
     /// The falling twinkle with its trail, and the little bursts when Pip lands or bounces.
