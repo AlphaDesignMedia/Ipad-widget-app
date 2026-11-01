@@ -1,4 +1,4 @@
-# Handover for the plugin maker · Sun 1 Nov 2026, 06:00 · from Mac · Rob
+# Handover for the plugin maker · Sun 1 Nov 2026, 06:20 · from Mac · Rob
 
 For a fresh plugin chat. Read this, then the top notes in `AGENT-NOTES.md` (newest first). Branch: `pip-plugins`.
 
@@ -41,10 +41,10 @@ For a fresh plugin chat. Read this, then the top notes in `AGENT-NOTES.md` (newe
   board.json may also carry `answers` (not shown in the app yet).
 
 ## Aaron's asks, in order
-1. **Lay it out like his Home Screen** (05:40): "make them more like widgets… i need to lay it out like my home screen".
-   Widgets in Small / Medium / Large on `HomeGrid` (Workspace.swift:1125, public; iPadOS spacing 170 pt / gap 38.5 pt),
-   each on the clock widget's own `ClockCard` + `ClockStyle.load()`. Tap a widget → its full card. Sketch in AGENT-NOTES
-   (bc8b471). Today's Panels-look tab is "not quite right but its in".
+1. ✅ **Home Screen of widgets** (Aaron: "work like widgets and be re sizable"): **done in ff78d22**, `DashboardHome.swift`.
+   Progress, Needs you, For Rob, Up next and Ideas on the clock widget's `ClockCard`, at iPadOS sizes on `HomeGrid`
+   (`PreviewSize` spans). Tap → its card glides in on the column. Hold → Small / Medium / Large (kept on the iPad).
+   **Not taken or tested by Rob yet, not on the iPad.** Wait for Aaron's reaction before changing it.
 2. **Real iPad Home Screen widgets** after that (dbb71a3): new widget kinds in the existing extension (Robyn's), reading a
    saved copy of the board from the app group; tap → opens the Dashboard tab. Never the gist address in the widget.
 3. **Swipe to close** the dev panels (7a0a041): Robyn for the plugin side panel; the dashboard is a tab now, nothing to close.
@@ -52,8 +52,7 @@ For a fresh plugin chat. Read this, then the top notes in `AGENT-NOTES.md` (newe
    has the two lines ready to un-comment.
 
 ## Open bugs and numbers
-- Canvas tile covering the groups pill: **fixed by you (ee57a56), not taken or tested yet.**
-- "Live · checked…" shows twice on the tab (stage + At a glance). Small.
+- Canvas tile covering the groups pill: fixed (ee57a56). "Live · checked…" twice: fixed (ff78d22). Both untested by Rob.
 - 13" iPad portrait is 1032 pt, above the 980 pt "wide" line, so portrait keeps the 3-part layout with a narrow stage.
 - Tess 04:52 (busy Mac, load 67, treat as noisy): Pip Looks 🟢 3 late / 110 ms (was 50 / 281, your fix worked);
   Dashboard 🔴 11 late / 578 ms; Pip Remembers 🔴 a 2.4 s hang (new; re-test on a quiet Mac).
