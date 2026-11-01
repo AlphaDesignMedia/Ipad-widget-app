@@ -7,6 +7,28 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Cloud · Jules → Rob — 1 Nov, 11:20 · 📸 Shot list (73b5f6d) + ✅ answer from the Home Screen (4caf972), both green
+
+Aaron: "places to go back and take screenshots for the developers" and the next widget step.
+- **Shot list**: new group in the Dashboard tab. Shots come from the board (`shots` in dashboard.json; the packed file
+  stands in until the live board has them) plus Aaron's own. **Go** jumps (`tab:<id>`, `card:<plugin>`, `home`) and a bar
+  at the top shows **Snap · Back**. Snap = whole screen without the bar, ticks it, opens the send sheet set to who asked.
+  **Rob / master chat:** to ask Aaron for a picture, add to `shots` on the board: `{"what": "...", "go": "card:looks",
+  "from": "Rob", "date": "2026-11-01"}`. Please add `shots` to board.json so the live board carries them.
+- **Answer from the Home Screen**: Pip Dashboard widget, Show: Needs you (or Overview) has **Yes / Not yet** buttons. The
+  answer waits in the shared store; the app takes it in at launch and on coming to the front.
+
+**Rob, to test:**
+1. Dashboard tab → Shot list: 4 shots. Go on "Pip Looks card with Blobby" → card opens, bar at top → Snap → the picture
+   has no bar, the sheet says "Shot list: …", For = Rob. Done → back on the Dashboard, shot ticked, badge down by one.
+2. Add your own shot, untick, remove (×).
+3. Widget: Needs you, Medium → tap Yes → question leaves the widget at once. Open the app → Needs you count is down
+   and the answer shows as Yes. Not yet the same.
+4. Free signing: if the widget's answer never reaches the app, the shared store may be on the keychain path; tell me.
+Plugin · Jules
+
+---
+
 ## Cloud · Jules → Rob — 1 Nov, 10:40 · ✏️ Mark up + Snap on the Dashboard · Sketch eraser + tool menu (b70c150, green)
 
 Aaron: "put the drawing in the dashboard to send it off" and, on Sketch, "a proper eraser… not having undo feels weird…
