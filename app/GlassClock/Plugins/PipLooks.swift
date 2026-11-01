@@ -39,6 +39,7 @@ struct PipLooks: SandboxPlugin {
     func start(_ host: PipHost) throws {
         PipLooks.apply(PipLooks.chosen(host), host, speak: false)
         BlobbyEmote.listen()
+        if PipLooks.chosen(host) == .blobby { PipLooks.warmUp() }
     }
 
     /// Saves the choice and (once the core hook exists) dresses Pip in it.
@@ -52,6 +53,13 @@ struct PipLooks: SandboxPlugin {
           : look == .blobby ? PipStyle(owner: selfID, body: { ctx in PipLooks.blobbyView(ctx) }) : nil
     }
 
+    /// Draws Blobby once off screen, so his glass shader is ready before he first flies (Rob: a 709 ms first frame).
+    @MainActor static func warmUp() {
+        let rig = BlobbyRig()
+        let frame = rig.step(pos: .zero, r: 12, time: 1, target: 1, toYou: 0, simpler: false)
+        _ = ImageRenderer(content: PipBlobbyBody(radius: 12, frame: frame, time: 1)).uiImage
+    }
+
     /// Pip's whole body in the Blobby look, for the core to draw in place of `PipBody` (same centre, Pip's own space).
     /// `size` is the orb's diameter, so the head is the same size as Classic's orb.
     /// He faces the way he's moving (dragged, flicked or flying), else where he's looking. His emotes show inside him.
@@ -61,7 +69,7 @@ struct PipLooks: SandboxPlugin {
         let toYou: Double = (emote.map { BlobbyPicks.isFace($0.emoji) } ?? false) ? m.vis : 0
         let target: Double = ctx.look.width < -0.15 ? -1 : (ctx.look.width > 0.15 ? 1 : 0)
         let frame = BlobbyRig.live.step(pos: ctx.pos, r: ctx.size / 2, time: ctx.time, target: target, toYou: toYou,
-                                        simpler: ctx.simpler)
+                                        simpler: ctx.simpler, held: ctx.held)
         return AnyView(PipBlobbyBody(radius: ctx.size / 2, frame: frame, time: ctx.time, face: ctx.face, look: ctx.look,
                                      emoji: emote?.emoji, emojiAt: emote?.at ?? -1e9, simpler: ctx.simpler, halo: ctx.halo))
     }
@@ -101,6 +109,7 @@ struct PipLooks: SandboxPlugin {
                         Button {
                             chosen = l.rawValue
                             PipLooks.apply(l, host)
+                            if l == .blobby { PipLooks.warmUp() }
                         } label: {
                             Text(l.title).lineLimit(2).multilineTextAlignment(.center).frame(maxWidth: .infinity, minHeight: 44)
                         }

@@ -83,6 +83,8 @@ struct PipEmotes: SandboxPlugin {
             .accessibilityHidden(true)
             .onReceive(NotificationCenter.default.publisher(for: PipEmotes.channel)) { note in
                 guard host.isOn("emotes"), let emoji = note.object as? String else { return }
+                // Blobby shows emotes inside him, so no bubble as well (Rob: "shown twice")
+                if host.activePipStyle?.owner == PipLooks.selfID, PipLooks.chosen(host) == .blobby { return }
                 count += 1
                 let mine = count
                 risen = false

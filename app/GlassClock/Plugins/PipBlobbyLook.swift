@@ -67,6 +67,20 @@ struct BlobbyTune: Codable, Equatable {
     var turn = 60.0         // how snappily he turns (spring)
     var effort = 1.0        // how hard flying looks (flap and lift)
     var halo = 0.22         // the glow on the room around him
+    var edge = 0.55         // a darker glass edge and a soft shadow, so he reads on light backgrounds
+
+    init() {}
+    /// Older saved settings miss newer sliders: those take their defaults.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = BlobbyTune()
+        func v(_ k: CodingKeys, _ def: Double) -> Double { (try? c.decodeIfPresent(Double.self, forKey: k)) ?? def }
+        glass = v(.glass, d.glass); glow = v(.glow, d.glow); shine = v(.shine, d.shine); warm = v(.warm, d.warm)
+        soft = v(.soft, d.soft); emojiSize = v(.emojiSize, d.emojiSize); emojiColour = v(.emojiColour, d.emojiColour)
+        emojiBend = v(.emojiBend, d.emojiBend); tail = v(.tail, d.tail); wings = v(.wings, d.wings)
+        nearWing = v(.nearWing, d.nearWing); turn = v(.turn, d.turn); effort = v(.effort, d.effort)
+        halo = v(.halo, d.halo); edge = v(.edge, d.edge)
+    }
 
     static let key = "plug.looks.blobbyTune"
     @MainActor static var current: BlobbyTune = load()
@@ -139,7 +153,8 @@ final class BlobbyRig {
 
     /// pos: where his head is (points, any fixed space); r: head radius (points); target: -1 left, 1 right, 0 no
     /// preference (he keeps his side); toYou: 0…1, how much he turns to look at you (a face emoji).
-    @MainActor func step(pos: CGPoint, r: CGFloat, time t: Double, target: Double, toYou: Double, simpler: Bool) -> BlobbyFrame {
+    @MainActor func step(pos: CGPoint, r: CGFloat, time t: Double, target: Double, toYou: Double, simpler: Bool,
+                         held: Bool = false) -> BlobbyFrame {
         let tune = BlobbyTune.current
         let dt: Double = lastT == 0 ? 1.0 / 60 : min(0.05, max(0, t - lastT))
         lastT = t
@@ -152,7 +167,9 @@ final class BlobbyRig {
         // facing: towards the way he's moving, else the side asked for, else the side he's on
         let moving: Double = abs(vx) > 40 ? (vx > 0 ? 1 : -1) : 0
         let side: Double = moving != 0 ? moving : (target != 0 ? target : (yaw >= 0 ? 1 : -1))
-        let want = side * (moving != 0 ? BlobbyPicks.flyTurn : BlobbyPicks.restTurn) * (1 - toYou)
+        // held or moving, the turn wins: he faces where he's going, even with a face emoji in (Rob: Pip's Weight's 🥰)
+        let lookAtYou: Double = (held || moving != 0) ? 0 : toYou
+        let want = side * (moving != 0 ? BlobbyPicks.flyTurn : BlobbyPicks.restTurn) * (1 - lookAtYou)
         if simpler { yaw = want; yawV = 0 } else {
             let spring: Double = tune.turn
             let damping: Double = 11 * (spring / 60).squareRoot()
@@ -333,15 +350,17 @@ struct PipBlobbyBody: View {
         let m = BlobbyPicks.moment(at: emojiAt, time: time, simpler: simpler)
         let shown: String? = m.vis > 0.01 ? emoji : nil
         let e = m.vis * m.vis * (3 - 2 * m.vis)                               // eased
-        let tip = frame.tail.last?.at ?? .zero
-        let k: CGFloat = max(1.5, r * 0.15)                                     // how far the shader looks for the slope
         ZStack {
             // the glow, on the room
             Circle()
                 .fill(RadialGradient(colors: [halo.opacity(tune.halo), halo.opacity(0)], center: .center, startRadius: 0, endRadius: r * 2.3))
                 .frame(width: r * 4.6, height: r * 4.6)
-            // Apple's glass in his body's shape: what's behind him really bends
-            Color.clear.glassEffect(.clear, in: BlobbyShape(path: bodyPath))
+            // a soft shadow under him, so he reads on the light app too (Rob: "a white blob on the light app")
+            Ellipse()
+                .fill(RadialGradient(colors: [Color(red: 0.1, green: 0.15, blue: 0.3).opacity(0.22 * tune.edge), .clear],
+                                     center: .center, startRadius: 0, endRadius: r * 1.3))
+                .frame(width: r * 2.6, height: r * 1.1)
+                .offset(y: r * 1.15)
             // a glass emoji inside him: less colour, bent by the ball, arriving sharp from soft (Apple: materialise)
             if let em = shown {
                 Text(em)
@@ -357,21 +376,10 @@ struct PipBlobbyBody: View {
                     .mask(Circle().fill(RadialGradient(colors: [.black, .black, .clear], center: .center, startRadius: 0, endRadius: r))
                         .frame(width: r * 2, height: r * 2))
             }
-            // his silhouette, softened, through the glass shader
-            Canvas { ctx, size in
-                ctx.addFilter(.blur(radius: r * CGFloat(tune.soft)))         // soft joins (Aaron: smoother)
-                ctx.translateBy(x: size.width / 2, y: size.height / 2)
-                ctx.blendMode = .plusLighter
-                ctx.fill(bodyPath, with: .color(Color(red: 1, green: 0, blue: 0)))
-                for w in frame.wings {
-                    ctx.fill(BlobbyPaths.wing(w, fat: w.back ? 1 : CGFloat(tune.nearWing)), with: .color(w.back ? Color(red: 0, green: 0, blue: 1) : Color(red: 0, green: 1, blue: 0)))
-                }
-            }
-            .frame(width: box, height: box)
-            .layerEffect(ShaderLibrary.blobbyGlass(.float2(mid), .float(r),
-                                                   .float2(CGPoint(x: mid.x + tip.x, y: mid.y + tip.y)), .float(k),
-                                                   .float4(tune.glass, tune.glow, tune.shine, tune.warm)),
-                         maxSampleOffset: CGSize(width: k, height: k))
+            // his silhouette, softened, through the glass shader. Only his own patch of screen, and at most 30 times a
+            // second (Rob: 11 fps flying with the old full box, every frame, plus Apple's glass on top)
+            BlobbyGlassLayer(key: simpler ? 0 : Int(time * 30), r: r, frame: frame, shape: bodyPath, tune: tune)
+                .equatable()
             // his face on top, sinking into the emoji while one is in
             Canvas { ctx, size in
                 ctx.translateBy(x: size.width / 2, y: size.height / 2)
@@ -385,6 +393,54 @@ struct PipBlobbyBody: View {
         .accessibilityHidden(true)
     }
 
+    }
+
+/// The glass part of Blobby: his soft silhouette (body red, near wing green, far wing blue) through BlobbyGlass.metal.
+/// Drawn only over the patch he covers, and redrawn only when `key` changes (30 a second), which is what makes it cheap.
+struct BlobbyGlassLayer: View, Equatable {
+    let key: Int
+    let r: CGFloat
+    let frame: BlobbyFrame
+    let shape: Path
+    let tune: BlobbyTune
+
+    static func == (a: Self, b: Self) -> Bool { a.key == b.key && a.r == b.r && a.tune == b.tune }
+
+    var body: some View {
+        let soft: CGFloat = r * CGFloat(tune.soft)
+        let k: CGFloat = max(1.5, r * 0.15)                                     // how far the shader looks for the slope
+        // his patch: every circle of him, plus room for the softening
+        var rect = CGRect(x: -r, y: -r, width: r * 2, height: r * 2)
+        for c in frame.tail { rect = rect.union(CGRect(x: c.at.x - c.r, y: c.at.y - c.r, width: c.r * 2, height: c.r * 2)) }
+        for w in frame.wings {
+            for c in w.circles {
+                let rr: CGFloat = c.r * CGFloat(tune.nearWing)
+                rect = rect.union(CGRect(x: c.at.x - rr, y: c.at.y - rr, width: rr * 2, height: rr * 2))
+            }
+        }
+        rect = rect.insetBy(dx: -(soft * 2 + k), dy: -(soft * 2 + k)).integral
+        let head = CGPoint(x: -rect.minX, y: -rect.minY)
+        let tip = frame.tail.last?.at ?? .zero
+        let wings = frame.wings
+        return Canvas { ctx, _ in
+            ctx.addFilter(.blur(radius: soft))                                 // soft joins (Aaron: smoother)
+            ctx.translateBy(x: head.x, y: head.y)
+            ctx.blendMode = .plusLighter
+            ctx.fill(shape, with: .color(Color(red: 1, green: 0, blue: 0)))
+            for w in wings {
+                ctx.fill(BlobbyPaths.wing(w, fat: w.back ? 1 : CGFloat(tune.nearWing)),
+                         with: .color(w.back ? Color(red: 0, green: 0, blue: 1) : Color(red: 0, green: 1, blue: 0)))
+            }
+        }
+        .frame(width: rect.width, height: rect.height)
+        .layerEffect(ShaderLibrary.blobbyGlass(.float2(head), .float(r), .float2(CGPoint(x: head.x + tip.x, y: head.y + tip.y)),
+                                               .float(k), .float4(tune.glass, tune.glow, tune.shine, tune.warm), .float(tune.edge)),
+                     maxSampleOffset: CGSize(width: k, height: k))
+        .offset(x: rect.midX, y: rect.midY)
+    }
+}
+
+extension PipBlobbyBody {
     /// Placeholder eyes (Aaron will draw his own; this is the one place they're painted). No mouth unless he's emoting.
     private func paintFace(_ ctx: inout GraphicsContext, sink e: Double) {
         let r = radius
