@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pip 3D · trailing circles</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1020; font: 14px/1.35 -apple-system, system-ui, "Helvetica Neue", sans-serif; user-select: none; -webkit-user-select: none; }
+  #stage { position: absolute; inset: 0; touch-action: none; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #panel { position: absolute; right: 16px; top: 16px; width: 290px; max-height: calc(100% - 32px); overflow: auto; padding: 14px 16px; border-radius: 22px;
+           background: rgba(255,255,255,.86); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); color: #1b1d28; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+  #panel h1 { margin: 0 0 4px; font-size: 17px; } #panel p { margin: 0 0 10px; color: #555; font-size: 12.5px; }
+  .lbl { margin-top: 12px; font-size: 11px; letter-spacing: 1px; font-weight: 600; color: #777; text-transform: uppercase; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .seg button, .btn { border: 0; border-radius: 14px; padding: 7px 12px; background: #e8eaf2; color: #1b1d28; font: 600 13px -apple-system, system-ui, sans-serif; }
+  .seg button.on { background: #1b1d28; color: #fff; }
+  .row { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; } .row span:last-child { color: #777; }
+  input[type=range] { width: 100%; }
+  label.chk { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 13px; }
+  #hint { position: absolute; left: 16px; bottom: 16px; color: rgba(255,255,255,.75); font-size: 13px; pointer-events: none; }
+  #nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #fff; padding: 40px; text-align: center; }
+  @media (max-width: 700px) { #panel { width: auto; left: 12px; right: 12px; top: auto; bottom: 12px; max-height: 45%; } #hint { display: none; } }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="nogl">This page needs WebGL, which this browser has switched off.</div>
+<div id="hint">Drag anywhere: Pip follows. Still, it's a blob from the front. Moving, it trails like a flame.</div>
+<div id="panel">
+  <h1>Pip in 3D</h1>
+  <p>Aaron's V2 direction: a teardrop made of circles trailing from the centre and blending together, flame-like when moving. Here they're real 3D balls, melted into one shape and lit. A toy to judge the shape, not the final look.</p>
+  <div class="lbl">Look</div>
+  <div class="seg" id="look"><button data-v="0" class="on">Pearl</button><button data-v="1">Fairy blue</button><button data-v="2">Silhouette</button></div>
+  <div class="lbl">Wings (not decided)</div>
+  <div class="seg" id="wings"><button data-v="0" class="on">None</button><button data-v="1">Comet</button><button data-v="2">Fan</button></div>
+  <div class="row"><span>Trailing circles</span><span id="nv"></span></div><input type="range" id="n" min="3" max="10" step="1" value="6">
+  <div class="row"><span>Taper</span><span id="tv"></span></div><input type="range" id="taper" min="0.6" max="2.4" step="0.05" value="1.0">
+  <div class="row"><span>Rise (flame goes up)</span><span id="rv"></span></div><input type="range" id="rise" min="0" max="1" step="0.05" value="0.55">
+  <div class="row"><span>Blend (how much they melt)</span><span id="bv"></span></div><input type="range" id="blend" min="0.05" max="1.2" step="0.05" value="0.55">
+  <div class="row"><span>Turn to see it in 3D</span><span id="yv"></span></div><input type="range" id="yaw" min="-180" max="180" step="1" value="0">
+  <label class="chk"><input type="checkbox" id="auto" checked> Drift on its own</label>
+  <div class="seg" style="margin-top:12px"><button class="btn" id="copy">Copy settings</button></div>
+  <p id="copied" style="display:none;margin-top:8px;user-select:text;-webkit-user-select:text;font:12px ui-monospace,Menlo,monospace"></p>
+</div>
+<script>
+'use strict';
+// PIP 3D · Jules, 1 Nov 2026. Aaron: "think of it like trailing blending circles from the centre… like a fire… 3D new V2 Pip".
+// A head ball, a chain of smaller balls easing after it in 3D (each one a gap behind the one before, rising like a flame
+// and leaning away from you), all melted together with a smooth union and lit with a fixed light (ray-marched in WebGL).
+// Moving: the chain streams behind. Still: it settles up and back, so from the front Pip reads as a round blob.
+// Browser toy only. Nothing here is in the app; Pip Peek and Pip Flight stay parked until Aaron agrees the shape.
+
+const $ = s => document.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const P = { n: 6, taper: 1.0, rise: .55, blend: .55, yaw: 0, look: 0, wings: 0, auto: !reduce };
+const MAXB = 24, R0 = 1, S = 3.2, CAM = 8;
+
+// ---------- WebGL
+const cv = $('#c'), gl = cv.getContext('webgl', { antialias: false, premultipliedAlpha: false });
+if (!gl) { $('#nogl').style.display = 'flex'; throw new Error('no webgl'); }
+const vs = `attribute vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
+const fs = `
+precision highp float;
+uniform vec2 res; uniform vec4 b[${MAXB}]; uniform int nb; uniform int nbody; uniform float k;
+uniform vec4 bound; uniform int look; uniform vec3 eyeA; uniform vec3 eyeB; uniform float eyeR; uniform float blink;
+uniform vec3 up; uniform float tanHalf;
+float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
+float map(vec3 p){
+  float d = 1e5;
+  for (int i = 0; i < ${MAXB}; i++) {
+    if (i >= nb) break;
+    float kk = i < nbody ? k : k * .7;
+    d = smin(d, length(p - b[i].xyz) - b[i].w, kk);
+  }
+  return d;
+}
+vec3 normal(vec3 p){
+  const vec2 e = vec2(.0015, -.0015);
+  return normalize(e.xyy * map(p + e.xyy) + e.yyx * map(p + e.yyx) + e.yxy * map(p + e.yxy) + e.xxx * map(p + e.xxx));
+}
+bool eye(vec3 p, vec3 c){ vec3 q = p - c; q.y /= max(blink, .12); return length(q) < eyeR; }
+void main(){
+  vec2 uv = (gl_FragCoord.xy * 2. - res) / res.y;
+  vec3 ro = vec3(0., 0., ${CAM.toFixed(1)});
+  vec3 rd = normalize(vec3(uv * tanHalf, -1.));
+  bool ink = look == 2;
+  vec3 bg = ink ? mix(vec3(.93, .94, .97), vec3(.86, .88, .93), gl_FragCoord.y / res.y)
+                : mix(vec3(.03, .04, .09), vec3(.10, .12, .24), gl_FragCoord.y / res.y);
+  vec3 tint = look == 1 ? vec3(.45, .72, 1.) : vec3(.82, .86, 1.);
+  // Skip pixels that can't touch Pip (or the glow round them).
+  vec3 oc = ro - bound.xyz; float bb = dot(oc, rd), cc = dot(oc, oc) - bound.w * bound.w, h = bb * bb - cc;
+  if (h < 0.) { gl_FragColor = vec4(bg, 1.); return; }
+  h = sqrt(h);
+  float t = max(0., -bb - h), tEnd = -bb + h, md = 1e5;
+  bool hit = false;
+  for (int i = 0; i < 90; i++) {
+    vec3 p = ro + rd * t; float d = map(p); md = min(md, d);
+    if (d < .002) { hit = true; break; }
+    t += d; if (t > tEnd) break;
+  }
+  vec3 col = bg;
+  if (!ink) col += tint * exp(-md * 2.6) * .32;            // the glow
+  if (hit) {
+    vec3 p = ro + rd * t;
+    if (ink) { col = vec3(.11, .11, .17); }
+    else {
+      vec3 n = normal(p);
+      vec3 L = normalize(vec3(-.5, .8, .65));
+      float dif = max(dot(n, L), 0.);
+      float rim = pow(1. - max(dot(n, -rd), 0.), 3.);
+      float spec = pow(max(dot(reflect(rd, n), L), 0.), 48.);
+      vec3 base = look == 1 ? mix(vec3(.25, .5, .95), vec3(.6, .85, 1.), n.y * .5 + .5)
+                            : mix(vec3(.80, .82, .95), vec3(1., .96, .99), n.y * .5 + .5) + vec3(.06, -.02, .06) * n.x;
+      col = base * (.38 + .68 * dif) + rim * tint * .9 + spec * .85;
+      if (eye(p, eyeA) || eye(p, eyeB)) {
+        col = vec3(.06, .08, .16) + spec * .6;
+      }
+    }
+  }
+  gl_FragColor = vec4(col, 1.);
+}`;
+function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+const aLoc = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(aLoc); gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
+const U = {}; ['res', 'b', 'nb', 'nbody', 'k', 'bound', 'look', 'eyeA', 'eyeB', 'eyeR', 'blink', 'tanHalf'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+// ---------- the chain (data, then logic)
+const v3 = (x = 0, y = 0, z = 0) => ({ x, y, z });
+const head = v3(), vel = v3();
+let target = v3();
+const tail = Array.from({ length: 10 }, (_, i) => v3(0, (i + 1) * .4, -(i + 1) * .2));
+const wingL = Array.from({ length: 5 }, () => v3()), wingR = Array.from({ length: 5 }, () => v3());
+
+/** Each ball eases towards a spot one gap behind the one before, pulled towards a resting direction (`rest`) by `pull`. */
+function follow(chain, root, gap, lag, rest, pull) {
+  let prev = root;
+  const rl = Math.hypot(rest.x, rest.y, rest.z) || 1;
+  for (const c of chain) {
+    let dx = c.x - prev.x, dy = c.y - prev.y, dz = c.z - prev.z;
+    const d = Math.hypot(dx, dy, dz) || 1;
+    dx = dx / d * (1 - pull) + rest.x / rl * pull; dy = dy / d * (1 - pull) + rest.y / rl * pull; dz = dz / d * (1 - pull) + rest.z / rl * pull;
+    const dl = Math.hypot(dx, dy, dz) || 1;
+    c.x += (prev.x + dx / dl * gap - c.x) * (1 - lag);
+    c.y += (prev.y + dy / dl * gap - c.y) * (1 - lag);
+    c.z += (prev.z + dz / dl * gap - c.z) * (1 - lag);
+    prev = c;
+  }
+}
+const radii = (n, r0, taper, end = .08) => Array.from({ length: n }, (_, i) => r0 * Math.max(end, Math.pow(1 - (i + 1) / (n + 1), taper)));
+
+// ---------- loop
+let W = 1, H = 1, dragging = false, held = false, t0 = performance.now();
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);   // light on the iPad
+  W = innerWidth; H = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  gl.viewport(0, 0, cv.width, cv.height);
+}
+addEventListener('resize', resize); resize();
+const toWorld = (px, py) => v3((px / W * 2 - 1) * S * (W / H), -(py / H * 2 - 1) * S, 0);
+
+function tick(now) {
+  const t = (now - t0) / 1000;
+  // Home is left of centre when the panel is beside it, so Pip never hides under the panel.
+  const home = v3(W > 700 ? -S * (W / H) * .22 : 0, W > 700 ? 0 : S * .3, 0);
+  if (P.auto && !dragging) {
+    const k = t * .45, still = Math.sin(t * .35) > .55;
+    target = still ? target : v3(home.x + Math.sin(k) * S * .55 * Math.min(1.3, W / H), home.y + Math.sin(k * 2) * S * .4, 0);
+  } else if (!dragging && !held) {
+    target = home;
+  }
+  const px = head.x, py = head.y;
+  head.x += (target.x - head.x) * .08; head.y += (target.y - head.y) * .08;
+  vel.x += ((head.x - px) * 60 - vel.x) * .1; vel.y += ((head.y - py) * 60 - vel.y) * .1;
+  const bob = reduce ? 0 : Math.sin(t * 1.6) * .06;
+
+  // The tail rests up and away from you (a flame from the side, a blob from the front).
+  follow(tail, head, R0 * .42, .22, v3(0, 1, -.55), P.rise * .35 + .02);
+  const balls = [[head, R0]];
+  const tr = radii(P.n, R0 * .92, P.taper);
+  for (let i = 0; i < P.n; i++) balls.push([tail[i], tr[i]]);
+  const nbody = balls.length;
+  if (P.wings) {
+    const flap = reduce ? 0 : Math.sin(t * 7) * .7;
+    for (const [side, chain] of [[-1, wingL], [1, wingR]]) {
+      const root = v3(head.x + side * .55, head.y + .35, head.z - .45);
+      const rest = P.wings === 1 ? v3(side * .45, .55, -1)                                        // comet: back and up
+                                 : v3(side * Math.cos(flap) * .95, .45 + Math.sin(flap) * .5, -.25); // fan: out to the side
+      follow(chain, root, R0 * .24, .18, rest, .55);
+      const wr = radii(5, R0 * .36, .9, .2);
+      chain.forEach((c, i) => balls.push([c, wr[i]]));
+    }
+  }
+
+  // Turn the whole Pip round its head, to see it from any side.
+  const a = P.yaw * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+  const turn = p => { const dx = p.x - head.x, dz = p.z - head.z; return v3(head.x + dx * ca + dz * sa, p.y + bob, head.z - dx * sa + dz * ca); };
+  const data = new Float32Array(MAXB * 4);
+  let minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9, minz = 1e9, maxz = -1e9;
+  balls.slice(0, MAXB).forEach(([p, r], i) => {
+    const q = turn(p); data.set([q.x, q.y, q.z, r], i * 4);
+    minx = Math.min(minx, q.x - r); maxx = Math.max(maxx, q.x + r); miny = Math.min(miny, q.y - r); maxy = Math.max(maxy, q.y + r);
+    minz = Math.min(minz, q.z - r); maxz = Math.max(maxz, q.z + r);
+  });
+  const bc = v3((minx + maxx) / 2, (miny + maxy) / 2, (minz + maxz) / 2);
+  const br = Math.hypot(maxx - minx, maxy - miny, maxz - minz) / 2 + 1.4;   // room for the glow
+
+  // Eyes: on the head, facing you, leaning the way Pip moves.
+  const f = v3(Math.max(-.45, Math.min(.45, vel.x * .12)), Math.max(-.3, Math.min(.3, vel.y * .08)) + .12, 1);
+  const fl = Math.hypot(f.x, f.y, f.z); f.x /= fl; f.y /= fl; f.z /= fl;
+  const side = v3(f.z, 0, -f.x), sl = Math.hypot(side.x, side.z) || 1; side.x /= sl; side.z /= sl;
+  const eyeAt = s => { let e = v3(f.x + side.x * s * .42, f.y + .1, f.z + side.z * s * .42); const l = Math.hypot(e.x, e.y, e.z);
+    return turn(v3(head.x + e.x / l * R0, head.y + e.y / l * R0, head.z + e.z / l * R0)); };
+  const blinkK = (!reduce && (t % 4.3) < .12) ? .12 : 1;
+
+  gl.uniform2f(U.res, cv.width, cv.height);
+  gl.uniform4fv(U.b, data); gl.uniform1i(U.nb, Math.min(MAXB, balls.length)); gl.uniform1i(U.nbody, nbody);
+  gl.uniform1f(U.k, P.blend); gl.uniform4f(U.bound, bc.x, bc.y, bc.z, br); gl.uniform1i(U.look, P.look);
+  const ea = eyeAt(-1), eb = eyeAt(1);
+  gl.uniform3f(U.eyeA, ea.x, ea.y, ea.z); gl.uniform3f(U.eyeB, eb.x, eb.y, eb.z);
+  gl.uniform1f(U.eyeR, R0 * .17); gl.uniform1f(U.blink, blinkK); gl.uniform1f(U.tanHalf, S / CAM);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// ---------- touch and controls
+const stage = $('#stage');
+stage.addEventListener('pointerdown', e => { dragging = true; held = true; target = toWorld(e.clientX, e.clientY); stage.setPointerCapture(e.pointerId); });
+stage.addEventListener('pointermove', e => { if (dragging) target = toWorld(e.clientX, e.clientY); });
+stage.addEventListener('pointerup', () => { dragging = false; });
+stage.addEventListener('pointercancel', () => { dragging = false; });
+
+function seg(id, key) {
+  const el = $('#' + id);
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+    P[key] = +b.dataset.v; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); });
+}
+seg('look', 'look'); seg('wings', 'wings');
+function bind(id, key, out, fmt = v => v) {
+  const el = $('#' + id), o = $('#' + out);
+  const set = () => { P[key] = +el.value; o.textContent = fmt(+el.value); };
+  el.addEventListener('input', set); set();
+}
+bind('n', 'n', 'nv'); bind('taper', 'taper', 'tv'); bind('rise', 'rise', 'rv', v => Math.round(v * 100) + '%');
+bind('blend', 'blend', 'bv'); bind('yaw', 'yaw', 'yv', v => v + '°');
+$('#auto').checked = P.auto; $('#auto').addEventListener('change', e => { P.auto = e.target.checked; held = false; });
+$('#copy').addEventListener('click', async () => {
+  const text = 'Pip 3D settings (Aaron): ' + JSON.stringify({ n: P.n, taper: P.taper, rise: P.rise, blend: P.blend, look: ['pearl', 'fairy blue', 'silhouette'][P.look], wings: ['none', 'comet', 'fan'][P.wings] });
+  try { await navigator.clipboard.writeText(text); $('#copy').textContent = 'Copied'; }
+  catch { $('#copied').textContent = text; $('#copied').style.display = 'block'; }
+  setTimeout(() => { $('#copy').textContent = 'Copy settings'; }, 1600);
+});
+</script>
+</body>
+</html>
