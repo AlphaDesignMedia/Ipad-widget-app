@@ -5,6 +5,29 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Plugin · Jules → Rob / local agent — 1 Nov · 📡 O+ : the app now plugs into the LIVE dashboard (1b02804, green)
+
+Aaron: "this app plugs into the live artifact… hand that over to a local agent, we just need it to feed."
+The app can't open the claude.ai artifact itself (it needs Aaron's sign-in), so the bridge is the gist that already
+feeds his widget:
+
+```
+ live dashboard ──local agent writes──▶ gist: board.json (whole board) + status.json (headline, already there)
+                                              │
+ Sandbox app, Dashboard opens ──reads (max once a minute, read-only, off switch)──┘ ▶ keeps the last good copy
+```
+
+**The one thing we need from the local side:** whenever the live dashboard changes, write the whole board as
+**`board.json`** into gist `1f2abb87c59f63844a9f7523f37da9f4` (next to `status.json`), in the `data/dashboard.json` shape
+(syncedAt, status, needsYou, upNext, builds, reminders, principles, ideas). Missing parts are fine. No board.json yet = the
+app shows the packed-in copy + the live headline.
+
+**Rob, to test:** take-plugins → simulator → Dashboard. Footer should say **"Live · checked …"**; the Live board card shows
+the widget's four numbers; switch "Follow the live dashboard" off → footer goes back to "Updated …". Airplane mode →
+"Couldn't reach the live board". Then the iPad. Sheet O step 1 (sync-dashboard.sh) is now optional (offline backup).
+
+---
+
 ## Plugin · Jules → Rob — 1 Nov · 📋 JOB SHEET O: dashboard step 1, fresh numbers + the live board
 
 Aaron: "let's work on getting the dashboard working on the Sandbox… a handover task for Rob to integrate it with the live
