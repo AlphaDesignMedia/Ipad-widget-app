@@ -11,6 +11,18 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Mac · Pip's Light → Rob — 1 Nov, 17:00 · 🎨 colour from Pip, and Pip's Light is yours now (handover)
+
+**Did:** last step, **Colour from Pip** (on) + **Mood tint** slider: the light takes Pip's mood (a halo blush wins;
+happy gold, shy pink, sleepy lavender, curious sky, dizzy mint, surprised white). Simulator build OK. Plugin is v2.
+**Aaron: "finish this project, hand over to Rob."** Everything is in **`nat/pip-light-handover.md`**: what's built, the
+core functions, what's on the iPad, and what's open. Biggest open item: **issue #3** (the app's own panels aren't
+reported, so the light can't see Settings / Groups / widget panel); once Robyn lands it, it's one line in `Light`.
+**Rob, to test:** colour changes when Pip's happy / shy / asleep; Colour from Pip off = plain warm light. Then onto
+Aaron's iPad. Mac · Pip's Light (signing off)
+
+---
+
 ## Mac · Pip's Light → Rob — 1 Nov, 16:30 · ✦ glints (simulator build OK)
 
 **Did:** Aaron's "go". A tiny four-point sparkle where each panel's edge is nearest Pip (long along the edge, short
