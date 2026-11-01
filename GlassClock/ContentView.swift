@@ -33,6 +33,8 @@ struct ContentView: View {
     @State private var style = ClockStyle.launchOverride ?? StyleLibrary.loadDraft() ?? ClockStyle.load()
     /// The style the widget shows.
     @State private var appliedStyle = ClockStyle.load()
+    /// The style while a slider is held (see `LiveEdit`).
+    @State private var liveEdit = LiveEdit()
     /// Counts taps on Refresh Widget, to spin its arrow.
     @State private var refreshTurns = 0
     @AppStorage("applyWhenLeaving") private var applyWhenLeaving = true
@@ -463,16 +465,19 @@ struct ContentView: View {
                     try? await Task.sleep(for: .seconds(4))
                     let meter = HitchMeter()
                     meter.start()
+                    // A drag goes through the live style, as a held slider does, and lands at the end.
+                    if StressTest.drag && !StressTest.idle { liveEdit.style = style }
                     for tap in 0..<taps {
                         if StressTest.idle {
                         } else if StressTest.drag {
-                            style.fontWeight = 0.3 + Double(tap % 30) / 60
+                            liveEdit.style?.fontWeight = 0.3 + Double(tap % 30) / 60
                         } else {
                             let mood = MoodRow.moods[tap % MoodRow.moods.count]
                             applyMood(mood.style, on: mood.scene)
                         }
                         try? await Task.sleep(for: .milliseconds(StressTest.drag ? 16 : 700))
                     }
+                    if let finished = liveEdit.style { liveEdit.style = nil; style = finished }
                     try? await Task.sleep(for: .seconds(1))
                     print("STRESS moods \(taps)\(StressTest.drag ? " drag" : ""): \(meter.stop())")
                 }
@@ -2183,20 +2188,8 @@ struct ContentView: View {
             // The clock fades from one size's layout to the next while the card reshapes around
             // it, as widgets do on the iPad's Home Screen (owner, 22 Oct 2026), rather than its
             // text jumping when the size snaps.
-            ZStack {
-                ClockFace(date: context.date, style: style, simulatedAccent: homeScreen.accent,
-                          simulatesClear: !homeScreen.showsKeptColours)
-                    .id(previewSize)
-                    .transition(.opacity)
-            }
-                .padding(16 * scale)
-                .frame(width: card.width * scale, height: card.height * scale)
-                .modifier(ClockCard(style: style, shape: .rect(cornerRadius: 28 * scale), homeScreen: homeScreen))
-                .environment(\.colorScheme, homeScreen == .dark ? .dark : .light)
-                // Switches style at once rather than blending: animating the glass tint and the
-                // colour mask between styles was the costliest part of a tap on the Home Screen
-                // picker (2026-10-21). Size changes still animate.
-                .transaction(value: homeScreen) { $0.animation = nil }
+            LiveClockCard(live: liveEdit, style: style, date: context.date, homeScreen: homeScreen,
+                          previewSize: previewSize, card: card, scale: scale)
         }
         // (The glass corner highlights while editing are gone, owner 22 Oct 2026.)
         // A small glass tag on the bottom edge, so the preview isn't mistaken for the real
@@ -3689,7 +3682,7 @@ struct ContentView: View {
                 if style.showDate {
                     Toggle("Date above the time", isOn: $style.dateAbove)
                 }
-                slider("Gap", value: $style.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
+                slider("Gap", style: \.detailGap, in: 0.3...2.5, low: "Close", high: "Far")
                 Toggle("Stretch to fill square widgets", isOn: $style.fillsCard)
             }
 
@@ -3698,23 +3691,23 @@ struct ContentView: View {
             Picker("Font", selection: $style.font) {
                 ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
             }
-            slider("Weight", value: $style.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
+            slider("Weight", style: \.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
 
         case .fonts:
             groupLabel("Time")
             Picker("Font", selection: $style.font) {
                 ForEach(ClockFont.allCases) { Text($0.label).tag($0) }
             }
-            slider("Weight", value: $style.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
+            slider("Weight", style: \.fontWeight, in: 0...1, low: "Thin", high: "Heavy")
             if style.font.hasWidth {
-                slider("Width", value: $style.fontWidth, in: 0...1, low: "Narrow", high: "Wide")
+                slider("Width", style: \.fontWidth, in: 0...1, low: "Narrow", high: "Wide")
             }
             if style.font.hasRoundness {
-                slider("Roundness", value: $style.roundness, in: 0...1, low: "Sharp", high: "Round")
+                slider("Roundness", style: \.roundness, in: 0...1, low: "Sharp", high: "Round")
             }
-            slider("Height", value: $style.height, in: ClockStyle.heightRange, low: "Normal", high: "Tall")
-            slider("Spacing", value: $style.spacing, in: ClockStyle.spacingRange, low: "Tight", high: "Loose")
-            slider("Corners", value: $style.softness, in: 0...1, low: "Sharp", high: "Soft")
+            slider("Height", style: \.height, in: ClockStyle.heightRange, low: "Normal", high: "Tall")
+            slider("Spacing", style: \.spacing, in: ClockStyle.spacingRange, low: "Tight", high: "Loose")
+            slider("Corners", style: \.softness, in: 0...1, low: "Sharp", high: "Soft")
             Toggle("Bolder in small widgets", isOn: $style.adaptsToSize)
 
             groupLabel("AM/PM and date")
@@ -3723,8 +3716,8 @@ struct ContentView: View {
                     Text(option == .paired ? "Matched: \(style.font.pairing.label)" : option.label).tag(option)
                 }
             }
-            slider("Size", value: $style.detailSize, in: 0.7...1.6, low: "Small", high: "Large")
-            slider("Letter spacing", value: $style.detailTracking, in: -0.06...0.25, low: "Tight", high: "Wide")
+            slider("Size", style: \.detailSize, in: 0.7...1.6, low: "Small", high: "Large")
+            slider("Letter spacing", style: \.detailTracking, in: -0.06...0.25, low: "Tight", high: "Wide")
 
         case .colour:
             GlassPicker("Style", selection: $style.textFill, options: TextFill.allCases) { $0.label }
@@ -3736,7 +3729,7 @@ struct ContentView: View {
                 }
             }
             if !simple {
-                slider("Transparency", value: $style.textOpacity, in: ClockStyle.textOpacityRange, low: "Faint", high: "Solid")
+                slider("Transparency", style: \.textOpacity, in: ClockStyle.textOpacityRange, low: "Faint", high: "Solid")
             }
 
         case .effects:
@@ -3754,31 +3747,31 @@ struct ContentView: View {
                         ))
                     }
                 }
-                slider("Strength", value: $style.innerStrength, in: 0.1...1, low: "Subtle", high: "Strong")
+                slider("Strength", style: \.innerStrength, in: 0.1...1, low: "Subtle", high: "Strong")
             }
 
             groupLabel("Glow")
             Toggle("Glow", isOn: $style.glow)
             if style.glow {
                 swatchRow(selection: $style.glowColor)
-                slider("Size", value: $style.glowSize, in: 0...1, low: "Tight", high: "Wide")
-                slider("Strength", value: $style.glowStrength, in: 0.1...1, low: "Soft", high: "Strong")
+                slider("Size", style: \.glowSize, in: 0...1, low: "Tight", high: "Wide")
+                slider("Strength", style: \.glowStrength, in: 0.1...1, low: "Soft", high: "Strong")
             }
 
             groupLabel("Shadow")
             Toggle("Shadow", isOn: $style.shadow)
             if style.shadow {
                 swatchRow(selection: $style.shadowColor)
-                slider("Direction", value: $style.shadowAngle, in: ClockStyle.shadowAngleRange, low: "Right", high: "Left")
-                slider("Distance", value: $style.shadowDistance, in: 0...1, low: "Close", high: "Far")
-                slider("Softness", value: $style.shadowSize, in: 0...1, low: "Crisp", high: "Soft")
-                slider("Strength", value: $style.shadowStrength, in: ClockStyle.shadowStrengthRange, low: "Light", high: "Dark")
+                slider("Direction", style: \.shadowAngle, in: ClockStyle.shadowAngleRange, low: "Right", high: "Left")
+                slider("Distance", style: \.shadowDistance, in: 0...1, low: "Close", high: "Far")
+                slider("Softness", style: \.shadowSize, in: 0...1, low: "Crisp", high: "Soft")
+                slider("Strength", style: \.shadowStrength, in: ClockStyle.shadowStrengthRange, low: "Light", high: "Dark")
             }
 
         case .card:
             GlassPicker("Style", selection: $style.background, options: CardBackground.allCases) { $0.label }
             swatchRow(selection: $style.backgroundColor)
-            slider("Transparency", value: $style.cardOpacity, in: ClockStyle.cardOpacityRange, low: "Clear", high: "Solid")
+            slider("Transparency", style: \.cardOpacity, in: ClockStyle.cardOpacityRange, low: "Clear", high: "Solid")
 
         case .homeScreens:
             Picker("My Home Screen", selection: $myHomeScreen) {
@@ -3985,6 +3978,14 @@ struct ContentView: View {
                 customPresets.remove(at: index)
                 StyleLibrary.savePresets(customPresets)
             }
+        }
+    }
+
+    /// A slider for one of the style's numbers: while it's held, only the preview redraws.
+    private func slider(_ title: String, style key: WritableKeyPath<ClockStyle, Double>, in range: ClosedRange<Double>,
+                        low: String, high: String) -> some View {
+        StyleSlider(title: title, key: key, range: range, low: low, high: high, style: style, live: liveEdit) {
+            style = $0
         }
     }
 
