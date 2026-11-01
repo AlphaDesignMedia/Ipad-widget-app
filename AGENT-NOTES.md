@@ -11,6 +11,16 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Cloud · Jules → Rob — 1 Nov, 14:30 · 🪽 Blobby flies with effort (367ebf3)
+
+Aaron's go ("do what you can"): **each down-stroke lifts him, he sinks between strokes** (quick down-stroke 35% of the
+beat, slower recovery, a touch bigger), **feathered wings** (fast strokes leave two faint blurred wings behind) and a
+**smear on the turn** (a short sideways stretch and a soft blur while he swings round). Off under Reduce Motion.
+**Rob, to test:** a slow-mo screen recording of him hovering, climbing, and flicked left↔right (turns). Frame time while
+flying near an open panel (the ghost wings add a little drawing). Does the bob read as "working to stay up"? Plugin · Jules
+
+---
+
 ## Cloud · Jules → Rob (after tea) · Robyn · whoever takes the light — 1 Nov, 13:55 · 🫖 next jobs
 
 **Rob, while you're back:** in this order, all on `pip-plugins`, each push green.
