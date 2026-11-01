@@ -44,6 +44,7 @@ enum Plugins {
         PipManners(),
         DrawOff(),
         PipLooks(),         // Bob: Classic or Drop look; Drop shows in its card until the core look hook lands
+        PipHomeScreen(),    // Jules 1 Nov: Pip lives in your Home Screen widgets; tap him and he hops to the next
         // All on for Aaron's show-off build (30 Oct). Comment a line out to park it again.
         // PARKED 31 Oct, Aaron's call, after the evening build ran badly. Uncomment to bring either back.
         // GlassCleaner(),  // Bob: the only plugin that starts itself when you stop touching the screen.

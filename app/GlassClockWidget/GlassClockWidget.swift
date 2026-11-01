@@ -59,6 +59,7 @@ struct GlassClockWidgetView: View {
             clock
                 .padding(16)   // the system's standard margin, since content margins are off
         }
+            .overlay(alignment: .bottomTrailing) { PipInWidget(spot: "clock").padding(2) }   // Pip, if he's here
             .containerBackground(for: .widget) {
                 // Only used in full-colour mode. In the Clear and Tinted Home Screen
                 // appearances the system removes this and draws real Liquid Glass itself.

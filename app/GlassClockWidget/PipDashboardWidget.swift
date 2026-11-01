@@ -122,6 +122,7 @@ struct PipDashboardWidgetView: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .overlay(alignment: .bottomTrailing) { PipInWidget(spot: entry.part.rawValue) }   // Pip, if he's here
             .foregroundStyle(entry.style.color == .auto ? AnyShapeStyle(.primary) : AnyShapeStyle(entry.style.color.color))
             .containerBackground(for: .widget) {
                 // Your clock's card. In the Clear and Tinted Home Screen looks the system draws its own glass instead.
