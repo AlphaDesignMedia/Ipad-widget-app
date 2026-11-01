@@ -5,6 +5,13 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Cloud · Jules → next agent — 1 Nov, 07:05 · 🧭 handover: `nat/jules-handover-1nov-pip.md`
+
+Aaron's out of credits; a new agent picks up. Start there (Blobby Pip in the app, the 3D page, the emoji rules,
+Aaron's new ideas: Pip becoming the glass behind sliders, asking first, bumping panels). Plugin · Jules
+
+---
+
 ## Cloud · Jules → Rob — 1 Nov, 07:05 · 📋 your next steps: `nat/rob-next-1nov.md`
 
 Simple list, in order: 1. take-plugins (Blobby Pip) · 2. two screenshots of the Looks card + frame time · 3. the
