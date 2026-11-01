@@ -49,7 +49,11 @@ struct PipLight: SandboxPlugin {
         Knob(name: "Edge width", key: "plug.piplight.edge", range: 0.5...4, start: 1.5),   // points
         Knob(name: "Falloff", key: "plug.piplight.falloff", range: 0.5...4, start: 2),     // 1 = even, higher = tighter
         Knob(name: "Warmth", key: "plug.piplight.warmth", range: 0...2, start: 1),         // 0 white, 1 v1, 2 golden
+        Knob(name: "Bloom depth", key: "plug.piplight.bloomDepth", range: 4...48, start: 16), // points into the panel
     ]
+    static let bloomKey = "plug.piplight.bloom"
+    /// Bloom is drawn as this many soft bands, deepest faintest: cheap, and an old-game stepped look.
+    static let bloomBands = 4
 
     /// White at 0, v1's warm white at 1, golden at 2.
     static func colour(warmth w: Double) -> Color {
@@ -167,6 +171,8 @@ struct PipLight: SandboxPlugin {
         @AppStorage("plug.piplight.edge") private var edge = 1.5
         @AppStorage("plug.piplight.falloff") private var falloff = 2.0
         @AppStorage("plug.piplight.warmth") private var warmth = 1.0
+        @AppStorage(PipLight.bloomKey) private var bloom = true
+        @AppStorage("plug.piplight.bloomDepth") private var bloomDepth = 16.0
 
         var body: some View {
             let p = host.pipPosition
@@ -179,15 +185,34 @@ struct PipLight: SandboxPlugin {
             let lit = PipLight.light(from: p, panels: panels, reach: reach)
             let spillStyle = StrokeStyle(lineWidth: spill, lineCap: .round)                // the soft spill
             let edgeStyle = StrokeStyle(lineWidth: edge, lineCap: .round)                  // the bright edge
+            // one round fade centred on Pip: brightest at Pip, nothing at the reach, shaped by Falloff
+            let fade = { (scale: Double) in
+                GraphicsContext.Shading.radialGradient(
+                    Gradient(stops: (0...6).map { i -> Gradient.Stop in
+                        let f = Double(i) / 6
+                        return .init(color: colour.opacity(min(1, scale * brightness * pow(1 - f, falloff))), location: f)
+                    }),
+                    center: p, startRadius: 0, endRadius: reach)
+            }
             return Canvas { ctx, _ in
+                if bloom {
+                    // the glow on the face of the panel, just inside the lit edge: wide strokes of the rim, clipped to the
+                    // inside, stacked so it steps down in bands going in
+                    let band = fade(0.12)
+                    for (frame, corner) in panels {
+                        let rim = PipLight.rim(from: p, frame: frame, corner: corner, reach: reach)
+                        guard !rim.isEmpty else { continue }
+                        var inside = ctx
+                        inside.clip(to: Path(roundedRect: frame, cornerRadius: min(corner, frame.width / 2, frame.height / 2),
+                                             style: .circular))   // the same round corners as rim()
+                        for i in 0..<PipLight.bloomBands {
+                            let depth = bloomDepth * Double(PipLight.bloomBands - i) / Double(PipLight.bloomBands)
+                            inside.stroke(rim, with: band, style: StrokeStyle(lineWidth: 2 * depth, lineCap: .round))
+                        }
+                    }
+                }
                 if wrapCorners {
-                    // one round fade centred on Pip: brightest at Pip, nothing at the reach, shaped by Falloff
-                    let fade = GraphicsContext.Shading.radialGradient(
-                        Gradient(stops: (0...6).map { i -> Gradient.Stop in
-                            let f = Double(i) / 6
-                            return .init(color: colour.opacity(min(1, 0.9 * brightness * pow(1 - f, falloff))), location: f)
-                        }),
-                        center: p, startRadius: 0, endRadius: reach)
+                    let fade = fade(0.9)
                     for (frame, corner) in panels {
                         let rim = PipLight.rim(from: p, frame: frame, corner: corner, reach: reach)
                         guard !rim.isEmpty else { continue }
@@ -240,12 +265,15 @@ struct PipLight: SandboxPlugin {
     struct LightCard: View {
         @AppStorage(PipLight.raysKey) private var showRays = false
         @AppStorage(PipLight.cornersKey) private var wrapCorners = true
+        @AppStorage(PipLight.bloomKey) private var bloom = true
 
         var body: some View {
             VStack(alignment: .leading, spacing: PluginBarLook.cardGap) {
                 Text("Pip glows, so the edges of panels near them catch the light: brightest nearest Pip, fading along the edge.")
                 Toggle("Wrap the corners", isOn: $wrapCorners)
                     .accessibilityHint("The light follows the rounded corners too, instead of stopping where they start.")
+                Toggle("Bloom", isOn: $bloom)
+                    .accessibilityHint("A soft glow on the panel, just inside the lit edge.")
                 Toggle("Show the rays", isOn: $showRays)
                     .accessibilityHint("Draws the lines Pip's light travels along, to see how it works.")
                 ForEach(PipLight.knobs, id: \.key) { KnobRow(knob: $0) }
