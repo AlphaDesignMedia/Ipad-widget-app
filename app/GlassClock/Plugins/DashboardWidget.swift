@@ -37,6 +37,13 @@ extension Dashboard {
     }
 
     static let doneLine = "All answered. Lovely."
+
+    /// What VoiceOver reads for the canvas tile: what it is, the headline's first sentence, and what needs you.
+    static func tileLabel(_ data: DashboardData, _ waiting: Int) -> String {
+        let headline = data.status?.headline.map { glance($0) } ?? "No headline yet."
+        let needs = waiting == 0 ? "Nothing needs you" : "\(waiting) need\(waiting == 1 ? "s" : "") you"
+        return "Progress dashboard. \(headline) \(needs)."
+    }
     static let widgetWidth: CGFloat = 340
 
     // MARK: Logic
@@ -48,8 +55,17 @@ extension Dashboard {
         return String(clean[..<end.lowerBound]) + "."
     }
 
+    /// Bumped on every answer. `answer` reads it, so everything that counts answers (the Home Screen widgets, the
+    /// groups badge, the canvas tile, the side card) redraws when one changes, whoever changed it. (Rob, 1 Nov: after
+    /// a "Yes" the Needs you widget still said "5 need you"; it never knew an answer had changed.)
+    @MainActor @Observable final class AnswerBook {
+        static let shared = AnswerBook()
+        var changes = 0
+    }
+
     @MainActor static func answer(_ q: String, _ host: PipHost) -> Answer? {
-        (host.value("dashboard", stableKey(q)) as String?).flatMap(Answer.init(rawValue:))
+        _ = AnswerBook.shared.changes      // watched: views showing counts redraw on any answer
+        return (host.value("dashboard", stableKey(q)) as String?).flatMap(Answer.init(rawValue:))
     }
 
     /// Answers are kept by question, so a new board with new questions starts fresh. (Not `hashValue`: that
@@ -62,6 +78,7 @@ extension Dashboard {
 
     @MainActor static func setAnswer(_ a: Answer?, _ q: String, _ host: PipHost) {
         host.setValue(a?.rawValue, "dashboard", stableKey(q))
+        AnswerBook.shared.changes += 1
     }
 
     /// The FOR DASHBOARD paste: every answered question, in plain words.
@@ -169,17 +186,24 @@ extension Dashboard {
                                     y = clampY(y + v.translation.height, geo.size.height)
                                 }
                         )
-                        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { host.openScreen = "dashboard" } }
+                        .onTapGesture { open() }
                         .contextMenu {
                             Button("Open the dashboard", systemImage: "square.grid.2x2") { host.openScreen = "dashboard" }
                             Button("Put away", systemImage: "eye.slash") { hide() }
                         }
+                        // One VoiceOver element, so a double-tap opens the tab (Rob, 1 Nov: the tile's parts were read
+                        // one by one and the tap did nothing).
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Dashboard.tileLabel(data, waiting))
                         .accessibilityAddTraits(.isButton)
                         .accessibilityHint("Opens the Dashboard tab. Drag to move it, flick it away or hold it to put it away.")
+                        .accessibilityAction { open() }      // VoiceOver's double-tap (Rob, 1 Nov: it did nothing)
                         .accessibilityAction(named: "Put away") { hide() }
                 }
             }
         }
+
+        private func open() { withAnimation(.easeOut(duration: 0.2)) { host.openScreen = "dashboard" } }
 
         /// Off the canvas until "On the canvas" in the Dashboard card is switched back on. Fades, never slides.
         private func hide() {
