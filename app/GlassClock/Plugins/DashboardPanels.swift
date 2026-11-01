@@ -15,24 +15,20 @@ extension Dashboard {
 
     // MARK: Views
 
-    /// The button in the Dashboard card that opens the full-screen Panels dashboard.
+    /// The button in the Dashboard card: switches the app to the Dashboard tab and puts the card away.
     struct PanelsButton: View {
         let host: PipHost
-        @State private var open = false
 
         var body: some View {
             Button {
-                open = true
+                host.openCard = nil
+                host.openScreen = "dashboard"
             } label: {
                 Label("Open the dashboard", systemImage: "square.grid.2x2")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(PluginCardButton(on: true))
-            .accessibilityHint("Opens the whole dashboard full screen, as widgets.")
-            .fullScreenCover(isPresented: $open) {
-                PanelsScreen(host: host) { open = false }
-                    .presentationBackground(.ultraThinMaterial)
-            }
+            .accessibilityHint("Shows the Dashboard tab, next to Classic and Panels.")
         }
     }
 

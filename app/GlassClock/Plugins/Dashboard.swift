@@ -364,6 +364,10 @@ struct Dashboard: SandboxPlugin {
 
     // MARK: Views
 
+    /// The dashboard as its own tab in the top switch: Classic · Panels · Dashboard (Aaron, 1 Nov).
+    var screenName: String? { "Dashboard" }
+    func screen(_ host: PipHost) -> some View { PanelsScreen(host: host).safeAreaPadding(.bottom, 90) }
+
     /// The Glass Clock-style tile on the canvas (DashboardWidget.swift).
     func overlay(_ host: PipHost) -> some View { CanvasTile(host: host) }
 
