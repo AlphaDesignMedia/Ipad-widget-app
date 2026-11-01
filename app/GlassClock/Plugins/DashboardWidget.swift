@@ -159,15 +159,32 @@ extension Dashboard {
                             DragGesture(minimumDistance: 8)
                                 .updating($drag) { v, state, _ in state = v.translation }
                                 .onEnded { v in
+                                    // A hard flick off the side puts it away, like swiping a card closed (Aaron, 1 Nov:
+                                    // "they are in the way and i cant dismiss"). It's back with "On the canvas".
+                                    if abs(v.predictedEndTranslation.width) > geo.size.width * 0.6 {
+                                        hide()
+                                        return
+                                    }
                                     x = clampX(x + v.translation.width, geo.size.width)
                                     y = clampY(y + v.translation.height, geo.size.height)
                                 }
                         )
                         .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { host.openScreen = "dashboard" } }
+                        .contextMenu {
+                            Button("Open the dashboard", systemImage: "square.grid.2x2") { host.openScreen = "dashboard" }
+                            Button("Put away", systemImage: "eye.slash") { hide() }
+                        }
                         .accessibilityAddTraits(.isButton)
-                        .accessibilityHint("Opens the Dashboard tab. Drag to move it.")
+                        .accessibilityHint("Opens the Dashboard tab. Drag to move it, flick it away or hold it to put it away.")
+                        .accessibilityAction(named: "Put away") { hide() }
                 }
             }
+        }
+
+        /// Off the canvas until "On the canvas" in the Dashboard card is switched back on. Fades, never slides.
+        private func hide() {
+            if host.simpler { shown = false } else { withAnimation(.easeOut(duration: 0.2)) { shown = false } }
+            if host.joy > 0, PipTalkTurns.spend(host) { host.say("Tucked away. It's in the Dashboard card.", for: 1.8) }
         }
 
         private func clampX(_ v: Double, _ w: CGFloat) -> Double { min(max(v, 8), max(8, Double(w) - Double(Dashboard.widgetWidth) - 8)) }
