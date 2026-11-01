@@ -8,3 +8,6 @@ app/tools/shots/
 tools/*.png
 .claude/.last-session
 app/GlassClock/Packed/
+
+# Private feed address for the live board (1 Nov): stays on the Mac, never on GitHub.
+app/GlassClock/Private/
