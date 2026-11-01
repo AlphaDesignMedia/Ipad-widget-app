@@ -30,6 +30,8 @@ struct MoodRow: View, Equatable {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
+            // One piece of glass for all the pictures rather than one each (see `SettingsCard`).
+            GlassEffectContainer(spacing: 0) {
             HStack(spacing: 12) {
                 ForEach(Self.moods, id: \.name) { mood in
                     let resets = mood.scene == .plain
@@ -68,6 +70,7 @@ struct MoodRow: View, Equatable {
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 2)
+            }
         }
         .scrollClipDisabled()
         .sensoryFeedback(.selection, trigger: backdrop)
