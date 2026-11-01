@@ -120,33 +120,46 @@ final class BlobbyRig {
             yaw += yawV * dt
         }
         // effort (Aaron: "weight and effort in his wing flap"): flying is work, climbing is hard work
-        let flying = min(1, (vx * vx + vy * vy).squareRoot() / 120)
+        let speed2: Double = vx * vx + vy * vy
+        let flying: Double = min(1, speed2.squareRoot() / 120)
         let climbing = max(0, min(1, -vy / 260))
         effort += (max(flying * 0.5, climbing) - effort) * min(1, dt * 4)
-        if !simpler { phase += (4.5 + 4.5 * flying) * (1 - 0.35 * climbing) * dt }
+        let beat: Double = (4.5 + 4.5 * flying) * (1 - 0.35 * climbing)
+        if !simpler { phase += beat * dt }
         let amp: Double = simpler ? 0 : 0.2 + 0.3 * flying + 0.3 * climbing
         var f = BlobbyFrame()
-        f.lift = simpler ? 0 : CGFloat(-sin(phase) * rr * (0.03 + 0.09 * effort))
+        let liftAmount: Double = rr * (0.03 + 0.09 * effort)
+        f.lift = simpler ? 0 : CGFloat(-sin(phase) * liftAmount)
 
         let a = yaw * Double.pi / 180
         let tilt = simpler ? 0 : max(-0.35, min(0.35, vy / 1400))       // nose up climbing, down diving
-        let face = bNorm(BV3(sin(a), -0.05 - tilt, cos(a)))
+        let faceY: Double = -0.05 - tilt
+        let face = bNorm(BV3(sin(a), faceY, cos(a)))
         let sideV = bNorm(simd_cross(BV3(0, 1, 0), face)), up = bNorm(simd_cross(face, sideV))
         let head = BV3(Double(pos.x) / rr, -Double(pos.y) / rr, 0)
         let front = max(0, cos(a) - 0.5) * 2                              // 1 when he faces you
 
         // the tail: held behind and below, curled, lagging (liquid weight); facing you it peeks out with a tiny wag
         let n = BlobbyPicks.circles
-        if tail.count != n { tail = (0..<n).map { i in head + BV3(-Double(i + 1) * 0.26, -Double(i + 1) * 0.08, -Double(i + 1) * 0.1) } }
+        if tail.count != n {
+            tail = (0..<n).map { (i: Int) -> BV3 in
+                let k = Double(i + 1)
+                let off = BV3(-0.26, -0.08, -0.1) * k
+                return head + off
+            }
+        }
         let back = bNorm(BV3(-face.x, -face.y - BlobbyPicks.slope, -face.z))
         let gap = BlobbyPicks.length / Double(n)
         let lag: Double = simpler ? 0 : pow(0.1, dt * 60)
         var prev = head
         for i in 0..<n {
             let k = Double(i + 1) / Double(n)
-            let wag = simpler ? 0 : front * sin(t * 2.4 - Double(i) * 0.5) * 0.12 * k
-            let rest = bNorm(bTurn(back, sideV, -BlobbyPicks.curl * 0.9 * k) + sideV * wag)
-            let d = bNorm(bNorm(tail[i] - prev) * 0.15 + rest * 0.85)
+            let wave: Double = sin(t * 2.4 - Double(i) * 0.5)
+            let wag: Double = simpler ? 0 : front * wave * 0.12 * k
+            let curled: BV3 = bTurn(back, sideV, -BlobbyPicks.curl * 0.9 * k)
+            let rest = bNorm(curled + sideV * wag)
+            let was: BV3 = bNorm(tail[i] - prev)
+            let d = bNorm(was * 0.15 + rest * 0.85)
             let goal = prev + d * gap
             tail[i] += (goal - tail[i]) * (1 - lag)
             prev = tail[i]
@@ -171,20 +184,24 @@ final class BlobbyRig {
         for w in BlobbyPicks.wings {
             let root = crown + sideV * (w.side * 0.3)
             let pitch = w.deg * Double.pi / 180 - sweep
-            let dir = bNorm(backV * cos(pitch) + up * sin(pitch) + sideV * (w.side * 0.42))
+            let lean: BV3 = backV * cos(pitch) + up * sin(pitch)
+            let dir = bNorm(lean + sideV * (w.side * 0.42))
             let nrm = bNorm(simd_cross(dir, backV))
             let thin = max(0.6, abs(nrm.z))                                  // keeps some width from the front (Aaron)
             var pts: [BV3] = [root]
             for j in 1..<BlobbyPicks.leafStops.count {
                 let st = BlobbyPicks.leafStops[j]
-                let flutter = amp * (sin(phase - st * 0.9 + (w.side > 0 ? 0 : 0.3)) * 0.8 + 0.2)
+                let lagBehind: Double = w.side > 0 ? 0 : 0.3
+                let flutter: Double = amp * (sin(phase - st * 0.9 + lagBehind) * 0.8 + 0.2)
                 var seg = bTurn(dir, nrm, 0.28 * st - 0.14)
                 seg = bNorm(bTurn(seg, backV, w.side * flutter))
-                pts.append(pts[j - 1] + seg * (w.len * tall * (st - BlobbyPicks.leafStops[j - 1])))
+                let stepLen: Double = w.len * tall * (st - BlobbyPicks.leafStops[j - 1])
+                pts.append(pts[j - 1] + seg * stepLen)
             }
             let circles: [BlobbyFrame.Circle] = pts.enumerated().map { j, p in
                 let (pt, s) = flat(p)
-                return .init(at: pt, r: CGFloat(max(0.6 / rr, BlobbyPicks.leafWidths[j] * thin) * rr * s))
+                let wide: Double = max(0.6 / rr, BlobbyPicks.leafWidths[j] * thin)
+                return .init(at: pt, r: CGFloat(wide * rr * s))
             }
             f.wings.append(.init(circles: circles, depth: pts[3].z - head.z, back: false))
         }
