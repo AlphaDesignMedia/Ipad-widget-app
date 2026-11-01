@@ -1,7 +1,8 @@
 import SwiftUI
 
-// PIP LOOKS · plugin v1 (Dream). Pip's look list: Classic (the orb, the default) or Drop (Aaron's 3D liquid drop,
-// from the Pip Drop Workshop, picks of 30 Oct 2026). One tap back to Classic.
+// PIP LOOKS · plugin v1 (Dream). Pip's look list: Classic (the orb, the default), Drop (Aaron's 3D liquid drop,
+// from the Pip Drop Workshop, picks of 30 Oct 2026) or Blobby (V2, Aaron 1 Nov: his trailing circles in Liquid Glass,
+// an emoji inside; PipBlobbyLook.swift). One tap back to Classic.
 // Where: the drop button in the plugin bar. The card shows both looks side by side; drag (or hover) in it and
 // they turn to look at your finger.
 // For now Drop shows only in the card. Pip wears it everywhere once the core adds the look hook (`host.pipStyle`,
@@ -10,20 +11,21 @@ import SwiftUI
 
 struct PipLooks: SandboxPlugin {
     let info = PluginInfo(id: "looks", name: "Pip Looks", version: "v1", shelf: .dream,
-                          icon: "drop", what: "Choose Pip's look: Classic (the orb) or Drop (a 3D liquid drop). One tap back.")
+                          icon: "drop", what: "Choose Pip's look: Classic (the orb), Drop (a 3D liquid drop) or Blobby (liquid glass). One tap back.")
 
     // MARK: Data
 
     enum Look: String, CaseIterable {
-        case classic, drop
-        var title: String { self == .classic ? "Classic (default)" : "Drop" }
-        var short: String { self == .classic ? "Classic" : "Drop" }
+        case classic, drop, blobby
+        var title: String { self == .classic ? "Classic (default)" : self == .drop ? "Drop" : "Blobby (V2)" }
+        var short: String { self == .classic ? "Classic" : self == .drop ? "Drop" : "Blobby" }
     }
 
     static let selfID = "looks"
     static let lookKey = "look"                       // "plug.looks.look": "classic" or "drop"
-    static let waitingNote = "Drop shows here for now; Pip will wear it everywhere once the backbone adds the look hook."
-    static let lines: [Look: String] = [.classic: "Back to my old self.", .drop: "Ooh, liquid."]
+    static let emojiKey = "emoji"                     // "plug.looks.emoji": what Blobby has inside ("" = nothing)
+    static let waitingNote = "Drop and Blobby show here for now; Pip will wear them everywhere once the backbone adds the look hook."
+    static let lines: [Look: String] = [.classic: "Back to my old self.", .drop: "Ooh, liquid.", .blobby: "Look, I'm see-through!"]
 
     // MARK: Logic
 
@@ -40,7 +42,20 @@ struct PipLooks: SandboxPlugin {
         if speak, host.joy > 0, PipTalkTurns.floorFree(host), let line = lines[look] { host.say(line, for: 2) }
         // Core hook, not there yet (AGENT-NOTES.md, Bob 30 Oct). When it lands, un-comment these two lines:
         // host.pipStyle = look == .drop ? PipStyle(owner: selfID, body: { ctx in
-        //     PipLooks.dropView(face: ctx.face, look: ctx.look, time: ctx.time, size: ctx.size, simpler: ctx.simpler, flapping: ctx.flapping, spin: ctx.spin) }) : nil
+        //     PipLooks.dropView(face: ctx.face, look: ctx.look, time: ctx.time, size: ctx.size, simpler: ctx.simpler, flapping: ctx.flapping, spin: ctx.spin) })
+        //   : look == .blobby ? PipStyle(owner: selfID, body: { ctx in
+        //     PipLooks.blobbyView(face: ctx.face, look: ctx.look, time: ctx.time, size: ctx.size, simpler: ctx.simpler, flapping: ctx.flapping, halo: ctx.halo, host: host) }) : nil
+    }
+
+    /// Pip's whole body in the Blobby look, for the core to draw in place of `PipBody` (same centre, Pip's own space).
+    /// `size` is the orb's diameter, so the head is the same size as Classic's orb.
+    @MainActor static func blobbyView(face: PipFace, look: CGSize, time: Double, size: CGFloat, simpler: Bool,
+                                      flapping: Bool, halo: Color, host: PipHost) -> AnyView {
+        let facing = BlobbyTurn.live.step(look: look, at: time, snap: simpler)
+        let inside: String? = host.value(selfID, emojiKey)
+        return AnyView(PipBlobbyBody(radius: size / 2, time: time, face: face, look: look, facing: facing,
+                                     emoji: (inside ?? "").isEmpty ? nil : inside, simpler: simpler,
+                                     flapping: flapping, halo: halo))
     }
 
     /// Pip's whole body in the Drop look, for the core to draw in place of `PipBody` (same centre, Pip's own space).
@@ -64,6 +79,8 @@ struct PipLooks: SandboxPlugin {
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @State private var finger: CGPoint? = nil
         @State private var turn = DropTurn()
+        @State private var blobbyTurn = BlobbyTurn()
+        @AppStorage("plug.looks.emoji") private var inside: String = "⭐"
 
         var body: some View {
             let look = Look(rawValue: chosen) ?? .classic
@@ -80,10 +97,11 @@ struct PipLooks: SandboxPlugin {
                         }
                         .buttonStyle(PluginCardButton(on: look == l))
                         .accessibilityLabel("Pip look: \(l.short)")
-                        .accessibilityHint(l == .classic ? "The glowing orb. The default." : "A 3D liquid drop with wings.")
+                        .accessibilityHint(l == .classic ? "The glowing orb. The default." : l == .drop ? "A 3D liquid drop with wings." : "Liquid glass with an emoji inside.")
                         .accessibilityAddTraits(look == l ? .isSelected : [])
                     }
                 }
+                if look == .blobby { insidePicker }
                 Text(PipLooks.waitingNote)
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -91,14 +109,33 @@ struct PipLooks: SandboxPlugin {
             .font(.system(size: 13.5))
         }
 
-        /// Both looks side by side. They turn to follow your finger (or Pencil hover) while it's in here.
+        /// What Blobby has inside: an emoji (Apple's own), or nothing. Face emoji become his face.
+        private var insidePicker: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Inside him").font(.system(size: 13.5, weight: .semibold))
+                HStack(spacing: 4) {
+                    ForEach([""] + BlobbyPicks.emoji, id: \.self) { e in
+                        Button { inside = e } label: {
+                            Text(e.isEmpty ? "None" : e).font(.system(size: e.isEmpty ? 12 : 17))
+                                .frame(maxWidth: .infinity, minHeight: 36)
+                        }
+                        .buttonStyle(PluginCardButton(on: inside == e))
+                        .accessibilityLabel(e.isEmpty ? "Nothing inside" : "Inside him: \(e)")
+                    }
+                }
+            }
+        }
+
+        /// All three looks side by side. They turn to follow your finger (or Pencil hover) while it's in here.
         private func stage(_ look: Look) -> some View {
             let simpler = host.simpler || reduceMotion
             let dropRadius: CGFloat = 18
             return GeometryReader { geo in
                 let w: CGFloat = geo.size.width, h: CGFloat = geo.size.height
-                let classicAt = CGPoint(x: w * 0.25, y: h * 0.46)
-                let dropAt = CGPoint(x: w * 0.71, y: h * 0.46)
+                let classicAt = CGPoint(x: w * 0.13, y: h * 0.46)
+                let dropAt = CGPoint(x: w * 0.42, y: h * 0.46)
+                let blobbyAt = CGPoint(x: w * 0.8, y: h * 0.5)
+                let aimBlobby: CGSize? = DropMath.aim(finger, from: blobbyAt, in: geo.size)
                 let aimClassic: CGSize? = DropMath.aim(finger, from: classicAt, in: geo.size)
                 let aimDrop: CGSize? = DropMath.aim(finger, from: dropAt, in: geo.size)
                 // 30 a second is plenty for a preview, and halves the work while the card is open (ticket: 45 late
@@ -116,8 +153,13 @@ struct PipLooks: SandboxPlugin {
                         PipDropBody(picks: .aaron30Oct, pose: pose, time: t, face: blink ? .blink : .awake, radius: dropRadius,
                                     simpler: simpler, flapping: !simpler)
                             .position(x: dropAt.x, y: dropAt.y + bob)
+                        PipBlobbyBody(radius: 13, time: t, face: blink ? .blink : .awake, look: aimBlobby ?? .zero,
+                                      facing: blobbyTurn.step(look: aimBlobby ?? .zero, at: t, snap: simpler),
+                                      emoji: inside.isEmpty ? nil : inside, simpler: simpler, flapping: !simpler)
+                            .position(x: blobbyAt.x, y: blobbyAt.y + bob)
                         label("Classic", on: look == .classic).position(x: classicAt.x, y: h - 14)
                         label("Drop", on: look == .drop).position(x: dropAt.x, y: h - 14)
+                        label("Blobby", on: look == .blobby).position(x: blobbyAt.x, y: h - 14)
                     }
                     .frame(width: w, height: h)
                 }
@@ -134,8 +176,8 @@ struct PipLooks: SandboxPlugin {
                 if case .active(let p) = phase { finger = p } else { finger = nil }
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Preview of Pip's two looks, Classic and Drop. \(look.short) is chosen.")
-            .accessibilityHint("Drag here and both Pips turn to look at your finger.")
+            .accessibilityLabel("Preview of Pip's three looks, Classic, Drop and Blobby. \(look.short) is chosen.")
+            .accessibilityHint("Drag here and the Pips turn to look at your finger.")
         }
 
         private func label(_ text: String, on: Bool) -> some View {

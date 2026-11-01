@@ -32,12 +32,12 @@
 <body>
 <div id="stage"><canvas id="c"></canvas></div>
 <div id="nogl">This page needs WebGL, which this browser has switched off.</div>
-<div id="hint">Free: drag anywhere and Pip follows. Peek, Sit and Hang put Pip on the glass panel.</div>
+<div id="hint">Drag anywhere and Pip follows. In Peek, Sit and Hang he flies back to the glass panel when you let go.</div>
 <div id="panel">
   <h1>Pip in 3D <span class="tag">EXPERIMENT</span></h1>
   <p>Aaron's drawings first. Starts from Aaron's baseline (1 Nov). Posture from Sheet A "Your Pip" and Sheet B "Draw Pip flying": the head leads, the back slopes down behind it.</p>
   <p class="note"><b>From Aaron's drawings:</b> teardrop of joined circles, the posture, the wings (his overlay, 1 Nov: two long leaves from the crown, fanned back), low eyes, peek / sit / hang, the faces.
-  <b>Aaron's idea (1 Nov):</b> an emoji inside him, like a heart.
+  <b>Aaron's idea (1 Nov):</b> an emoji inside him, like a heart, made of glass itself, floating; used sparingly, as he emotes.
   <b>Made up by Jules (needs Aaron's eye):</b> the wings' flutter, how far Pip turns when moving, the lighting recipes, the panel's rows; where the emoji floats, how it sloshes and beats, its light tinting his glow, and clear glass while it's in.</p>
   <div class="seg"><button class="btn" id="pick">Your pick: Sit · warm · smile</button><button class="btn" id="baseline">Aaron's baseline</button><button class="btn" id="drawn">Drawing proportions</button><button class="btn" id="copy">Copy settings</button></div>
   <p id="copied" style="display:none;margin-top:8px;user-select:text;-webkit-user-select:text;font:12px ui-monospace,Menlo,monospace"></p>
@@ -48,10 +48,13 @@
   <div class="lbl">Face (from the drawings)</div>
   <div class="seg" id="face"><button data-v="0" class="on">Calm</button><button data-v="1">Smile</button><button data-v="2">Oh</button><button data-v="3">Sleepy</button></div>
   <div class="lbl">Inside him <span class="tag">NEW</span></div>
-  <div class="seg" id="emoji"><button data-e="">None</button><button data-e="❤️" class="on">❤️</button><button data-e="💙">💙</button><button data-e="✨">✨</button><button data-e="⭐">⭐</button><button data-e="😊">😊</button><button data-e="💤">💤</button><button data-e="⚡">⚡</button><input id="eown" placeholder="+" aria-label="Your own emoji"></div>
+  <div class="seg" id="emoji"><button data-e="">None</button><button data-e="❤️" class="on">❤️</button><button data-e="💙">💙</button><button data-e="✨">✨</button><button data-e="⭐">⭐</button><button data-e="😊">😊</button><button data-e="😂">😂</button><button data-e="💤">💤</button><button data-e="⚡">⚡</button><input id="eown" placeholder="+" aria-label="Your own emoji"></div>
   <div class="seg" id="ewhere"><button data-v="0" class="on">Centre</button><button data-v="1">Up in his head</button><button data-v="2">Chest</button><button data-v="3">Body</button></div>
+  <p style="margin:6px 0 0;font-size:11.5px;color:#777">A face emoji becomes his face (his eyes step aside); anything else floats here.</p>
   <div class="row"><span>Clear glass (so you see it bend)</span><span id="ecv"></span></div><input type="range" id="eclear" min="0" max="1" step="0.05" value="0.85">
-  <div class="row"><span>Size</span><span id="esv"></span></div><input type="range" id="esize" min="0.3" max="1" step="0.05" value="0.55">
+  <div class="row"><span>Size</span><span id="esv"></span></div><input type="range" id="esize" min="0.3" max="1" step="0.05" value="0.5">
+  <div class="row"><span>Colour (glass, a bit red → Apple's, with a glass sheen)</span><span id="etv"></span></div><input type="range" id="etint" min="0" max="1" step="0.05" value="1">
+  <label class="chk"><input type="checkbox" id="eonly"> Only when he emotes (tap him)</label>
   <div class="row"><span>Its light (in his glass and glow)</span><span id="elv"></span></div><input type="range" id="elight" min="0" max="1" step="0.05" value="0.5">
 
   <details open><summary>Lighting studio</summary>
@@ -64,6 +67,7 @@
   </details>
 
   <details open><summary>Shape (Aaron's baseline)</summary>
+    <div class="row"><span>Blobby (a liquid neck; 0 = your baseline)</span><span id="blv"></span></div><input type="range" id="blob" min="0" max="1" step="0.05" value="0.5">
     <div class="row"><span>Smooth (irons out ridges)</span><span id="smv"></span></div><input type="range" id="smooth" min="0" max="1" step="0.05" value="0.6">
     <div class="lbl">Posture</div>
     <div class="seg" id="posture"><button data-v="0" class="on">Drawings (back slopes down)</button><button data-v="1">Upright (before)</button></div>
@@ -94,14 +98,16 @@
 
 const $ = s => document.querySelector(s);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const BASE = { n: 10, len: 3.4, curl: -0.7, taper: 1.9, rise: .65, blend: .5, fade: .5, edge: .8, look: 3, wings: 1, smooth: .6 };
+// Aaron's final baseline, 1 Nov ("ready to ship in one final version"). Before: len 3.4, curl -0.7, taper 1.9, rise .65, blend .5, fade .5.
+const BASE = { n: 10, len: 2.65, curl: .3, taper: 1.2, rise: 1, blend: .2, fade: 1, edge: .8, look: 3, wings: 1, smooth: .6 };
+const SOFT = { blob: .5 };      // Aaron, 1 Nov: a bit blobby, strong silhouette (0 = exactly his baseline). Name idea: "Blobby Pip" (V2)
 // Measured from Sheet A "Your Pip" and Sheet B "Draw Pip flying": straight sides, body about 2.5 head-radii long.
 const DRAWN = { n: 8, len: 2.5, curl: -.2, taper: 1.0 };
 const STUDIO = { glow: .8, hsize: .25, hstr: .35, refl: .35, tint: .35, env: 0 };
 // The view Aaron liked best (1 Nov, "bottom right is looking niceee"): it opens on this.
 const PICK = { pose: 2, env: 1, face: 1 };
-const INSIDE = { emoji: '❤️', esize: .55, elight: .5, ewhere: 0, eclear: .85 };
-const P = Object.assign({ yaw: 0, posture: 0, pose: 0, face: 0, panel: true, auto: !reduce }, BASE, STUDIO, PICK, INSIDE);
+const INSIDE = { emoji: '⭐', esize: .55, elight: .5, ewhere: 0, eclear: .85, etint: 1, eonly: false };
+const P = Object.assign({ yaw: 0, posture: 0, pose: 0, face: 0, panel: true, auto: !reduce }, BASE, SOFT, STUDIO, PICK, INSIDE);
 try { Object.assign(P, JSON.parse(localStorage.getItem('pip3d.v3') || '{}')); } catch {}
 const save = () => { try { localStorage.setItem('pip3d.v3', JSON.stringify(P)); } catch {} };
 const MAXB = 12, R0 = 1, S = 3.2, CAM = 8;
@@ -143,18 +149,22 @@ float leaf(vec3 p, vec4 a, vec4 m, vec4 m2, vec4 m3, vec4 t, vec3 nrm){
   d = min(d, roundCone(q, m3.xyz, t.xyz, m3.w, t.w));
   return d * sq;
 }
+uniform float blobK;
 float pipBody(vec3 p){
   // The body's circles are joined cleanly. (A soft blend between joints puffed each one out a little, which showed
   // as rings: Aaron's "ridges".) Far-away joints are skipped early, to keep it light.
-  float d = length(p - b[0].xyz) - b[0].w;
+  // Blobby (Aaron, 1 Nov: "nice and blobby but keep that strong silhouette"): the one soft blend is where the head
+  // meets the body, a liquid neck; the trail keeps its clean drawn line. At 0 it's exactly his baseline.
+  float head = length(p - b[0].xyz) - b[0].w, d = blobK > .001 ? 1e5 : head;
   for (int i = 1; i < ${MAXB}; i++) {
     if (i >= nb) break;
+    if (i == 1 && blobK > .001) continue;
     vec3 mid = (b[i - 1].xyz + b[i].xyz) * .5;
     float reach = length(b[i].xyz - b[i - 1].xyz) * .5 + max(b[i - 1].w, b[i].w);
     if (length(p - mid) - reach > d) continue;
     d = min(d, roundCone(p, b[i - 1].xyz, b[i].xyz, b[i - 1].w, b[i].w));
   }
-  return d;
+  return blobK > .001 ? smin(head, d, blobK) : d;
 }
 float pipWings(vec3 p){
   float d = 1e5;
@@ -219,20 +229,39 @@ bool mouthAt(vec3 p){
 // inside him (so the glass magnifies and wobbles it). Adds its light to "lit"; returns its colour, premultiplied.
 uniform sampler2D emo; uniform vec4 emoP; uniform float emoLight; uniform vec3 emoCol;
 uniform vec3 emoX; uniform vec3 emoY; uniform vec3 emoZ; uniform int emoKind;   // 0 none, 1 the emoji
-uniform float clarity;                                                           // 0 his usual glass, 1 crystal clear (only with an emoji in)
-vec4 inside(vec3 o, vec3 d, float far, inout vec3 lit){
-  if (emoKind == 0) return vec4(0.);
+uniform float clarity; uniform float faceOff;                                   // faceOff: the emoji is his face, so his eyes step aside
+                                                           // 0 his usual glass, 1 crystal clear (only with an emoji in)
+uniform float emoTint; uniform float emoVis;   // how much of the emoji's own colour (style), and 0...1 as it pops in and out
+// The emoji is glass too (Aaron, 1 Nov: "add the glass effect onto the heart itself"). Its shape carries the meaning;
+// light through it takes its colour (glass only: a bit red), up to Apple's full colours under a glass coat. Its outline
+// is read as a rounded glass surface, so it catches a highlight and a bright rim, and stays 3D as it floats in him.
+vec4 inside(vec3 o, vec3 d, float far, vec3 behind, inout vec3 lit){
+  if (emoKind == 0 || emoVis < .01) return vec4(0.);
   float s = clamp(dot(emoP.xyz - o, d), 0., far); vec3 c = o + d * s - emoP.xyz;
-  lit += emoCol * exp(-dot(c, c) / (emoP.w * emoP.w) * 2.) * .3;           // its light, filling the glass round it
-  // a real emoji (the device's own: Apple's on the iPad), facing you; only the glass bends it
+  lit += emoCol * exp(-dot(c, c) / (emoP.w * emoP.w) * 2.) * .3 * emoVis;   // its light, filling the glass round it
   float dn = dot(d, emoZ); if (abs(dn) < .02) return vec4(0.);
   float te = dot(emoP.xyz - o, emoZ) / dn;
   if (te < 0. || te > far) return vec4(0.);
   vec3 q = o + d * te - emoP.xyz;
   vec2 uv = vec2(dot(q, emoX), dot(q, emoY)) / (2. * emoP.w) + .5;
   if (uv.x < 0. || uv.y < 0. || uv.x > 1. || uv.y > 1.) return vec4(0.);
-  lit += texture2D(emo, uv, 4.).rgb * .8;                                   // a soft bloom right round it
-  return texture2D(emo, uv);
+  lit += texture2D(emo, uv, 4.).rgb * .8 * emoVis;                          // a soft bloom right round it
+  vec4 e = texture2D(emo, uv);
+  if (e.a < .004) return vec4(0.);
+  vec3 own = e.rgb / e.a;                                                     // the emoji's own colour here
+  // a rounded glass surface from its outline: a crisp edge plus a soft dome
+  const float k = .02;
+  float hA = texture2D(emo, uv, 2.5).a, hB = texture2D(emo, uv, 4.5).a;
+  float ax = texture2D(emo, uv + vec2(k, 0.), 2.5).a, ay = texture2D(emo, uv + vec2(0., k), 2.5).a;
+  float bx = texture2D(emo, uv + vec2(k, 0.), 4.5).a, by = texture2D(emo, uv + vec2(0., k), 4.5).a;
+  vec3 n = normalize(emoX * ((hA - ax) * 3. + (hB - bx) * 4.) + emoY * ((hA - ay) * 3. + (hB - by) * 4.) + emoZ);
+  vec3 L = normalize(vec3(-.5, .8, .65)), r = reflect(d, n);
+  float cosv = max(dot(n, -d), 0.);
+  vec3 through = behind * mix(vec3(1.), own, .45 + .45 * emoTint) * 1.08;   // light through coloured glass
+  vec3 col = mix(through, own, emoTint * emoTint);                          // more of Apple's own colours with "Colour"
+  col += mix(own, vec3(1.), .6) * pow(1. - cosv, 3.) * .55;                 // the bright rim of a glass edge
+  col += vec3(1.) * (pow(max(dot(r, L), 0.), 70.) * .9 + pow(max(dot(r, L), 0.), 12.) * .12);   // the highlight
+  return vec4(col, e.a * emoVis);
 }
 // Pip's colour at a point on his surface, and how solid it is there (the tip fades, the edges soften).
 vec4 shadePip(vec3 p, vec3 rd, vec3 behind){
@@ -262,18 +291,18 @@ vec4 shadePip(vec3 p, vec3 rd, vec3 behind){
     refr = mix(refr, behind, .25 * milk);
     refr *= exp(-ti * vec3(.22, .10, .03) * tintAmt * 2. * milk);
     refr = mix(refr, refr * .8 + vec3(.75, .85, 1.) * .2, tintAmt * .5 * milk);
-    vec3 lit = vec3(0.); vec4 em = inside(pin, rdi, ti, lit);                 // the emoji, under the glass
-    refr = refr * (1. - em.a) + em.rgb * mix(1., .85, tintAmt) + lit * emoLight;
+    vec3 lit = vec3(0.); vec4 em = inside(pin, rdi, ti, refr, lit);           // the emoji, a glass thing inside his glass
+    refr = mix(refr, em.rgb, em.a) + lit * emoLight;
     col = mix(refr, sky(Rr), F * reflAmt * 1.6) + spec;
   } else {
     vec3 base = mix(vec3(.80, .82, .95), vec3(1., .96, .99), n.y * .5 + .5);
     col = base * (.4 + .65 * max(dot(n, L), 0.)) + sky(Rr) * F * reflAmt + spec;
-    vec3 lit = vec3(0.); vec4 em = inside(p, rd, 3., lit);                    // pearl: the emoji glows through, milky
-    col = mix(col, col * (1. - em.a) + em.rgb, .5) + lit * emoLight * .6;
+    vec3 lit = vec3(0.); vec4 em = inside(p, rd, 3., col, lit);               // pearl: the emoji glows through, milky
+    col = mix(col, em.rgb, em.a * .5) + lit * emoLight * .6;
   }
   if (!ink && wingHere) { a *= .62; col = mix(col, behind, .25); }
   if (!ink) {
-    if (!wingHere && (eye(p, eyeA) || eye(p, eyeB) || mouthAt(p))) { col = vec3(.05, .06, .12) + spec * .5; a = 1.; }
+    if (!wingHere && faceOff < .5 && (eye(p, eyeA) || eye(p, eyeB) || mouthAt(p))) { col = vec3(.05, .06, .12) + spec * .5; a = 1.; }
     col += glowCol * pow(1. - cosi, 2.4 + clarity * 3.) * glowAmt * .9;      // the edge glow (tighter to his outline when clear)
     col += glowCol * (1. - a) * .3 * glowAmt;                 // the fading tip glows
   }
@@ -344,16 +373,18 @@ const aLoc = gl.getAttribLocation(prog, 'a'); gl.enableVertexAttribArray(aLoc); 
 const U = {};
 ['res', 'tanHalf', 'b', 'tipf', 'nb', 'k', 'w0', 'w1', 'w2', 'w3', 'w4', 'wn', 'nw', 'bound', 'look', 'fade', 'edge', 'eyeA', 'eyeB', 'eyeR', 'blink',
  'smoothE', 'fSide', 'fUp', 'mouthC', 'mouth', 'env', 'glowAmt', 'glowCol', 'specPow', 'specAmt', 'reflAmt', 'tintAmt', 'showPanel', 'pc', 'ph',
- 'emo', 'emoP', 'emoKind', 'emoLight', 'emoCol', 'emoX', 'emoY', 'emoZ', 'clarity']
+ 'emo', 'emoP', 'emoKind', 'emoLight', 'emoCol', 'emoX', 'emoY', 'emoZ', 'clarity', 'emoTint', 'emoVis', 'blobK', 'faceOff']
   .forEach(n => U[n] = gl.getUniformLocation(prog, n));
 
 // ---------- the emoji inside him: drawn by the device's own emoji font onto a small canvas, sent to the glass
-const emo = { p: null, v: { x: 0, y: 0, z: 0 }, on: false, heart: false, col: [1, 1, 1] };
+const emo = { p: null, v: { x: 0, y: 0, z: 0 }, on: false, heart: false, isFace: false, col: [1, 1, 1] };
 const emoTex = gl.createTexture(), EC = document.createElement('canvas'); EC.width = EC.height = 256;
 gl.uniform1i(U.emo, 0);
 function setEmoji(ch) {
   const c = EC.getContext('2d', { willReadFrequently: true }); c.clearRect(0, 0, 256, 256);
   emo.on = !!ch;
+  // Aaron, 1 Nov: "maybe the emoji becomes his face" · "if it's a face emoji" · "but like this otherwise"
+  emo.isFace = /^(\u263A|[\u{1F600}-\u{1F644}]|[\u{1F910}-\u{1F92F}]|[\u{1F970}-\u{1F97A}]|\u{1F9D0}|[\u{1FAE0}-\u{1FAE8}])/u.test(ch || '');
   emo.heart = /[❤♥\u{1F493}-\u{1F49F}\u{1F5A4}\u{1F90D}\u{1F90E}\u{1F9E1}\u{1FA75}-\u{1FA77}]/u.test(ch || '');
   if (ch) {
     c.font = '150px "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
@@ -397,7 +428,7 @@ function follow(chain, root, gap, lag, restOf, pull, n) {
 const radii = (n, r0, taper, end = .06) => Array.from({ length: n }, (_, i) => r0 * Math.max(end, Math.pow(1 - (i + 1) / (n + 1), taper)));
 
 // ---------- the scene
-let W = 1, H = 1, dragging = false, held = false, t0 = performance.now();
+let W = 1, H = 1, dragging = false, held = false, finger = v3(), t0 = performance.now(), emoteAt = -1e9, downAt = 0;
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
   W = innerWidth; H = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -416,6 +447,10 @@ function panelBox() {
 
 function tick(now) {
   const t = (now - t0) / 1000;
+  // Used sparingly (Aaron): with "Only when he emotes", it pops in when you tap him, floats a moment, then fades.
+  const since = (now - emoteAt) / 1000;
+  const vis = !P.eonly ? 1 : since < .35 ? since / .35 : since < 2.8 ? 1 : Math.max(0, 1 - (since - 2.8) / .6);
+  const pop = !P.eonly || reduce ? 1 : since < .35 ? .6 + .4 * Math.sin(since / .35 * Math.PI * .5) * 1.08 : 1;
   const pb = panelBox();
   const top = pb.c.y + pb.h.y, bottom = pb.c.y - pb.h.y, left = pb.c.x - pb.h.x;
   // Where Pip wants to be, and which way he faces at rest, for each pose.
@@ -434,12 +469,16 @@ function tick(now) {
       if (!still) target = v3(home.x + Math.sin(k2) * 1.8, home.y + Math.sin(k2 * 2) * 1.1, .6);
     } else if (!dragging && !held) target = home;
   }
+  if (dragging) { target = finger; z = .6; }                                     // held: follows the finger, in front
   const px = head.x, py = head.y;
   head.x += (target.x - head.x) * .08; head.y += (target.y - head.y) * .08; head.z += (z - head.z) * .08;
   vel.x += ((head.x - px) * 60 - vel.x) * .1; vel.y += ((head.y - py) * 60 - vel.y) * .1;
   const bob = reduce || P.pose ? 0 : Math.sin(t * 1.6) * .06;
 
   // Facing: at rest a three-quarter view (as drawn); moving, turned towards where he's going (by "Turn when moving").
+  // A face emoji is his face, so he turns to look at you while it's on (Aaron: "as he emotes he looks at you",
+  // "but only faces"). Other emoji just float inside.
+  if (emo.on && emo.isFace && vis > 0) face0 = norm(add(v3(face0.x * (1 - .85 * vis), face0.y * (1 - .85 * vis), face0.z * (1 - .85 * vis)), v3(0, -.05, 1), .85 * vis));
   const speed = Math.hypot(vel.x, vel.y);
   const toward = norm(v3(vel.x, vel.y * .6, .35));
   const want = norm(add(face0, toward, Math.min(1, speed * .35) * P.rise * 2));
@@ -464,7 +503,8 @@ function tick(now) {
   const wings = [];
   if (P.wings) {
     const still = reduce ? 0 : 1;
-    const beat = P.pose === 0 ? 8 : 3, amp = still * (P.pose === 0 ? .2 : .06);
+    // a real flap (Aaron, 1 Nov: "the wings need to flap too"): flying, a quick big beat; posed, slow and gentle
+    const beat = P.pose === 0 ? 9 : 4.5, amp = still * (P.pose === 0 ? .55 : .18);
     const fold = P.pose === 3 ? .35 : P.pose === 1 ? .25 : 0;                     // tucked back when hanging or peeking
     const sweep = Math.min(.35, speed * .06);                                     // swept back by the movement
     const back = norm(v3(-face.x, -face.y, -face.z));
@@ -480,7 +520,7 @@ function tick(now) {
       for (let j = 1; j < 5; j++) {
         const st = stops[j];
         // the beat travels out along the leaf (tip a little behind), plus a gentle bow, as drawn
-        const flutter = amp * Math.sin(t * beat - st * 1.3 + (sd > 0 ? 0 : 1.1));
+        const flutter = amp * (Math.sin(t * beat - st * .9 + (sd > 0 ? 0 : .3)) * .8 + .2);   // both together, the tip a touch behind
         let seg = turnAbout(dir, nrm, .28 * st - .14);                            // bow: the leaf curves like the drawing
         seg = norm(turnAbout(seg, back, sd * flutter));
         pts.push(add(pts[j - 1], seg, L * (st - stops[j - 1])));
@@ -511,31 +551,41 @@ function tick(now) {
   const ea = onHead(-.3, -.32), eb = onHead(.3, -.32), mc = onHead(0, -.62);
   const blinkK = P.face === 3 ? .1 : (!reduce && (t % 4.3) < .12) ? .12 : 1;
 
-  // The emoji inside (Aaron's idea). Jules's guesses: it floats a little behind the head's centre, lags and sloshes
-  // when Pip moves (like something in liquid), and a heart beats (lub-dub), its light pulsing with it.
-  let beat = 0, eScale = 1, ex = v3(1, 0, 0), ey = v3(0, 1, 0), ez = v3(0, 0, 1);
+  // The emoji inside (Aaron's idea), one treatment for all: it floats in the middle of his head, lags and sloshes when
+  // he moves (like something in liquid), breathes softly, its light pulsing with it. A face emoji is his face instead.
+  let beat = 0, eScale = pop, ex = v3(1, 0, 0), ey = v3(0, 1, 0), ez = v3(0, 0, 1);
   if (emo.on) {
-    // Where it floats (Aaron to choose): the centre of his head, up in his head (above the eyes), his chest, his body.
-    // Each spot keeps the whole emoji inside the glass, sloshing included.
-    const spots = [add(add(head, face, -R0 * .28), up, R0 * .04), add(add(head, face, -R0 * .22), up, R0 * .3),
-                   add(add(head, face, -R0 * .3), up, -R0 * .22), tail[0]];
-    const home = spots[P.ewhere] || spots[0];
+    // Where it floats. Centre: the middle of his round head, a touch high, his eyes just beside it (Aaron's drawing over
+    // the render, 1 Nov: "this is where his face and emoji need to fit well"). Seen through the ball from any side, it
+    // stays in the middle. It lags and catches up as he moves (follows him). Then up in his head, chest, body.
+    const spots = [add(head, up, R0 * .1), add(add(head, face, -R0 * .22), up, R0 * .3),
+                   add(add(head, face, -R0 * .3), up, -R0 * .22), tail[0],
+                   add(add(head, face, R0 * .5), up, -R0 * .1)];   // [4] a face emoji: on the front of his head, as his face
+    let home = emo.isFace ? spots[4] : spots[P.ewhere] || spots[0];
+    // floating: a gentle drift of its own (smaller on his face), on top of the slosh when he moves
+    if (!reduce) home = add(home, v3(Math.sin(t * .7) * .05, Math.sin(t * 1.1 + 1) * .06, Math.sin(t * .5) * .03), R0 * (emo.isFace ? .3 : 1));
     if (!emo.p || reduce) emo.p = v3(home.x, home.y, home.z);
     else {
       for (const c of ['x', 'y', 'z']) { emo.v[c] = (emo.v[c] + (home[c] - emo.p[c]) * .1) * .8; emo.p[c] += emo.v[c]; }
       const off = v3(emo.p.x - home.x, emo.p.y - home.y, emo.p.z - home.z), ol = Math.hypot(off.x, off.y, off.z), lim = R0 * .12;
       if (ol > lim) emo.p = add(home, off, lim / ol);
     }
-    if (!reduce) {
-      if (emo.heart) { const ph = (t % 1.05) / 1.05; beat = Math.exp(-(((ph - .1) / .05) ** 2)) + .55 * Math.exp(-(((ph - .3) / .06) ** 2)); }
-      eScale = emo.heart ? 1 + .1 * beat : 1 + .03 * Math.sin(t * 1.7);
-    }
+    // one treatment for every emoji (Aaron: "a universal thing that works across all emojis"): a soft breathing pulse
+    if (!reduce) { beat = .5 + .5 * Math.sin(t * 2.2); eScale *= 1 + .04 * beat; }
   }
   const ep = emo.p ? turn(emo.p) : v3();
+  if (emo.on) {
+    // Always faces you (Aaron's v1), turning a little with his body and tilting as he moves or bobs.
+    const yawE = turnV(face).x * .3, roll = Math.max(-.3, Math.min(.3, -vel.x * .04)) + (reduce ? 0 : Math.sin(t * .8) * .06);
+    ez = turnAbout(v3(0, 0, 1), v3(0, 1, 0), yawE);
+    const ex0 = norm(cross(v3(0, 1, 0), ez)), ey0 = cross(ez, ex0);
+    ex = turnAbout(ex0, ez, roll); ey = turnAbout(ey0, ez, roll);
+  }
+
 
   // Lighting studio: the glow colour follows the room (and, with an emoji inside, takes on a little of its colour).
   let glowCol = P.env === 1 ? [1, .86, .7] : P.env === 2 ? [.55, .75, 1] : [.82, .9, 1];
-  if (emo.on) glowCol = glowCol.map((g, i) => g + (emo.col[i] - g) * P.elight * .45);
+  if (emo.on) glowCol = glowCol.map((g, i) => g + (emo.col[i] - g) * P.elight * .45 * vis);
 
   gl.uniform2f(U.res, cv.width, cv.height); gl.uniform1f(U.tanHalf, S / CAM);
   gl.uniform4fv(U.b, data); gl.uniform1fv(U.tipf, tips); gl.uniform1i(U.nb, Math.min(MAXB, balls.length)); gl.uniform1f(U.k, P.blend);
@@ -543,13 +593,14 @@ function tick(now) {
   gl.uniform4f(U.bound, bc.x, bc.y, bc.z, br); gl.uniform1i(U.look, P.look); gl.uniform1f(U.fade, P.fade); gl.uniform1f(U.edge, P.edge);
   gl.uniform3f(U.eyeA, ea.x, ea.y, ea.z); gl.uniform3f(U.eyeB, eb.x, eb.y, eb.z); gl.uniform1f(U.eyeR, R0 * .1); gl.uniform1f(U.blink, blinkK);
   gl.uniform3f(U.fSide, sT.x, sT.y, sT.z); gl.uniform3f(U.fUp, uT.x, uT.y, uT.z); gl.uniform3f(U.mouthC, mc.x, mc.y, mc.z);
-  gl.uniform1f(U.smoothE, .0015 + P.smooth * .09);
+  gl.uniform1f(U.smoothE, .0015 + P.smooth * .09); gl.uniform1f(U.blobK, P.blob * .7);
   gl.uniform1i(U.mouth, P.face === 1 ? 1 : P.face === 2 ? 2 : 0);
   gl.uniform1i(U.env, P.env); gl.uniform1f(U.glowAmt, P.glow * (1 + beat * .25 * P.elight)); gl.uniform3fv(U.glowCol, glowCol);
   gl.uniform1i(U.emoKind, emo.on ? 1 : 0); gl.uniform4f(U.emoP, ep.x, ep.y, ep.z, R0 * P.esize * eScale);
   gl.uniform1f(U.emoLight, P.elight * (1 + beat * .6)); gl.uniform3fv(U.emoCol, emo.col);
   gl.uniform3f(U.emoX, ex.x, ex.y, ex.z); gl.uniform3f(U.emoY, ey.x, ey.y, ey.z); gl.uniform3f(U.emoZ, ez.x, ez.y, ez.z);
-  gl.uniform1f(U.clarity, emo.on ? P.eclear : 0);
+  gl.uniform1f(U.clarity, emo.on ? P.eclear * vis : 0); gl.uniform1f(U.emoTint, P.etint); gl.uniform1f(U.emoVis, vis);
+  gl.uniform1f(U.faceOff, emo.on && emo.isFace && vis > .5 ? 1 : 0);
   gl.uniform1f(U.specPow, 160 - P.hsize * 140); gl.uniform1f(U.specAmt, P.hstr); gl.uniform1f(U.reflAmt, P.refl); gl.uniform1f(U.tintAmt, P.tint);
   gl.uniform1i(U.showPanel, P.panel || P.pose ? 1 : 0); gl.uniform3f(U.pc, pb.c.x, pb.c.y, pb.c.z); gl.uniform3f(U.ph, pb.h.x, pb.h.y, pb.h.z);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -559,28 +610,30 @@ requestAnimationFrame(tick);
 
 // ---------- touch and controls
 const stage = $('#stage');
-stage.addEventListener('pointerdown', e => { if (P.pose) return; dragging = true; held = true; target = toWorld(e.clientX, e.clientY); stage.setPointerCapture(e.pointerId); });
-stage.addEventListener('pointermove', e => { if (dragging) target = toWorld(e.clientX, e.clientY); });
-stage.addEventListener('pointerup', () => { dragging = false; });
+// Grab him in any pose (Aaron, 1 Nov: "can't move him in demo"). In Peek, Sit and Hang he flies back when you let go.
+stage.addEventListener('pointerdown', e => { downAt = performance.now(); dragging = true; held = true; finger = target = toWorld(e.clientX, e.clientY); stage.setPointerCapture(e.pointerId); });
+stage.addEventListener('pointermove', e => { if (dragging) finger = target = toWorld(e.clientX, e.clientY); });
+stage.addEventListener('pointerup', () => { dragging = false; if (performance.now() - downAt < 280) emoteAt = performance.now(); });   // a tap: he emotes
 stage.addEventListener('pointercancel', () => { dragging = false; });
 
 const segs = [['look', 'look'], ['wings', 'wings'], ['pose', 'pose'], ['face', 'face'], ['env', 'env'], ['posture', 'posture'], ['ewhere', 'ewhere']];
 const ranges = [['n', 'nv'], ['len', 'lv'], ['curl', 'cv2'], ['taper', 'tv'], ['rise', 'rv', v => Math.round(v * 100) + '%'], ['blend', 'bv'],
   ['fade', 'fv', v => Math.round(v * 100) + '%'], ['edge', 'ev', v => Math.round(v * 100) + '%'], ['yaw', 'yv', v => v + '°'],
   ['smooth', 'smv', v => Math.round(v * 100) + '%'], ['glow', 'gv'], ['hsize', 'hv'], ['hstr', 'sv'], ['refl', 'rfv'], ['tint', 'tnv'],
-  ['esize', 'esv', v => Math.round(v * 100) + '%'], ['elight', 'elv', v => Math.round(v * 100) + '%'], ['eclear', 'ecv', v => Math.round(v * 100) + '%']];
+  ['blob', 'blv', v => Math.round(v * 100) + '%'], ['esize', 'esv', v => Math.round(v * 100) + '%'], ['elight', 'elv', v => Math.round(v * 100) + '%'], ['eclear', 'ecv', v => Math.round(v * 100) + '%'], ['etint', 'etv', v => Math.round(v * 100) + '%']];
 function sync() {
   for (const [id, key] of segs) $('#' + id).querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === P[key]));
   let mine = true;
   $('#emoji').querySelectorAll('button').forEach(b => { const on = b.dataset.e === P.emoji; b.classList.toggle('on', on); if (on) mine = false; });
   if (mine && document.activeElement !== $('#eown')) $('#eown').value = P.emoji;
   for (const [id, out, fmt] of ranges) { $('#' + id).value = P[id]; $('#' + out).textContent = (fmt || (v => v))(P[id]); }
-  $('#auto').checked = P.auto; $('#showPanel').checked = P.panel;
+  $('#auto').checked = P.auto; $('#showPanel').checked = P.panel; $('#eonly').checked = P.eonly;
 }
 for (const [id, key] of segs) $('#' + id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; P[key] = +b.dataset.v; held = false; sync(); save(); });
 for (const [id] of ranges) $('#' + id).addEventListener('input', e => { P[id] = +e.target.value; sync(); save(); });
 $('#auto').addEventListener('change', e => { P.auto = e.target.checked; held = false; save(); });
 $('#showPanel').addEventListener('change', e => { P.panel = e.target.checked; save(); });
+$('#eonly').addEventListener('change', e => { P.eonly = e.target.checked; emoteAt = performance.now(); save(); });
 $('#emoji').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; P.emoji = b.dataset.e; $('#eown').value = ''; setEmoji(P.emoji); sync(); save(); });
 $('#eown').addEventListener('input', e => {
   const v = e.target.value.trim();
@@ -591,7 +644,7 @@ $('#pick').addEventListener('click', () => { Object.assign(P, PICK); held = fals
 $('#baseline').addEventListener('click', () => { Object.assign(P, BASE, STUDIO, { posture: 0, yaw: 0 }); sync(); save(); });
 $('#drawn').addEventListener('click', () => { Object.assign(P, BASE, STUDIO, DRAWN, { posture: 0, yaw: 0 }); sync(); save(); });
 $('#copy').addEventListener('click', async () => {
-  const keys = ['smooth', 'n', 'len', 'curl', 'taper', 'rise', 'blend', 'fade', 'edge', 'posture', 'glow', 'hsize', 'hstr', 'refl', 'tint', 'env', 'pose', 'face', 'wings', 'look', 'emoji', 'ewhere', 'eclear', 'esize', 'elight'];
+  const keys = ['blob', 'smooth', 'n', 'len', 'curl', 'taper', 'rise', 'blend', 'fade', 'edge', 'posture', 'glow', 'hsize', 'hstr', 'refl', 'tint', 'env', 'pose', 'face', 'wings', 'look', 'emoji', 'ewhere', 'eclear', 'etint', 'eonly', 'esize', 'elight'];
   const text = 'Pip 3D settings (Aaron): ' + JSON.stringify(Object.fromEntries(keys.map(k => [k, P[k]])));
   try { await navigator.clipboard.writeText(text); $('#copy').textContent = 'Copied'; }
   catch { $('#copied').textContent = text; $('#copied').style.display = 'block'; }
