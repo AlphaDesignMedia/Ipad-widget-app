@@ -51,23 +51,24 @@ enum BlobbyPicks {
 }
 
 /// Aaron's sliders (Pip Looks → Tune Blobby): everything we tuned on the web page, editable in the app. Saved on the
-/// iPad; "Copy settings" puts them on the clipboard to send to Jules. Defaults = the page as Aaron liked it, 1 Nov.
+/// iPad; "Copy settings" puts them on the clipboard to send to Jules. Defaults = Aaron's own tuning on the iPad, 1 Nov.
 struct BlobbyTune: Codable, Equatable {
-    var glass = 1.0         // glassiness (how thick the tint is)
-    var glow = 0.6          // inner glow (the rim of light)
-    var shine = 0.75        // the highlight, top left
-    var warm = 0.45         // the warm bounce underneath
-    var soft = 0.18         // how soft his edges and joins are (× head radius)
+    var glass = 1.42         // glassiness (how thick the tint is)
+    var glow = 1.08          // inner glow (the rim of light)
+    var shine = 1.5        // the highlight, top left
+    var warm = 0.66         // the warm bounce underneath
+    var soft = 0.05         // how soft his edges and joins are (× head radius)
     var emojiSize = 0.82    // × head radius
     var emojiColour = 0.6   // 0 grey glass … 1 full colour
-    var emojiBend = 0.15    // how much the ball bends it
+    var emojiBend = 0.35    // how much the ball bends it
     var tail = 2.65         // tail length (head-radii), Aaron's 1 Nov setting
-    var wings = 1.0         // wing length
-    var nearWing = 1.35     // how much wider the near wing is
-    var turn = 60.0         // how snappily he turns (spring)
-    var effort = 1.0        // how hard flying looks (flap and lift)
-    var halo = 0.22         // the glow on the room around him
-    var edge = 0.55         // a darker glass edge and a soft shadow, so he reads on light backgrounds
+    var wings = 1.22         // wing length
+    var nearWing = 1.52     // how much wider the near wing is
+    var turn = 81.4         // how snappily he turns (spring)
+    var effort = 1.74        // how hard flying looks (flap and lift)
+    var halo = 0.0         // the glow on the room around him
+    var edge = 0.61         // a darker glass edge and a soft shadow, so he reads on light backgrounds
+    var panelLight = 0.7    // his light on the rims of panels, the plugin bar and cards (Aaron: "shine on the rim")
 
     init() {}
     /// Older saved settings miss newer sliders: those take their defaults.
@@ -79,7 +80,7 @@ struct BlobbyTune: Codable, Equatable {
         soft = v(.soft, d.soft); emojiSize = v(.emojiSize, d.emojiSize); emojiColour = v(.emojiColour, d.emojiColour)
         emojiBend = v(.emojiBend, d.emojiBend); tail = v(.tail, d.tail); wings = v(.wings, d.wings)
         nearWing = v(.nearWing, d.nearWing); turn = v(.turn, d.turn); effort = v(.effort, d.effort)
-        halo = v(.halo, d.halo); edge = v(.edge, d.edge)
+        halo = v(.halo, d.halo); edge = v(.edge, d.edge); panelLight = v(.panelLight, d.panelLight)
     }
 
     static let key = "plug.looks.blobbyTune"
@@ -533,5 +534,35 @@ extension PipBlobbyBody {
             }
             l.stroke(path, with: .color(PipLook.eye), style: StrokeStyle(lineWidth: max(0.8, r * 0.05), lineCap: .round))
         }
+    }
+}
+
+/// Pip glows, so he lights up the glass near him (Aaron, 1 Nov: "the glow must emit light and shine on the rim of
+/// panels"): the rims of the open panel, the plugin bar and an open card catch his light, brightest nearest him.
+/// Drawn over the app (Pip Looks' overlay), only while he wears Blobby. Nothing takes touches.
+struct BlobbyPanelLight: View {
+    let host: PipHost
+
+    var body: some View {
+        let tune = BlobbyTune.current
+        let p = host.pipPosition
+        let r: CGFloat = host.pip.radius
+        let reach: CGFloat = r * 9
+        let light = Color(red: 1, green: 0.95, blue: 0.85)
+        return Canvas { ctx, _ in
+            for (frame, corner) in [(host.panelFrame, CGFloat(26)), (host.cardFrame, CGFloat(22)), (host.barFrame, CGFloat(30))] {
+                guard !frame.isNull, frame.insetBy(dx: -reach, dy: -reach).contains(p) else { continue }
+                let rim = Path(roundedRect: frame, cornerRadius: min(corner, frame.height / 2))
+                let shading = GraphicsContext.Shading.radialGradient(
+                    Gradient(colors: [light.opacity(0.9 * tune.panelLight), light.opacity(0.25 * tune.panelLight), light.opacity(0)]),
+                    center: p, startRadius: 0, endRadius: reach)
+                ctx.stroke(rim, with: shading, lineWidth: 4)                   // the soft spill
+                ctx.stroke(rim, with: shading, lineWidth: 1.5)                 // the bright edge
+            }
+        }
+        .blendMode(.plusLighter)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .opacity(host.pipHere ? 1 : 0)
     }
 }

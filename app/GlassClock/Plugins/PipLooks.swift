@@ -18,7 +18,7 @@ struct PipLooks: SandboxPlugin {
     // MARK: Data
 
     enum Look: String, CaseIterable {
-        case classic, drop, blobby
+        case classic, blobby, drop                 // Drop last: the early version, kept (Aaron, 1 Nov)
         var title: String { self == .classic ? "Classic (default)" : self == .drop ? "Drop" : "Blobby (V2)" }
         var short: String { self == .classic ? "Classic" : self == .drop ? "Drop" : "Blobby" }
     }
@@ -87,6 +87,11 @@ struct PipLooks: SandboxPlugin {
 
     // MARK: Views
 
+    /// Blobby's light on the panels' rims, while Pip wears Blobby.
+    @ViewBuilder func overlay(_ host: PipHost) -> some View {
+        if PipLooks.chosen(host) == .blobby, host.activePipStyle?.owner == PipLooks.selfID { BlobbyPanelLight(host: host) }
+    }
+
     func card(_ host: PipHost) -> some View { LooksCard(host: host) }
 
     struct LooksCard: View {
@@ -143,7 +148,7 @@ struct PipLooks: SandboxPlugin {
                 Row(label: "Glassiness", path: \.glass, range: 0...2), Row(label: "Inner glow", path: \.glow, range: 0...1.5),
                 Row(label: "Shine", path: \.shine, range: 0...1.5), Row(label: "Warm bounce", path: \.warm, range: 0...1),
                 Row(label: "Soft edges", path: \.soft, range: 0.05...0.35), Row(label: "Glow round him", path: \.halo, range: 0...0.6),
-                Row(label: "Dark edge", path: \.edge, range: 0...1.2),
+                Row(label: "Dark edge", path: \.edge, range: 0...1.2), Row(label: "Light on panels", path: \.panelLight, range: 0...1.5),
                 Row(label: "Emoji size", path: \.emojiSize, range: 0.5...1.2), Row(label: "Emoji colour", path: \.emojiColour, range: 0...1),
                 Row(label: "Emoji bend", path: \.emojiBend, range: 0...0.4), Row(label: "Tail length", path: \.tail, range: 1.5...4),
                 Row(label: "Wings", path: \.wings, range: 0.6...1.4), Row(label: "Near wing width", path: \.nearWing, range: 1...1.8),
@@ -207,8 +212,8 @@ struct PipLooks: SandboxPlugin {
             return GeometryReader { geo in
                 let w: CGFloat = geo.size.width, h: CGFloat = geo.size.height
                 let classicAt = CGPoint(x: w * 0.12, y: h * 0.46)
-                let dropAt = CGPoint(x: w * 0.38, y: h * 0.46)
-                let blobbyAt = CGPoint(x: w * 0.76, y: h * 0.52)
+                let blobbyAt = CGPoint(x: w * 0.47, y: h * 0.52)
+                let dropAt = CGPoint(x: w * 0.84, y: h * 0.46)
                 let aimBlobby: CGSize? = DropMath.aim(finger, from: blobbyAt, in: geo.size)
                 let aimClassic: CGSize? = DropMath.aim(finger, from: classicAt, in: geo.size)
                 let aimDrop: CGSize? = DropMath.aim(finger, from: dropAt, in: geo.size)
