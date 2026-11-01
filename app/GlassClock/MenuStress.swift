@@ -36,6 +36,7 @@ import os
         if UserDefaults.standard.bool(forKey: "checkIdeas") { Task { await IdeasCheck.run() } }
         if let phase = UserDefaults.standard.string(forKey: "checkKL") { Task { await KLCheck.run(phase) } }
         if let phase = UserDefaults.standard.string(forKey: "checkM") { Task { await MCheck.run(phase) } }
+        if let phase = UserDefaults.standard.string(forKey: "checkO") { Task { await OCheck.run(phase) } }
         guard UserDefaults.standard.bool(forKey: "stressMenus") else { return }
         Task { await run() }
     }
@@ -679,6 +680,44 @@ import os
             .first(where: \.isKeyWindow) else { return }
         let img = UIGraphicsImageRenderer(bounds: w.bounds).image { _ in w.drawHierarchy(in: w.bounds, afterScreenUpdates: true) }
         try? img.pngData()?.write(to: URL.documentsDirectory.appending(path: "Diagnostics/m-\(name).png"))
+    }
+}
+/// `-checkO live`: job sheet O+ (Rob, 1 Nov 2026). Dashboard live feed: footer wording, the Live board card's
+/// four numbers, then "Follow the live dashboard" off and back on. Lines go to Documents/Diagnostics/o-live.txt,
+/// pictures to m-o-<name>.png.
+@MainActor enum OCheck {
+    static func run(_ phase: String) async {
+        let folder = URL.documentsDirectory.appending(path: "Diagnostics", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: "o-\(phase).txt")
+        var out: [String] = []
+        func note(_ s: String) { out.append(s); try? out.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8) }
+        func pause(_ s: Double) async { try? await Task.sleep(for: .seconds(s)) }
+        func footer() -> String {
+            KLCheck.label { ["Live ·", "Checking", "Couldn't reach", "Updated", "Snapshot"].contains(where: $0.contains) } ?? "no footer found"
+        }
+        func numbers() -> String {
+            let hits = KLCheck.elements().map(\.1).filter { l in ["Need you", "To try", "Up next", "Done"].contains(where: l.contains) }
+            return hits.isEmpty ? "no Live board numbers" : hits.prefix(6).joined(separator: " | ")
+        }
+        let host = PipHost.shared
+        await pause(6)
+        if host.paused { host.setPaused(false) }
+        note("start · live switch: \(Dashboard.Feed.shared.on)")
+        host.openCard = "dashboard"; await pause(6)
+        note("open · footer: \(footer())")
+        note("  live board: \(numbers())")
+        note("  headline: \(Dashboard.Feed.shared.data.status?.headline?.prefix(80) ?? "none")")
+        note("  board from: \(Dashboard.Feed.shared.data.syncedAt ?? "?") · source: \(Dashboard.Feed.shared.data.source ?? "?")")
+        MCheck.snap("o-on")
+        note("switch off: \(KLCheck.activate { $0.hasPrefix("Follow the live dashboard") })"); await pause(1.5)
+        note("  live switch: \(Dashboard.Feed.shared.on) · footer: \(footer())")
+        MCheck.snap("o-off")
+        note("switch on: \(KLCheck.activate { $0.hasPrefix("Follow the live dashboard") })"); await pause(5)
+        note("  live switch: \(Dashboard.Feed.shared.on) · footer: \(footer())")
+        if !Dashboard.Feed.shared.on { Dashboard.Feed.shared.on = true }
+        host.openCard = nil
+        note("DONE")
     }
 }
 #endif

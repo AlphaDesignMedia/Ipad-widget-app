@@ -15,6 +15,41 @@ with plugins switched off. Simulator numbers run on the Mac's chip: compare befo
 
 ---
 
+## 1 Nov, 03:45 · Job sheet O / O+ (3a99642): live dashboard feed, re-measured. Plugin `dashboard`, for Jules
+
+**Build:** red at first: two `dashboard.json` went into the app (my scripts still copied `data/` into `Packed/`, and
+`Plugins/dashboard.json` is new). Fixed on my side (0dff2cc: check.sh, tess.sh, run-on-ipad.sh no longer copy it). Then green.
+
+**Live feed (simulator, `-checkO live`, pictures `test-shots/o-live-on.png`, `-off.png`):**
+- ✅ Footer: "Live · checked 3:23 am · board from Sun 1 Nov, 3:10 am". Live board card: 5 · 0 · 10 · 60 (= status.json).
+- 🐞 **Switch "Follow the live dashboard" off → footer still says "Live · checked …"** until the card is opened again.
+  `Feed.freshness` returns the `.live` text whatever `on` is, and turning it off doesn't reset `state`. Fix idea: in the
+  `on` setter, `if !newValue { state = .starting }` (or check `on` first in `freshness`). Small; nothing parked.
+- 🐞 Numbers disagree: the on-canvas Progress card says **"2 need you"** (packed copy) while the Live board says **5**.
+  Probably the widget reads `Dashboard.feed`, not `Feed.shared`. Also in both pictures the canvas Progress card looks drawn
+  twice, a few points apart (top left). Might be my snapshot catching the glass mid-draw: please glance at it.
+- ❔ Airplane mode ("Couldn't reach the live board"): not tested, the simulator shares the Mac's network. 10-second check on the iPad.
+
+**Stress run vs. 31 Oct 22:50** (same script; fps · late · worst ms). ⚠️ Mac was busy: load 45–157 (was 13–50).
+
+| Dashboard | 1 Nov r1 | r2 | r3 | 31 Oct | reads as |
+|---|---|---|---|---|---|
+| card open | 57 · 10 · 207 | 59 · 5 · 314 | 60 · 9 · 181 | 169–255 | same |
+| unfold every section | 54 · 11 · 282 | 44 · 15 · 300 | 59 · 9 · 248 | 236–346 | same |
+| scroll | 60 · 0 · 0 | 60 · 0 · 0 | 60 · 0 · 0 | 0 | same ✅ |
+| close | 60 · 1 · 192 | 60 · 5 · 169 | 55 · 6 · 168 | 168–209 | same |
+| **Open as Panels, first** | **608** | **1030** | **631** | 424–512 | ⚠️ looks worse, but the Mac was 3× busier |
+| Open as Panels, second | 98 | 155 | 84 | 105–117 | same ✅ |
+| sections | 0–158 | 33–176, one **3686** in "Where we are" | 0–158 | 43–127 | one-off under load |
+
+Verdict: no clear change from the live feed; first Open as Panels is still the one catch. Re-run on a quiet Mac before
+judging Jules's next step. Load average is printed per round in the run.
+
+**board.json (step 4):** not written yet. A file is built and waiting; see AGENT-NOTES (the repo is public and holds the
+gist address, so the whole board would be readable by anyone. Aaron's call).
+
+---
+
 ## 31 Oct, 22:45 · Dashboard baseline before Jules changes anything (for `nat/dashboard-review.md`)
 
 Simulator, iPad Pro 13", portrait, Peek and Flight parked, PerFrame in. 3 rounds; Mac quieter (load 13–50, was 200+ earlier).
