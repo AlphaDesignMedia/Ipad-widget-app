@@ -4,6 +4,8 @@
 #   ./tools/check.sh           build, run, screenshot after 8 seconds
 #   ./tools/check.sh --build   build only
 #   ./tools/check.sh --fresh   as if Pip had never been met (shows the first meeting)
+#   ./tools/check.sh --keep    leave the simulator running afterwards (it shuts down by default)
+# Polite Mac (Aaron, 31 Oct): builds run at background priority on 4 cores, so music and the rest of the Mac stay smooth.
 # Prints only compiler errors, or "Build OK." and the screenshot's path.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -13,10 +15,10 @@ SIM=$(xcrun simctl list devices available | grep "iPad Pro 13-inch" | grep -oE '
 [[ -n "$SIM" ]] || { echo "No iPad simulator found."; exit 1; }
 
 LOG=$(mktemp)
-# Packs the dashboard's data into the app (Dashboard plugin reads it); the folder joins the app by itself.
-mkdir -p GlassClock/Packed && cp ../data/dashboard.json GlassClock/Packed/dashboard.json
-if ! xcodebuild -project PipSandbox.xcodeproj -scheme GlassClock -configuration Debug -destination "id=$SIM" \
-    -derivedDataPath "$BUILD" -quiet build >"$LOG" 2>&1; then
+# Dashboard data: Plugins/dashboard.json (refresh it with tools/sync-dashboard.sh).
+rm -rf GlassClock/Packed   # 1 Nov: the dashboard is packed from Plugins/dashboard.json now; a 2nd copy breaks the build
+if ! taskpolicy -b xcodebuild -project PipSandbox.xcodeproj -scheme GlassClock -configuration Debug -destination "id=$SIM" \
+    -derivedDataPath "$BUILD" -jobs 4 -quiet build >"$LOG" 2>&1; then
   grep -E "error:" "$LOG" | sed 's|.*/app/||' | sort -u
   echo "Build failed."
   exit 1
@@ -35,3 +37,4 @@ mkdir -p tools/shots
 xcrun simctl io "$SIM" screenshot tools/shots/check.png >/dev/null 2>&1
 sips -Z 1000 tools/shots/check.png >/dev/null
 echo "Screenshot: app/tools/shots/check.png"
+[[ " $* " == *" --keep "* ]] || xcrun simctl shutdown "$SIM" 2>/dev/null

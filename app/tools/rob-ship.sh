@@ -13,9 +13,9 @@ if [[ "${1:-}" != --build ]]; then
 fi
 
 LOG=$(mktemp)
-if ! (cd app && xcodebuild -project PipSandbox.xcodeproj -scheme GlassClock -configuration Debug \
+if ! (cd app && taskpolicy -b xcodebuild -project PipSandbox.xcodeproj -scheme GlassClock -configuration Debug \
     -destination "generic/platform=iOS Simulator" -derivedDataPath "${TMPDIR:-/tmp}/pipsandbox-rob" \
-    -quiet build) >"$LOG" 2>&1; then
+    -jobs 4 -quiet build) >"$LOG" 2>&1; then
   grep -E "error:" "$LOG" | sed 's|.*/app/||' | sort -u
   echo "Red build: nothing pushed."
   exit 1

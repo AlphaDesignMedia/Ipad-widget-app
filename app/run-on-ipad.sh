@@ -15,10 +15,10 @@ CONFIG=Release
 DEVICE=$(xcrun devicectl list devices 2>/dev/null | awk '/iPad/ && (/connected/ || /available/) {print $3; exit}')
 [[ -n "$DEVICE" ]] || { echo "No connected iPad found."; exit 1; }
 
-# Packs the dashboard's data into the app (Dashboard plugin reads it); the folder joins the app by itself.
-mkdir -p GlassClock/Packed && cp ../data/dashboard.json GlassClock/Packed/dashboard.json
-xcodebuild -project PipSandbox.xcodeproj -scheme GlassClock -configuration $CONFIG \
-  -destination "generic/platform=iOS" -derivedDataPath "$BUILD_DIR" \
+# Dashboard data: Plugins/dashboard.json (refresh it with tools/sync-dashboard.sh).
+rm -rf GlassClock/Packed   # 1 Nov: the dashboard is packed from Plugins/dashboard.json now; a 2nd copy breaks the build
+taskpolicy -b xcodebuild -project PipSandbox.xcodeproj -scheme GlassClock -configuration $CONFIG \
+  -destination "generic/platform=iOS" -derivedDataPath "$BUILD_DIR" -jobs 4 \
   DEVELOPMENT_TEAM=$TEAM CODE_SIGN_ENTITLEMENTS=Config/FreeTeam.entitlements -allowProvisioningUpdates -quiet build
 
 # If this fails with "Could not allocate a resource": `pkill -x CoreDeviceService`, then retry.
