@@ -101,7 +101,9 @@ struct PipLooks: SandboxPlugin {
                 let dropAt = CGPoint(x: w * 0.71, y: h * 0.46)
                 let aimClassic: CGSize? = DropMath.aim(finger, from: classicAt, in: geo.size)
                 let aimDrop: CGSize? = DropMath.aim(finger, from: dropAt, in: geo.size)
-                TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: simpler)) { tl in
+                // 30 a second is plenty for a preview, and halves the work while the card is open (ticket: 45 late
+                // frames on opening it).
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: simpler)) { tl in
                     let t: Double = simpler ? 0 : tl.date.timeIntervalSinceReferenceDate
                     let target = DropMath.target(aimDrop, time: t, turn: DropPicks.aaron30Oct.turn, simpler: simpler)
                     let pose = turn.step(to: target, at: t, snap: simpler)
@@ -335,7 +337,8 @@ struct PipDropBody: View {
         let p = picks, pz = pose, t = simpler ? 0 : time, fc = face
         let flaps = flapping && !simpler && face != .asleep
         let sp = spin, rad = Double(radius)
-        return Canvas { ctx, size in
+        // Drawn off the main thread, so the shadowed drop and its wings never hold up a frame.
+        return Canvas(rendersAsynchronously: true) { ctx, size in
             var g = ctx
             g.translateBy(x: size.width / 2, y: size.height / 2)
             PipDropBody.draw(in: &g, picks: p, pose: pz, time: t, face: fc, r: rad,
