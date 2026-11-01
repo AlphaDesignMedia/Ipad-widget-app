@@ -59,7 +59,7 @@ struct BlobbyTune: Codable, Equatable {
     var shine = 1.12         // the highlight, top left
     var warm = 0.66          // the warm bounce underneath
     var soft = 0.05          // how soft his edges and joins are (× head radius). Aaron: soft edges ruin it; keep low
-    var emojiSize = 0.83     // × head radius
+    var emojiSize = 0.95     // × head radius (Aaron, 1 Nov: "a little bit bigger")
     var emojiColour = 1.0    // 0 grey glass … 1 full colour
     var emojiBend = 0.4      // how much the ball bends it
     var tail = 2.26          // tail length (head-radii)
@@ -357,10 +357,17 @@ struct PipBlobbyBody: View {
     var emojiAt: Double? = nil
     var simpler: Bool = false
     var halo: Color = PipLook.glow
+    /// 0 melted into the glass … 1 wants you: his light comes up (BlobbyAttention).
+    var attention: Double = 0
 
     var body: some View {
         let r = radius
-        let tune = BlobbyTune.current
+        // Wanting you, he comes forward with light: a stronger rim and glow on the room, breathing gently (Aaron, 1 Nov)
+        let breathe: Double = simpler ? 0 : 0.12 * attention * sin(time * 4)
+        var tune = BlobbyTune.current
+        tune.glow *= 1 + 0.7 * attention + breathe
+        tune.shine *= 1 + 0.3 * attention
+        tune.halo = min(1, tune.halo * (1 + 1.2 * attention) + 0.25 * attention + breathe * 0.5)
         let box: CGFloat = r * 8
         let mid = CGPoint(x: box / 2, y: box / 2)
         let bodyPath = BlobbyPaths.body(frame, r: r)
@@ -386,11 +393,17 @@ struct PipBlobbyBody: View {
                 .blendMode(.plusLighter)
             // a glass emoji inside him: less colour, bent by the ball, arriving sharp from soft (Apple: materialise)
             if let em = shown {
-                Text(em)
-                    .font(.system(size: r * CGFloat(tune.emojiSize)))     // whole inside him, never cut off (Aaron)
-                    .scaleEffect(CGFloat((0.5 + 0.5 * e) * m.pop))
+                let colour: Double = leaving ? tune.emojiColour * m.vis : tune.emojiColour
+                ZStack {
+                    // through thicker glass at the edges: paler
+                    Text(em).font(.system(size: r * CGFloat(tune.emojiSize))).saturation(colour * 0.45)
+                    // straight through the middle: full colour (Aaron, 1 Nov: "towards the middle, you can see more of the colour")
+                    Text(em).font(.system(size: r * CGFloat(tune.emojiSize))).saturation(colour)
+                        .mask(RadialGradient(colors: [.black, .black.opacity(0.7), .clear], center: .center,
+                                             startRadius: 0, endRadius: r * CGFloat(tune.emojiSize) * 0.6))
+                }
+                    .scaleEffect(CGFloat((0.5 + 0.5 * e) * m.pop))      // whole inside him, never cut off (Aaron)
                     // leaving, it turns to glass: the colour drains, it brightens and softens, then melts into him (Aaron)
-                    .saturation(leaving ? tune.emojiColour * m.vis : tune.emojiColour)
                     .brightness(leaving ? 0.3 * (1 - m.vis) : 0)
                     .opacity(min(1, m.vis * 1.5) * 0.85)
                     .blur(radius: simpler ? 0 : CGFloat(1 - e) * r * (leaving ? 0.35 : 0.25))
@@ -542,32 +555,19 @@ extension PipBlobbyBody {
     }
 }
 
-/// Pip glows, so he lights up the glass near him (Aaron, 1 Nov: "the glow must emit light and shine on the rim of
-/// panels"): the rims of the open panel, the plugin bar and an open card catch his light, brightest nearest him.
-/// Drawn over the app (Pip Looks' overlay), only while he wears Blobby. Nothing takes touches.
-struct BlobbyPanelLight: View {
-    let host: PipHost
+// His light on the panels is its own plugin now: Pip's Light (PipLight.swift).
 
-    var body: some View {
-        let tune = BlobbyTune.current
-        let p = host.pipPosition
-        let r: CGFloat = host.pip.radius
-        let reach: CGFloat = r * 9
-        let light = Color(red: 1, green: 0.95, blue: 0.85)
-        return Canvas { ctx, _ in
-            for (frame, corner) in [(host.panelFrame, CGFloat(26)), (host.cardFrame, CGFloat(22)), (host.barFrame, CGFloat(30))] {
-                guard !frame.isNull, frame.insetBy(dx: -reach, dy: -reach).contains(p) else { continue }
-                let rim = Path(roundedRect: frame, cornerRadius: min(corner, frame.height / 2))
-                let shading = GraphicsContext.Shading.radialGradient(
-                    Gradient(colors: [light.opacity(0.9 * tune.panelLight), light.opacity(0.25 * tune.panelLight), light.opacity(0)]),
-                    center: p, startRadius: 0, endRadius: reach)
-                ctx.stroke(rim, with: shading, lineWidth: 4)                   // the soft spill
-                ctx.stroke(rim, with: shading, lineWidth: 1.5)                 // the bright edge
-            }
-        }
-        .blendMode(.plusLighter)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-        .opacity(host.pipHere ? 1 : 0)
+/// Pip comes forward with light when they want you (Aaron, 1 Nov: "it's lovely how he gets lost in the interface, but we
+/// need to use this to know when he wants attention"). While Pip is talking or showing an emote the level rises quickly;
+/// after, it settles back slowly, so he melts into the glass again. Pip's Light brightens with it too.
+@MainActor enum BlobbyAttention {
+    private(set) static var level = 0.0
+    private static var last = 0.0
+
+    static func step(time: Double, wants: Bool) -> Double {
+        let dt = min(0.1, max(0, time - last))
+        last = time
+        level += ((wants ? 1 : 0) - level) * min(1, dt * (wants ? 4 : 1.2))
+        return level
     }
 }

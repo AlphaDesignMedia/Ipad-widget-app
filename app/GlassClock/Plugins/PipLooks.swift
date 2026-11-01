@@ -70,8 +70,12 @@ struct PipLooks: SandboxPlugin {
         let target: Double = ctx.look.width < -0.15 ? -1 : (ctx.look.width > 0.15 ? 1 : 0)
         let frame = BlobbyRig.live.step(pos: ctx.pos, r: ctx.size / 2, time: ctx.time, target: target, toYou: toYou,
                                         simpler: ctx.simpler, held: ctx.held)
+        // he wants you while he's talking or showing an emote
+        let wants = PipHost.shared.pip.bubble != nil || m.vis > 0.5
+        let attention = BlobbyAttention.step(time: ctx.time, wants: wants)
         return AnyView(PipBlobbyBody(radius: ctx.size / 2, frame: frame, time: ctx.time, face: ctx.face, look: ctx.look,
-                                     emoji: emote?.emoji, emojiAt: emote?.at ?? -1e9, simpler: ctx.simpler, halo: ctx.halo))
+                                     emoji: emote?.emoji, emojiAt: emote?.at ?? -1e9, simpler: ctx.simpler, halo: ctx.halo,
+                                     attention: attention))
     }
 
     /// Pip's whole body in the Drop look, for the core to draw in place of `PipBody` (same centre, Pip's own space).
@@ -87,10 +91,7 @@ struct PipLooks: SandboxPlugin {
 
     // MARK: Views
 
-    /// Blobby's light on the panels' rims, while Pip wears Blobby.
-    @ViewBuilder func overlay(_ host: PipHost) -> some View {
-        if PipLooks.chosen(host) == .blobby, host.activePipStyle?.owner == PipLooks.selfID { BlobbyPanelLight(host: host) }
-    }
+    // (Blobby's light on the panels moved to its own plugin, Pip's Light: PipLight.swift, 1 Nov.)
 
     func card(_ host: PipHost) -> some View { LooksCard(host: host) }
 

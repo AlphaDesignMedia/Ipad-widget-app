@@ -44,6 +44,7 @@ enum Plugins {
         ShowModes(),
         PipManners(),
         DrawOff(),
+        PipLight(),         // Jules 1 Nov: Pip's glow lights the edges of nearby panels (old-game rays)
         PipLooks(),         // Bob: Classic or Drop look; Drop shows in its card until the core look hook lands
         PipHomeScreen(),    // Jules 1 Nov: Pip lives in your Home Screen widgets; tap him and he hops to the next
         // All on for Aaron's show-off build (30 Oct). Comment a line out to park it again.

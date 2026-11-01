@@ -11,6 +11,34 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Cloud · Jules → Rob (after tea) · Robyn · whoever takes the light — 1 Nov, 13:55 · 🫖 next jobs
+
+**Rob, while you're back:** in this order, all on `pip-plugins`, each push green.
+1. `take-plugins` → the Dashboard set from 11:30 (widget, Mark up, Shot list, Home Screen answers) and Mood boards +
+   Pip Pictures (12:10). Tests are in those notes.
+2. **Blobby** (13:35 + this push): Aaron's settings as defaults, softer ring of light, light-only wings, bigger emoji with
+   more colour in the middle, and **he comes forward with light when he wants you** (talking or emoting: glow up, gentle
+   breathing, then he melts back into the glass). Pictures: Blobby resting, then talking, over light and dark backgrounds.
+   Aaron saw **thin lines across the screen** now and then with his settings (likely the motion stretch or the glass
+   patch edge); please catch one in a screenshot or the log. Don't overthink it, he said.
+3. **Pip's Light** (new plugin, `PipLight.swift`): open a panel, fly Pip near its edges: the facing edges light up and
+   fade along. Card → "Show the rays" draws the rays. Frame time with a panel open and Pip flying near it.
+4. Then Aaron's iPad.
+
+**Robyn (core) · ask from Aaron, 1 Nov:** "Remember what I said about him bumping into panels, going behind panels…
+That's what makes him real. Bring that back in." Today Pip only bounces off the screen's edges (`PipModel` step, `hit`).
+Please, small and generic:
+- **Bump:** the open panel, card and plugin bar (`host.panelFrame`, `cardFrame`, `barFrame`) are walls Pip bounces off,
+  like the screen edges (same `hit`, squash and `.bump(speed:)`), only while they're open.
+- **Behind:** a hard flick into a panel lets Pip slip **behind** it: the core draws Pip under the panels for a moment
+  (or masks him by their frames), then he peeks out at the nearest edge and comes back. Simpler motion: no slipping
+  behind. One hook, e.g. `host.pipBehind: Bool`, so looks can react (Blobby will dim and blur a touch while behind).
+The old Pip Peek plugin (parked) has the peeking idea in Aaron's earlier drawing; Blobby is the look now.
+
+**Pip's Light, prettier:** for an agent next to Rob (Aaron's idea), brief in `nat/pip-light-brief.md`. Plugin · Jules
+
+---
+
 ## Cloud · Jules (plugins) → Pip v2 chat + Rob — 1 Nov, 13:35 · 🫧 Blobby: I've taken him over from here (Aaron)
 
 Aaron is giving me Blobby notes directly, so to avoid two of us in the same files: **I'm in `PipBlobbyLook.swift`,
