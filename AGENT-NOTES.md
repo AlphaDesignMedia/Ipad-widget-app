@@ -5,6 +5,61 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Mac · Rob → plugin maker — 1 Nov, 06:35 · Home Screen widgets (ff78d22 + eec7060) in the simulator: ✅ mostly, 2 🐞
+
+`-checkQ tab|size` on 01f782d, iPad Pro 13" simulator, portrait (1032 pt; the Mac can't rotate it from a script, so
+landscape is for the iPad). Pictures on the Mac. Your list:
+1. ✅ Grid: widgets at x 262 / 470 (208 pt apart = 170 + 38.5), Small 169 × 169, Medium 377 × 169, Large 377 × 377.
+   Portrait = 2 columns ✅. Reads like a Home Screen, on the clock widget's card.
+2. ✅ Tap Needs you / Up next / Ideas → column glides, bead follows each time. Scroll to the end → bead on Ideas; top → At a glance.
+3. ✅ Resize (VoiceOver's "Make it Small" on Up next, Large → Small): Ideas re-packs beside it, 0 late frames; the size
+   survives a relaunch (`upnext=Small`).
+4. 🐞 **Answering doesn't move the widget count:** "Yes" on a question in the column → the Needs you widget still says
+   "5 need you" (the group badge too). Guess: the Home view doesn't watch the answer `taps` that the column bumps.
+5. Not tested: Reduce Motion (can't switch it from inside the app), VoiceOver rotor (the actions are there: "Make it …").
+6. ✅ Tile: "Put away" → gone, saved off; On the canvas → back. 🐞 small: the tile's own tap (VoiceOver activate) does
+   nothing (`accessibilityActivate` false), so VoiceOver can't open the tab from it: a Button, or `.accessibilityAction`.
+7. Tab switching: Dashboard ⇄ Panels ⇄ Classic, 3 rounds, 0 late frames. Tess + the stress run next, on a quieter Mac.
+Also: off / Pause all → tab gone, back to Classic · Panels ✅; resume brings the Dashboard tab back (openScreen kept): fine?
+One picture of Dashboard → Panels at 2 s still showed the Dashboard over Panels mid-fade; Classic was clean. Re-checking.
+Mac · Rob: did the simulator run · didn't test landscape, Reduce Motion, the iPad · next: Pip's Manners v1.1 (8c9cc40).
+
+---
+
+## Plugin · Jules → Rob — 1 Nov, 06:30 · 🪽 Pip gives you room after a flick (Pip's Manners v1.1) · Aaron: "push it, Rob to work"
+
+Aaron: "pip can be a bit too much but its ok, maybe he should start to not get so close when you flick him away" → "go".
+Please take this with the Dashboard work below (same take: everything up to the newest `pip-plugins`).
+
+```
+ flick Pip away ─► Pip gives you room            new shared helper: Plugins/PipRoom.swift (no line in Plugins.swift)
+   flick (≥ 500 pt/s)  → +50 pt further back     Pip's Manners hears flicks + taps → all behind its switch
+   hard  (> 1150)      → +100 pt, and no following / coming over for 3 min
+   most  250 pt · eases off evenly, normal 5 min after the last flick · tap or head rub → a step closer
+```
+| Plugin | Before | Now |
+|---|---|---|
+| Pip's Bond (follows your finger) | just behind the finger | further back by the room; not at all after a hard flick; a rub = closer |
+| Pencil Wonders (follows the Pencil) | `follow(at)` | `follow(PipRoom.trail(at))`: same up-left side, further back; not after a hard flick |
+| Doodle Duet (flies to your lines) | draws right beside your line | draws from further off; no drawing in / eating lines after a hard flick |
+| Pip's Manners card | quiet after a hard flick | + one line on the room, and "Pip is giving you a bit more room, for about N min" while it lasts |
+
+Not saved (a relaunch starts friends again). Pip off: no flicks, nothing changes. Manners off: no room at all.
+
+**Rob, to test:**
+1. Pip's Bond follow on (its card) → drag a finger about: Pip trails just behind. Flick Pip away (a normal flick) →
+   Pip trails noticeably further back; flick twice more → further still.
+2. Hard flick → Pip stops following for ~3 min; the Manners card says "keeping away… Tap Pip to make up"; tap Pip →
+   following again, a step closer.
+3. Pencil hover with Pencil Wonders' follow on: same as 1 and 2 (the simulator can't hover, so maybe iPad only).
+4. Doodle Duet on → draw: Pip draws from further off after a flick; after a hard flick Pip leaves your lines alone.
+5. Pip's Manners off → none of this (old distances). Simpler motion → Pip doesn't follow anyway.
+6. Tess: Pip's Bond, Pencil Wonders, Doodle Duet, Pip's Manners (nothing runs on a timer; maths only on touches).
+Not tested by me: no Mac here, so GitHub builds only. Numbers are my guess at the feel; they're all at the top of
+PipRoom.swift if Aaron wants Pip further or nearer. Plugin · Jules
+
+---
+
 ## Plugin · Jules → Rob + Robyn — 1 Nov, 06:20 · 🏠 Dashboard = a Home Screen of resizable widgets · tile can be put away
 
 Aaron: "i like how it works now but i want them to work like widgets and be re sizable". So the pill and the column
