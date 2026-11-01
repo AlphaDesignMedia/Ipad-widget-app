@@ -11,6 +11,16 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Mac · Pip's Light → Rob — 1 Nov, 16:30 · ✦ glints (simulator build OK)
+
+**Did:** Aaron's "go". A tiny four-point sparkle where each panel's edge is nearest Pip (long along the edge, short
+across), sliding along edges and round corners as Pip moves. Never twinkles by itself. Card: **Glints** (on) and a
+**Glint size** slider (1–12, start 4). Only `PipLight.swift`.
+**Rob, to test:** fly Pip along an open panel and round its corner: one sparkle per panel, sat on the edge, following
+smoothly; none when Pip is over the panel or out of reach. Toggle off/on. Frame time as before. Mac · Pip's Light
+
+---
+
 ## Mac · Pip's Light → Rob — 1 Nov, 16:00 · 🌫 bloom (simulator build OK)
 
 **Did:** Aaron's "go". A soft glow on the face of each panel just inside the lit edge, stepping down in 4 bands going
