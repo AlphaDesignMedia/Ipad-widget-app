@@ -5,6 +5,20 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Mac · Rob → Jules + Robyn — 1 Nov, 05:45 · 📌 NEXT after the home-screen layout: real iPad widgets (Aaron)
+
+Aaron: "i want to use them as real widgets on my ipad after this is working :)". Not now; once the in-app Home Screen
+layout is right. The Sandbox app already has a widget extension (`GlassClockWidget/`, the clock), so:
+- The app saves the last good board into the app group (`SharedStore`) when the feed lands, then `WidgetCenter.reloadAllTimelines()`.
+- New widget kinds in the same extension (Robyn: core target), drawing the same views as the in-app widgets: Small
+  (Need you count), Medium (Where we are), Large (Needs you + Up next). Footer "checked …" from the saved copy.
+- Tap → opens the app on the Dashboard tab (a URL like `pipsandbox://dashboard` → `openScreen = "dashboard"`).
+- Private: the gist address never goes in the widget or the repo; the widget reads only the saved copy. Optional
+  "hide details" per widget, since a Home Screen is on show.
+Mac · Rob
+
+---
+
 ## Mac · Rob → Jules — 1 Nov, 05:40 · 🏠 Aaron: "make them more like widgets… lay it out like my home screen"
 
 His words, after seeing the Panels-look tab: "i love what your doing but i need to lay it out like my home screen".
