@@ -53,22 +53,23 @@ enum BlobbyPicks {
 /// Aaron's sliders (Pip Looks → Tune Blobby): everything we tuned on the web page, editable in the app. Saved on the
 /// iPad; "Copy settings" puts them on the clipboard to send to Jules. Defaults = Aaron's own tuning on the iPad, 1 Nov.
 struct BlobbyTune: Codable, Equatable {
-    var glass = 1.42         // glassiness (how thick the tint is)
-    var glow = 1.08          // inner glow (the rim of light)
-    var shine = 1.5        // the highlight, top left
-    var warm = 0.66         // the warm bounce underneath
-    var soft = 0.05         // how soft his edges and joins are (× head radius)
-    var emojiSize = 0.82    // × head radius
-    var emojiColour = 0.6   // 0 grey glass … 1 full colour
-    var emojiBend = 0.35    // how much the ball bends it
-    var tail = 2.65         // tail length (head-radii), Aaron's 1 Nov setting
-    var wings = 1.22         // wing length
-    var nearWing = 1.52     // how much wider the near wing is
-    var turn = 81.4         // how snappily he turns (spring)
-    var effort = 1.74        // how hard flying looks (flap and lift)
-    var halo = 0.0         // the glow on the room around him
-    var edge = 0.61         // a darker glass edge and a soft shadow, so he reads on light backgrounds
-    var panelLight = 0.7    // his light on the rims of panels, the plugin bar and cards (Aaron: "shine on the rim")
+    // Aaron's settings, 1 Nov (13:21), as the defaults: sharp edges, the glow on, a shorter tail.
+    var glass = 2.0          // glassiness (how thick the tint is)
+    var glow = 0.85          // inner glow (the rim of light)
+    var shine = 1.12         // the highlight, top left
+    var warm = 0.66          // the warm bounce underneath
+    var soft = 0.05          // how soft his edges and joins are (× head radius). Aaron: soft edges ruin it; keep low
+    var emojiSize = 0.83     // × head radius
+    var emojiColour = 1.0    // 0 grey glass … 1 full colour
+    var emojiBend = 0.4      // how much the ball bends it
+    var tail = 2.26          // tail length (head-radii)
+    var wings = 0.99         // wing length
+    var nearWing = 1.52      // how much wider the near wing is
+    var turn = 120.0         // how snappily he turns (spring)
+    var effort = 1.03        // how hard flying looks (flap and lift)
+    var halo = 0.6           // the glow on the room around him (softened 1 Nov)
+    var edge = 1.2           // a darker glass edge on his body, so he reads on light backgrounds (not on the wings)
+    var panelLight = 1.5     // his light on the rims of panels, the plugin bar and cards (Aaron: "shine on the rim")
 
     init() {}
     /// Older saved settings miss newer sliders: those take their defaults.
@@ -370,8 +371,11 @@ struct PipBlobbyBody: View {
         ZStack {
             // the glow, on the room
             Circle()
-                .fill(RadialGradient(colors: [halo.opacity(tune.halo), halo.opacity(0)], center: .center, startRadius: 0, endRadius: r * 2.3))
-                .frame(width: r * 4.6, height: r * 4.6)
+                // softer and wider, no hard ring (Aaron, 1 Nov: "ring light around him can be softened")
+                .fill(RadialGradient(colors: [halo.opacity(tune.halo * 0.7), halo.opacity(tune.halo * 0.32),
+                                              halo.opacity(tune.halo * 0.08), halo.opacity(0)],
+                                     center: .center, startRadius: 0, endRadius: r * 3.2))
+                .frame(width: r * 6.4, height: r * 6.4)
             // he glows, so he casts light, not shadow (Aaron): a pool of his light below him, further away and softer the
             // higher he flies (depth)
             Ellipse()

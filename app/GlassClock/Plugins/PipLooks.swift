@@ -147,7 +147,7 @@ struct PipLooks: SandboxPlugin {
             private let rows: [Row] = [
                 Row(label: "Glassiness", path: \.glass, range: 0...2), Row(label: "Inner glow", path: \.glow, range: 0...1.5),
                 Row(label: "Shine", path: \.shine, range: 0...1.5), Row(label: "Warm bounce", path: \.warm, range: 0...1),
-                Row(label: "Soft edges", path: \.soft, range: 0.05...0.35), Row(label: "Glow round him", path: \.halo, range: 0...0.6),
+                Row(label: "Soft edges", path: \.soft, range: 0...0.35), Row(label: "Glow round him", path: \.halo, range: 0...0.6),
                 Row(label: "Dark edge", path: \.edge, range: 0...1.2), Row(label: "Light on panels", path: \.panelLight, range: 0...1.5),
                 Row(label: "Emoji size", path: \.emojiSize, range: 0.5...1.2), Row(label: "Emoji colour", path: \.emojiColour, range: 0...1),
                 Row(label: "Emoji bend", path: \.emojiBend, range: 0...0.4), Row(label: "Tail length", path: \.tail, range: 1.5...4),

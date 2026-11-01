@@ -19,7 +19,8 @@ static half4 glassAt(float3 n, float a, bool body, float4 t, float edge) {
     // his glass colour, darker blue towards the edge, so he reads on light backgrounds too (Apple: never light on light)
     float3 col = mix(float3(0.87, 0.86, 0.95), float3(0.30, 0.40, 0.58), fr * edge);
     float tint = ((body ? 0.16 : 0.22) + 0.3 * (1.0 - n.z)) * t.x;                  // clear in the middle, thicker at the edge
-    float3 rim = float3(0.8, 0.93, 1.0) * fr * t.y;                           // rim light (the inner glow)
+    // rim light (the inner glow), with a gentler falloff so the ring of light is softer; his edge stays sharp (Aaron, 1 Nov)
+    float3 rim = float3(0.8, 0.93, 1.0) * pow(1.0 - n.z, 1.5) * 0.8 * t.y;
     float3 L = normalize(float3(-0.55, -0.6, 0.6));                           // light from the top left (y down)
     float spec = pow(max(dot(reflect(-L, n), float3(0, 0, 1)), 0.0), 22.0) * t.z;   // soft (Aaron)
     float3 warm = float3(1.0, 0.93, 0.75) * max(n.y, 0.0) * fr * t.w;       // warm bounce underneath
@@ -44,9 +45,10 @@ static half4 glassAt(float3 n, float a, bool body, float4 t, float edge) {
     float fade = 1.0 - smoothstep(0.3, 1.0, along);                           // the tail fades (his shadow)
     fade = max(fade, smoothstep(1.08, 0.96, sqrt(dd)));                       // never into his head
     half4 outc = half4(0);
-    if (bw > 0.001) outc = glassAt(slopeAt(layer, p, k * 0.5, float3(0, 0, 1)), bw * 0.5 * (1.0 - body), false, t, edge);
+    // wings: light only, no dark edge (Aaron, 1 Nov: "focus on light, not shadow")
+    if (bw > 0.001) outc = glassAt(slopeAt(layer, p, k * 0.5, float3(0, 0, 1)), bw * 0.5 * (1.0 - body), false, t, 0.0);
     if (body > 0.001) { half4 b = glassAt(n, body * fade, true, t, edge); outc = b + outc * (1.0h - b.a); }
-    if (fw > 0.001) { half4 w = glassAt(slopeAt(layer, p, k * 0.5, float3(0, 1, 0)), fw * 0.75, false, t, edge); outc = w + outc * (1.0h - w.a); }
+    if (fw > 0.001) { half4 w = glassAt(slopeAt(layer, p, k * 0.5, float3(0, 1, 0)), fw * 0.75, false, t, 0.0); outc = w + outc * (1.0h - w.a); }
     return outc;
 }
 
