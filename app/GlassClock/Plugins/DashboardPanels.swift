@@ -39,7 +39,7 @@ extension Dashboard {
 
     /// The dashboard's groups, like Panels' settings groups, in Status · Actions · Direction order.
     enum DashGroup: String, CaseIterable, Identifiable {
-        case glance, builds, stable, busypip, needs, forrob, dashqueue, nextaction, upnext, ideas, reminders, principles
+        case glance, builds, stable, busypip, needs, shots, forrob, dashqueue, nextaction, upnext, ideas, reminders, principles
         var id: Self { self }
 
         var title: String {
@@ -49,6 +49,7 @@ extension Dashboard {
             case .stable: "Stable & Sandbox"
             case .busypip: "Busy Pip"
             case .needs: "Needs you"
+            case .shots: "Shot list"
             case .forrob: "For Rob"
             case .dashqueue: "Dashboard queue"
             case .nextaction: "Next action"
@@ -66,6 +67,7 @@ extension Dashboard {
             case .stable: "shield"
             case .busypip: "gauge.with.dots.needle.33percent"
             case .needs: "questionmark.bubble"
+            case .shots: "camera.viewfinder"
             case .forrob: "terminal"
             case .dashqueue: "tray.full"
             case .nextaction: "arrow.right.circle"
@@ -206,6 +208,9 @@ extension Dashboard {
             case .forrob:
                 let n = (data.outboxForRob ?? []).filter { $0.done != true }.count
                 return n > 0 ? "\(n)" : nil
+            case .shots:
+                let n = ShotBook.shared.waiting(Dashboard.boardShots(data))
+                return n > 0 ? "\(n)" : nil
             case .upnext: return data.upNext.map { "\($0.count)" }
             case .ideas: return data.ideas.map { "\($0.count)" }
             default: return nil
@@ -290,6 +295,7 @@ extension Dashboard {
                 StatusPanel(data: data, host: host)
             case .builds: BuildsPanel(builds: Array((data.builds ?? []).prefix(3)))
             case .needs: AsksPanel(asks: data.needsYou ?? [], host: host) { taps += 1 }
+            case .shots: ShotsPanel(shots: Dashboard.boardShots(data), host: host)
             case .forrob:
                 SettingsCard(title: "For Rob", icon: "terminal") { ForRobList(jobs: data.outboxForRob ?? []) }
             case .upnext: UpNextPanel(steps: data.upNext ?? [])

@@ -373,7 +373,12 @@ struct Dashboard: SandboxPlugin {
     func screen(_ host: PipHost) -> some View { PanelsScreen(host: host).safeAreaPadding(.bottom, 90) }
 
     /// The Glass Clock-style tile on the canvas (DashboardWidget.swift).
-    func overlay(_ host: PipHost) -> some View { CanvasTile(host: host) }
+    func overlay(_ host: PipHost) -> some View {
+        ZStack {
+            CanvasTile(host: host)
+            ShotPill(host: host)      // the Shot list's "Snap · Back" bar while you're off taking a shot
+        }
+    }
 
     func card(_ host: PipHost) -> some View {
         // A glance and the way in. Everything else lives in the dashboard itself (DashboardPanels.swift).
@@ -467,6 +472,18 @@ struct DashboardData: Codable, Sendable {
     var live: Live?
     /// Commands for Rob from the master chat (Rob, 1 Nov), newest first. Shown read-only in the dashboard.
     var outboxForRob: [RobJob]?
+    /// Places to screenshot for the developers (Aaron, 1 Nov). Shown in the Shot list (DashboardShots.swift).
+    var shots: [Shot]?
+
+    /// One place to screenshot. `go` is where the app jumps: "tab:<id>" (a top tab), "card:<plugin id>" (a plugin's
+    /// card), "home" (the app with everything closed) or "homescreen" (outside the app: an iPad screenshot).
+    /// `from` is who asked (Rob, Jules, Chappie, Master chat), so the snap goes back to them.
+    struct Shot: Codable, Sendable, Hashable {
+        var what: String
+        var go: String?
+        var from: String?
+        var date: String?
+    }
 
     struct RobJob: Codable, Sendable {
         var date: String?
@@ -506,5 +523,6 @@ extension DashboardData {
         ideas = try? c.decodeIfPresent([Idea].self, forKey: .ideas)
         live = try? c.decodeIfPresent(Live.self, forKey: .live)
         outboxForRob = try? c.decodeIfPresent([RobJob].self, forKey: .outboxForRob)
+        shots = try? c.decodeIfPresent([Shot].self, forKey: .shots)
     }
 }

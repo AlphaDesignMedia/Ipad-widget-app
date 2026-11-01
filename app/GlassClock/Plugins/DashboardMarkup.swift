@@ -62,13 +62,16 @@ extension Dashboard {
 
     // MARK: Logic
 
-    /// A picture of what's on screen inside `rect` (window points), Liquid Glass, Pip and Sketch's ink included.
-    @MainActor static func capture(_ rect: CGRect) -> UIImage? {
+    /// A picture of what's on screen inside `rect` (window points; nil for the whole screen), Liquid Glass, Pip and
+    /// Sketch's ink included.
+    @MainActor static func capture(_ rect: CGRect?) -> UIImage? {
         let window = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .first(where: \.isKeyWindow)
-        guard let window, rect.width > 1, rect.height > 1 else { return nil }
+        guard let window else { return nil }
+        let rect = rect ?? window.bounds
+        guard rect.width > 1, rect.height > 1 else { return nil }
         return UIGraphicsImageRenderer(bounds: rect).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
@@ -206,6 +209,9 @@ extension Dashboard {
     /// The picture, a line from you, who it's for, then share or copy.
     struct SnapSheet: View {
         let snap: Snap
+        /// The Shot list fills in the note and who asked.
+        var startNote = ""
+        var sendTo: SendTo? = nil
         @State private var note = ""
         @AppStorage("plug.dashboard.snapTo") private var to = SendTo.master.rawValue
         @State private var copied: String?
@@ -264,6 +270,10 @@ extension Dashboard {
                 }
             }
             .presentationDetents([.large])
+            .onAppear {
+                if note.isEmpty { note = startNote }
+                if let sendTo { to = sendTo.rawValue }
+            }
         }
     }
 }

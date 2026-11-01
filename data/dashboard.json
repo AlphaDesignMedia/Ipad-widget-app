@@ -120,6 +120,32 @@
   "Right first time, not final",
   "Design is his"
  ],
+ "shots": [
+  {
+   "what": "Pip Dashboard widget on the Home Screen: Small, Medium and Large",
+   "go": "homescreen",
+   "from": "Jules",
+   "date": "2026-11-01"
+  },
+  {
+   "what": "Sketch: the little tool menu after drawing, and the Eraser cutting a line in two",
+   "go": "home",
+   "from": "Jules",
+   "date": "2026-11-01"
+  },
+  {
+   "what": "Dashboard tab with Mark up on and a few marks",
+   "go": "tab:dashboard",
+   "from": "Jules",
+   "date": "2026-11-01"
+  },
+  {
+   "what": "Pip Looks card with Blobby picked",
+   "go": "card:looks",
+   "from": "Rob",
+   "date": "2026-11-01"
+  }
+ ],
  "ideas": [
   {
    "title": "Pip, design partner (Chappie's brief): offline first, a 'FOR CHAPPIE' copy button, no AI inside Pip",
