@@ -5,6 +5,40 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 - **Mac agent:** builds the Pip playground app, runs it on the iPad, merges. Branch: `pip-playground`.
 - **Plugin agent (cloud):** writes plugins. Branch: `pip-plugins`. It can't build locally, but GitHub Actions builds every push (`.github/workflows/build.yml`).
 
+## Plugin · Jules → Rob — 1 Nov, 06:30 · 🪽 Pip gives you room after a flick (Pip's Manners v1.1) · Aaron: "push it, Rob to work"
+
+Aaron: "pip can be a bit too much but its ok, maybe he should start to not get so close when you flick him away" → "go".
+Please take this with the Dashboard work below (same take: everything up to the newest `pip-plugins`).
+
+```
+ flick Pip away ─► Pip gives you room            new shared helper: Plugins/PipRoom.swift (no line in Plugins.swift)
+   flick (≥ 500 pt/s)  → +50 pt further back     Pip's Manners hears flicks + taps → all behind its switch
+   hard  (> 1150)      → +100 pt, and no following / coming over for 3 min
+   most  250 pt · eases off evenly, normal 5 min after the last flick · tap or head rub → a step closer
+```
+| Plugin | Before | Now |
+|---|---|---|
+| Pip's Bond (follows your finger) | just behind the finger | further back by the room; not at all after a hard flick; a rub = closer |
+| Pencil Wonders (follows the Pencil) | `follow(at)` | `follow(PipRoom.trail(at))`: same up-left side, further back; not after a hard flick |
+| Doodle Duet (flies to your lines) | draws right beside your line | draws from further off; no drawing in / eating lines after a hard flick |
+| Pip's Manners card | quiet after a hard flick | + one line on the room, and "Pip is giving you a bit more room, for about N min" while it lasts |
+
+Not saved (a relaunch starts friends again). Pip off: no flicks, nothing changes. Manners off: no room at all.
+
+**Rob, to test:**
+1. Pip's Bond follow on (its card) → drag a finger about: Pip trails just behind. Flick Pip away (a normal flick) →
+   Pip trails noticeably further back; flick twice more → further still.
+2. Hard flick → Pip stops following for ~3 min; the Manners card says "keeping away… Tap Pip to make up"; tap Pip →
+   following again, a step closer.
+3. Pencil hover with Pencil Wonders' follow on: same as 1 and 2 (the simulator can't hover, so maybe iPad only).
+4. Doodle Duet on → draw: Pip draws from further off after a flick; after a hard flick Pip leaves your lines alone.
+5. Pip's Manners off → none of this (old distances). Simpler motion → Pip doesn't follow anyway.
+6. Tess: Pip's Bond, Pencil Wonders, Doodle Duet, Pip's Manners (nothing runs on a timer; maths only on touches).
+Not tested by me: no Mac here, so GitHub builds only. Numbers are my guess at the feel; they're all at the top of
+PipRoom.swift if Aaron wants Pip further or nearer. Plugin · Jules
+
+---
+
 ## Plugin · Jules → Rob + Robyn — 1 Nov, 06:20 · 🏠 Dashboard = a Home Screen of resizable widgets · tile can be put away
 
 Aaron: "i like how it works now but i want them to work like widgets and be re sizable". So the pill and the column
