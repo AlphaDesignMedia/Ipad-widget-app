@@ -90,9 +90,10 @@ extension Dashboard {
 
     /// THE dashboard, as its own tab (Aaron, 1 Nov: "it should look more like the real Panels but function like a
     /// widget… don't remake what's already there"). Laid out like Panels, from Panels' own parts: the groups pill on
-    /// the left (frosted glass, glossy bead, shimmer), the Progress widget on the stage where the clock widget sits,
-    /// and the settings column of `SettingsCard`s on the right. Picking a group glides the column to it; scrolling the
-    /// column moves the bead. Tap the widget to jump to what needs you. Narrow windows: icons only, widget on top.
+    /// the left (frosted glass, glossy bead, shimmer), a Home Screen of resizable widgets on the stage where the clock
+    /// widget sits (DashboardHome.swift), and the settings column of `SettingsCard`s on the right. Picking a group glides
+    /// the column to it; scrolling the column moves the bead. Tap a widget to glide its card in; hold it to resize.
+    /// Narrow windows: icons only, widgets on top of the column.
     /// Private: Aaron's mission control. It lives in the Sandbox and never moves to Glass Clock.
     struct PanelsScreen: View {
         let host: PipHost
@@ -210,34 +211,29 @@ extension Dashboard {
             }
         }
 
-        // MARK: Stage (the widget, where the clock sits in Panels)
+        // MARK: Stage (a Home Screen of widgets, where the clock sits in Panels: DashboardHome.swift)
 
         private func stage(_ data: DashboardData) -> some View {
+            ScrollView {
+                board(data).padding(.vertical, 8)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
+        }
+
+        /// The widgets, and a hint under them. Tap a widget to glide its full card in; hold it to resize.
+        /// ("Live · checked…" now shows only in At a glance, not twice.)
+        private func board(_ data: DashboardData) -> some View {
             VStack(spacing: 14) {
-                Spacer(minLength: 0)
-                widget(data)
-                Text(Dashboard.freshness)
+                HomeBoard(host: host, data: data, taps: taps) { g in
+                    selected = g
+                    jump = g
+                }
+                Text("Tap a widget for its card. Hold it to change its size.")
                     .font(.footnote).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .modifier(PanelLabelBacking())
-                Spacer(minLength: 0)
             }
-            .padding(.bottom, 60)
-        }
-
-        /// The Progress widget: a glance, like the clock widget. Tap it to jump to what needs you (or the glance).
-        private func widget(_ data: DashboardData) -> some View {
-            let _ = taps
-            let waiting = (data.needsYou ?? []).filter { Dashboard.answer($0.q, host) == nil }.count
-            return GlassTile(data: data, waiting: waiting)
-                .contentShape(.rect(cornerRadius: 28))
-                .onTapGesture {
-                    let to: DashGroup = waiting > 0 ? .needs : .glance
-                    selected = to
-                    jump = to
-                }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityHint(waiting > 0 ? "Shows what needs you" : "Shows the glance")
         }
 
         // MARK: Column (Panels' settings column: SettingsCards, each group in turn)
@@ -247,9 +243,7 @@ extension Dashboard {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Corner.inset) {
                         if showsWidget {
-                            widget(data).frame(maxWidth: .infinity)
-                            Text(Dashboard.freshness).font(.footnote).foregroundStyle(.secondary)
-                                .modifier(PanelLabelBacking())
+                            board(data).frame(maxWidth: .infinity)
                         }
                         ForEach(groups) { g in
                             VStack(alignment: .leading, spacing: Corner.inset) { content(g, data) }
