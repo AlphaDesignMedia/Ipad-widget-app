@@ -59,7 +59,9 @@ struct PencilWonders: SandboxPlugin {
         private var strokes = 0
 
         func follow(_ at: CGPoint, _ host: PipHost) {
-            host.follow(at)
+            // Flicked away lately? Trail from further back, or not at all for a bit after a hard flick (PipRoom).
+            guard !PipRoom.keepsAway(host) else { return }
+            host.follow(PipRoom.trail(at, host))
             if host.pipHere, !host.pipAsleep, !host.simpler { followed = .now }
         }
 

@@ -187,6 +187,7 @@ struct PipBond: SandboxPlugin {
                Date.now.timeIntervalSince(bond.lastRub) > 1.2 {
                 bond.lastRub = .now
                 grow(Gain.rub, host)
+                PipRoom.closer()                 // a head rub makes up for a flick (PipRoom.swift)
                 host.react(.shy, for: 1.6)
                 host.blush(.pink, for: 1.6)
                 if Int.random(in: 0..<3) == 0, let line = Lines.rub.randomElement() { host.say(line, for: 1.4) }
@@ -197,7 +198,9 @@ struct PipBond: SandboxPlugin {
                 bond.resting = false
                 host.say(Lines.rested, for: 1.4)
             }
-            if follows, !near, !bond.resting, Date.now.timeIntervalSince(bond.lastFollow) > 0.35, !host.pipAsleep {
+            // Flicked away lately? Pip follows from further back, or not at all for a bit after a hard flick (PipRoom).
+            if follows, !near, !bond.resting, Date.now.timeIntervalSince(bond.lastFollow) > 0.35, !host.pipAsleep,
+               !PipRoom.keepsAway(host) {
                 bond.lastFollow = .now
                 bond.energy -= Energy.perMove
                 if bond.energy < Energy.restBelow {
@@ -206,7 +209,7 @@ struct PipBond: SandboxPlugin {
                     if let line = Lines.tired.randomElement() { host.say(line, for: 1.8) }
                     return
                 }
-                host.move(to: CGPoint(x: point.x - 46, y: point.y + 40))
+                host.move(to: PipRoom.further(CGPoint(x: point.x - 46, y: point.y + 40), from: point, host))
                 if Int.random(in: 0..<40) == 0, let line = Lines.follow.randomElement() { host.say(line, for: 1.2) }
             }
         default:

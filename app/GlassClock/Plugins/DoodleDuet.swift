@@ -109,7 +109,8 @@ struct DoodleDuet: SandboxPlugin {
     }
 
     private func respond(_ points: [CGPoint], _ shape: Drawn, _ host: PipHost) {
-        guard page.on, !page.backedOff else { return }
+        // Flicked away hard lately? Pip leaves you to it for a bit (PipRoom).
+        guard page.on, !page.backedOff, !PipRoom.keepsAway(host) else { return }
         if Self.habitOn(.finisher, host), let extra = Self.finish(points, shape) {
             draw(extra.lines, host, near: extra.anchor)
             host.say(extra.line, for: 1.6)
@@ -125,7 +126,7 @@ struct DoodleDuet: SandboxPlugin {
 
     /// Pip flies near the spot and draws the lines in.
     private func draw(_ lines: [[CGPoint]], _ host: PipHost, near spot: CGPoint) {
-        host.move(to: CGPoint(x: spot.x + 30, y: spot.y - 30))
+        host.move(to: PipRoom.further(CGPoint(x: spot.x + 30, y: spot.y - 30), from: spot, host))   // more room after a flick
         for (i, pts) in lines.enumerated() where pts.count > 1 {
             host.later(Double(i) * 0.25) { page.lines.append(Line(points: pts, byPip: true)) }
         }
@@ -144,7 +145,7 @@ struct DoodleDuet: SandboxPlugin {
                     host.say(Lines.back, for: 1.6)
                 }
                 let edible = page.lines.filter { $0.eaten == nil }
-                if Self.habitOn(.eraser, host), !page.backedOff, let oldest = edible.first,
+                if Self.habitOn(.eraser, host), !page.backedOff, !PipRoom.keepsAway(host), let oldest = edible.first,
                    edible.count > Look.busyPage || (quiet > Look.pauseToEat && !page.on) || quiet > Look.pauseToEat * 2 {
                     eat(oldest.id, host)
                 }
