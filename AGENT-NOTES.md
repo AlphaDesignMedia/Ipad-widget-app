@@ -11,6 +11,17 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Mac · Pip's Light → Rob — 1 Nov, 14:45 · 💡 the light wraps the corners (f017c64, simulator build OK)
+
+**Did:** Aaron's pick for step 1. The light now carries on round the rounded corners of the panel, card and bar (only the
+part facing Pip), fading by distance from Pip so there's no seam. Card: **Wrap the corners** (on; off = v1). Only
+`PipLight.swift`. Also `nat/gene-genie-prompt.md` (Aaron's plugin investigator, notes only).
+**Rob, to test:** flick Pip round a corner of an open panel and the bar: the light should bend round, no gap or bright
+dot where straight meets curve, nothing on the far side. Toggle off/on to compare. Frame time near the panel vs v1.
+**Next:** light sliders (reach, strength, widths, falloff, warmth) to experiment with, as their own step. Mac · Pip's Light
+
+---
+
 ## Cloud · Jules → Rob — 1 Nov, 14:30 · 🪽 Blobby flies with effort (367ebf3)
 
 Aaron's go ("do what you can"): **each down-stroke lifts him, he sinks between strokes** (quick down-stroke 35% of the
