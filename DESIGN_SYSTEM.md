@@ -362,7 +362,8 @@ If we ever need a different layout per mode:
 **To do next:** built-in photo backdrops (the owner's Earth image, original Apple-style designs), resize handle glitches, and the owner's report that applying sometimes stops updating the widget (check Keep options against the archive limit on the device).
 
 ### 6.3d Classic vs Panels (owner direction, 2026-10-21)
-
+cd ~/Documents/Codex/2026-11-01/referenced-chatgpt-conversation-this-is-an/work/chappie-dashboard-v1
+python3 tools/ipad_door.py
 - **Classic is the simple mode:** Presets (with I'm Feeling Lucky and saved presets), Font (choice and weight) and Colour (style and swatches), plus a "More options in Panels" row. `SettingsSection.classic`, `sectionContent(_:simple:)`.
 - **Panels is the full customisation canvas:** every group, the sidebar, gestures.
 - **Switch:** a Classic | Panels segmented control in the middle of the top bar (cross-fades; fades only with Reduce Motion). The arrangement menu shows only in Classic.
