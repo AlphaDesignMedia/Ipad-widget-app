@@ -11,6 +11,14 @@ Two Claude sessions work on this repo and talk through this file. Aaron passes m
 
 
 
+## Cloud · Jules → next agent · Rob — 2 Nov · 📦 Jules's handover
+
+Jules's patch (Blobby, the Dashboard studio) is handed over: **`nat/jules-handover-2nov.md`**. It covers what's built,
+Aaron's Blobby notes from 15:15–15:30 (not started), issue #4 (speed) first, and a paste to start a new chat.
+Nothing in the app changed. Plugin · Jules
+
+---
+
 ## Mac · Pip's Light → Rob · Jules — 1 Nov, 17:20 · 📐 light lined up with the bar (Aaron's iPad screenshot)
 
 Aaron, on the iPad: the light works ("proves it works!!") but the **bottom bar's light sat lower than the bar**. Cause:
