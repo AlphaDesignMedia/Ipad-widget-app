@@ -17,7 +17,7 @@ Aaron's standing instruction for this window: keep going, assume yes, leave this
 
 - Aaron: product and creative director, final say on design, direction, priorities, spending.
 - Rob: Mac agent, final technical say, approves technical plans first; owns Glass Clock visual polish, builds and integration.
-- "Greg" is named in `pip-sandbox-claude-code/AGENT-NOTES.md` as the **core/backbone** (host, Pip, layout, anything that becomes core). The plugin agent does styling, movement and plugins and flags "Promote" requests. (Check whether Greg and Rob are the same Mac agent: the notes use both names.)
+- "Greg" is named in `pip-sandbox-claude-code/AGENT-NOTES.md` as the **core/backbone** (host, Pip, layout, anything that becomes core). The plugin agent does styling, movement and plugins and flags "Promote" requests. (Follow-up check, same day: AGENT-NOTES uses "Greg" as a different agent from the plugin author. One entry is headed "Plugin · Rob" and says "Jules and Greg have the call tonight". So the name-to-role mapping is inconsistent: Rob also appears as the plugin-side author there, while the team plan has Rob as the Mac agent with final technical say. Needs Aaron to confirm who is who.)
 - Nat owns the Pip expression plugins (`PipEmotes`, `PipsFeelings`, `PipNotices`). Other plugin owners are only proposed.
 - Core vs plugins: core stays small and generic; plugins hold the extras; plugins ask for core APIs in AGENT-NOTES.md instead of editing the core.
 - Glass Clock is read-only from sandbox sessions. Polish happens in its own session. Ports come over on `port-*` branches, only after Aaron says yes and the checks in `PLAN.md` pass.
@@ -30,7 +30,8 @@ Glass Clock (`GlassClock/Rebuild/`, retired folder, kept for reference):
 - Frame values fed back into layout with `onGeometryChange`: `widgetRect`, `railSize`, `groupFrames`, `stageRect`. Flagged in `OVERNIGHT_PLAN.md` as a possible feedback-loop cost.
 
 Pip Sandbox (`pip-sandbox-claude-code/AGENT-NOTES.md`): geometry the plugins already depend on or have asked core for:
-- Exists: `host.keepsTaps(windowPoint)` using `panelFrame`, `barFrame`, `cardFrame`.
+- Verified built: `PluginHost.swift:154-161` has `panelFrame`, `barFrame`, `cardFrame` and `keepsTaps`. `PluginBar.swift` publishes them with `onGeometryChange(... frame(in: .global))`, so the published space is **window/global**. Used by `Sketch`, `TidyPip`, `GlassCleaner`, `PipsWeight`.
+- Verified NOT built: no `bubbleFrame` or `pipTalking` anywhere in `pip-sandbox-claude-code/app`.
 - Requested from core, not confirmed built: `host.pipTalking` (Bool), `host.bubbleFrame` (CGRect, Pip's space), a way to find a control's frame (e.g. Sketch's Clear button), and a `host.ink` API. `PipEmotes` currently copies the bubble layout rule from `Pip.swift:524`, so a change to that rule must be mirrored until the API exists.
 
 ## 4. Proposed contract (DRAFT, needs Rob's approval, then Aaron's go)
@@ -53,7 +54,7 @@ Rules to propose:
 
 ## 5. Overlaps and integration risks
 
-- **Name confusion:** Rob vs Greg for the core owner, plus the unknown "Robyn". Resolve before assigning anything.
+- **Name confusion:** Rob vs Greg for the core owner (the notes disagree), plus the unknown "Robyn". Resolve before assigning anything.
 - **Duplicated layout rule:** the speech bubble rule exists in `Pip.swift` and is copied in `PipEmotes`. Drift risk until `bubbleFrame` ships.
 - **Two geometry systems:** Glass Clock's `HomeGrid` and the sandbox's panels/cards solve similar problems separately. Porting a feature across means reconciling them.
 - **Feedback loops:** `onGeometryChange` state feeding layout is a suspected cause of the known slow spots. A shared contract must not add more of these.
@@ -64,7 +65,7 @@ Rules to propose:
 
 1. Does a geometry contract already exist outside the repo (message, Google Doc, dashboard)? If so, paste it and this report gets reconciled to it.
 2. Who or what is Robyn?
-3. Is Greg the same agent as Rob? Who is the sandbox core owner?
+3. Who is the sandbox core owner: Greg, Rob, or someone else? The notes use the names inconsistently.
 4. Approve (or amend) the draft ownership table in section 4.
 5. Build the read-only geometry API for plugins? Rob writes the proposal first.
 
@@ -75,4 +76,4 @@ Search your inbox, faxes, logs and shared docs for: any core geometry contract (
 ## 8. Not done / not verified
 
 - Did not reach CHAP-A (nothing listening on port 8797; an unidentified Python process is on 8787, not contacted).
-- Did not build or run anything. No tests. Claims in section 3 come from reading source and notes, not from running the app.
+- Source-checked the geometry API claims (second pass) but did not build or run anything. No tests. Claims in section 3 come from reading source and notes, not from running the app.
